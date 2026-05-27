@@ -20,7 +20,8 @@ cd feuerwehr-manager
 ## Voraussetzungen
 
 - Auf dem Rechner/Container sind **Docker** und **Docker Compose** (Plugin `docker compose`) installiert und lauffähig.
-- Du hast den Ordner **`feuerwehr-manager`** auf den Server gebracht (z. B. per Git-Klon oder Kopie des Repos) – darin liegen u. a. `docker-compose.yml` und `Dockerfile`.
+- **Debian 12:** Schritt-für-Schritt **vor** dem Klonen → **[DEBIAN-VORBEREITUNG.md](DEBIAN-VORBEREITUNG.md)** (Proxmox LXC, nesting, Docker-Repo, `hello-world`-Test).
+- Du hast den Ordner **`feuerwehr-manager`** auf den Server gebracht (per `git clone`) – darin liegen u. a. `docker-compose.yml` und `Dockerfile`.
 
 ---
 

@@ -13,6 +13,8 @@ Danach im Browser: **http://\<Server-IP\>:8080** – Einrichtung Divera über **
 
 **Proxmox / wie viele Container / Debian vs. Ubuntu / RAM:** siehe **`docs/PROXMOX-RATGEBER.md`**.
 
+**Debian 12 – alles vor `git clone` (Docker, nesting, Checkliste):** siehe **`docs/DEBIAN-VORBEREITUNG.md`**.
+
 ---
 
 ## Start mit Docker (manuell, gleiche Wirkung wie `install.sh`)
