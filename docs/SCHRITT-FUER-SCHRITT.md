@@ -1,6 +1,19 @@
 # Schritt-für-Schritt: Feuerwehr-Manager starten und einrichten
 
-Ziel: **Keine Projektdateien von Hand bearbeiten.** Du führst auf dem Server (Proxmox-LXC/VM mit Docker) im Wesentlichen **einen Startbefehl** aus und trägst **Divera** in der **Web-Oberfläche** ein.
+Repository: **https://github.com/Boede89/feuerwehr-manager**
+
+Ziel: **Keine Projektdateien von Hand bearbeiten.** Du klonst das Repo, führst **einen Installationsbefehl** aus und trägst **Divera** in der **Web-Oberfläche** ein.
+
+---
+
+## Schritt 0: Code auf den Server holen
+
+Auf dem Linux-Server (oder im Proxmox-LXC):
+
+```bash
+git clone https://github.com/Boede89/feuerwehr-manager.git
+cd feuerwehr-manager
+```
 
 ---
 
@@ -13,26 +26,21 @@ Ziel: **Keine Projektdateien von Hand bearbeiten.** Du führst auf dem Server (P
 
 ## Schritt 1: In den Projektordner wechseln
 
-Auf dem Server (Linux) z. B.:
-
 ```bash
-cd /pfad/zu/Feuerwehr-Neu/feuerwehr-manager
+cd feuerwehr-manager
 ```
 
-*(Windows PowerShell: denselben Ordner mit `cd` ansteuern.)*
+*(Bereits erledigt, wenn du Schritt 0 ausgeführt hast.)*
 
 ---
 
-## Schritt 2: Container starten (ein Befehl)
+## Schritt 2: Installation (ein Befehl)
 
 ```bash
-docker compose up -d --build
+chmod +x install.sh && ./install.sh
 ```
 
-- Baut das Anwendungs-Image (falls nötig) und startet **MySQL** sowie die **Web-App**.
-- Beim **ersten** Start legt die Datenbank die Tabellen automatisch an (Flyway).
-
-**Warten:** ca. 30–90 Sekunden, bis MySQL „healthy“ ist und die App hochgefahren ist.
+*(Entspricht `docker compose up -d --build` – siehe `install.sh`.)*
 
 ---
 
@@ -125,11 +133,11 @@ docker compose up -d --build
 
 | Nr. | Aktion |
 |-----|--------|
-| 1 | In Ordner `feuerwehr-manager` wechseln |
-| 2 | `docker compose up -d --build` |
-| 3 | Browser: `http://<Server>:8080` |
-| 4 | **Einstellungen** (Kachel) → **Divera**: URL prüfen, **Access Key** eintragen → **Speichern** |
-| 5 | Dashboard prüfen (Divera-Liste / JSON-Endpunkt) |
+| 0 | `git clone https://github.com/Boede89/feuerwehr-manager.git` und `cd feuerwehr-manager` |
+| 1 | `chmod +x install.sh && ./install.sh` |
+| 2 | Browser: `http://<Server>:8080` |
+| 3 | **Einstellungen** (Kachel) → **Divera**: URL prüfen, **Access Key** eintragen → **Speichern** |
+| 4 | Dashboard prüfen (Divera-Liste / JSON-Endpunkt) |
 
 ---
 
