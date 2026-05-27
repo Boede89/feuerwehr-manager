@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: feuerwehr-manager
+
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:feuerwehr_manager}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Europe/Berlin&characterEncoding=utf8
+    username: ${MYSQL_USER:ff}
+    password: ${MYSQL_PASSWORD:ffsecret}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc.time_zone: Europe/Berlin
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+feuerwehr:
+  divera:
+    # Host vor „docker compose up“: export FEUERWEHR_DIVERA_POLL_ENABLED=true (siehe docs/SCHRITT-FUER-SCHRITT.md)
+    poll-enabled: ${FEUERWEHR_DIVERA_POLL_ENABLED:false}
+    poll-interval-ms: 120000

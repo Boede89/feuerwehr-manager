@@ -1,0 +1,39 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: ffm_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: feuerwehr_manager
+      MYSQL_USER: ff
+      MYSQL_PASSWORD: ffsecret
+      MYSQL_ROOT_PASSWORD: rootsecret
+    ports:
+      - "3309:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootsecret"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - ffm_mysql_data:/var/lib/mysql
+
+  app:
+    build: .
+    container_name: ffm_app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: feuerwehr_manager
+      MYSQL_USER: ff
+      MYSQL_PASSWORD: ffsecret
+      FEUERWEHR_DIVERA_POLL_ENABLED: ${FEUERWEHR_DIVERA_POLL_ENABLED:-false}
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+volumes:
+  ffm_mysql_data:
