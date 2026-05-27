@@ -4,28 +4,12 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>Divera-Einstellungen – Feuerwehr-Manager</title>
-  <style>
-    :root { --touch: 48px; --bg: #f1f5f9; --card: #fff; --border: #e2e8f0; --text: #334155; --accent: #3b82f6; }
-    * { box-sizing: border-box; }
-    body { margin: 0; font-family: system-ui, "Segoe UI", Roboto, Arial, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
-    header.bar { background: #0f172a; color: #f8fafc; padding: 0.6rem 1rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; }
-    header.bar h1 { margin: 0; font-size: 1.05rem; font-weight: 700; }
-    header.bar a { color: #93c5fd; font-weight: 600; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; }
-    main { max-width: 640px; margin: 0 auto; padding: 1rem; }
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; margin-top: 1rem; }
-    label { display: block; font-weight: 700; margin: 1rem 0 0.35rem; font-size: 0.95rem; }
-    input[type="url"], input[type="password"], input[type="text"], select {
-      width: 100%; min-height: var(--touch); font-size: 16px; padding: 0 1rem; border-radius: 10px; border: 2px solid var(--border);
-    }
-    .hint { font-size: 0.85rem; color: #64748b; margin: 0.35rem 0 0; }
-    .btn { min-height: var(--touch); padding: 0 1.25rem; border-radius: 10px; border: none; background: var(--accent); color: #fff; font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 1.25rem; width: 100%; }
-    .ok { background: #d1fae5; color: #065f46; padding: 0.75rem 1rem; border-radius: 10px; font-weight: 600; margin-bottom: 1rem; }
-  </style>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
 </head>
 <body>
 <header class="bar">
   <h1>Divera-Einstellungen</h1>
-  <a th:href="@{/(unit=${unitId})}">← Zurück zum Dashboard</a>
+  <a class="link" th:href="@{/settings(unit=${unitId})}">← Einstellungen</a>
 </header>
 <main>
   <div class="ok" th:if="${saved}">Gespeichert.</div>
@@ -38,18 +22,17 @@
               th:selected="${u.id == unitId}"
               th:text="${u.name}">Einheit</option>
     </select>
-    <p class="hint">Nach Wechsel der Einheit ggf. erneut speichern.</p>
+    <p class="hint"><a th:href="@{/settings/units}">Weitere Einheiten anlegen</a></p>
 
     <label for="apiBaseUrl">API-Basis-URL</label>
     <input id="apiBaseUrl" name="apiBaseUrl" type="url" th:value="${apiBaseUrl}" placeholder="https://app.divera247.com"/>
-    <p class="hint">In der Regel <code>https://app.divera247.com</code> (wie in Divera dokumentiert).</p>
 
     <label for="accessKey">Divera Access Key</label>
     <input id="accessKey" name="accessKey" type="password" autocomplete="off" placeholder="Neuen Key eintragen zum Ändern"/>
-    <p class="hint" th:if="${accessKeyConfigured}">Es ist bereits ein Key hinterlegt. Feld leer lassen = Key <strong>nicht</strong> ändern. Neuen Key eintragen = ersetzen.</p>
-    <p class="hint" th:unless="${accessKeyConfigured}">Key aus Divera 24/7 (Einheit) eintragen und speichern.</p>
+    <p class="hint" th:if="${accessKeyConfigured}">Key ist hinterlegt. Feld leer lassen = unverändert.</p>
+    <p class="hint" th:unless="${accessKeyConfigured}">Key aus Divera 24/7 eintragen und speichern.</p>
 
-    <button type="submit" class="btn">Speichern</button>
+    <button type="submit" class="btn btn-block">Speichern</button>
   </form>
 </main>
 </body>

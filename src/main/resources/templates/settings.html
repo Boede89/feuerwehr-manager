@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Einstellungen – Feuerwehr-Manager</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<header class="bar">
+  <h1>Einstellungen</h1>
+  <a class="link" th:if="${hasActiveUnit}" th:href="@{/(unit=${unitId})}">← Dashboard</a>
+  <a class="link" th:unless="${hasActiveUnit}" th:href="@{/settings/units}">Einheiten</a>
+</header>
+<main>
+  <p class="hint">Grundkonfiguration für den Betrieb. Weitere Module folgen später.</p>
+  <div class="list">
+    <h2>Bereiche</h2>
+    <a class="list-row" th:href="@{/settings/units}" style="text-decoration:none;color:inherit;">
+      <span><strong>Einheiten</strong><br/><span class="hint" style="margin:0;">Feuerwehren / Standorte anlegen und verwalten</span></span>
+      <span>→</span>
+    </a>
+    <a class="list-row" th:if="${hasActiveUnit}" th:href="@{/settings/divera(unit=${unitId})}" style="text-decoration:none;color:inherit;">
+      <span><strong>Divera</strong><br/><span class="hint" style="margin:0;">Access Key und API-URL pro Einheit</span></span>
+      <span>→</span>
+    </a>
+    <div class="list-row" th:unless="${hasActiveUnit}">
+      <span><strong>Divera</strong><br/><span class="hint" style="margin:0;">Zuerst eine aktive Einheit anlegen.</span></span>
+    </div>
+  </div>
+</main>
+</body>
+</html>

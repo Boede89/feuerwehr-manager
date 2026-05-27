@@ -1,7 +1,9 @@
 package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.divera.DiveraService;
-import de.feuerwehr.manager.unit.UnitRepository;
+import de.feuerwehr.manager.unit.Unit;
+import de.feuerwehr.manager.unit.UnitService;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -12,14 +14,23 @@ import org.springframework.web.bind.annotation.RequestParam;
 @RequiredArgsConstructor
 public class DashboardController {
 
-    private final UnitRepository unitRepository;
+    private final UnitService unitService;
     private final DiveraService diveraService;
 
     @GetMapping("/")
-    public String dashboard(@RequestParam(name = "unit", defaultValue = "1") long unitId, Model model) {
-        model.addAttribute("units", unitRepository.findByActiveTrueOrderByNameAsc());
-        model.addAttribute("unitId", unitId);
-        model.addAttribute("divera", diveraService.getAlarmsForUnit(unitId));
+    public String dashboard(@RequestParam(name = "unit", required = false) Long unitId, Model model) {
+        if (unitService.findActiveOrdered().isEmpty()) {
+            return "redirect:/settings/units?setup=1";
+        }
+        Optional<Unit> unit = unitService.resolveActiveUnit(unitId);
+        if (unit.isEmpty()) {
+            return "redirect:/settings/units?setup=1";
+        }
+        long resolvedId = unit.get().getId();
+        model.addAttribute("units", unitService.findActiveOrdered());
+        model.addAttribute("unitId", resolvedId);
+        model.addAttribute("currentUnitName", unit.get().getName());
+        model.addAttribute("divera", diveraService.getAlarmsForUnit(resolvedId));
         return "dashboard";
     }
 }

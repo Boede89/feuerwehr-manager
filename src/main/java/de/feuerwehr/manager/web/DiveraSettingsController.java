@@ -1,8 +1,9 @@
 package de.feuerwehr.manager.web;
 
+import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitDiveraSettings;
 import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
-import de.feuerwehr.manager.unit.UnitRepository;
+import de.feuerwehr.manager.unit.UnitService;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -18,14 +19,22 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @RequiredArgsConstructor
 public class DiveraSettingsController {
 
-    private final UnitRepository unitRepository;
+    private final UnitService unitService;
     private final UnitDiveraSettingsRepository diveraSettingsRepository;
 
     @GetMapping
-    public String form(@RequestParam(name = "unit", defaultValue = "1") long unitId, Model model) {
-        model.addAttribute("units", unitRepository.findByActiveTrueOrderByNameAsc());
-        model.addAttribute("unitId", unitId);
-        Optional<UnitDiveraSettings> opt = diveraSettingsRepository.findByUnitId(unitId);
+    public String form(@RequestParam(name = "unit", required = false) Long unitId, Model model) {
+        if (unitService.findActiveOrdered().isEmpty()) {
+            return "redirect:/settings/units?setup=1";
+        }
+        Optional<Unit> unit = unitService.resolveActiveUnit(unitId);
+        if (unit.isEmpty()) {
+            return "redirect:/settings/units?setup=1";
+        }
+        long resolvedId = unit.get().getId();
+        model.addAttribute("units", unitService.findActiveOrdered());
+        model.addAttribute("unitId", resolvedId);
+        Optional<UnitDiveraSettings> opt = diveraSettingsRepository.findByUnitId(resolvedId);
         if (opt.isPresent()) {
             UnitDiveraSettings s = opt.get();
             model.addAttribute("apiBaseUrl", s.getApiBaseUrl());
@@ -39,13 +48,14 @@ public class DiveraSettingsController {
 
     @PostMapping
     public String save(
-            @RequestParam(name = "unit", defaultValue = "1") long unitId,
+            @RequestParam(name = "unit") long unitId,
             @RequestParam String apiBaseUrl,
             @RequestParam(required = false) String accessKey,
             RedirectAttributes redirectAttributes) {
 
-        UnitDiveraSettings settings =
-                diveraSettingsRepository.findByUnitId(unitId).orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden"));
+        UnitDiveraSettings settings = diveraSettingsRepository
+                .findByUnitId(unitId)
+                .orElseThrow(() -> new IllegalArgumentException("Keine Divera-Einstellungen für diese Einheit."));
 
         String base = apiBaseUrl == null ? "" : apiBaseUrl.trim();
         if (base.isEmpty()) {

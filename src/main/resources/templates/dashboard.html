@@ -4,115 +4,7 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>Feuerwehr-Manager</title>
-  <style>
-    :root {
-      --touch: 48px;
-      --bg: #f1f5f9;
-      --card: #fff;
-      --border: #e2e8f0;
-      --text: #334155;
-      --accent: #3b82f6;
-      --accent-bg: #eff6ff;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: system-ui, "Segoe UI", Roboto, Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-    }
-    header.bar {
-      background: #0f172a;
-      color: #f8fafc;
-      padding: 0.6rem 1rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 0.75rem;
-    }
-    header.bar h1 { margin: 0; font-size: 1.05rem; font-weight: 700; }
-    .unit-select {
-      min-height: var(--touch);
-      font-size: 16px;
-      padding: 0 0.75rem;
-      border-radius: 10px;
-      border: 2px solid #475569;
-      background: #1e293b;
-      color: #f8fafc;
-    }
-    main { max-width: 1024px; margin: 0 auto; padding: 0.75rem 1rem 2rem; }
-    .tile-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 0.65rem;
-      margin-bottom: 1rem;
-    }
-    @media (max-width: 640px) {
-      .tile-grid { grid-template-columns: repeat(2, 1fr); }
-    }
-    .tile {
-      background: var(--card);
-      border-radius: 12px;
-      padding: 1rem 0.65rem;
-      text-align: center;
-      border: 2px solid var(--border);
-      min-height: 104px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 0.35rem;
-      font-weight: 700;
-      font-size: 0.92rem;
-      color: var(--text);
-      text-decoration: none;
-      cursor: pointer;
-    }
-    .tile.active { border-color: var(--accent); background: var(--accent-bg); color: #1d4ed8; }
-    .tile .icon { font-size: 1.7rem; line-height: 1; }
-    .tile.muted { opacity: 0.55; cursor: not-allowed; }
-    .list {
-      background: var(--card);
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      overflow: hidden;
-    }
-    .list h2 { margin: 0; padding: 0.85rem 1rem; font-size: 1rem; border-bottom: 1px solid var(--border); background: #fafafa; }
-    .list-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.75rem;
-      padding: 0.85rem 1rem;
-      border-bottom: 1px solid #f1f5f9;
-      min-height: 52px;
-      font-size: 0.95rem;
-    }
-    .list-row:last-child { border-bottom: none; }
-    .btn {
-      min-height: 44px;
-      padding: 0 1rem;
-      border-radius: 10px;
-      border: none;
-      background: var(--accent);
-      color: #fff;
-      font-weight: 600;
-      font-size: 0.9rem;
-      cursor: pointer;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .badge { font-size: 0.75rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 6px; background: #e2e8f0; }
-    .badge.warn { background: #fef3c7; color: #92400e; }
-    .badge.ok { background: #d1fae5; color: #065f46; }
-    .hint { font-size: 0.82rem; color: #64748b; margin-top: 0.75rem; }
-    .divera-box { margin-top: 0.5rem; font-size: 0.88rem; color: #475569; }
-    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
-  </style>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
 </head>
 <body>
 <header class="bar">
@@ -129,7 +21,7 @@
 </header>
 
 <main>
-  <p class="hint">Layout <strong>Variante D</strong> (Kacheln + Liste). Farben sind Platzhalter und können später getauscht werden.</p>
+  <p class="hint">Einheit: <strong th:text="${currentUnitName}">—</strong> · Layout Variante D</p>
 
   <nav class="tile-grid" aria-label="Module">
     <a class="tile active" href="#"><span class="icon">🚒</span>Reservierungen</a>
@@ -137,33 +29,33 @@
     <span class="tile muted"><span class="icon">👥</span>Personal</span>
     <span class="tile muted"><span class="icon">📋</span>Berichte</span>
     <span class="tile muted"><span class="icon">📊</span>Auswertung</span>
-    <a class="tile" th:href="@{/settings/divera(unit=${unitId})}"><span class="icon">⚙️</span>Einstellungen</a>
+    <a class="tile" th:href="@{/settings(unit=${unitId})}"><span class="icon">⚙️</span>Einstellungen</a>
   </nav>
 
   <section class="list" aria-labelledby="divera-h">
-    <h2 id="divera-h">Divera – aktuelle Einsätze (API)</h2>
+    <h2 id="divera-h">Divera – aktuelle Einsätze</h2>
     <div class="list-row" th:if="${!divera.success}">
       <span th:text="${divera.message}">Fehler</span>
-      <span class="badge warn">Prüfen</span>
+      <span class="badge inactive">Prüfen</span>
     </div>
     <th:block th:if="${divera.success}">
       <div class="list-row" th:if="${#lists.isEmpty(divera.alarms)}">
         <span>Keine Alarme geliefert (oder Liste leer).</span>
-        <span class="badge ok">OK</span>
+        <span class="badge active">OK</span>
       </div>
       <div class="list-row" th:each="a : ${divera.alarms}">
         <span>
           <strong th:text="${a.title}">Titel</strong>
           <span th:if="${a.address != null and !#strings.isEmpty(a.address)}"> · </span>
           <span th:text="${a.address}">Adresse</span>
-          <span class="divera-box" th:if="${a.closed}">(geschlossen)</span>
+          <span class="hint" th:if="${a.closed}" style="display:inline;margin:0;"> (geschlossen)</span>
         </span>
-        <span class="badge ok" th:text="${a.id}">ID</span>
+        <span class="badge active" th:text="${a.id}">ID</span>
       </div>
     </th:block>
   </section>
 
-  <p class="hint">JSON für Clients: <code th:text="'/api/v1/units/' + ${unitId} + '/divera/alarms'">/api/…</code></p>
+  <p class="hint">JSON: <code th:text="'/api/v1/units/' + ${unitId} + '/divera/alarms'">/api/…</code></p>
 </main>
 </body>
 </html>

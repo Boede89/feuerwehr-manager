@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Einheit bearbeiten – Feuerwehr-Manager</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<header class="bar">
+  <h1>Einheit bearbeiten</h1>
+  <a class="link" th:href="@{/settings/units}">← Zurück</a>
+</header>
+<main>
+  <div class="err" th:if="${error}" th:text="${error}">Fehler</div>
+  <form method="post" th:action="@{/settings/units/{id}(id=${unit.id})}" class="card">
+    <label for="name">Name</label>
+    <input id="name" name="name" type="text" required maxlength="255" th:value="${unit.name}"/>
+
+    <div class="checkbox-row">
+      <input type="hidden" name="active" value="false"/>
+      <input id="active" name="active" type="checkbox" value="true" th:checked="${unit.active}"/>
+      <label for="active" style="margin:0;font-weight:600;">Einheit ist aktiv (im Dashboard auswählbar)</label>
+    </div>
+    <p class="hint">Inaktive Einheiten bleiben in der Datenbank, erscheinen aber nicht in der Einheiten-Auswahl.</p>
+
+    <button type="submit" class="btn btn-block">Speichern</button>
+  </form>
+</main>
+</body>
+</html>

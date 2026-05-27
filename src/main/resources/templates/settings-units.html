@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Einheiten – Feuerwehr-Manager</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<header class="bar">
+  <h1>Einheiten</h1>
+  <a class="link" th:href="@{/settings}">← Einstellungen</a>
+</header>
+<main>
+  <div class="ok" th:if="${saved}" th:text="${message} ?: 'Gespeichert.'">Gespeichert.</div>
+  <div class="err" th:if="${error}" th:text="${error}">Fehler</div>
+  <div class="err" th:if="${param.setup != null and activeUnits.isEmpty()}">
+    Bitte zuerst mindestens eine <strong>aktive</strong> Einheit anlegen, um das Dashboard zu nutzen.
+  </div>
+
+  <div class="card">
+    <h2 style="margin:0 0 0.5rem;font-size:1.05rem;">Neue Einheit</h2>
+    <p class="hint">Jede Einheit hat eigene Daten (Reservierungen, Personal, Divera, … – später).</p>
+    <form method="post" th:action="@{/settings/units}">
+      <label for="name">Name der Einheit</label>
+      <input id="name" name="name" type="text" required maxlength="255" placeholder="z. B. FF Musterstadt"/>
+      <button type="submit" class="btn btn-block">Einheit anlegen</button>
+    </form>
+  </div>
+
+  <div class="list">
+    <h2>Vorhandene Einheiten</h2>
+    <div class="list-row" th:if="${#lists.isEmpty(units)}">
+      <span>Noch keine Einheit angelegt.</span>
+    </div>
+    <div class="list-row" th:each="u : ${units}">
+      <span>
+        <strong th:text="${u.name}">Name</strong>
+        <span class="badge" th:classappend="${u.active} ? ' active' : ' inactive'"
+              th:text="${u.active} ? 'Aktiv' : 'Inaktiv'">Status</span>
+      </span>
+      <div class="actions">
+        <a class="btn btn-secondary" th:href="@{/settings/units/{id}(id=${u.id})}">Bearbeiten</a>
+        <a class="btn btn-secondary" th:href="@{/settings/divera(unit=${u.id})}">Divera</a>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>
