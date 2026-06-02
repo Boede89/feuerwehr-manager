@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="de" xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="UTF-8"/>
@@ -25,22 +25,22 @@
 </header>
 
 <main>
-  <p class="hint">Einheit: <strong th:text="${currentUnitName}">-</strong> · Layout Variante D</p>
+  <p class="hint">Einheit: <strong th:text="${currentUnitName}">—</strong> · Layout Variante D</p>
 
   <nav class="tile-grid" aria-label="Module">
-    <span class="tile muted"><span class="icon">R</span>Reservierungen</span>
-    <span class="tile muted"><span class="icon">A</span>Atemschutz</span>
-    <a class="tile" th:href="@{/personal(unit=${unitId})}"><span class="icon">P</span>Personal</a>
-    <span class="tile muted"><span class="icon">B</span>Berichte</span>
-    <span class="tile muted"><span class="icon">X</span>Auswertung</span>
-    <a class="tile" th:href="@{/settings(unit=${unitId})}"><span class="icon">S</span>Einstellungen</a>
+    <span class="tile muted"><span class="icon">🚒</span>Reservierungen</span>
+    <span class="tile muted"><span class="icon">🛡️</span>Atemschutz</span>
+    <a class="tile" th:href="@{/personal(unit=${unitId})}"><span class="icon">👥</span>Personal</a>
+    <span class="tile muted"><span class="icon">📋</span>Berichte</span>
+    <span class="tile muted"><span class="icon">📊</span>Auswertung</span>
+    <a class="tile" th:href="@{/settings(unit=${unitId})}"><span class="icon">⚙️</span>Einstellungen</a>
   </nav>
 
   <section class="list" aria-labelledby="divera-h">
-    <h2 id="divera-h">Divera - aktuelle Einsaetze</h2>
+    <h2 id="divera-h">Divera – aktuelle Einsätze</h2>
     <div class="list-row" th:if="${!divera.success}">
       <span th:text="${divera.message}">Fehler</span>
-      <span class="badge inactive">Pruefen</span>
+      <span class="badge inactive">Prüfen</span>
     </div>
     <th:block th:if="${divera.success}">
       <div class="list-row" th:if="${#lists.isEmpty(divera.alarms)}">
@@ -59,7 +59,7 @@
     </th:block>
   </section>
 
-  <p class="hint">JSON: <code th:text="'/api/v1/units/' + ${unitId} + '/divera/alarms'">/api/...</code></p>
+  <p class="hint">JSON: <code th:text="'/api/v1/units/' + ${unitId} + '/divera/alarms'">/api/…</code></p>
 </main>
 </body>
 </html>

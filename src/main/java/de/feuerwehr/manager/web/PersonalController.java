@@ -1,4 +1,4 @@
-﻿package de.feuerwehr.manager.web;
+package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.personal.PersonStatus;
