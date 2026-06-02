@@ -24,11 +24,12 @@ public class AuditLogoutSuccessHandler implements LogoutSuccessHandler {
     }
 
     @Override
-    public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication)
+    public void onLogoutSuccess(
+            HttpServletRequest request, HttpServletResponse response, Authentication authentication)
             throws IOException, ServletException {
         if (authentication != null && authentication.getPrincipal() instanceof AppUserDetails details) {
             auditService.record(AuditEventType.LOGOUT, details.getUserId(), request);
         }
-        delegate.logout(request, response, authentication);
+        delegate.onLogoutSuccess(request, response, authentication);
     }
 }
