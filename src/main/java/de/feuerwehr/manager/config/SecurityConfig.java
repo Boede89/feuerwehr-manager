@@ -6,6 +6,7 @@ import de.feuerwehr.manager.security.AuditLogoutSuccessHandler;
 import de.feuerwehr.manager.security.PrivacyConsentFilter;
 import de.feuerwehr.manager.security.RfidAuthenticationProvider;
 import de.feuerwehr.manager.security.SecurityProperties;
+import de.feuerwehr.manager.user.UserService;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -32,6 +33,11 @@ public class SecurityConfig {
     }
 
     @Bean
+    public RfidAuthenticationProvider rfidAuthenticationProvider(UserService userService) {
+        return new RfidAuthenticationProvider(userService);
+    }
+
+    @Bean
     public AuthenticationManager authenticationManager(
             AppUserDetailsService userDetailsService,
             PasswordEncoder passwordEncoder,
@@ -45,9 +51,11 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
+            AuthenticationManager authenticationManager,
             PrivacyConsentFilter privacyConsentFilter,
             AuditLogoutSuccessHandler auditLogoutSuccessHandler)
             throws Exception {
+        http.authenticationManager(authenticationManager);
         http
                 .csrf(csrf -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse()))
                 .sessionManagement(session -> session
