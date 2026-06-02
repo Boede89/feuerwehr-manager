@@ -4,7 +4,11 @@ import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
 import de.feuerwehr.manager.user.User;
+import de.feuerwehr.manager.user.UserManagementService;
 import de.feuerwehr.manager.user.UserRepository;
+import de.feuerwehr.manager.user.UserRole;
+import jakarta.servlet.http.HttpServletRequest;
+import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -30,7 +34,10 @@ public class PersonalService {
     private final PersonCourseCompletionRepository completionRepository;
     private final PersonDiveraRicRepository diveraRicRepository;
     private final UserRepository userRepository;
+    private final UserManagementService userManagementService;
     private final TestModeService testModeService;
+
+    private static final SecureRandom LOGIN_PASSWORD_RANDOM = new SecureRandom();
 
     public Unit requireUnit(long unitId) {
         return unitRepository
@@ -51,7 +58,6 @@ public class PersonalService {
                 Comparator.comparing(Person::getLastName).thenComparing(Person::getFirstName));
     }
 
-    @Transactional(readOnly = true)
     public Person requirePerson(long personId) {
         if (!testModeService.isEnabled()) {
             return personRepository
@@ -105,12 +111,10 @@ public class PersonalService {
                 prod, test, Course::getProductionSourceId, Course::getId, Comparator.comparing(Course::getName));
     }
 
-    @Transactional(readOnly = true)
     public List<PersonCourseCompletion> listCompletions(long personId) {
         return completionRepository.findByPersonId(requirePerson(personId).getId());
     }
 
-    @Transactional(readOnly = true)
     public List<PersonDiveraRic> listDiveraRics(long personId) {
         return diveraRicRepository.findByPersonIdOrderByRicCodeAsc(requirePerson(personId).getId());
     }
@@ -143,7 +147,7 @@ public class PersonalService {
     }
 
     @Transactional
-    public Person createPersonComplete(
+    public PersonCreateResult createPersonComplete(
             long unitId,
             String firstName,
             String lastName,
@@ -151,21 +155,39 @@ public class PersonalService {
             String phone,
             LocalDate birthdate,
             Long userId,
+            boolean allowLogin,
             String notes,
             PersonStatus status,
             Long qualificationTypeId,
             List<CourseCompletionInput> courseInputs,
             String diveraUcrId,
-            List<String> ricCodes) {
+            List<String> ricCodes,
+            long actorUserId,
+            HttpServletRequest request) {
+        Long linkedUserId = userId;
+        String generatedPassword = null;
+        String createdUsername = null;
+        if (allowLogin) {
+            if (email == null || email.isBlank()) {
+                throw new IllegalArgumentException("Für „Login erlauben“ ist eine E-Mail-Adresse erforderlich");
+            }
+            String password = generateNumericLoginPassword();
+            String username = deriveUniqueUsername(email);
+            User user = userManagementService.createUser(
+                    username, (firstName + " " + lastName).trim(), password, UserRole.USER, actorUserId, request);
+            linkedUserId = user.getId();
+            generatedPassword = password;
+            createdUsername = username;
+        }
         Person created = createPerson(
-                unitId, firstName, lastName, email, phone, birthdate, null, userId, null, notes);
+                unitId, firstName, lastName, email, phone, birthdate, null, linkedUserId, null, notes);
         if (status != null) {
             created.setStatus(status);
             personRepository.save(created);
         }
         updateLehrgaenge(created.getId(), qualificationTypeId, courseInputs);
         updateDivera(created.getId(), diveraUcrId, ricCodes);
-        return requirePerson(created.getId());
+        return new PersonCreateResult(requirePerson(created.getId()), createdUsername, generatedPassword);
     }
 
     @Transactional
@@ -376,7 +398,11 @@ public class PersonalService {
         }
         return personRepository
                 .findShadowByProductionSourceId(viewed.getId())
-                .orElseGet(() -> personRepository.save(copyPersonToShadow(viewed)));
+                .orElseGet(() -> {
+                    Person shadow = personRepository.save(copyPersonToShadow(viewed));
+                    copyRelatedDataToShadow(viewed, shadow);
+                    return shadow;
+                });
     }
 
     private Person copyPersonToShadow(Person prod) {
@@ -395,6 +421,58 @@ public class PersonalService {
         shadow.setTestData(true);
         shadow.setProductionSourceId(prod.getId());
         return shadow;
+    }
+
+    private void copyRelatedDataToShadow(Person prod, Person shadow) {
+        for (PersonCourseCompletion completion : completionRepository.findByPersonId(prod.getId())) {
+            PersonCourseCompletion copy = new PersonCourseCompletion();
+            copy.setPerson(shadow);
+            copy.setCourse(resolveCourseForWrite(completion.getCourse().getId(), shadow.getUnit()));
+            copy.setCompletionYear(completion.getCompletionYear());
+            copy.setCompletedOn(completion.getCompletedOn());
+            completionRepository.save(copy);
+        }
+        for (PersonDiveraRic ric : diveraRicRepository.findByPersonIdOrderByRicCodeAsc(prod.getId())) {
+            PersonDiveraRic copy = new PersonDiveraRic();
+            copy.setPerson(shadow);
+            copy.setRicCode(ric.getRicCode());
+            diveraRicRepository.save(copy);
+        }
+    }
+
+    private static String generateNumericLoginPassword() {
+        return String.format("%04d", LOGIN_PASSWORD_RANDOM.nextInt(10_000));
+    }
+
+    private String deriveUniqueUsername(String email) {
+        String base = sanitizeUsernameBase(email);
+        if (!userRepository.existsByUsernameIgnoreCase(base)) {
+            return base;
+        }
+        for (int i = 2; i < 1000; i++) {
+            String candidate = truncateUsername(base + i);
+            if (!userRepository.existsByUsernameIgnoreCase(candidate)) {
+                return candidate;
+            }
+        }
+        throw new IllegalArgumentException("Kein freier Benutzername für diese E-Mail ermittelbar");
+    }
+
+    private static String sanitizeUsernameBase(String email) {
+        String local = email.trim().split("@")[0].toLowerCase();
+        String sanitized = local.replaceAll("[^a-z0-9._-]", "_").replaceAll("_+", "_");
+        sanitized = sanitized.replaceAll("^\\.|\\.$", "");
+        if (sanitized.length() < 3) {
+            sanitized = ("user_" + sanitized).replaceAll("_+", "_");
+        }
+        return truncateUsername(sanitized);
+    }
+
+    private static String truncateUsername(String username) {
+        if (username.length() <= 64) {
+            return username;
+        }
+        return username.substring(0, 64);
     }
 
     private QualificationType resolveQualificationForWrite(long qualificationTypeId, Unit unit) {
@@ -493,6 +571,8 @@ public class PersonalService {
     }
 
     public record CourseCompletionInput(Long courseId, Integer completionYear, LocalDate completedOn) {}
+
+    public record PersonCreateResult(Person person, String createdUsername, String initialPassword) {}
 
     @Transactional
     public void seedDefaultQualificationsIfEmpty(long unitId) {

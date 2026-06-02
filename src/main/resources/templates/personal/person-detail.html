@@ -51,13 +51,22 @@
         <input id="phone" name="phone" type="tel" maxlength="50" th:value="${formPhone}"/>
         <label for="birthdate">Geburtsdatum</label>
         <input id="birthdate" name="birthdate" type="date" th:value="${formBirthdate}"/>
-        <label for="userId">Verknüpftes Login</label>
-        <select id="userId" name="userId">
-          <option value="">— kein Login —</option>
-          <option th:each="u : ${linkableUsers}" th:value="${u.id}"
-                  th:selected="${formUserId != null and formUserId == u.id}"
-                  th:text="${u.displayName + ' (@' + u.username + ')'}">User</option>
-        </select>
+        <label class="checkbox-row" for="allowLogin" style="display:flex;align-items:center;gap:0.5rem;margin-top:0.75rem;cursor:pointer;">
+          <input id="allowLogin" name="allowLogin" type="checkbox" value="true"
+                 th:checked="${formAllowLogin}"/>
+          Login erlauben
+        </label>
+        <p class="hint" style="margin-top:0.25rem;">Legt ein Benutzerkonto an (Benutzername aus E-Mail). Startpasswort wird nach dem Speichern angezeigt; E-Mail-Versand folgt später.</p>
+        <details class="hint" style="margin-top:0.5rem;">
+          <summary>Bestehendes Login verknüpfen (optional)</summary>
+          <label for="userId" style="margin-top:0.5rem;">Benutzer</label>
+          <select id="userId" name="userId">
+            <option value="">— kein bestehendes Login —</option>
+            <option th:each="u : ${linkableUsers}" th:value="${u.id}"
+                    th:selected="${formUserId != null and formUserId == u.id}"
+                    th:text="${u.displayName + ' (@' + u.username + ')'}">User</option>
+          </select>
+        </details>
         <label for="status">Status</label>
         <select id="status" name="status">
           <option th:each="s : ${statuses}" th:value="${s.name()}"

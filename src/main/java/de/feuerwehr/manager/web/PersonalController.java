@@ -5,6 +5,8 @@ import de.feuerwehr.manager.personal.PersonCourseCompletion;
 import de.feuerwehr.manager.personal.PersonStatus;
 import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.personal.PersonalService.CourseCompletionInput;
+import de.feuerwehr.manager.personal.PersonalService.PersonCreateResult;
+import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,6 +21,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -58,6 +61,7 @@ public class PersonalController {
 
     @PostMapping("/new")
     public String create(
+            @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam long unit,
             @RequestParam String firstName,
             @RequestParam String lastName,
@@ -66,6 +70,7 @@ public class PersonalController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate birthdate,
             @RequestParam(required = false) Long qualificationTypeId,
             @RequestParam(required = false) Long userId,
+            @RequestParam(required = false, defaultValue = "false") boolean allowLogin,
             @RequestParam(required = false) String diveraUcrId,
             @RequestParam(required = false) String notes,
             @RequestParam(required = false) PersonStatus status,
@@ -74,7 +79,7 @@ public class PersonalController {
             HttpServletRequest request,
             RedirectAttributes redirectAttributes) {
         try {
-            Person created = personalService.createPersonComplete(
+            PersonCreateResult result = personalService.createPersonComplete(
                     unit,
                     firstName,
                     lastName,
@@ -82,18 +87,31 @@ public class PersonalController {
                     phone,
                     birthdate,
                     userId,
+                    allowLogin,
                     notes,
                     status,
                     qualificationTypeId,
                     parseCourseCompletions(courseIds, request),
                     diveraUcrId,
-                    ricCodes);
+                    ricCodes,
+                    actor.getUserId(),
+                    request);
+            Person created = result.person();
             redirectAttributes.addFlashAttribute("saved", true);
-            redirectAttributes.addFlashAttribute("message", created.displayName() + " wurde angelegt.");
+            String message = created.displayName() + " wurde angelegt.";
+            if (result.initialPassword() != null) {
+                message += " Login: „"
+                        + result.createdUsername()
+                        + "“, Startpasswort: "
+                        + result.initialPassword()
+                        + " (E-Mail-Versand folgt später).";
+            }
+            redirectAttributes.addFlashAttribute("message", message);
             return "redirect:/personal/" + created.getId() + "?unit=" + unit;
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
-            storeNewPersonFlash(redirectAttributes, firstName, lastName, email, phone, birthdate, userId, notes, status);
+            storeNewPersonFlash(
+                    redirectAttributes, firstName, lastName, email, phone, birthdate, userId, allowLogin, notes, status);
             return "redirect:/personal/new?unit=" + unit + "&tab=stammdaten";
         }
     }
@@ -257,6 +275,7 @@ public class PersonalController {
             String phone,
             LocalDate birthdate,
             Long userId,
+            boolean allowLogin,
             String notes,
             PersonStatus status) {
         redirectAttributes.addFlashAttribute("formFirstName", firstName);
@@ -265,6 +284,7 @@ public class PersonalController {
         redirectAttributes.addFlashAttribute("formPhone", phone);
         redirectAttributes.addFlashAttribute("formBirthdate", birthdate);
         redirectAttributes.addFlashAttribute("formUserId", userId);
+        redirectAttributes.addFlashAttribute("formAllowLogin", allowLogin);
         redirectAttributes.addFlashAttribute("formNotes", notes);
         redirectAttributes.addFlashAttribute("formStatus", status);
     }

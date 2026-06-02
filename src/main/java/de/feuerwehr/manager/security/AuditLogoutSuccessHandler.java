@@ -2,6 +2,7 @@ package de.feuerwehr.manager.security;
 
 import de.feuerwehr.manager.dsgvo.AuditEventType;
 import de.feuerwehr.manager.dsgvo.AuditService;
+import de.feuerwehr.manager.settings.TestModeService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Component;
 public class AuditLogoutSuccessHandler implements LogoutSuccessHandler {
 
     private final AuditService auditService;
+    private final TestModeService testModeService;
     private final SimpleUrlLogoutSuccessHandler delegate = new SimpleUrlLogoutSuccessHandler();
 
     {
@@ -29,6 +31,9 @@ public class AuditLogoutSuccessHandler implements LogoutSuccessHandler {
             throws IOException, ServletException {
         if (authentication != null && authentication.getPrincipal() instanceof AppUserDetails details) {
             auditService.record(AuditEventType.LOGOUT, details.getUserId(), request);
+        }
+        if (testModeService.isEnabled()) {
+            testModeService.disable();
         }
         delegate.onLogoutSuccess(request, response, authentication);
     }
