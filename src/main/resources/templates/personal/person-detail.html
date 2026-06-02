@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-  <title th:text="${isNewPerson} ? 'Neue Person – Feuerwehr-Manager' : (person.firstName + ' ' + person.lastName + ' – Personal')">Person</title>
+  <title th:text="${isNewPerson ? 'Neue Person – Feuerwehr-Manager' : personDisplayName + ' – Personal'}">Person</title>
   <link rel="stylesheet" th:href="@{/css/app.css}"/>
 </head>
 <body th:attr="data-person-create=${isNewPerson}">
 <header class="bar">
-  <h1 th:text="${isNewPerson} ? 'Neue Person' : 'Person'">Person</h1>
+  <h1 th:text="${isNewPerson ? 'Neue Person' : personDisplayName}">Person</h1>
   <a class="link" th:href="@{/personal(unit=${unitId})}">← Personal</a>
 </header>
 <main class="person-detail-page">
@@ -19,7 +19,7 @@
   <div class="person-hero">
     <div class="person-avatar" th:text="${isNewPerson ? 'NP' : personInitials}">NP</div>
     <div>
-      <h2 th:text="${isNewPerson} ? 'Neue Person' : (person.firstName + ' ' + person.lastName)">Name</h2>
+      <h2 th:text="${isNewPerson ? 'Neue Person' : personDisplayName}">Name</h2>
       <p class="hint" th:text="${currentUnitName}">Einheit</p>
       <span th:unless="${isNewPerson}" class="badge" th:classappend="${person.status.name() == 'ACTIVE'} ? ' active' : ' inactive'"
             th:text="${person.status.name() == 'ACTIVE'} ? 'Aktiv' : 'Inaktiv'">Status</span>

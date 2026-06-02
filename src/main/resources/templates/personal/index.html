@@ -23,7 +23,7 @@
 
   <div class="person-search-wrap">
     <label for="personSearch" class="sr-only">Personen suchen</label>
-    <input type="search" id="personSearch" class="person-search" placeholder="Suchen nach Name, E-Mail, Telefon, Qualifikation…" autocomplete="off"/>
+    <input type="search" id="personSearch" class="person-search" placeholder="Suchen nach Name, E-Mail oder Telefon…" autocomplete="off"/>
   </div>
 
   <div class="person-list" id="personList">
@@ -34,15 +34,14 @@
          p.firstName + ' ' + p.lastName + ' ' +
          (p.email != null ? p.email : '') + ' ' +
          (p.phone != null ? p.phone : '') + ' ' +
-         (p.qualificationType != null ? p.qualificationType.name : '') + ' ' +
-         p.status.name()
+         (p.qualificationType != null ? p.qualificationType.name : '')
        )}">
-      <span class="person-list-meta">
-        <strong th:text="${p.firstName + ' ' + p.lastName}">Name</strong>
-        <span class="hint" style="margin:0;"
-              th:if="${p.qualificationType != null}" th:text="${p.qualificationType.name}">Quali</span>
-        <span class="badge" th:classappend="${p.status.name() == 'ACTIVE'} ? ' active' : ' inactive'"
-              th:text="${p.status.name() == 'ACTIVE'} ? 'Aktiv' : 'Inaktiv'">Status</span>
+      <span class="person-list-avatar"
+            th:text="${#strings.substring(p.firstName,0,1) + #strings.substring(p.lastName,0,1)}">AB</span>
+      <span class="person-list-body">
+        <span class="person-list-name" th:text="${p.firstName + ' ' + p.lastName}">Name</span>
+        <span class="person-list-sub" th:if="${p.email != null}" th:text="${p.email}">E-Mail</span>
+        <span class="person-list-sub" th:if="${p.email == null and p.phone != null}" th:text="${p.phone}">Telefon</span>
       </span>
       <span class="person-list-chevron" aria-hidden="true">›</span>
     </a>

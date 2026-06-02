@@ -131,6 +131,7 @@ public class PersonalController {
         model.addAttribute("currentUnitName", unit.getName());
         model.addAttribute("isNewPerson", false);
         model.addAttribute("person", person);
+        model.addAttribute("personDisplayName", person.displayName());
         model.addAttribute("personInitials", personInitials(person));
         String activeTab = normalizeTab(tab);
         model.addAttribute("activeTab", activeTab);
