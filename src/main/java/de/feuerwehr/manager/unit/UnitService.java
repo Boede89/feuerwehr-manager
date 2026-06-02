@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.unit;
 
+import de.feuerwehr.manager.settings.TestModeService;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -12,25 +13,23 @@ public class UnitService {
 
     private final UnitRepository unitRepository;
     private final UnitDiveraSettingsRepository diveraSettingsRepository;
+    private final TestModeService testModeService;
 
     @Transactional(readOnly = true)
     public List<Unit> findAllOrdered() {
-        return unitRepository.findAllByOrderByNameAsc();
+        return unitRepository.findAllVisible(testModeService.isEnabled());
     }
 
     @Transactional(readOnly = true)
     public List<Unit> findActiveOrdered() {
-        return unitRepository.findByActiveTrueOrderByNameAsc();
+        return unitRepository.findActiveVisible(testModeService.isEnabled());
     }
 
     @Transactional(readOnly = true)
     public Optional<Unit> findById(long id) {
-        return unitRepository.findById(id);
+        return unitRepository.findVisibleById(id, testModeService.isEnabled());
     }
 
-    /**
-     * Aktive Einheit für Dashboard: angeforderte ID falls aktiv, sonst erste aktive, sonst leer.
-     */
     @Transactional(readOnly = true)
     public Optional<Unit> resolveActiveUnit(Long requestedId) {
         List<Unit> active = findActiveOrdered();
@@ -50,12 +49,14 @@ public class UnitService {
     @Transactional
     public Unit create(String name) {
         String trimmed = normalizeName(name);
-        if (unitRepository.existsByNameIgnoreCase(trimmed)) {
+        boolean testData = testModeService.testDataScope();
+        if (unitRepository.existsByNameIgnoreCaseAndTestData(trimmed, testData)) {
             throw new IllegalArgumentException("Eine Einheit mit diesem Namen existiert bereits.");
         }
         Unit unit = new Unit();
         unit.setName(trimmed);
         unit.setActive(true);
+        unit.setTestData(testData);
         unit = unitRepository.save(unit);
         ensureDiveraSettings(unit);
         return unit;
@@ -63,9 +64,11 @@ public class UnitService {
 
     @Transactional
     public Unit update(long id, String name, boolean active) {
-        Unit unit = unitRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden."));
+        Unit unit = unitRepository
+                .findVisibleById(id, testModeService.isEnabled())
+                .orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden."));
         String trimmed = normalizeName(name);
-        if (unitRepository.existsByNameIgnoreCaseAndIdNot(trimmed, id)) {
+        if (unitRepository.existsByNameIgnoreCaseAndTestDataAndIdNot(trimmed, unit.isTestData(), id)) {
             throw new IllegalArgumentException("Eine Einheit mit diesem Namen existiert bereits.");
         }
         unit.setName(trimmed);

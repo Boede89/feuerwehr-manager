@@ -26,4 +26,7 @@ public class Unit {
 
     @Column(nullable = false)
     private boolean active = true;
+
+    @Column(name = "test_data", nullable = false)
+    private boolean testData;
 }

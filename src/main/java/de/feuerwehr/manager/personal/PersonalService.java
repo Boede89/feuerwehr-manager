@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.personal;
 
+import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
 import de.feuerwehr.manager.user.User;
@@ -24,33 +25,47 @@ public class PersonalService {
     private final PersonCourseCompletionRepository completionRepository;
     private final PersonDiveraRicRepository diveraRicRepository;
     private final UserRepository userRepository;
+    private final TestModeService testModeService;
+
+    private boolean scope() {
+        return testModeService.testDataScope();
+    }
 
     public Unit requireUnit(long unitId) {
-        return unitRepository.findById(unitId).orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden"));
+        return unitRepository
+                .findVisibleById(unitId, testModeService.isEnabled())
+                .orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden"));
     }
 
     public List<Person> listPersons(long unitId) {
-        return personRepository.findActiveByUnitId(unitId);
+        return personRepository.findActiveByUnitId(unitId, scope());
     }
 
     @Transactional(readOnly = true)
     public Person requirePerson(long personId) {
-        return personRepository.findActiveById(personId).orElseThrow(() -> new IllegalArgumentException("Person nicht gefunden"));
+        return personRepository
+                .findActiveById(personId, scope())
+                .orElseThrow(() -> new IllegalArgumentException("Person nicht gefunden"));
     }
 
     public List<QualificationType> listQualificationTypes(long unitId, boolean activeOnly) {
+        boolean testData = scope();
         return activeOnly
-                ? qualificationTypeRepository.findByUnitIdAndActiveTrueOrderBySortOrderAscNameAsc(unitId)
-                : qualificationTypeRepository.findByUnitIdOrderBySortOrderAscNameAsc(unitId);
+                ? qualificationTypeRepository.findByUnitIdAndTestDataAndActiveTrueOrderBySortOrderAscNameAsc(
+                        unitId, testData)
+                : qualificationTypeRepository.findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(unitId, testData);
     }
 
     public List<Course> listCourses(long unitId, boolean activeOnly) {
-        return activeOnly ? courseRepository.findActiveByUnitId(unitId) : courseRepository.findByUnitIdOrderByNameAsc(unitId);
+        boolean testData = scope();
+        return activeOnly
+                ? courseRepository.findActiveByUnitId(unitId, testData)
+                : courseRepository.findByUnitIdAndTestDataOrderByNameAsc(unitId, testData);
     }
 
     @Transactional(readOnly = true)
     public List<PersonCourseCompletion> listCompletions(long personId) {
-        return completionRepository.findByPersonId(personId);
+        return completionRepository.findByPersonId(personId, scope());
     }
 
     @Transactional(readOnly = true)
@@ -78,6 +93,7 @@ public class PersonalService {
         Unit unit = requireUnit(unitId);
         Person person = new Person();
         person.setUnit(unit);
+        person.setTestData(scope());
         applyFields(person, firstName, lastName, email, phone, birthdate, qualificationTypeId, userId, diveraUcrId, notes);
         person.setStatus(PersonStatus.ACTIVE);
         return personRepository.save(person);
@@ -143,11 +159,7 @@ public class PersonalService {
     public Person updateLehrgaenge(long personId, Long qualificationTypeId, List<CourseCompletionInput> inputs) {
         Person person = requirePerson(personId);
         if (qualificationTypeId != null && qualificationTypeId > 0) {
-            QualificationType qt = qualificationTypeRepository.findById(qualificationTypeId).orElseThrow();
-            if (!qt.getUnit().getId().equals(person.getUnit().getId())) {
-                throw new IllegalArgumentException("Qualifikation gehört nicht zur Einheit");
-            }
-            person.setQualificationType(qt);
+            person.setQualificationType(requireQualification(qualificationTypeId, person));
         } else {
             person.setQualificationType(null);
         }
@@ -188,10 +200,7 @@ public class PersonalService {
             if (input.courseId() == null || input.courseId() <= 0) {
                 continue;
             }
-            Course course = courseRepository.findById(input.courseId()).orElseThrow();
-            if (!course.getUnit().getId().equals(person.getUnit().getId())) {
-                throw new IllegalArgumentException("Lehrgang gehört nicht zur Einheit");
-            }
+            Course course = requireCourse(input.courseId(), person);
             PersonCourseCompletion completion = new PersonCourseCompletion();
             completion.setPerson(person);
             completion.setCourse(course);
@@ -210,8 +219,11 @@ public class PersonalService {
         QualificationType type = new QualificationType();
         type.setUnit(unit);
         type.setName(name.trim());
-        type.setSortOrder((int) qualificationTypeRepository.findByUnitIdOrderBySortOrderAscNameAsc(unitId).size());
+        type.setSortOrder((int) qualificationTypeRepository
+                .findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(unitId, scope())
+                .size());
         type.setActive(true);
+        type.setTestData(scope());
         return qualificationTypeRepository.save(type);
     }
 
@@ -225,9 +237,10 @@ public class PersonalService {
         course.setUnit(unit);
         course.setName(name.trim());
         if (qualificationTypeId != null && qualificationTypeId > 0) {
-            course.setQualificationType(qualificationTypeRepository.findById(qualificationTypeId).orElseThrow());
+            course.setQualificationType(requireQualification(qualificationTypeId, unit));
         }
         course.setActive(true);
+        course.setTestData(scope());
         return courseRepository.save(course);
     }
 
@@ -269,11 +282,7 @@ public class PersonalService {
         person.setDiveraUcrId(blankToNull(diveraUcrId));
         person.setNotes(blankToNull(notes));
         if (qualificationTypeId != null && qualificationTypeId > 0) {
-            QualificationType qt = qualificationTypeRepository.findById(qualificationTypeId).orElseThrow();
-            if (!qt.getUnit().getId().equals(person.getUnit().getId())) {
-                throw new IllegalArgumentException("Qualifikation gehört nicht zur Einheit");
-            }
-            person.setQualificationType(qt);
+            person.setQualificationType(requireQualification(qualificationTypeId, person));
         } else {
             person.setQualificationType(null);
         }
@@ -306,7 +315,9 @@ public class PersonalService {
     /** Standard-Qualifikationen beim ersten Öffnen anlegen. */
     @Transactional
     public void seedDefaultQualificationsIfEmpty(long unitId) {
-        if (!qualificationTypeRepository.findByUnitIdOrderBySortOrderAscNameAsc(unitId).isEmpty()) {
+        if (!qualificationTypeRepository
+                .findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(unitId, scope())
+                .isEmpty()) {
             return;
         }
         String[] defaults = {"Mannschaft", "Truppführer", "Gruppenführer", "Zugführer"};
@@ -318,7 +329,45 @@ public class PersonalService {
             type.setName(name);
             type.setSortOrder(order++);
             type.setActive(true);
+            type.setTestData(scope());
             qualificationTypeRepository.save(type);
         }
+    }
+
+    private QualificationType requireQualification(long qualificationTypeId, Person person) {
+        QualificationType qt = qualificationTypeRepository
+                .findById(qualificationTypeId)
+                .orElseThrow(() -> new IllegalArgumentException("Qualifikation nicht gefunden"));
+        if (qt.isTestData() != person.isTestData()) {
+            throw new IllegalArgumentException("Qualifikation gehört nicht zum aktuellen Datenbereich");
+        }
+        if (!qt.getUnit().getId().equals(person.getUnit().getId())) {
+            throw new IllegalArgumentException("Qualifikation gehört nicht zur Einheit");
+        }
+        return qt;
+    }
+
+    private QualificationType requireQualification(long qualificationTypeId, Unit unit) {
+        QualificationType qt = qualificationTypeRepository
+                .findById(qualificationTypeId)
+                .orElseThrow(() -> new IllegalArgumentException("Qualifikation nicht gefunden"));
+        if (qt.isTestData() != scope()) {
+            throw new IllegalArgumentException("Qualifikation gehört nicht zum aktuellen Datenbereich");
+        }
+        if (!qt.getUnit().getId().equals(unit.getId())) {
+            throw new IllegalArgumentException("Qualifikation gehört nicht zur Einheit");
+        }
+        return qt;
+    }
+
+    private Course requireCourse(long courseId, Person person) {
+        Course course = courseRepository.findById(courseId).orElseThrow(() -> new IllegalArgumentException("Lehrgang nicht gefunden"));
+        if (course.isTestData() != person.isTestData()) {
+            throw new IllegalArgumentException("Lehrgang gehört nicht zum aktuellen Datenbereich");
+        }
+        if (!course.getUnit().getId().equals(person.getUnit().getId())) {
+            throw new IllegalArgumentException("Lehrgang gehört nicht zur Einheit");
+        }
+        return course;
     }
 }

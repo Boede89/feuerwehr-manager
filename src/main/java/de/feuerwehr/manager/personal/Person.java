@@ -60,6 +60,9 @@ public class Person {
     @Column(nullable = false, length = 32)
     private PersonStatus status = PersonStatus.ACTIVE;
 
+    @Column(name = "test_data", nullable = false)
+    private boolean testData;
+
     @Column(name = "divera_ucr_id", length = 64)
     private String diveraUcrId;
 

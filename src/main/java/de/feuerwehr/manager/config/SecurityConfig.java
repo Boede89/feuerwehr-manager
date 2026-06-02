@@ -71,7 +71,7 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/rfid")
                         .permitAll()
-                        .requestMatchers("/settings/users/**")
+                        .requestMatchers("/settings/users/**", "/settings/test-mode/**")
                         .hasRole("ADMIN")
                         .anyRequest()
                         .authenticated())

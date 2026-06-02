@@ -11,10 +11,10 @@ public interface PersonCourseCompletionRepository extends JpaRepository<PersonCo
             SELECT c FROM PersonCourseCompletion c
             JOIN FETCH c.course course
             LEFT JOIN FETCH course.qualificationType
-            WHERE c.person.id = :personId
+            WHERE c.person.id = :personId AND c.person.testData = :testData
             ORDER BY course.name
             """)
-    List<PersonCourseCompletion> findByPersonId(@Param("personId") long personId);
+    List<PersonCourseCompletion> findByPersonId(@Param("personId") long personId, @Param("testData") boolean testData);
 
     void deleteByPersonId(long personId);
 }

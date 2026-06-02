@@ -12,6 +12,7 @@
   <a class="link" th:href="@{/(unit=${unitId})}">← Dashboard</a>
 </header>
 <main>
+  <div th:replace="~{fragments/testmode-banner :: banner}"></div>
   <p class="hint">Einheit: <strong th:text="${currentUnitName}">—</strong> · <span id="personCountVisible" th:text="${personCount}">0</span> Personen</p>
   <div class="ok" th:if="${saved}" th:text="${message} ?: 'Gespeichert.'">OK</div>
   <div class="err" th:if="${error}" th:text="${error}">Fehler</div>

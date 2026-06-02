@@ -1,0 +1,77 @@
+package de.feuerwehr.manager.settings;
+
+import de.feuerwehr.manager.personal.CourseRepository;
+import de.feuerwehr.manager.personal.PersonRepository;
+import de.feuerwehr.manager.personal.QualificationTypeRepository;
+import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
+import de.feuerwehr.manager.unit.UnitRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@RequiredArgsConstructor
+public class TestModeService {
+
+    private final ApplicationSettingsRepository settingsRepository;
+    private final PersonRepository personRepository;
+    private final CourseRepository courseRepository;
+    private final QualificationTypeRepository qualificationTypeRepository;
+    private final UnitRepository unitRepository;
+    private final UnitDiveraSettingsRepository diveraSettingsRepository;
+
+    @PersistenceContext
+    private EntityManager entityManager;
+
+    @Transactional(readOnly = true)
+    public boolean isEnabled() {
+        return settings().isTestModeEnabled();
+    }
+
+    /** Filterwert für fachliche Daten (Personen, Kurse, …). */
+    @Transactional(readOnly = true)
+    public boolean testDataScope() {
+        return isEnabled();
+    }
+
+    @Transactional
+    public void enable() {
+        ApplicationSettings settings = settings();
+        settings.setTestModeEnabled(true);
+        settingsRepository.save(settings);
+    }
+
+    @Transactional
+    public void disable(boolean deleteTestData) {
+        ApplicationSettings settings = settings();
+        if (deleteTestData) {
+            purgeAllTestData();
+        }
+        settings.setTestModeEnabled(false);
+        settingsRepository.save(settings);
+    }
+
+    @Transactional
+    public void purgeAllTestData() {
+        entityManager
+                .createQuery("DELETE FROM PersonDiveraRic r WHERE r.person.testData = true")
+                .executeUpdate();
+        entityManager
+                .createQuery("DELETE FROM PersonCourseCompletion c WHERE c.person.testData = true")
+                .executeUpdate();
+        personRepository.deleteAllByTestDataTrue();
+        courseRepository.deleteAllByTestDataTrue();
+        qualificationTypeRepository.deleteAllByTestDataTrue();
+        diveraSettingsRepository.deleteAllByUnitTestDataTrue();
+        unitRepository.deleteAllByTestDataTrue();
+        entityManager.flush();
+    }
+
+    private ApplicationSettings settings() {
+        return settingsRepository
+                .findById(ApplicationSettings.SINGLETON_ID)
+                .orElseThrow(() -> new IllegalStateException("Anwendungseinstellungen fehlen"));
+    }
+}

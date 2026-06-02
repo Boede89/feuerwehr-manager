@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="banner" th:if="${testModeEnabled}" class="testmode-banner" role="status">
+  <strong>Testmodus aktiv</strong> — Sie arbeiten mit Testdaten. Produktivdaten bleiben unverändert sichtbar (Einheiten), alle neuen Personen, Qualifikationen und Lehrgänge sind nur Testdaten.
+</div>
+</body>
+</html>
