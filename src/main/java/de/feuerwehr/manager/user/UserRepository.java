@@ -15,6 +15,4 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findAllByAnonymizedAtIsNullOrderByUsernameAsc();
 
     long countByRoleAndActiveTrueAndAnonymizedAtIsNull(UserRole role);
-
-    java.util.List<User> findAllByAnonymizedAtIsNullOrderByUsernameAsc();
 }
