@@ -10,6 +10,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     boolean existsByUsernameIgnoreCase(String username);
 
+    boolean existsByUsernameIgnoreCaseAndIdNot(String username, long id);
+
     long count();
 
     List<User> findAllByAnonymizedAtIsNullOrderByUsernameAsc();

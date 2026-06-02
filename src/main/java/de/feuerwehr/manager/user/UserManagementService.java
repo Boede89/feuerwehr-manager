@@ -32,7 +32,7 @@ public class UserManagementService {
             UserRole role,
             long actorUserId,
             HttpServletRequest request) {
-        validateUsername(username);
+        UsernameHelper.validate(username);
         validatePassword(plainPassword);
         if (userRepository.existsByUsernameIgnoreCase(username)) {
             throw new IllegalArgumentException("Benutzername ist bereits vergeben");
@@ -53,9 +53,25 @@ public class UserManagementService {
         return saved;
     }
 
+    /** Vorschlag + ggf. Suffix bei Kollision (m.mustermann, m.mustermann2, …). */
+    public String allocateUniqueUsername(String firstName, String lastName) {
+        String base = UsernameHelper.suggestFromPersonName(firstName, lastName);
+        if (!userRepository.existsByUsernameIgnoreCase(base)) {
+            return base;
+        }
+        for (int i = 2; i < 1000; i++) {
+            String candidate = UsernameHelper.truncate(base + i);
+            if (!userRepository.existsByUsernameIgnoreCase(candidate)) {
+                return candidate;
+            }
+        }
+        throw new IllegalArgumentException("Kein freier Benutzername ermittelbar");
+    }
+
     @Transactional
     public User updateUser(
             long userId,
+            String username,
             String displayName,
             UserRole role,
             boolean active,
@@ -64,6 +80,14 @@ public class UserManagementService {
         User user = userRepository.findById(userId).orElseThrow();
         if (user.getAnonymizedAt() != null) {
             throw new IllegalArgumentException("Konto wurde gelöscht");
+        }
+        UsernameHelper.validate(username);
+        String trimmedUsername = username.trim();
+        if (!trimmedUsername.equalsIgnoreCase(user.getUsername())) {
+            if (userRepository.existsByUsernameIgnoreCaseAndIdNot(trimmedUsername, userId)) {
+                throw new IllegalArgumentException("Benutzername ist bereits vergeben");
+            }
+            user.setUsername(trimmedUsername);
         }
         if (!active && user.getId().equals(actorUserId)) {
             throw new IllegalArgumentException("Sie können sich nicht selbst deaktivieren");
@@ -172,16 +196,4 @@ public class UserManagementService {
         }
     }
 
-    private static void validateUsername(String username) {
-        if (username == null || username.isBlank()) {
-            throw new IllegalArgumentException("Benutzername fehlt");
-        }
-        String trimmed = username.trim();
-        if (trimmed.length() < 3 || trimmed.length() > 64) {
-            throw new IllegalArgumentException("Benutzername: 3–64 Zeichen");
-        }
-        if (!trimmed.matches("[a-zA-Z0-9._-]+")) {
-            throw new IllegalArgumentException("Benutzername: nur Buchstaben, Ziffern, Punkt, Unterstrich, Bindestrich");
-        }
-    }
 }

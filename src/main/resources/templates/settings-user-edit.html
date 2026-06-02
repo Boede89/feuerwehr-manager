@@ -17,7 +17,10 @@
 
   <form method="post" th:action="@{/settings/users/{id}(id=${user.id})}" class="card">
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-    <p class="hint">Benutzername: <strong th:text="${user.username}">user</strong> (nicht änderbar)</p>
+    <label for="username">Benutzername</label>
+    <input id="username" name="username" type="text" required minlength="3" maxlength="64"
+           pattern="[a-zA-Z0-9._-]+" autocomplete="off" th:value="${user.username}"/>
+    <p class="hint">Format z. B. m.mustermann (Buchstaben, Ziffern, Punkt, Unterstrich, Bindestrich).</p>
     <label for="displayName">Anzeigename</label>
     <input id="displayName" name="displayName" type="text" required maxlength="255" th:value="${user.displayName}"/>
     <label for="role">Rolle</label>

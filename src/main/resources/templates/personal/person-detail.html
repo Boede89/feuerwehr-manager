@@ -55,7 +55,11 @@
                  th:checked="${formAllowLogin}"/>
           Login erlauben
         </label>
-        <p class="hint" style="margin-top:0.25rem;">Legt ein Benutzerkonto an (Benutzername aus E-Mail). Startpasswort wird nach dem Speichern angezeigt; E-Mail-Versand folgt später.</p>
+        <label for="loginUsername">Benutzername (optional)</label>
+        <input id="loginUsername" name="loginUsername" type="text" maxlength="64"
+               pattern="[a-zA-Z0-9._-]+" autocomplete="off" placeholder="z. B. m.mustermann"
+               th:value="${formLoginUsername}"/>
+        <p class="hint" style="margin-top:0.25rem;">Legt ein Benutzerkonto an. Leer lassen = automatisch (Anfangsbuchstabe Vorname + Punkt + Nachname). Startpasswort wird nach dem Speichern angezeigt; E-Mail-Versand folgt später. Der Benutzername kann später unter Einstellungen → Benutzer angepasst werden.</p>
         <details class="hint" style="margin-top:0.5rem;">
           <summary>Bestehendes Login verknüpfen (optional)</summary>
           <label for="userId" style="margin-top:0.5rem;">Benutzer</label>

@@ -77,6 +77,7 @@ public class UserSettingsController {
     public String update(
             @AuthenticationPrincipal AppUserDetails actor,
             @PathVariable long id,
+            @RequestParam String username,
             @RequestParam String displayName,
             @RequestParam UserRole role,
             @RequestParam(required = false) String active,
@@ -84,7 +85,8 @@ public class UserSettingsController {
             RedirectAttributes redirectAttributes) {
         boolean isActive = "true".equalsIgnoreCase(active);
         try {
-            userManagementService.updateUser(id, displayName, role, isActive, actor.getUserId(), request);
+            userManagementService.updateUser(
+                    id, username, displayName, role, isActive, actor.getUserId(), request);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Benutzer wurde gespeichert.");
             return "redirect:/settings/users/" + id;

@@ -7,6 +7,7 @@ import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserManagementService;
 import de.feuerwehr.manager.user.UserRepository;
 import de.feuerwehr.manager.user.UserRole;
+import de.feuerwehr.manager.user.UsernameHelper;
 import jakarta.servlet.http.HttpServletRequest;
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -166,6 +167,7 @@ public class PersonalService {
             LocalDate birthdate,
             Long userId,
             boolean allowLogin,
+            String loginUsername,
             String notes,
             PersonStatus status,
             Long qualificationTypeId,
@@ -178,11 +180,8 @@ public class PersonalService {
         String generatedPassword = null;
         String createdUsername = null;
         if (allowLogin) {
-            if (email == null || email.isBlank()) {
-                throw new IllegalArgumentException("Für „Login erlauben“ ist eine E-Mail-Adresse erforderlich");
-            }
             String password = generateNumericLoginPassword();
-            String username = deriveUniqueUsername(email);
+            String username = resolveLoginUsername(firstName, lastName, loginUsername);
             User user = userManagementService.createUser(
                     username, (firstName + " " + lastName).trim(), password, UserRole.USER, actorUserId, request);
             linkedUserId = user.getId();
@@ -454,35 +453,16 @@ public class PersonalService {
         return String.format("%04d", LOGIN_PASSWORD_RANDOM.nextInt(10_000));
     }
 
-    private String deriveUniqueUsername(String email) {
-        String base = sanitizeUsernameBase(email);
-        if (!userRepository.existsByUsernameIgnoreCase(base)) {
-            return base;
-        }
-        for (int i = 2; i < 1000; i++) {
-            String candidate = truncateUsername(base + i);
-            if (!userRepository.existsByUsernameIgnoreCase(candidate)) {
-                return candidate;
+    private String resolveLoginUsername(String firstName, String lastName, String loginUsername) {
+        if (loginUsername != null && !loginUsername.isBlank()) {
+            String custom = UsernameHelper.sanitizeUsername(loginUsername);
+            UsernameHelper.validate(custom);
+            if (userRepository.existsByUsernameIgnoreCase(custom)) {
+                throw new IllegalArgumentException("Benutzername ist bereits vergeben");
             }
+            return custom;
         }
-        throw new IllegalArgumentException("Kein freier Benutzername für diese E-Mail ermittelbar");
-    }
-
-    private static String sanitizeUsernameBase(String email) {
-        String local = email.trim().split("@")[0].toLowerCase();
-        String sanitized = local.replaceAll("[^a-z0-9._-]", "_").replaceAll("_+", "_");
-        sanitized = sanitized.replaceAll("^\\.|\\.$", "");
-        if (sanitized.length() < 3) {
-            sanitized = ("user_" + sanitized).replaceAll("_+", "_");
-        }
-        return truncateUsername(sanitized);
-    }
-
-    private static String truncateUsername(String username) {
-        if (username.length() <= 64) {
-            return username;
-        }
-        return username.substring(0, 64);
+        return userManagementService.allocateUniqueUsername(firstName, lastName);
     }
 
     private QualificationType resolveQualificationForWrite(long qualificationTypeId, Unit unit) {

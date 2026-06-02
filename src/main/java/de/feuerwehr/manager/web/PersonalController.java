@@ -72,6 +72,7 @@ public class PersonalController {
             @RequestParam(required = false) Long qualificationTypeId,
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false, defaultValue = "false") boolean allowLogin,
+            @RequestParam(required = false) String loginUsername,
             @RequestParam(required = false) String diveraUcrId,
             @RequestParam(required = false) String notes,
             @RequestParam(required = false) PersonStatus status,
@@ -89,6 +90,7 @@ public class PersonalController {
                     birthdate,
                     userId,
                     allowLogin,
+                    loginUsername,
                     notes,
                     status,
                     qualificationTypeId,
@@ -112,7 +114,17 @@ public class PersonalController {
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             storeNewPersonFlash(
-                    redirectAttributes, firstName, lastName, email, phone, birthdate, userId, allowLogin, notes, status);
+                    redirectAttributes,
+                    firstName,
+                    lastName,
+                    email,
+                    phone,
+                    birthdate,
+                    userId,
+                    allowLogin,
+                    loginUsername,
+                    notes,
+                    status);
             return "redirect:/personal/new?unit=" + unit + "&tab=stammdaten";
         }
     }
@@ -291,6 +303,7 @@ public class PersonalController {
             LocalDate birthdate,
             Long userId,
             boolean allowLogin,
+            String loginUsername,
             String notes,
             PersonStatus status) {
         redirectAttributes.addFlashAttribute("formFirstName", firstName);
@@ -300,6 +313,7 @@ public class PersonalController {
         redirectAttributes.addFlashAttribute("formBirthdate", birthdate);
         redirectAttributes.addFlashAttribute("formUserId", userId);
         redirectAttributes.addFlashAttribute("formAllowLogin", allowLogin);
+        redirectAttributes.addFlashAttribute("formLoginUsername", loginUsername);
         redirectAttributes.addFlashAttribute("formNotes", notes);
         redirectAttributes.addFlashAttribute("formStatus", status);
     }
