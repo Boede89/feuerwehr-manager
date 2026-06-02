@@ -22,6 +22,7 @@ public class PersonalService {
     private final QualificationTypeRepository qualificationTypeRepository;
     private final CourseRepository courseRepository;
     private final PersonCourseCompletionRepository completionRepository;
+    private final PersonDiveraRicRepository diveraRicRepository;
     private final UserRepository userRepository;
 
     public Unit requireUnit(long unitId) {
@@ -50,6 +51,11 @@ public class PersonalService {
     @Transactional(readOnly = true)
     public List<PersonCourseCompletion> listCompletions(long personId) {
         return completionRepository.findByPersonId(personId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PersonDiveraRic> listDiveraRics(long personId) {
+        return diveraRicRepository.findByPersonIdOrderByRicCodeAsc(personId);
     }
 
     public List<User> listLinkableUsers() {
@@ -97,6 +103,78 @@ public class PersonalService {
             person.setStatus(status);
         }
         return personRepository.save(person);
+    }
+
+    @Transactional
+    public Person updateStammdaten(
+            long personId,
+            String firstName,
+            String lastName,
+            String email,
+            String phone,
+            LocalDate birthdate,
+            Long userId,
+            String notes,
+            PersonStatus status) {
+        validateName(firstName, lastName);
+        Person person = requirePerson(personId);
+        person.setFirstName(firstName.trim());
+        person.setLastName(lastName.trim());
+        person.setEmail(blankToNull(email));
+        person.setPhone(blankToNull(phone));
+        person.setBirthdate(birthdate);
+        person.setNotes(blankToNull(notes));
+        if (userId != null && userId > 0) {
+            User user = userRepository.findById(userId).orElseThrow();
+            if (user.getAnonymizedAt() != null) {
+                throw new IllegalArgumentException("Benutzerkonto ist gelöscht");
+            }
+            person.setUser(user);
+        } else {
+            person.setUser(null);
+        }
+        if (status != null) {
+            person.setStatus(status);
+        }
+        return personRepository.save(person);
+    }
+
+    @Transactional
+    public Person updateLehrgaenge(long personId, Long qualificationTypeId, List<CourseCompletionInput> inputs) {
+        Person person = requirePerson(personId);
+        if (qualificationTypeId != null && qualificationTypeId > 0) {
+            QualificationType qt = qualificationTypeRepository.findById(qualificationTypeId).orElseThrow();
+            if (!qt.getUnit().getId().equals(person.getUnit().getId())) {
+                throw new IllegalArgumentException("Qualifikation gehört nicht zur Einheit");
+            }
+            person.setQualificationType(qt);
+        } else {
+            person.setQualificationType(null);
+        }
+        personRepository.save(person);
+        saveCourseCompletions(personId, inputs);
+        return requirePerson(personId);
+    }
+
+    @Transactional
+    public Person updateDivera(long personId, String diveraUcrId, List<String> ricCodes) {
+        Person person = requirePerson(personId);
+        person.setDiveraUcrId(blankToNull(diveraUcrId));
+        personRepository.save(person);
+        diveraRicRepository.deleteByPersonId(personId);
+        if (ricCodes != null) {
+            for (String raw : ricCodes) {
+                if (raw == null || raw.isBlank()) {
+                    continue;
+                }
+                String code = raw.trim();
+                PersonDiveraRic ric = new PersonDiveraRic();
+                ric.setPerson(person);
+                ric.setRicCode(code);
+                diveraRicRepository.save(ric);
+            }
+        }
+        return requirePerson(personId);
     }
 
     @Transactional
@@ -168,6 +246,7 @@ public class PersonalService {
         person.setStatus(PersonStatus.INACTIVE);
         person.setAnonymizedAt(Instant.now());
         completionRepository.deleteByPersonId(personId);
+        diveraRicRepository.deleteByPersonId(personId);
         personRepository.save(person);
     }
 

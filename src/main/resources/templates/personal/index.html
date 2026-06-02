@@ -12,29 +12,42 @@
   <a class="link" th:href="@{/(unit=${unitId})}">← Dashboard</a>
 </header>
 <main>
-  <p class="hint">Einheit: <strong th:text="${currentUnitName}">—</strong> · <span th:text="${personCount}">0</span> Personen</p>
+  <p class="hint">Einheit: <strong th:text="${currentUnitName}">—</strong> · <span id="personCountVisible" th:text="${personCount}">0</span> Personen</p>
   <div class="ok" th:if="${saved}" th:text="${message} ?: 'Gespeichert.'">OK</div>
   <div class="err" th:if="${error}" th:text="${error}">Fehler</div>
 
-  <p style="margin:0 0 1rem;">
+  <p style="margin:0 0 0.75rem;">
     <a class="btn" th:href="@{/personal/new(unit=${unitId})}">Neue Person</a>
   </p>
 
-  <div class="list">
-    <div class="list-row" th:if="${#lists.isEmpty(persons)}">
-      <span>Noch keine Personen erfasst.</span>
-    </div>
-    <div class="list-row" th:each="p : ${persons}">
-      <span>
+  <div class="person-search-wrap">
+    <label for="personSearch" class="sr-only">Personen suchen</label>
+    <input type="search" id="personSearch" class="person-search" placeholder="Suchen nach Name, E-Mail, Telefon, Qualifikation…" autocomplete="off"/>
+  </div>
+
+  <div class="person-list" id="personList">
+    <p class="hint" id="personSearchEmpty" style="display:none;">Keine Treffer für Ihre Suche.</p>
+    <a class="person-list-item" th:each="p : ${persons}"
+       th:href="@{/personal/{id}(id=${p.id},unit=${unitId})}"
+       th:attr="data-search=${#strings.toLowerCase(
+         p.firstName + ' ' + p.lastName + ' ' +
+         (p.email != null ? p.email : '') + ' ' +
+         (p.phone != null ? p.phone : '') + ' ' +
+         (p.qualificationType != null ? p.qualificationType.name : '') + ' ' +
+         p.status.name()
+       )}">
+      <span class="person-list-meta">
         <strong th:text="${p.firstName + ' ' + p.lastName}">Name</strong>
-        <span class="hint" style="margin:0;display:block;"
+        <span class="hint" style="margin:0;"
               th:if="${p.qualificationType != null}" th:text="${p.qualificationType.name}">Quali</span>
         <span class="badge" th:classappend="${p.status.name() == 'ACTIVE'} ? ' active' : ' inactive'"
               th:text="${p.status.name() == 'ACTIVE'} ? 'Aktiv' : 'Inaktiv'">Status</span>
       </span>
-      <a class="btn btn-secondary" th:href="@{/personal/{id}(id=${p.id},unit=${unitId})}">Bearbeiten</a>
-    </div>
+      <span class="person-list-chevron" aria-hidden="true">›</span>
+    </a>
+    <p class="hint" th:if="${#lists.isEmpty(persons)}" id="personListEmpty">Noch keine Personen erfasst.</p>
   </div>
 </main>
+<script th:src="@{/js/personal-list.js}"></script>
 </body>
 </html>
