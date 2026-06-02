@@ -37,4 +37,22 @@
       ricList.lastElementChild?.querySelector('input')?.focus();
     });
   }
+
+  if (document.body.getAttribute('data-person-create') === 'true') {
+    const tabButtons = document.querySelectorAll('.person-tab-btn');
+    const panels = document.querySelectorAll('#personCreateForm .tab-panel');
+
+    function showTab(tabId) {
+      panels.forEach((panel) => {
+        panel.classList.toggle('active', panel.id === 'panel-' + tabId);
+      });
+      tabButtons.forEach((btn) => {
+        btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
+      });
+    }
+
+    tabButtons.forEach((btn) => {
+      btn.addEventListener('click', () => showTab(btn.getAttribute('data-tab')));
+    });
+  }
 })();

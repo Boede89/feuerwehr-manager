@@ -143,6 +143,32 @@ public class PersonalService {
     }
 
     @Transactional
+    public Person createPersonComplete(
+            long unitId,
+            String firstName,
+            String lastName,
+            String email,
+            String phone,
+            LocalDate birthdate,
+            Long userId,
+            String notes,
+            PersonStatus status,
+            Long qualificationTypeId,
+            List<CourseCompletionInput> courseInputs,
+            String diveraUcrId,
+            List<String> ricCodes) {
+        Person created = createPerson(
+                unitId, firstName, lastName, email, phone, birthdate, null, userId, null, notes);
+        if (status != null) {
+            created.setStatus(status);
+            personRepository.save(created);
+        }
+        updateLehrgaenge(created.getId(), qualificationTypeId, courseInputs);
+        updateDivera(created.getId(), diveraUcrId, ricCodes);
+        return requirePerson(created.getId());
+    }
+
+    @Transactional
     public Person updatePerson(
             long personId,
             String firstName,

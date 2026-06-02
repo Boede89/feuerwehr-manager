@@ -2,7 +2,6 @@ package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.personal.PersonCourseCompletion;
-import de.feuerwehr.manager.personal.PersonDiveraRic;
 import de.feuerwehr.manager.personal.PersonStatus;
 import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.personal.PersonalService.CourseCompletionInput;
@@ -47,10 +46,14 @@ public class PersonalController {
     }
 
     @GetMapping("/new")
-    public String newForm(@RequestParam(name = "unit", required = false) Long unitId, Model model) {
+    public String newForm(
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "tab", defaultValue = "stammdaten") String tab,
+            Model model) {
         Unit unit = resolveUnit(unitId, model);
         personalService.seedDefaultQualificationsIfEmpty(unit.getId());
-        return "personal/person-new";
+        populateNewPersonModel(model, unit, normalizeTab(tab));
+        return "personal/person-detail";
     }
 
     @PostMapping("/new")
@@ -60,20 +63,38 @@ public class PersonalController {
             @RequestParam String lastName,
             @RequestParam(required = false) String email,
             @RequestParam(required = false) String phone,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate birthdate,
+            @RequestParam(required = false) Long qualificationTypeId,
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) String diveraUcrId,
+            @RequestParam(required = false) String notes,
+            @RequestParam(required = false) PersonStatus status,
+            @RequestParam(required = false) List<Long> courseIds,
+            @RequestParam(required = false) List<String> ricCodes,
+            HttpServletRequest request,
             RedirectAttributes redirectAttributes) {
         try {
-            Person created = personalService.createPerson(
-                    unit, firstName, lastName, email, phone, null, null, null, null, null);
+            Person created = personalService.createPersonComplete(
+                    unit,
+                    firstName,
+                    lastName,
+                    email,
+                    phone,
+                    birthdate,
+                    userId,
+                    notes,
+                    status,
+                    qualificationTypeId,
+                    parseCourseCompletions(courseIds, request),
+                    diveraUcrId,
+                    ricCodes);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", created.displayName() + " wurde angelegt.");
             return "redirect:/personal/" + created.getId() + "?unit=" + unit;
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
-            redirectAttributes.addFlashAttribute("firstName", firstName);
-            redirectAttributes.addFlashAttribute("lastName", lastName);
-            redirectAttributes.addFlashAttribute("email", email);
-            redirectAttributes.addFlashAttribute("phone", phone);
-            return "redirect:/personal/new?unit=" + unit;
+            storeNewPersonFlash(redirectAttributes, firstName, lastName, email, phone, birthdate, userId, notes, status);
+            return "redirect:/personal/new?unit=" + unit + "&tab=stammdaten";
         }
     }
 
@@ -88,26 +109,12 @@ public class PersonalController {
         Unit unit = person.getUnit();
         model.addAttribute("unitId", unit.getId());
         model.addAttribute("currentUnitName", unit.getName());
+        model.addAttribute("isNewPerson", false);
         model.addAttribute("person", person);
         String activeTab = normalizeTab(tab);
         model.addAttribute("activeTab", activeTab);
         model.addAttribute("editMode", edit != null && (edit.equals("1") || edit.equals(activeTab)));
-        model.addAttribute("qualificationTypes", personalService.listQualificationTypes(unit.getId(), true));
-        model.addAttribute("linkableUsers", personalService.listLinkableUsers());
-        model.addAttribute("statuses", PersonStatus.values());
-        List<PersonCourseCompletion> completions = personalService.listCompletions(id);
-        model.addAttribute("completions", completions);
-        model.addAttribute("unitCourses", personalService.listCourses(unit.getId(), true));
-        Set<Long> completedCourseIds = completions.stream()
-                .map(c -> c.getCourse().getId())
-                .collect(Collectors.toCollection(HashSet::new));
-        model.addAttribute("completedCourseIds", completedCourseIds);
-        Map<Long, Integer> completionYears = new HashMap<>();
-        for (PersonCourseCompletion c : completions) {
-            completionYears.put(c.getCourse().getId(), c.getCompletionYear());
-        }
-        model.addAttribute("completionYears", completionYears);
-        model.addAttribute("diveraRics", personalService.listDiveraRics(id));
+        populatePersonDetailData(model, unit.getId(), id);
         return "personal/person-detail";
     }
 
@@ -204,6 +211,62 @@ public class PersonalController {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
         return "redirect:/personal/setup/courses?unit=" + unit;
+    }
+
+    private void populateNewPersonModel(Model model, Unit unit, String activeTab) {
+        Person person = new Person();
+        person.setUnit(unit);
+        person.setStatus(PersonStatus.ACTIVE);
+        model.addAttribute("isNewPerson", true);
+        model.addAttribute("editMode", true);
+        model.addAttribute("person", person);
+        model.addAttribute("activeTab", activeTab);
+        populatePersonDetailData(model, unit.getId(), null);
+    }
+
+    private void populatePersonDetailData(Model model, long unitId, Long personId) {
+        model.addAttribute("qualificationTypes", personalService.listQualificationTypes(unitId, true));
+        model.addAttribute("linkableUsers", personalService.listLinkableUsers());
+        model.addAttribute("statuses", PersonStatus.values());
+        model.addAttribute("unitCourses", personalService.listCourses(unitId, true));
+        if (personId == null) {
+            model.addAttribute("completions", List.of());
+            model.addAttribute("completedCourseIds", Set.of());
+            model.addAttribute("completionYears", Map.of());
+            model.addAttribute("diveraRics", List.of());
+            return;
+        }
+        List<PersonCourseCompletion> completions = personalService.listCompletions(personId);
+        model.addAttribute("completions", completions);
+        model.addAttribute(
+                "completedCourseIds",
+                completions.stream().map(c -> c.getCourse().getId()).collect(Collectors.toCollection(HashSet::new)));
+        Map<Long, Integer> completionYears = new HashMap<>();
+        for (PersonCourseCompletion c : completions) {
+            completionYears.put(c.getCourse().getId(), c.getCompletionYear());
+        }
+        model.addAttribute("completionYears", completionYears);
+        model.addAttribute("diveraRics", personalService.listDiveraRics(personId));
+    }
+
+    private static void storeNewPersonFlash(
+            RedirectAttributes redirectAttributes,
+            String firstName,
+            String lastName,
+            String email,
+            String phone,
+            LocalDate birthdate,
+            Long userId,
+            String notes,
+            PersonStatus status) {
+        redirectAttributes.addFlashAttribute("formFirstName", firstName);
+        redirectAttributes.addFlashAttribute("formLastName", lastName);
+        redirectAttributes.addFlashAttribute("formEmail", email);
+        redirectAttributes.addFlashAttribute("formPhone", phone);
+        redirectAttributes.addFlashAttribute("formBirthdate", birthdate);
+        redirectAttributes.addFlashAttribute("formUserId", userId);
+        redirectAttributes.addFlashAttribute("formNotes", notes);
+        redirectAttributes.addFlashAttribute("formStatus", status);
     }
 
     private static String normalizeTab(String tab) {

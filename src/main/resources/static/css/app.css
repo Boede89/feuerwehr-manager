@@ -199,6 +199,11 @@ input[type="text"], input[type="url"], input[type="password"], select {
 .person-tab:hover { border-color: #cbd5e1; }
 .person-tab.active { border-color: var(--accent); background: var(--accent-bg); color: #1d4ed8; }
 .person-tab.is-disabled { opacity: 0.5; cursor: default; pointer-events: none; }
+button.person-tab {
+  font-family: inherit;
+  cursor: pointer;
+  appearance: none;
+}
 
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }

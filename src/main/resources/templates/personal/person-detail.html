@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html lang="de" xmlns:th="http://www.thymeleaf.org"
-      th:with="initials=${#strings.substring(person.firstName,0,1) + #strings.substring(person.lastName,0,1)}">
+      th:with="initials=${isNewPerson} ? 'NP' : (#strings.substring(person.firstName,0,1) + #strings.substring(person.lastName,0,1))}">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-  <title th:text="${person.firstName + ' ' + person.lastName + ' – Personal'}">Person</title>
+  <title th:text="${isNewPerson} ? 'Neue Person – Feuerwehr-Manager' : (person.firstName + ' ' + person.lastName + ' – Personal')">Person</title>
   <link rel="stylesheet" th:href="@{/css/app.css}"/>
 </head>
-<body>
+<body th:attr="data-person-create=${isNewPerson}">
 <header class="bar">
-  <h1>Person</h1>
+  <h1 th:text="${isNewPerson} ? 'Neue Person' : 'Person'">Person</h1>
   <a class="link" th:href="@{/personal(unit=${unitId})}">← Personal</a>
 </header>
 <main class="person-detail-page">
@@ -18,241 +18,285 @@
   <div class="err" th:if="${error}" th:text="${error}">Fehler</div>
 
   <div class="person-hero">
-    <div class="person-avatar" th:text="${initials}">MM</div>
+    <div class="person-avatar" th:text="${initials}">NP</div>
     <div>
-      <h2 th:text="${person.firstName + ' ' + person.lastName}">Max Mustermann</h2>
+      <h2 th:text="${isNewPerson} ? 'Neue Person' : (person.firstName + ' ' + person.lastName)">Name</h2>
       <p class="hint" th:text="${currentUnitName}">Einheit</p>
-      <span class="badge" th:classappend="${person.status.name() == 'ACTIVE'} ? ' active' : ' inactive'"
+      <span th:unless="${isNewPerson}" class="badge" th:classappend="${person.status.name() == 'ACTIVE'} ? ' active' : ' inactive'"
             th:text="${person.status.name() == 'ACTIVE'} ? 'Aktiv' : 'Inaktiv'">Status</span>
     </div>
   </div>
 
-  <nav class="person-tabs" aria-label="Personenbereiche">
-    <a class="person-tab" th:classappend="${activeTab == 'stammdaten'} ? ' active' : ''"
-       th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='stammdaten')}">Stammdaten</a>
-    <a class="person-tab" th:classappend="${activeTab == 'atemschutz'} ? ' active' : ''"
-       th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='atemschutz')}">Atemschutz</a>
-    <a class="person-tab" th:classappend="${activeTab == 'lehrgaenge'} ? ' active' : ''"
-       th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='lehrgaenge')}">Lehrgänge</a>
-    <a class="person-tab" th:classappend="${activeTab == 'divera'} ? ' active' : ''"
-       th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='divera')}">Divera</a>
-  </nav>
-
-  <!-- Stammdaten -->
-  <section id="panel-stammdaten" class="tab-panel panel-card"
-           th:classappend="${activeTab == 'stammdaten'} ? ' active' : ''">
-    <div class="panel-toolbar" th:if="${activeTab == 'stammdaten' and !editMode}">
-      <a class="btn btn-secondary"
-         th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='stammdaten',edit='1')}">Bearbeiten</a>
-    </div>
-
-    <div class="panel-view" th:classappend="${editMode and activeTab == 'stammdaten'} ? ' is-hidden' : ''">
-      <div class="detail-grid">
-        <div class="detail-field">
-          <label>Vorname</label>
-          <div class="value" th:text="${person.firstName}">—</div>
-        </div>
-        <div class="detail-field">
-          <label>Nachname</label>
-          <div class="value" th:text="${person.lastName}">—</div>
-        </div>
-        <div class="detail-field">
-          <label>E-Mail</label>
-          <div class="value" th:classappend="${person.email == null} ? ' muted' : ''"
-               th:text="${person.email != null ? person.email : '—'}">—</div>
-        </div>
-        <div class="detail-field">
-          <label>Telefon</label>
-          <div class="value" th:classappend="${person.phone == null} ? ' muted' : ''"
-               th:text="${person.phone != null ? person.phone : '—'}">—</div>
-        </div>
-        <div class="detail-field">
-          <label>Geburtsdatum</label>
-          <div class="value" th:classappend="${person.birthdate == null} ? ' muted' : ''"
-               th:text="${person.birthdate != null ? #temporals.format(person.birthdate, 'dd.MM.yyyy') : '—'}">—</div>
-        </div>
-        <div class="detail-field">
-          <label>Login</label>
-          <div class="value" th:classappend="${person.user == null} ? ' muted' : ''"
-               th:text="${person.user != null ? person.user.displayName + ' (@' + person.user.username + ')' : '—'}">—</div>
-        </div>
-        <div class="detail-field">
-          <label>Status</label>
-          <div class="value" th:text="${person.status.name() == 'ACTIVE'} ? 'Aktiv' : 'Inaktiv'">Aktiv</div>
-        </div>
-        <div class="detail-field" style="grid-column:1/-1;">
-          <label>Notizen</label>
-          <div class="value" th:classappend="${person.notes == null} ? ' muted' : ''"
-               th:text="${person.notes != null ? person.notes : '—'}">—</div>
-        </div>
-      </div>
-    </div>
-
-    <form class="panel-edit" th:classappend="${editMode and activeTab == 'stammdaten'} ? ' is-active' : ''"
-          method="post" th:action="@{/personal/{id}(id=${person.id})}">
+  <!-- Neuanlage: alle Reiter, ein Formular -->
+  <th:block th:if="${isNewPerson}">
+    <form method="post" th:action="@{/personal/new}" id="personCreateForm">
       <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
       <input type="hidden" name="unit" th:value="${unitId}"/>
-      <input type="hidden" name="section" value="stammdaten"/>
-      <label for="firstName">Vorname</label>
-      <input id="firstName" name="firstName" type="text" required maxlength="100" th:value="${person.firstName}"/>
-      <label for="lastName">Nachname</label>
-      <input id="lastName" name="lastName" type="text" required maxlength="100" th:value="${person.lastName}"/>
-      <label for="email">E-Mail</label>
-      <input id="email" name="email" type="email" maxlength="255" th:value="${person.email}"/>
-      <label for="phone">Telefon</label>
-      <input id="phone" name="phone" type="tel" maxlength="50" th:value="${person.phone}"/>
-      <label for="birthdate">Geburtsdatum</label>
-      <input id="birthdate" name="birthdate" type="date" th:value="${person.birthdate}"/>
-      <label for="userId">Verknüpftes Login</label>
-      <select id="userId" name="userId">
-        <option value="">— kein Login —</option>
-        <option th:each="u : ${linkableUsers}" th:value="${u.id}"
-                th:selected="${person.user != null ? person.user.id == u.id : false}"
-                th:text="${u.displayName + ' (@' + u.username + ')'}">User</option>
-      </select>
-      <label for="status">Status</label>
-      <select id="status" name="status">
-        <option th:each="s : ${statuses}" th:value="${s.name()}" th:selected="${s == person.status}"
-                th:text="${s.name() == 'ACTIVE'} ? 'Aktiv' : 'Inaktiv'">Status</option>
-      </select>
-      <label for="notes">Notizen</label>
-      <textarea id="notes" name="notes" maxlength="512" rows="3" th:text="${person.notes}"></textarea>
-      <div class="actions" style="margin-top:1rem;">
-        <button type="submit" class="btn">Speichern</button>
-        <a class="btn btn-secondary"
-           th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='stammdaten')}">Abbrechen</a>
-      </div>
-    </form>
 
-    <form method="post" th:action="@{/personal/{id}/delete(id=${person.id})}"
-          style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border);"
-          th:if="${activeTab == 'stammdaten' and !editMode}"
-          onsubmit="return confirm('Person wirklich löschen?');">
-      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-      <input type="hidden" name="unit" th:value="${unitId}"/>
-      <p class="hint" style="color:#991b1b;font-weight:600;margin:0 0 0.5rem;">Person löschen</p>
-      <p class="hint">Entfernt die Person aus der Liste und löst Verknüpfungen.</p>
-      <button type="submit" class="btn" style="background:#dc2626;margin-top:0.5rem;">Löschen</button>
-    </form>
-  </section>
+      <nav class="person-tabs" aria-label="Person anlegen">
+        <button type="button" class="person-tab person-tab-btn" th:classappend="${activeTab == 'stammdaten'} ? ' active' : ''" data-tab="stammdaten">Stammdaten</button>
+        <button type="button" class="person-tab person-tab-btn" th:classappend="${activeTab == 'atemschutz'} ? ' active' : ''" data-tab="atemschutz">Atemschutz</button>
+        <button type="button" class="person-tab person-tab-btn" th:classappend="${activeTab == 'lehrgaenge'} ? ' active' : ''" data-tab="lehrgaenge">Lehrgänge</button>
+        <button type="button" class="person-tab person-tab-btn" th:classappend="${activeTab == 'divera'} ? ' active' : ''" data-tab="divera">Divera</button>
+      </nav>
 
-  <!-- Atemschutz -->
-  <section id="panel-atemschutz" class="tab-panel panel-card"
-           th:classappend="${activeTab == 'atemschutz'} ? ' active' : ''">
-    <div class="placeholder-module">
-      <div class="icon">🛡️</div>
-      <p><strong>Modul Atemschutz</strong></p>
-      <p class="hint" style="margin:0.5rem 0 0;">Tauglichkeiten, Fristen und Nachweise werden hier später eingebunden.</p>
-    </div>
-  </section>
+      <section id="panel-stammdaten" class="tab-panel panel-card" th:classappend="${activeTab == 'stammdaten'} ? ' active' : ''">
+        <label for="firstName">Vorname</label>
+        <input id="firstName" name="firstName" type="text" required maxlength="100" th:value="${formFirstName}"/>
+        <label for="lastName">Nachname</label>
+        <input id="lastName" name="lastName" type="text" required maxlength="100" th:value="${formLastName}"/>
+        <label for="email">E-Mail</label>
+        <input id="email" name="email" type="email" maxlength="255" th:value="${formEmail}"/>
+        <label for="phone">Telefon</label>
+        <input id="phone" name="phone" type="tel" maxlength="50" th:value="${formPhone}"/>
+        <label for="birthdate">Geburtsdatum</label>
+        <input id="birthdate" name="birthdate" type="date" th:value="${formBirthdate}"/>
+        <label for="userId">Verknüpftes Login</label>
+        <select id="userId" name="userId">
+          <option value="">— kein Login —</option>
+          <option th:each="u : ${linkableUsers}" th:value="${u.id}"
+                  th:selected="${formUserId != null and formUserId == u.id}"
+                  th:text="${u.displayName + ' (@' + u.username + ')'}">User</option>
+        </select>
+        <label for="status">Status</label>
+        <select id="status" name="status">
+          <option th:each="s : ${statuses}" th:value="${s.name()}"
+                  th:selected="${formStatus != null ? formStatus == s : s.name() == 'ACTIVE'}"
+                  th:text="${s.name() == 'ACTIVE'} ? 'Aktiv' : 'Inaktiv'">Status</option>
+        </select>
+        <label for="notes">Notizen</label>
+        <textarea id="notes" name="notes" maxlength="512" rows="3" th:text="${formNotes}"></textarea>
+      </section>
 
-  <!-- Lehrgänge -->
-  <section id="panel-lehrgaenge" class="tab-panel panel-card"
-           th:classappend="${activeTab == 'lehrgaenge'} ? ' active' : ''">
-    <div class="panel-toolbar" th:if="${activeTab == 'lehrgaenge' and !editMode}">
-      <a class="btn btn-secondary"
-         th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='lehrgaenge',edit='1')}">Bearbeiten</a>
-    </div>
+      <section id="panel-atemschutz" class="tab-panel panel-card" th:classappend="${activeTab == 'atemschutz'} ? ' active' : ''">
+        <div class="placeholder-module">
+          <div class="icon">🛡️</div>
+          <p><strong>Modul Atemschutz</strong></p>
+          <p class="hint" style="margin:0.5rem 0 0;">Tauglichkeiten, Fristen und Nachweise werden hier später eingebunden.</p>
+        </div>
+      </section>
 
-    <div class="panel-view" th:classappend="${editMode and activeTab == 'lehrgaenge'} ? ' is-hidden' : ''">
-      <div class="detail-field">
-        <label>Aktuelle Qualifikation</label>
-        <div class="value" th:classappend="${person.qualificationType == null} ? ' muted' : ''"
-             th:text="${person.qualificationType != null ? person.qualificationType.name : '—'}">—</div>
-      </div>
-      <h3 style="margin:1.25rem 0 0.5rem;font-size:1rem;">Abgeschlossene Lehrgänge</h3>
-      <div class="list" style="margin-top:0;" th:if="${!#lists.isEmpty(completions)}">
-        <div class="list-row" th:each="c : ${completions}">
-          <span>
-            <strong th:text="${c.course.name}">Lehrgang</strong>
-            <span class="hint" th:if="${c.course.qualificationType != null}" style="margin:0;display:block;"
-                  th:text="'Qualifikation: ' + ${c.course.qualificationType.name}"></span>
-          </span>
-          <span class="badge active" th:if="${c.completionYear != null}" th:text="${c.completionYear}">Jahr</span>
+      <section id="panel-lehrgaenge" class="tab-panel panel-card" th:classappend="${activeTab == 'lehrgaenge'} ? ' active' : ''">
+        <label for="qualificationTypeIdNew">Qualifikation</label>
+        <select id="qualificationTypeIdNew" name="qualificationTypeId">
+          <option value="">— keine —</option>
+          <option th:each="q : ${qualificationTypes}" th:value="${q.id}" th:text="${q.name}">Quali</option>
+        </select>
+        <p class="hint">Lehrgänge der Einheit zuweisen (Jahr optional):</p>
+        <div class="course-pick-list">
+          <div class="course-pick-row" th:each="course : ${unitCourses}">
+            <input type="checkbox" name="courseIds" th:id="'new-course-' + ${course.id}" th:value="${course.id}"/>
+            <label class="pick-name" th:for="'new-course-' + ${course.id}" th:text="${course.name}">Lehrgang</label>
+            <input type="number" th:name="'completionYear_' + ${course.id}" min="1950" max="2100" placeholder="Jahr"/>
+          </div>
+          <p class="hint" th:if="${#lists.isEmpty(unitCourses)}">Zuerst Lehrgänge unter Einstellungen anlegen.</p>
+        </div>
+      </section>
+
+      <section id="panel-divera" class="tab-panel panel-card" th:classappend="${activeTab == 'divera'} ? ' active' : ''">
+        <label for="diveraUcrIdNew">Divera UCR-ID</label>
+        <input id="diveraUcrIdNew" name="diveraUcrId" type="text" maxlength="64" placeholder="z. B. aus Divera 24/7"/>
+        <label>RICs</label>
+        <p class="hint">Ein RIC pro Feld (z. B. Funktionskürzel aus Divera).</p>
+        <div class="ric-edit-list" id="ricEditList">
+          <div class="ric-edit-row">
+            <input type="text" name="ricCodes" maxlength="64" placeholder="RIC"/>
+            <button type="button" class="btn btn-secondary ric-remove" aria-label="RIC entfernen">×</button>
+          </div>
+        </div>
+        <button type="button" class="btn btn-secondary" id="addRicBtn" style="margin-top:0.5rem;">+ RIC hinzufügen</button>
+      </section>
+
+      <div class="card" style="margin-top:1rem;">
+        <div class="actions">
+          <button type="submit" class="btn">Person anlegen</button>
+          <a class="btn btn-secondary" th:href="@{/personal(unit=${unitId})}">Abbrechen</a>
         </div>
       </div>
-      <p class="hint" th:if="${#lists.isEmpty(completions)}">Noch keine Lehrgänge zugewiesen.</p>
-    </div>
-
-    <form class="panel-edit" th:classappend="${editMode and activeTab == 'lehrgaenge'} ? ' is-active' : ''"
-          method="post" th:action="@{/personal/{id}(id=${person.id})}">
-      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-      <input type="hidden" name="unit" th:value="${unitId}"/>
-      <input type="hidden" name="section" value="lehrgaenge"/>
-      <label for="qualificationTypeId">Qualifikation</label>
-      <select id="qualificationTypeId" name="qualificationTypeId">
-        <option value="">— keine —</option>
-        <option th:each="q : ${qualificationTypes}" th:value="${q.id}"
-                th:selected="${person.qualificationType != null ? person.qualificationType.id == q.id : false}"
-                th:text="${q.name}">Quali</option>
-      </select>
-      <p class="hint">Lehrgänge der Einheit zuweisen (Jahr optional):</p>
-      <div class="course-pick-list">
-        <div class="course-pick-row" th:each="course : ${unitCourses}">
-          <input type="checkbox" name="courseIds" th:id="'course-' + ${course.id}"
-                 th:value="${course.id}" th:checked="${completedCourseIds.contains(course.id)}"/>
-          <label class="pick-name" th:for="'course-' + ${course.id}" th:text="${course.name}">Lehrgang</label>
-          <input type="number" th:name="'completionYear_' + ${course.id}" min="1950" max="2100"
-                 placeholder="Jahr" th:value="${completionYears[course.id]}"/>
-        </div>
-        <p class="hint" th:if="${#lists.isEmpty(unitCourses)}">Zuerst Lehrgänge unter Einstellungen anlegen.</p>
-      </div>
-      <div class="actions" style="margin-top:1rem;">
-        <button type="submit" class="btn">Speichern</button>
-        <a class="btn btn-secondary"
-           th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='lehrgaenge')}">Abbrechen</a>
-      </div>
     </form>
-  </section>
+  </th:block>
 
-  <!-- Divera -->
-  <section id="panel-divera" class="tab-panel panel-card"
-           th:classappend="${activeTab == 'divera'} ? ' active' : ''">
-    <div class="panel-toolbar" th:if="${activeTab == 'divera' and !editMode}">
-      <a class="btn btn-secondary"
-         th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='divera',edit='1')}">Bearbeiten</a>
-    </div>
+  <!-- Bestehende Person: Reiter mit Ansicht/Bearbeiten -->
+  <th:block th:unless="${isNewPerson}">
+    <nav class="person-tabs" aria-label="Personenbereiche">
+      <a class="person-tab" th:classappend="${activeTab == 'stammdaten'} ? ' active' : ''"
+         th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='stammdaten')}">Stammdaten</a>
+      <a class="person-tab" th:classappend="${activeTab == 'atemschutz'} ? ' active' : ''"
+         th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='atemschutz')}">Atemschutz</a>
+      <a class="person-tab" th:classappend="${activeTab == 'lehrgaenge'} ? ' active' : ''"
+         th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='lehrgaenge')}">Lehrgänge</a>
+      <a class="person-tab" th:classappend="${activeTab == 'divera'} ? ' active' : ''"
+         th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='divera')}">Divera</a>
+    </nav>
 
-    <div class="panel-view" th:classappend="${editMode and activeTab == 'divera'} ? ' is-hidden' : ''">
-      <div class="detail-field">
-        <label>Divera UCR-ID</label>
-        <div class="value" th:classappend="${person.diveraUcrId == null} ? ' muted' : ''"
-             th:text="${person.diveraUcrId != null ? person.diveraUcrId : '—'}">—</div>
+    <section id="panel-stammdaten" class="tab-panel panel-card" th:classappend="${activeTab == 'stammdaten'} ? ' active' : ''">
+      <div class="panel-toolbar" th:if="${activeTab == 'stammdaten' and !editMode}">
+        <a class="btn btn-secondary btn-sm"
+           th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='stammdaten',edit='1')}">Bearbeiten</a>
       </div>
-      <div class="detail-field" style="margin-top:1rem;">
-        <label>Zugewiesene RICs</label>
-        <div class="ric-chips" th:if="${!#lists.isEmpty(diveraRics)}">
-          <span class="ric-chip" th:each="ric : ${diveraRics}" th:text="${ric.ricCode}">RIC</span>
-        </div>
-        <div class="value muted" th:if="${#lists.isEmpty(diveraRics)}">—</div>
-      </div>
-      <p class="hint" style="margin-top:1rem;">RIC-Zuordnungen verbinden die Person mit Diensten/Funktionen in Divera.</p>
-    </div>
-
-    <form class="panel-edit" th:classappend="${editMode and activeTab == 'divera'} ? ' is-active' : ''"
-          method="post" th:action="@{/personal/{id}(id=${person.id})}" id="diveraEditForm">
-      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-      <input type="hidden" name="unit" th:value="${unitId}"/>
-      <input type="hidden" name="section" value="divera"/>
-      <label for="diveraUcrId">Divera UCR-ID</label>
-      <input id="diveraUcrId" name="diveraUcrId" type="text" maxlength="64" th:value="${person.diveraUcrId}"
-             placeholder="z. B. aus Divera 24/7"/>
-      <label>RICs</label>
-      <p class="hint">Ein RIC pro Zeile bzw. Feld (z. B. Funktionskürzel aus Divera).</p>
-      <div class="ric-edit-list" id="ricEditList">
-        <div class="ric-edit-row" th:each="ric, stat : ${diveraRics}">
-          <input type="text" name="ricCodes" maxlength="64" th:value="${ric.ricCode}" placeholder="RIC"/>
-          <button type="button" class="btn btn-secondary ric-remove" aria-label="RIC entfernen">×</button>
+      <div class="panel-view" th:classappend="${editMode and activeTab == 'stammdaten'} ? ' is-hidden' : ''">
+        <div class="detail-grid">
+          <div class="detail-field"><label>Vorname</label><div class="value" th:text="${person.firstName}">—</div></div>
+          <div class="detail-field"><label>Nachname</label><div class="value" th:text="${person.lastName}">—</div></div>
+          <div class="detail-field"><label>E-Mail</label>
+            <div class="value" th:classappend="${person.email == null} ? ' muted' : ''" th:text="${person.email != null ? person.email : '—'}">—</div></div>
+          <div class="detail-field"><label>Telefon</label>
+            <div class="value" th:classappend="${person.phone == null} ? ' muted' : ''" th:text="${person.phone != null ? person.phone : '—'}">—</div></div>
+          <div class="detail-field"><label>Geburtsdatum</label>
+            <div class="value" th:classappend="${person.birthdate == null} ? ' muted' : ''"
+                 th:text="${person.birthdate != null ? #temporals.format(person.birthdate, 'dd.MM.yyyy') : '—'}">—</div></div>
+          <div class="detail-field"><label>Login</label>
+            <div class="value" th:classappend="${person.user == null} ? ' muted' : ''"
+                 th:text="${person.user != null ? person.user.displayName + ' (@' + person.user.username + ')' : '—'}">—</div></div>
+          <div class="detail-field"><label>Status</label>
+            <div class="value" th:text="${person.status.name() == 'ACTIVE'} ? 'Aktiv' : 'Inaktiv'">Aktiv</div></div>
+          <div class="detail-field" style="grid-column:1/-1;"><label>Notizen</label>
+            <div class="value" th:classappend="${person.notes == null} ? ' muted' : ''" th:text="${person.notes != null ? person.notes : '—'}">—</div></div>
         </div>
       </div>
-      <button type="button" class="btn btn-secondary" id="addRicBtn" style="margin-top:0.5rem;">+ RIC hinzufügen</button>
-      <div class="actions" style="margin-top:1rem;">
-        <button type="submit" class="btn">Speichern</button>
-        <a class="btn btn-secondary"
-           th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='divera')}">Abbrechen</a>
+      <form class="panel-edit" th:classappend="${editMode and activeTab == 'stammdaten'} ? ' is-active' : ''"
+            method="post" th:action="@{/personal/{id}(id=${person.id})}">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <input type="hidden" name="section" value="stammdaten"/>
+        <label for="firstName">Vorname</label>
+        <input id="firstName" name="firstName" type="text" required maxlength="100" th:value="${person.firstName}"/>
+        <label for="lastName">Nachname</label>
+        <input id="lastName" name="lastName" type="text" required maxlength="100" th:value="${person.lastName}"/>
+        <label for="email">E-Mail</label>
+        <input id="email" name="email" type="email" maxlength="255" th:value="${person.email}"/>
+        <label for="phone">Telefon</label>
+        <input id="phone" name="phone" type="tel" maxlength="50" th:value="${person.phone}"/>
+        <label for="birthdate">Geburtsdatum</label>
+        <input id="birthdate" name="birthdate" type="date" th:value="${person.birthdate}"/>
+        <label for="userId">Verknüpftes Login</label>
+        <select id="userId" name="userId">
+          <option value="">— kein Login —</option>
+          <option th:each="u : ${linkableUsers}" th:value="${u.id}"
+                  th:selected="${person.user != null ? person.user.id == u.id : false}"
+                  th:text="${u.displayName + ' (@' + u.username + ')'}">User</option>
+        </select>
+        <label for="status">Status</label>
+        <select id="status" name="status">
+          <option th:each="s : ${statuses}" th:value="${s.name()}" th:selected="${s == person.status}"
+                  th:text="${s.name() == 'ACTIVE'} ? 'Aktiv' : 'Inaktiv'">Status</option>
+        </select>
+        <label for="notes">Notizen</label>
+        <textarea id="notes" name="notes" maxlength="512" rows="3" th:text="${person.notes}"></textarea>
+        <div class="actions" style="margin-top:1rem;">
+          <button type="submit" class="btn">Speichern</button>
+          <a class="btn btn-secondary" th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='stammdaten')}">Abbrechen</a>
+        </div>
+      </form>
+      <form method="post" th:action="@{/personal/{id}/delete(id=${person.id})}"
+            style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border);"
+            th:if="${activeTab == 'stammdaten' and !editMode}"
+            onsubmit="return confirm('Person wirklich löschen?');">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <p class="hint" style="color:#991b1b;font-weight:600;margin:0 0 0.5rem;">Person löschen</p>
+        <button type="submit" class="btn" style="background:#dc2626;">Löschen</button>
+      </form>
+    </section>
+
+    <section id="panel-atemschutz" class="tab-panel panel-card" th:classappend="${activeTab == 'atemschutz'} ? ' active' : ''">
+      <div class="placeholder-module">
+        <div class="icon">🛡️</div>
+        <p><strong>Modul Atemschutz</strong></p>
+        <p class="hint" style="margin:0.5rem 0 0;">Tauglichkeiten, Fristen und Nachweise werden hier später eingebunden.</p>
       </div>
-    </form>
-  </section>
+    </section>
+
+    <section id="panel-lehrgaenge" class="tab-panel panel-card" th:classappend="${activeTab == 'lehrgaenge'} ? ' active' : ''">
+      <div class="panel-toolbar" th:if="${activeTab == 'lehrgaenge' and !editMode}">
+        <a class="btn btn-secondary btn-sm"
+           th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='lehrgaenge',edit='1')}">Bearbeiten</a>
+      </div>
+      <div class="panel-view" th:classappend="${editMode and activeTab == 'lehrgaenge'} ? ' is-hidden' : ''">
+        <div class="detail-field">
+          <label>Aktuelle Qualifikation</label>
+          <div class="value" th:classappend="${person.qualificationType == null} ? ' muted' : ''"
+               th:text="${person.qualificationType != null ? person.qualificationType.name : '—'}">—</div>
+        </div>
+        <h3 style="margin:1.25rem 0 0.5rem;font-size:1rem;">Abgeschlossene Lehrgänge</h3>
+        <div class="list" style="margin-top:0;" th:if="${!#lists.isEmpty(completions)}">
+          <div class="list-row" th:each="c : ${completions}">
+            <span><strong th:text="${c.course.name}">Lehrgang</strong></span>
+            <span class="badge active" th:if="${c.completionYear != null}" th:text="${c.completionYear}">Jahr</span>
+          </div>
+        </div>
+        <p class="hint" th:if="${#lists.isEmpty(completions)}">Noch keine Lehrgänge zugewiesen.</p>
+      </div>
+      <form class="panel-edit" th:classappend="${editMode and activeTab == 'lehrgaenge'} ? ' is-active' : ''"
+            method="post" th:action="@{/personal/{id}(id=${person.id})}">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <input type="hidden" name="section" value="lehrgaenge"/>
+        <label for="qualificationTypeId">Qualifikation</label>
+        <select id="qualificationTypeId" name="qualificationTypeId">
+          <option value="">— keine —</option>
+          <option th:each="q : ${qualificationTypes}" th:value="${q.id}"
+                  th:selected="${person.qualificationType != null ? person.qualificationType.id == q.id : false}"
+                  th:text="${q.name}">Quali</option>
+        </select>
+        <p class="hint">Lehrgänge zuweisen (Jahr optional):</p>
+        <div class="course-pick-list">
+          <div class="course-pick-row" th:each="course : ${unitCourses}">
+            <input type="checkbox" name="courseIds" th:id="'course-' + ${course.id}" th:value="${course.id}"
+                   th:checked="${completedCourseIds.contains(course.id)}"/>
+            <label class="pick-name" th:for="'course-' + ${course.id}" th:text="${course.name}">Lehrgang</label>
+            <input type="number" th:name="'completionYear_' + ${course.id}" min="1950" max="2100"
+                   placeholder="Jahr" th:value="${completionYears[course.id]}"/>
+          </div>
+        </div>
+        <div class="actions" style="margin-top:1rem;">
+          <button type="submit" class="btn">Speichern</button>
+          <a class="btn btn-secondary" th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='lehrgaenge')}">Abbrechen</a>
+        </div>
+      </form>
+    </section>
+
+    <section id="panel-divera" class="tab-panel panel-card" th:classappend="${activeTab == 'divera'} ? ' active' : ''">
+      <div class="panel-toolbar" th:if="${activeTab == 'divera' and !editMode}">
+        <a class="btn btn-secondary btn-sm"
+           th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='divera',edit='1')}">Bearbeiten</a>
+      </div>
+      <div class="panel-view" th:classappend="${editMode and activeTab == 'divera'} ? ' is-hidden' : ''">
+        <div class="detail-field">
+          <label>Divera UCR-ID</label>
+          <div class="value" th:classappend="${person.diveraUcrId == null} ? ' muted' : ''"
+               th:text="${person.diveraUcrId != null ? person.diveraUcrId : '—'}">—</div>
+        </div>
+        <div class="detail-field" style="margin-top:1rem;">
+          <label>Zugewiesene RICs</label>
+          <div class="ric-chips" th:if="${!#lists.isEmpty(diveraRics)}">
+            <span class="ric-chip" th:each="ric : ${diveraRics}" th:text="${ric.ricCode}">RIC</span>
+          </div>
+          <div class="value muted" th:if="${#lists.isEmpty(diveraRics)}">—</div>
+        </div>
+      </div>
+      <form class="panel-edit" th:classappend="${editMode and activeTab == 'divera'} ? ' is-active' : ''"
+            method="post" th:action="@{/personal/{id}(id=${person.id})}">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <input type="hidden" name="section" value="divera"/>
+        <label for="diveraUcrId">Divera UCR-ID</label>
+        <input id="diveraUcrId" name="diveraUcrId" type="text" maxlength="64" th:value="${person.diveraUcrId}"/>
+        <label>RICs</label>
+        <div class="ric-edit-list" id="ricEditList">
+          <div class="ric-edit-row" th:each="ric : ${diveraRics}">
+            <input type="text" name="ricCodes" maxlength="64" th:value="${ric.ricCode}" placeholder="RIC"/>
+            <button type="button" class="btn btn-secondary ric-remove" aria-label="RIC entfernen">×</button>
+          </div>
+        </div>
+        <button type="button" class="btn btn-secondary" id="addRicBtn" style="margin-top:0.5rem;">+ RIC hinzufügen</button>
+        <div class="actions" style="margin-top:1rem;">
+          <button type="submit" class="btn">Speichern</button>
+          <a class="btn btn-secondary" th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='divera')}">Abbrechen</a>
+        </div>
+      </form>
+    </section>
+  </th:block>
 </main>
 <script th:src="@{/js/personal-detail.js}"></script>
 </body>
