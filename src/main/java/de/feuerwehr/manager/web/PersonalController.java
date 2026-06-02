@@ -6,6 +6,7 @@ import de.feuerwehr.manager.personal.PersonStatus;
 import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.personal.PersonalService.CourseCompletionInput;
 import de.feuerwehr.manager.personal.PersonalService.PersonCreateResult;
+import de.feuerwehr.manager.personal.PersonalService.PersonDetailView;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
@@ -107,7 +108,7 @@ public class PersonalController {
                         + " (E-Mail-Versand folgt später).";
             }
             redirectAttributes.addFlashAttribute("message", message);
-            return "redirect:/personal/" + created.getId() + "?unit=" + unit;
+            return "redirect:/personal/" + created.getId() + "?unit=" + unit + "&tab=stammdaten";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             storeNewPersonFlash(
@@ -123,16 +124,18 @@ public class PersonalController {
             @RequestParam(name = "tab", defaultValue = "stammdaten") String tab,
             @RequestParam(name = "edit", required = false) String edit,
             Model model) {
-        Person person = personalService.requirePerson(id);
+        PersonDetailView detail = personalService.loadPersonDetailView(id);
+        Person person = detail.person();
         Unit unit = person.getUnit();
         model.addAttribute("unitId", unit.getId());
         model.addAttribute("currentUnitName", unit.getName());
         model.addAttribute("isNewPerson", false);
         model.addAttribute("person", person);
+        model.addAttribute("personInitials", personInitials(person));
         String activeTab = normalizeTab(tab);
         model.addAttribute("activeTab", activeTab);
         model.addAttribute("editMode", edit != null && (edit.equals("1") || edit.equals(activeTab)));
-        populatePersonDetailData(model, unit.getId(), id);
+        populatePersonDetailData(model, unit.getId(), detail);
         return "personal/person-detail";
     }
 
@@ -239,22 +242,22 @@ public class PersonalController {
         model.addAttribute("editMode", true);
         model.addAttribute("person", person);
         model.addAttribute("activeTab", activeTab);
-        populatePersonDetailData(model, unit.getId(), null);
+        populatePersonDetailData(model, unit.getId(), (PersonDetailView) null);
     }
 
-    private void populatePersonDetailData(Model model, long unitId, Long personId) {
+    private void populatePersonDetailData(Model model, long unitId, PersonDetailView detail) {
         model.addAttribute("qualificationTypes", personalService.listQualificationTypes(unitId, true));
         model.addAttribute("linkableUsers", personalService.listLinkableUsers());
         model.addAttribute("statuses", PersonStatus.values());
         model.addAttribute("unitCourses", personalService.listCourses(unitId, true));
-        if (personId == null) {
+        if (detail == null) {
             model.addAttribute("completions", List.of());
             model.addAttribute("completedCourseIds", Set.of());
             model.addAttribute("completionYears", Map.of());
             model.addAttribute("diveraRics", List.of());
             return;
         }
-        List<PersonCourseCompletion> completions = personalService.listCompletions(personId);
+        List<PersonCourseCompletion> completions = detail.completions();
         model.addAttribute("completions", completions);
         model.addAttribute(
                 "completedCourseIds",
@@ -264,7 +267,18 @@ public class PersonalController {
             completionYears.put(c.getCourse().getId(), c.getCompletionYear());
         }
         model.addAttribute("completionYears", completionYears);
-        model.addAttribute("diveraRics", personalService.listDiveraRics(personId));
+        model.addAttribute("diveraRics", detail.diveraRics());
+    }
+
+    private static String personInitials(Person person) {
+        return initial(person.getFirstName()) + initial(person.getLastName());
+    }
+
+    private static String initial(String name) {
+        if (name == null || name.isBlank()) {
+            return "?";
+        }
+        return name.substring(0, 1);
     }
 
     private static void storeNewPersonFlash(

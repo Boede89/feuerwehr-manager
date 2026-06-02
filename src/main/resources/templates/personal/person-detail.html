@@ -1,6 +1,5 @@
 <!DOCTYPE html>
-<html lang="de" xmlns:th="http://www.thymeleaf.org"
-      th:with="initials=${isNewPerson} ? 'NP' : (#strings.substring(person.firstName,0,1) + #strings.substring(person.lastName,0,1))}">
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
@@ -18,7 +17,7 @@
   <div class="err" th:if="${error}" th:text="${error}">Fehler</div>
 
   <div class="person-hero">
-    <div class="person-avatar" th:text="${initials}">NP</div>
+    <div class="person-avatar" th:text="${isNewPerson ? 'NP' : personInitials}">NP</div>
     <div>
       <h2 th:text="${isNewPerson} ? 'Neue Person' : (person.firstName + ' ' + person.lastName)">Name</h2>
       <p class="hint" th:text="${currentUnitName}">Einheit</p>

@@ -119,6 +119,16 @@ public class PersonalService {
         return diveraRicRepository.findByPersonIdOrderByRicCodeAsc(requirePerson(personId).getId());
     }
 
+    /** Person inkl. Lehrgänge und RICs in einer Lesetransaktion (open-in-view: false). */
+    @Transactional(readOnly = true)
+    public PersonDetailView loadPersonDetailView(long personId) {
+        Person person = requirePerson(personId);
+        long resolvedId = person.getId();
+        List<PersonCourseCompletion> completions = completionRepository.findByPersonId(resolvedId);
+        List<PersonDiveraRic> diveraRics = diveraRicRepository.findByPersonIdOrderByRicCodeAsc(resolvedId);
+        return new PersonDetailView(person, completions, diveraRics);
+    }
+
     public List<User> listLinkableUsers() {
         return userRepository.findAllByAnonymizedAtIsNullOrderByUsernameAsc();
     }
@@ -573,6 +583,9 @@ public class PersonalService {
     public record CourseCompletionInput(Long courseId, Integer completionYear, LocalDate completedOn) {}
 
     public record PersonCreateResult(Person person, String createdUsername, String initialPassword) {}
+
+    public record PersonDetailView(
+            Person person, List<PersonCourseCompletion> completions, List<PersonDiveraRic> diveraRics) {}
 
     @Transactional
     public void seedDefaultQualificationsIfEmpty(long unitId) {
