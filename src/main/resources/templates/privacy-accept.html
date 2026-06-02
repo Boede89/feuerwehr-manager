@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Einwilligung – Feuerwehr-Manager</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<header class="bar">
+  <h1>Datenschutz bestätigen</h1>
+</header>
+<main>
+  <div class="card">
+    <p class="hint">Angemeldet als <strong th:text="${displayName}">Nutzer</strong></p>
+    <p class="err" th:if="${param.required}">Bitte bestätigen Sie den Datenschutzhinweis, um fortzufahren.</p>
+    <h2 th:text="${notice.title}">Hinweis</h2>
+    <pre class="privacy-text" th:text="${notice.content}">Inhalt</pre>
+    <form th:action="@{/privacy/accept}" method="post">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+      <div class="checkbox-row">
+        <input type="checkbox" id="consent" name="consent" value="true" required/>
+        <label for="consent" style="margin:0;font-weight:600;">
+          Ich habe den Datenschutzhinweis (Version <span th:text="${notice.version}">1.0</span>) gelesen und akzeptiere die Verarbeitung.
+        </label>
+      </div>
+      <button type="submit" class="btn btn-block">Bestätigen und fortfahren</button>
+    </form>
+    <p class="hint">Die Bestätigung wird mit Zeitstempel und pseudonymisierten technischen Daten protokolliert (DSGVO Art. 7).</p>
+  </div>
+</main>
+</body>
+</html>

@@ -70,7 +70,18 @@ Im Browser (vom gleichen Netz aus, ggf. Firewall-Port **8080** freigeben):
 - **Lokal am Server:** `http://localhost:8080`
 - **Von einem anderen PC:** `http://<IP-des-Servers>:8080`
 
-Du siehst das **Dashboard** (Layout Variante D) und die **Divera**-Liste (zunächst mit Hinweis, falls noch kein Access Key gesetzt ist).
+Du wirst zur **Anmeldung** weitergeleitet (`/login`).
+
+**Erster Login (nur wenn noch kein Benutzer existiert):**
+
+| Feld | Standard (Entwicklung) |
+|------|-------------------------|
+| Benutzername | `admin` |
+| Passwort | `changeme` (in Produktion vor dem ersten Start `FEUERWEHR_BOOTSTRAP_ADMIN_PASSWORD` setzen) |
+
+Danach **Datenschutzhinweis bestätigen**, dann erscheint das **Dashboard** (Layout Variante D) und die **Divera**-Liste.
+
+Details: [LOGIN.md](LOGIN.md), [DSGVO.md](DSGVO.md).
 
 ---
 

@@ -22,6 +22,12 @@ spring:
 
 server:
   port: 8080
+  servlet:
+    session:
+      timeout: 8h
+      cookie:
+        http-only: true
+        same-site: lax
 
 management:
   endpoints:
@@ -30,6 +36,17 @@ management:
         include: health,info
 
 feuerwehr:
+  security:
+    bootstrap-admin-username: ${FEUERWEHR_BOOTSTRAP_ADMIN_USERNAME:admin}
+    bootstrap-admin-password: ${FEUERWEHR_BOOTSTRAP_ADMIN_PASSWORD:changeme}
+    bootstrap-admin-display-name: Administrator
+    session-timeout-minutes: 480
+    rfid-api-enabled: ${FEUERWEHR_RFID_API_ENABLED:true}
+  dsgvo:
+    audit-retention-days: ${FEUERWEHR_AUDIT_RETENTION_DAYS:90}
+    audit-salt: ${FEUERWEHR_AUDIT_SALT:bitte-in-produktion-aendern}
+    audit-cleanup-enabled: true
+    audit-cleanup-cron: "0 0 3 * * *"
   divera:
     # Host vor „docker compose up“: export FEUERWEHR_DIVERA_POLL_ENABLED=true (siehe docs/SCHRITT-FUER-SCHRITT.md)
     poll-enabled: ${FEUERWEHR_DIVERA_POLL_ENABLED:false}

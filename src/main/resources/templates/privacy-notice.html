@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Datenschutz – Feuerwehr-Manager</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<header class="bar">
+  <h1>Datenschutzhinweis</h1>
+  <a class="link" th:href="@{/login}">← Anmelden</a>
+</header>
+<main>
+  <div class="card" th:if="${notice != null}">
+    <p class="hint">Version <span th:text="${notice.version}">1.0</span></p>
+    <h2 th:text="${notice.title}">Titel</h2>
+    <pre class="privacy-text" th:text="${notice.content}">Inhalt</pre>
+  </div>
+  <p class="hint" th:if="${notice == null}">Kein Datenschutzhinweis hinterlegt. Bitte Administrator kontaktieren.</p>
+</main>
+</body>
+</html>

@@ -50,6 +50,11 @@ mvn spring-boot:run
 
 Vorher MySQL anlegen und Nutzer/DB wie in `docker-compose.yml` oder `application.yml` setzen.
 
-## Sicherheit (MVP)
+## Anmeldung
 
-Aktuell ist **Spring Security** mit **permitAll** – nur für Entwicklung. Vor Produktion: Login, Rollen, CSRF, API-Token.
+- Formular-Login unter `/login` (Spring Security, BCrypt, CSRF).
+- Erst-Admin beim ersten Start (Umgebungsvariable `FEUERWEHR_BOOTSTRAP_ADMIN_PASSWORD`).
+- **DSGVO:** Datenschutzhinweis, Einwilligungsprotokoll, Audit-Log mit Löschfrist – siehe [docs/DSGVO.md](docs/DSGVO.md), [docs/LOGIN.md](docs/LOGIN.md).
+- **RFID:** Datenmodell und API vorbereitet (`POST /api/v1/auth/rfid`); Registrierung der Chips in der Verwaltung folgt.
+
+Vor Produktion zusätzlich: HTTPS, starkes Bootstrap-Passwort, `FEUERWEHR_AUDIT_SALT` setzen, API-Token für Android (geplant).

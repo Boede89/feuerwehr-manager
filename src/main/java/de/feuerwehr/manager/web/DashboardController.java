@@ -1,10 +1,12 @@
 package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.divera.DiveraService;
+import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,7 +20,11 @@ public class DashboardController {
     private final DiveraService diveraService;
 
     @GetMapping("/")
-    public String dashboard(@RequestParam(name = "unit", required = false) Long unitId, Model model) {
+    public String dashboard(
+            @AuthenticationPrincipal AppUserDetails currentUser,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            Model model) {
+        model.addAttribute("currentUser", currentUser);
         if (unitService.findActiveOrdered().isEmpty()) {
             return "redirect:/settings/units?setup=1";
         }

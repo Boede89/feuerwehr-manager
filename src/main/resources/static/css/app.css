@@ -70,6 +70,27 @@ input[type="text"], input[type="url"], input[type="password"], select {
 .btn-secondary { background: #e2e8f0; color: #334155; }
 .btn-block { width: 100%; margin-top: 1rem; }
 .hint { font-size: 0.85rem; color: #64748b; margin: 0.35rem 0 0; }
+.privacy-text {
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem;
+  margin: 0.75rem 0 0;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
 .ok { background: #d1fae5; color: #065f46; padding: 0.75rem 1rem; border-radius: 10px; font-weight: 600; margin-bottom: 1rem; }
 .err { background: #fee2e2; color: #991b1b; padding: 0.75rem 1rem; border-radius: 10px; font-weight: 600; margin-bottom: 1rem; }
 .list { background: var(--card); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; margin-top: 1rem; }
