@@ -29,14 +29,20 @@ public class PersonalController {
     @GetMapping
     public String index(@RequestParam(name = "unit", required = false) Long unitId, Model model) {
         Unit unit = resolveUnit(unitId, model);
-        personalService.seedDefaultQualificationsIfEmpty(unit.getId());
         var persons = personalService.listPersons(unit.getId());
         model.addAttribute("persons", persons);
         model.addAttribute("personCount", persons.size());
         return "personal/index";
     }
 
-    @PostMapping
+    @GetMapping("/new")
+    public String newForm(@RequestParam(name = "unit", required = false) Long unitId, Model model) {
+        Unit unit = resolveUnit(unitId, model);
+        personalService.seedDefaultQualificationsIfEmpty(unit.getId());
+        return "personal/person-new";
+    }
+
+    @PostMapping("/new")
     public String create(
             @RequestParam long unit,
             @RequestParam String firstName,
@@ -49,10 +55,14 @@ public class PersonalController {
                     unit, firstName, lastName, email, phone, null, null, null, null, null);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", created.displayName() + " wurde angelegt.");
-            return "redirect:/personal/" + created.getId() + "?unit=" + unit;
+            return "redirect:/personal?unit=" + unit;
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
-            return "redirect:/personal?unit=" + unit;
+            redirectAttributes.addFlashAttribute("firstName", firstName);
+            redirectAttributes.addFlashAttribute("lastName", lastName);
+            redirectAttributes.addFlashAttribute("email", email);
+            redirectAttributes.addFlashAttribute("phone", phone);
+            return "redirect:/personal/new?unit=" + unit;
         }
     }
 

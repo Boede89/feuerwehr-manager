@@ -24,8 +24,12 @@
       <span><strong>Benutzer</strong><br/><span class="hint" style="margin:0;">Konten, Rollen, RFID-Chips (nur Admin)</span></span>
       <span>→</span>
     </a>
-    <a class="list-row" th:if="${hasActiveUnit}" th:href="@{/personal(unit=${unitId})}" style="text-decoration:none;color:inherit;">
-      <span><strong>Personal</strong><br/><span class="hint" style="margin:0;">Personen, Qualifikationen, Lehrgänge</span></span>
+    <a class="list-row" th:if="${hasActiveUnit}" th:href="@{/personal/setup/qualifications(unit=${unitId})}" style="text-decoration:none;color:inherit;">
+      <span><strong>Qualifikationen</strong><br/><span class="hint" style="margin:0;">z. B. GF, TF, Mannschaft (Personal)</span></span>
+      <span>→</span>
+    </a>
+    <a class="list-row" th:if="${hasActiveUnit}" th:href="@{/personal/setup/courses(unit=${unitId})}" style="text-decoration:none;color:inherit;">
+      <span><strong>Lehrgänge</strong><br/><span class="hint" style="margin:0;">Kurse und Zuordnung zu Qualifikationen</span></span>
       <span>→</span>
     </a>
     <a class="list-row" th:href="@{/settings/units}" style="text-decoration:none;color:inherit;">
