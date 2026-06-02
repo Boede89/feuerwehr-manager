@@ -33,7 +33,8 @@
     <label for="qualificationTypeId">Qualifikation</label>
     <select id="qualificationTypeId" name="qualificationTypeId">
       <option value="">— keine —</option>
-      <option th:each="q : ${qualificationTypes}" th:value="${q.id}" th:selected="${person.qualificationType != null and person.qualificationType.id == q.id}"
+      <option th:each="q : ${qualificationTypes}" th:value="${q.id}"
+              th:selected="${person.qualificationType != null ? person.qualificationType.id == q.id : false}"
               th:text="${q.name}">Quali</option>
     </select>
 
@@ -41,7 +42,7 @@
     <select id="userId" name="userId">
       <option value="">— kein Login —</option>
       <option th:each="u : ${linkableUsers}" th:value="${u.id}"
-              th:selected="${person.user != null and person.user.id == u.id}"
+              th:selected="${person.user != null ? person.user.id == u.id : false}"
               th:text="${u.displayName + ' (@' + u.username + ')'}">User</option>
     </select>
 

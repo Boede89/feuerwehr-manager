@@ -32,6 +32,7 @@ public class PersonalService {
         return personRepository.findActiveByUnitId(unitId);
     }
 
+    @Transactional(readOnly = true)
     public Person requirePerson(long personId) {
         return personRepository.findActiveById(personId).orElseThrow(() -> new IllegalArgumentException("Person nicht gefunden"));
     }
@@ -46,6 +47,7 @@ public class PersonalService {
         return activeOnly ? courseRepository.findActiveByUnitId(unitId) : courseRepository.findByUnitIdOrderByNameAsc(unitId);
     }
 
+    @Transactional(readOnly = true)
     public List<PersonCourseCompletion> listCompletions(long personId) {
         return completionRepository.findByPersonId(personId);
     }
