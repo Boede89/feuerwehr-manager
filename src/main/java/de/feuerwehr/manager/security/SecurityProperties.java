@@ -8,7 +8,8 @@ public record SecurityProperties(
         String bootstrapAdminPassword,
         String bootstrapAdminDisplayName,
         int sessionTimeoutMinutes,
-        boolean rfidApiEnabled
+        boolean rfidApiEnabled,
+        boolean bootstrapAdminResetPassword
 ) {
     public SecurityProperties {
         if (sessionTimeoutMinutes < 5) {

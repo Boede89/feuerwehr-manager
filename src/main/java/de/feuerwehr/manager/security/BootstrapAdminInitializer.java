@@ -1,6 +1,8 @@
 package de.feuerwehr.manager.security;
 
+import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserService;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,16 +21,34 @@ public class BootstrapAdminInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        if (userService.findByUsername(securityProperties.bootstrapAdminUsername()).isPresent()) {
+        String username = securityProperties.bootstrapAdminUsername();
+        String password = securityProperties.bootstrapAdminPassword();
+        String displayName = securityProperties.bootstrapAdminDisplayName();
+
+        Optional<User> existing = userService.findByUsername(username);
+
+        if (securityProperties.bootstrapAdminResetPassword() && existing.isPresent()) {
+            userService.resetPassword(existing.get().getId(), password);
+            log.warn(
+                    "Administrator-Passwort zurückgesetzt (Benutzer: {}). "
+                            + "FEUERWEHR_BOOTSTRAP_ADMIN_RESET_PASSWORD wieder deaktivieren.",
+                    username);
             return;
         }
-        userService.createAdminIfMissing(
-                securityProperties.bootstrapAdminUsername(),
-                securityProperties.bootstrapAdminPassword(),
-                securityProperties.bootstrapAdminDisplayName());
+
+        if (existing.isPresent()) {
+            User user = existing.get();
+            if (user.getPasswordHash() == null || user.getPasswordHash().isBlank()) {
+                userService.resetPassword(user.getId(), password);
+                log.warn("Administrator ohne Passwort – Initialpasswort gesetzt (Benutzer: {}).", username);
+            }
+            return;
+        }
+
+        userService.ensureBootstrapAdmin(username, password, displayName);
         log.warn(
-                "Erst-Administrator angelegt (Benutzername: {}). Passwort sofort ändern und "
-                        + "FEUERWEHR_BOOTSTRAP_ADMIN_PASSWORD in Produktion setzen.",
-                securityProperties.bootstrapAdminUsername());
+                "Erst-Administrator angelegt (Benutzername: {}). Passwort über "
+                        + "FEUERWEHR_BOOTSTRAP_ADMIN_PASSWORD festlegen und in Produktion ändern.",
+                username);
     }
 }

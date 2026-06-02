@@ -8,6 +8,27 @@
 4. Browser: `http://<Server>:8080` → Weiterleitung zu `/login`.
 5. Nach Login: **Datenschutzhinweis bestätigen** (einmalig pro Version).
 
+## Anmeldung schlägt fehl?
+
+**Prüfen, ob der Admin existiert** (auf dem Server):
+
+```bash
+docker compose exec mysql mysql -uff -pffsecret feuerwehr_manager \
+  -e "SELECT id, username, active, password_hash IS NOT NULL AS has_pw FROM users;"
+```
+
+- **Keine Zeile:** App neu starten (`docker compose restart app`) – legt `admin` an.
+- **Zeile vorhanden, Login geht nicht:** Passwort einmalig zurücksetzen:
+
+```bash
+export FEUERWEHR_BOOTSTRAP_ADMIN_RESET_PASSWORD=true
+export FEUERWEHR_BOOTSTRAP_ADMIN_PASSWORD=changeme
+docker compose up -d
+unset FEUERWEHR_BOOTSTRAP_ADMIN_RESET_PASSWORD
+```
+
+Danach mit `admin` / `changeme` anmelden und `RESET` wieder **aus** lassen.
+
 ## Passwort-Anmeldung
 
 - Formular unter `/login`

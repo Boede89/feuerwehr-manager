@@ -36,17 +36,30 @@ public class UserService {
     }
 
     @Transactional
-    public User createAdminIfMissing(String username, String plainPassword, String displayName) {
-        if (userRepository.count() > 0) {
-            return userRepository.findByUsernameIgnoreCase(username).orElseThrow();
+    public User ensureBootstrapAdmin(String username, String plainPassword, String displayName) {
+        String normalizedUsername = username.trim();
+        Optional<User> existing = userRepository.findByUsernameIgnoreCase(normalizedUsername);
+        if (existing.isPresent()) {
+            return existing.get();
         }
         User user = new User();
-        user.setUsername(username.trim());
+        user.setUsername(normalizedUsername);
         user.setDisplayName(displayName);
         user.setRole(UserRole.ADMIN);
         user.setActive(true);
         user.setPasswordHash(passwordEncoder.encode(plainPassword));
         return userRepository.save(user);
+    }
+
+    @Transactional
+    public void resetPassword(long userId, String plainPassword) {
+        User user = userRepository.findById(userId).orElseThrow();
+        if (user.getAnonymizedAt() != null) {
+            throw new IllegalStateException("Konto wurde anonymisiert");
+        }
+        user.setPasswordHash(passwordEncoder.encode(plainPassword));
+        user.setActive(true);
+        userRepository.save(user);
     }
 
     @Transactional
