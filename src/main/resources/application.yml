@@ -43,6 +43,7 @@ feuerwehr:
     session-timeout-minutes: 480
     rfid-api-enabled: ${FEUERWEHR_RFID_API_ENABLED:true}
     bootstrap-admin-reset-password: ${FEUERWEHR_BOOTSTRAP_ADMIN_RESET_PASSWORD:false}
+    min-password-length: ${FEUERWEHR_MIN_PASSWORD_LENGTH:4}
   dsgvo:
     audit-retention-days: ${FEUERWEHR_AUDIT_RETENTION_DAYS:90}
     audit-salt: ${FEUERWEHR_AUDIT_SALT:bitte-in-produktion-aendern}

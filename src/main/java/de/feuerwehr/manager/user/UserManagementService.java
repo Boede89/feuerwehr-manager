@@ -2,6 +2,7 @@ package de.feuerwehr.manager.user;
 
 import de.feuerwehr.manager.dsgvo.AuditEventType;
 import de.feuerwehr.manager.dsgvo.AuditService;
+import de.feuerwehr.manager.security.SecurityProperties;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ public class UserManagementService {
     private final UserRfidCardRepository rfidCardRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
+    private final SecurityProperties securityProperties;
 
     public List<User> listAccounts() {
         return userRepository.findAllByAnonymizedAtIsNullOrderByUsernameAsc();
@@ -31,9 +33,7 @@ public class UserManagementService {
             long actorUserId,
             HttpServletRequest request) {
         validateUsername(username);
-        if (plainPassword == null || plainPassword.length() < 8) {
-            throw new IllegalArgumentException("Passwort mindestens 8 Zeichen");
-        }
+        validatePassword(plainPassword);
         if (userRepository.existsByUsernameIgnoreCase(username)) {
             throw new IllegalArgumentException("Benutzername ist bereits vergeben");
         }
@@ -92,9 +92,7 @@ public class UserManagementService {
     @Transactional
     public void setPasswordByAdmin(
             long userId, String plainPassword, long actorUserId, HttpServletRequest request) {
-        if (plainPassword == null || plainPassword.length() < 8) {
-            throw new IllegalArgumentException("Passwort mindestens 8 Zeichen");
-        }
+        validatePassword(plainPassword);
         User user = userRepository.findById(userId).orElseThrow();
         if (user.getAnonymizedAt() != null) {
             throw new IllegalArgumentException("Konto wurde gelöscht");
@@ -111,9 +109,7 @@ public class UserManagementService {
 
     @Transactional
     public void changeOwnPassword(long userId, String currentPassword, String newPassword) {
-        if (newPassword == null || newPassword.length() < 8) {
-            throw new IllegalArgumentException("Neues Passwort mindestens 8 Zeichen");
-        }
+        validatePassword(newPassword);
         User user = userRepository.findById(userId).orElseThrow();
         if (user.getPasswordHash() == null
                 || !passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
@@ -167,6 +163,13 @@ public class UserManagementService {
 
     public List<UserRfidCard> listRfidCards(long userId) {
         return rfidCardRepository.findByUserId(userId);
+    }
+
+    private void validatePassword(String plainPassword) {
+        int min = securityProperties.minPasswordLength();
+        if (plainPassword == null || plainPassword.length() < min) {
+            throw new IllegalArgumentException("Passwort mindestens " + min + " Zeichen");
+        }
     }
 
     private static void validateUsername(String username) {

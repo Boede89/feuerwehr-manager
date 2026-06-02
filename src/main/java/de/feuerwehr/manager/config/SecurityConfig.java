@@ -3,7 +3,6 @@ package de.feuerwehr.manager.config;
 import de.feuerwehr.manager.dsgvo.DsgvoProperties;
 import de.feuerwehr.manager.security.AppUserDetailsService;
 import de.feuerwehr.manager.security.AuditLogoutSuccessHandler;
-import de.feuerwehr.manager.security.PrivacyConsentFilter;
 import de.feuerwehr.manager.security.RfidAuthenticationProvider;
 import de.feuerwehr.manager.security.SecurityProperties;
 import de.feuerwehr.manager.user.UserService;
@@ -20,7 +19,6 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 
 @Configuration
@@ -54,7 +52,6 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             AuthenticationManager authenticationManager,
-            PrivacyConsentFilter privacyConsentFilter,
             AuditLogoutSuccessHandler auditLogoutSuccessHandler)
             throws Exception {
         http.authenticationManager(authenticationManager);
@@ -93,7 +90,6 @@ public class SecurityConfig {
                         .contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'self'; frame-ancestors 'none'"))
                         .frameOptions(frame -> frame.sameOrigin()));
 
-        http.addFilterAfter(privacyConsentFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 }

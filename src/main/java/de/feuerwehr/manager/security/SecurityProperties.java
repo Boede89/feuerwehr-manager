@@ -9,9 +9,13 @@ public record SecurityProperties(
         String bootstrapAdminDisplayName,
         int sessionTimeoutMinutes,
         boolean rfidApiEnabled,
-        boolean bootstrapAdminResetPassword
+        boolean bootstrapAdminResetPassword,
+        int minPasswordLength
 ) {
     public SecurityProperties {
+        if (minPasswordLength < 4) {
+            minPasswordLength = 4;
+        }
         if (sessionTimeoutMinutes < 5) {
             sessionTimeoutMinutes = 480;
         }

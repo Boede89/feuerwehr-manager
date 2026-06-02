@@ -35,9 +35,9 @@
   <form method="post" th:action="@{/settings/users/{id}/password(id=${user.id})}" class="card">
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
     <h2 style="margin:0 0 0.5rem;font-size:1.05rem;">Passwort zurücksetzen</h2>
-    <p class="hint">Neues Passwort setzen (min. 8 Zeichen). Wird im Audit-Protokoll vermerkt.</p>
+    <p class="hint" th:text="'Neues Passwort setzen (min. ' + ${minPasswordLength} + ' Zeichen).'">Passwort</p>
     <label for="newPassword">Neues Passwort</label>
-    <input id="newPassword" name="newPassword" type="password" required minlength="8" autocomplete="new-password"/>
+    <input id="newPassword" name="newPassword" type="password" required th:minlength="${minPasswordLength}" autocomplete="new-password"/>
     <button type="submit" class="btn btn-block">Passwort setzen</button>
   </form>
 
@@ -69,11 +69,11 @@
   </div>
 
   <form method="post" th:action="@{/settings/users/{id}/anonymize(id=${user.id})}" class="card"
-        onsubmit="return confirm('Benutzer wirklich anonymisieren? Nicht rückgängig.');">
+        onsubmit="return confirm('Benutzerkonto wirklich löschen? Nicht rückgängig.');">
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-    <h2 style="margin:0 0 0.5rem;font-size:1.05rem;color:#991b1b;">DSGVO: Konto löschen</h2>
-    <p class="hint">Anonymisiert das Konto (Name und Login entfallen). Audit-Einträge bleiben mit Nutzer-ID bestehen.</p>
-    <button type="submit" class="btn btn-block" style="background:#dc2626;">Konto anonymisieren</button>
+    <h2 style="margin:0 0 0.5rem;font-size:1.05rem;color:#991b1b;">Konto löschen</h2>
+    <p class="hint">Der Benutzer kann sich danach nicht mehr anmelden. Der Name wird entfernt; Protokolleinträge bleiben ohne Personenbezug.</p>
+    <button type="submit" class="btn btn-block" style="background:#dc2626;">Konto löschen</button>
   </form>
 </main>
 </body>

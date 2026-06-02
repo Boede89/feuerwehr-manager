@@ -162,7 +162,7 @@ public class UserSettingsController {
             userService.anonymizeUser(id);
             auditService.record(AuditEventType.USER_ANONYMIZED, actor.getUserId(), id, request, null);
             redirectAttributes.addFlashAttribute("saved", true);
-            redirectAttributes.addFlashAttribute("message", "Benutzer wurde anonymisiert (DSGVO).");
+            redirectAttributes.addFlashAttribute("message", "Benutzerkonto wurde gelöscht.");
             return "redirect:/settings/users";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());

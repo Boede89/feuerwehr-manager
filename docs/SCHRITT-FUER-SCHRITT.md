@@ -79,9 +79,9 @@ Du wirst zur **Anmeldung** weitergeleitet (`/login`).
 | Benutzername | `admin` |
 | Passwort | `changeme` (in Produktion vor dem ersten Start `FEUERWEHR_BOOTSTRAP_ADMIN_PASSWORD` setzen) |
 
-Danach **Datenschutzhinweis bestätigen**, dann erscheint das **Dashboard** (Layout Variante D) und die **Divera**-Liste.
+Danach erscheint das **Dashboard** (Layout Variante D) und die **Divera**-Liste.
 
-Details: [LOGIN.md](LOGIN.md), [DSGVO.md](DSGVO.md).
+Details: [LOGIN.md](LOGIN.md).
 
 ---
 

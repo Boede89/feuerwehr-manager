@@ -13,7 +13,7 @@
 <main>
   <div class="card" style="max-width:420px;margin:2rem auto;">
     <h2 style="margin:0 0 0.5rem;font-size:1.15rem;">Anmelden</h2>
-    <p class="hint">Zugang nur für berechtigte Einsatzkräfte. Anmeldedaten werden DSGVO-konform verarbeitet.</p>
+    <p class="hint">Zugang nur für berechtigte Einsatzkräfte.</p>
 
     <p class="err" th:if="${errorMessage}" th:text="${errorMessage}">Fehler</p>
     <p class="ok" th:if="${infoMessage}" th:text="${infoMessage}">Info</p>
@@ -29,10 +29,6 @@
 
     <p class="hint" style="margin-top:1.25rem;">
       <strong>RFID-Chip (vorbereitet):</strong> Anmeldung per Lesegerät wird später ergänzt.
-      Technisch vorgesehen über <code>/api/v1/auth/rfid</code> – Chip-Registrierung nur durch Administratoren.
-    </p>
-    <p class="hint">
-      <a th:href="@{/privacy/notice}">Datenschutzhinweis zur Anmeldung</a>
     </p>
   </div>
 </main>

@@ -2,6 +2,8 @@ package de.feuerwehr.manager.security;
 
 import de.feuerwehr.manager.dsgvo.AuditEventType;
 import de.feuerwehr.manager.dsgvo.AuditService;
+import de.feuerwehr.manager.dsgvo.PrivacyService;
+import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +22,7 @@ public class AuthenticationEventsListener {
 
     private final AuditService auditService;
     private final UserService userService;
+    private final PrivacyService privacyService;
 
     @EventListener
     public void onSuccess(AuthenticationSuccessEvent event) {
@@ -30,6 +33,20 @@ public class AuthenticationEventsListener {
                     ? AuditEventType.RFID_LOGIN_SUCCESS
                     : AuditEventType.LOGIN_SUCCESS;
             auditService.record(type, details.getUserId(), currentRequest());
+            HttpServletRequest request = currentRequest();
+            userService.findById(details.getUserId()).ifPresent(user -> acceptPrivacySilently(user, request));
+        }
+    }
+
+    private void acceptPrivacySilently(User user, HttpServletRequest request) {
+        if (!privacyService.needsConsent(user)) {
+            return;
+        }
+        try {
+            String agent = request != null ? request.getHeader("User-Agent") : null;
+            privacyService.recordConsent(user, request, agent);
+        } catch (Exception ignored) {
+            // Kein Blocker für Login, wenn kein Hinweis in der DB
         }
     }
 

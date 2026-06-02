@@ -6,8 +6,6 @@
 2. Standard: Benutzername `admin`, Passwort `changeme` (nur Entwicklung).
 3. In Produktion: `FEUERWEHR_BOOTSTRAP_ADMIN_PASSWORD` setzen **vor** dem ersten Start.
 4. Browser: `http://<Server>:8080` → Weiterleitung zu `/login`.
-5. Nach Login: **Datenschutzhinweis bestätigen** (einmalig pro Version).
-
 ## Anmeldung schlägt fehl?
 
 **Prüfen, ob der Admin existiert** (auf dem Server):
