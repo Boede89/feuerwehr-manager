@@ -6,7 +6,6 @@ import de.feuerwehr.manager.unit.UnitRepository;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserManagementService;
 import de.feuerwehr.manager.user.UserRepository;
-import de.feuerwehr.manager.user.UserRole;
 import de.feuerwehr.manager.user.UsernameHelper;
 import jakarta.servlet.http.HttpServletRequest;
 import java.security.SecureRandom;
