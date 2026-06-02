@@ -23,10 +23,10 @@
       <div>
         <h2 style="margin:0;font-size:1rem;">Testmodus</h2>
         <p class="hint" th:if="${testModeEnabled}" style="margin:0.35rem 0 0;">
-          Aktiv — Produktivdaten sichtbar; Änderungen daran nur als Testkopie.
+          Aktiv — Produktivdaten sichtbar; Änderungen nur als Testkopie. Beim Beenden werden alle Teständerungen gelöscht.
         </p>
         <p class="hint" th:unless="${testModeEnabled}" style="margin:0.35rem 0 0;">
-          Funktionen ausprobieren ohne Auswirkung auf Produktivdaten.
+          Ausprobieren ohne Auswirkung auf Produktivdaten; Teständerungen werden beim Beenden verworfen.
         </p>
       </div>
       <form th:if="${testModeEnabled}" method="post" th:action="@{/settings/test-mode/disable}" style="margin:0;">

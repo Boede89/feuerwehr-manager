@@ -44,11 +44,9 @@ public class TestModeService {
     }
 
     @Transactional
-    public void disable(boolean deleteTestData) {
+    public void disable() {
+        purgeAllTestData();
         ApplicationSettings settings = settings();
-        if (deleteTestData) {
-            purgeAllTestData();
-        }
         settings.setTestModeEnabled(false);
         settingsRepository.save(settings);
     }

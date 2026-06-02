@@ -2,7 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
 <div th:fragment="banner" th:if="${testModeEnabled}" class="testmode-banner" role="status">
-  <strong>Testmodus aktiv</strong> — Sie sehen Produktiv- und Testdaten. Änderungen an Produktivdatensätzen werden nur als Testkopie gespeichert; nach Beenden des Testmodus gelten wieder die unveränderten Produktivdaten.
+  <strong>Testmodus aktiv</strong> — Sie sehen Produktiv- und Testdaten. Änderungen werden nur als Testkopie gespeichert und beim Beenden des Testmodus automatisch verworfen.
 </div>
 </body>
 </html>

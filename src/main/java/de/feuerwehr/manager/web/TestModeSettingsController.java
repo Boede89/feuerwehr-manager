@@ -24,10 +24,9 @@ public class TestModeSettingsController {
 
     @PostMapping("/disable")
     public String disable(RedirectAttributes redirectAttributes) {
-        testModeService.disable(false);
+        testModeService.disable();
         redirectAttributes.addFlashAttribute("saved", true);
-        redirectAttributes.addFlashAttribute(
-                "message", "Testmodus beendet. Testdaten bleiben gespeichert und sind im Produktivbetrieb nicht sichtbar.");
+        redirectAttributes.addFlashAttribute("message", "Testmodus beendet. Alle Teständerungen wurden verworfen.");
         return "redirect:/settings";
     }
 }
