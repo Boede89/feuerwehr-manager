@@ -9,7 +9,7 @@
 <body>
 <header class="bar bar-compact">
   <h1>Feuerwehr-Manager</h1>
-  <div class="bar-actions" th:replace="~{fragments/app-header-actions :: actions}"></div>
+  <div class="bar-actions" th:insert="~{fragments/app-header-actions :: actions}"></div>
 </header>
 
 <main>
@@ -54,5 +54,6 @@
 
   <p class="hint">JSON: <code th:text="'/api/v1/units/' + ${unitId} + '/divera/alarms'">/api/…</code></p>
 </main>
+<script th:src="@{/js/unit-switcher.js}" defer></script>
 </body>
 </html>

@@ -31,8 +31,10 @@ header.bar a.link { color: #93c5fd; font-weight: 600; text-decoration: none; min
 .bar-unit-label { margin: 0; white-space: nowrap; font-weight: 600; color: #334155; }
 .bar-actions {
   display: flex; align-items: center; gap: 0.5rem; flex-wrap: nowrap; flex-shrink: 0;
+  margin-left: auto;
 }
 .bar-form { margin: 0; display: flex; align-items: center; }
+header.bar .bar-unit-label { color: #cbd5e1; }
 .unit-select {
   min-height: var(--touch);
   font-size: 16px;
