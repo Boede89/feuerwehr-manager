@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.unit;
 
+import de.feuerwehr.manager.personal.PersonRepository;
 import de.feuerwehr.manager.settings.TestModeService;
 import java.util.List;
 import java.util.Optional;
@@ -13,7 +14,9 @@ public class UnitService {
 
     private final UnitRepository unitRepository;
     private final UnitDiveraSettingsRepository diveraSettingsRepository;
+    private final PersonRepository personRepository;
     private final TestModeService testModeService;
+    private final UnitSelectionService unitSelectionService;
 
     @Transactional(readOnly = true)
     public List<Unit> findAllOrdered() {
@@ -39,11 +42,22 @@ public class UnitService {
         if (requestedId != null) {
             for (Unit u : active) {
                 if (u.getId().equals(requestedId)) {
+                    unitSelectionService.remember(u.getId());
                     return Optional.of(u);
                 }
             }
         }
-        return Optional.of(active.get(0));
+        Optional<Long> remembered = unitSelectionService.getRemembered();
+        if (remembered.isPresent()) {
+            for (Unit u : active) {
+                if (u.getId().equals(remembered.get())) {
+                    return Optional.of(u);
+                }
+            }
+        }
+        Unit fallback = active.get(0);
+        unitSelectionService.remember(fallback.getId());
+        return Optional.of(fallback);
     }
 
     @Transactional
@@ -75,6 +89,23 @@ public class UnitService {
         unit.setActive(active);
         ensureDiveraSettings(unit);
         return unitRepository.save(unit);
+    }
+
+    @Transactional
+    public void delete(long id) {
+        Unit unit = unitRepository
+                .findVisibleById(id, testModeService.isEnabled())
+                .orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden."));
+        long personCount = personRepository.countByUnitIdAndAnonymizedAtIsNullAndTestData(
+                id, unit.isTestData());
+        if (personCount > 0 && !unit.isTestData()) {
+            throw new IllegalArgumentException(
+                    "Einheit kann nicht gelöscht werden: Es sind noch "
+                            + personCount
+                            + " Personen erfasst. Zuerst Personen löschen oder Einheit deaktivieren.");
+        }
+        unitRepository.delete(unit);
+        unitSelectionService.getRemembered().filter(remembered -> remembered.equals(id)).ifPresent(ignored -> unitSelectionService.clear());
     }
 
     private void ensureDiveraSettings(Unit unit) {

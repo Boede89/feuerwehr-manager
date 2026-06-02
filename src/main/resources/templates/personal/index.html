@@ -7,9 +7,17 @@
   <link rel="stylesheet" th:href="@{/css/app.css}"/>
 </head>
 <body>
-<header class="bar">
+<header class="bar bar-compact">
   <h1>Personal</h1>
-  <a class="link" th:href="@{/(unit=${unitId})}">← Dashboard</a>
+  <div class="bar-actions">
+    <form method="get" th:action="@{/personal}" class="bar-form">
+      <label for="unitPersonal" class="sr-only">Einheit</label>
+      <select class="unit-select unit-select-compact" id="unitPersonal" name="unit" onchange="this.form.submit()">
+        <option th:each="u : ${units}" th:value="${u.id}" th:selected="${u.id == unitId}" th:text="${u.name}">Einheit</option>
+      </select>
+    </form>
+    <a class="link" th:href="@{/(unit=${unitId})}">← Dashboard</a>
+  </div>
 </header>
 <main>
   <div th:replace="~{fragments/testmode-banner :: banner}"></div>

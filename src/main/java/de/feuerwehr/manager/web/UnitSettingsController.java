@@ -67,4 +67,17 @@ public class UnitSettingsController {
             return "redirect:/settings/units/" + id;
         }
     }
+
+    @PostMapping("/{id}/delete")
+    public String delete(@PathVariable long id, RedirectAttributes redirectAttributes) {
+        try {
+            unitService.delete(id);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "Einheit wurde gelöscht.");
+            return "redirect:/settings/units";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return "redirect:/settings/units/" + id;
+        }
+    }
 }

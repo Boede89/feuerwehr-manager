@@ -360,6 +360,7 @@ public class PersonalController {
         Unit resolved = unit.get();
         model.addAttribute("unitId", resolved.getId());
         model.addAttribute("currentUnitName", resolved.getName());
+        model.addAttribute("units", unitService.findActiveOrdered());
         return resolved;
     }
 }

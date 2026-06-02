@@ -43,6 +43,11 @@
       <div class="actions">
         <a class="btn btn-secondary" th:href="@{/settings/units/{id}(id=${u.id})}">Bearbeiten</a>
         <a class="btn btn-secondary" th:href="@{/settings/divera(unit=${u.id})}">Divera</a>
+        <form method="post" th:action="@{/settings/units/{id}/delete(id=${u.id})}" style="margin:0;display:inline;"
+              onsubmit="return confirm('Diese Einheit wirklich löschen? Alle zugehörigen Daten werden entfernt.');">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <button type="submit" class="btn btn-secondary" style="color:#991b1b;border-color:#fecaca;">Löschen</button>
+        </form>
       </div>
     </div>
   </div>
