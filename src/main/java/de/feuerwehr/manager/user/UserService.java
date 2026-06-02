@@ -34,6 +34,23 @@ public class UserService {
         return userRepository.findByUsernameIgnoreCaseWithUnit(username.trim());
     }
 
+    /** Anmeldung mit Benutzername oder login_email. */
+    public Optional<User> findActiveForLogin(String login) {
+        if (login == null || login.isBlank()) {
+            return Optional.empty();
+        }
+        String trimmed = login.trim();
+        Optional<User> byUsername = userRepository.findByUsernameIgnoreCaseWithUnit(trimmed);
+        if (byUsername.isPresent()) {
+            return byUsername.filter(this::isLoginAllowed);
+        }
+        return userRepository.findByLoginEmailIgnoreCaseWithUnit(trimmed).filter(this::isLoginAllowed);
+    }
+
+    private boolean isLoginAllowed(User user) {
+        return user.isActive() && user.getAnonymizedAt() == null;
+    }
+
     public Optional<User> findByIdWithUnit(long id) {
         return userRepository.findByIdWithUnit(id);
     }

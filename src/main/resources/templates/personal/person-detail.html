@@ -55,21 +55,7 @@
                  th:checked="${formAllowLogin}"/>
           Login erlauben
         </label>
-        <label for="loginUsername">Benutzername (optional)</label>
-        <input id="loginUsername" name="loginUsername" type="text" maxlength="64"
-               pattern="[a-zA-Z0-9._-]+" autocomplete="off" placeholder="z. B. m.mustermann"
-               th:value="${formLoginUsername}"/>
-        <p class="hint" style="margin-top:0.25rem;">Legt ein Benutzerkonto an. Leer lassen = automatisch (Anfangsbuchstabe Vorname + Punkt + Nachname). Startpasswort wird nach dem Speichern angezeigt; E-Mail-Versand folgt später. Der Benutzername kann später unter Einstellungen → Benutzer angepasst werden.</p>
-        <details class="hint" style="margin-top:0.5rem;">
-          <summary>Bestehendes Login verknüpfen (optional)</summary>
-          <label for="userId" style="margin-top:0.5rem;">Benutzer</label>
-          <select id="userId" name="userId">
-            <option value="">— kein bestehendes Login —</option>
-            <option th:each="u : ${linkableUsers}" th:value="${u.id}"
-                    th:selected="${formUserId != null and formUserId == u.id}"
-                    th:text="${u.displayName + ' (@' + u.username + ')'}">User</option>
-          </select>
-        </details>
+        <p class="hint" style="margin-top:0.25rem;">Legt automatisch ein Benutzerkonto an (Benutzername: Anfangsbuchstabe Vorname + Punkt + Nachname). Anmeldung mit Benutzername oder der obigen E-Mail, sofern angegeben. Startpasswort wird nach dem Speichern angezeigt.</p>
         <label for="status">Status</label>
         <select id="status" name="status">
           <option th:each="s : ${statuses}" th:value="${s.name()}"

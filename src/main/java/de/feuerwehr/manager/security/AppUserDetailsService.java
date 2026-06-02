@@ -16,9 +16,8 @@ public class AppUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = userService.findByUsernameWithUnit(username)
-                .filter(User::isActive)
-                .filter(u -> u.getAnonymizedAt() == null)
+        User user = userService
+                .findActiveForLogin(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Benutzer nicht gefunden"));
         if (user.getRole().isUnitAdmin() && user.getUnit() == null) {
             throw new UsernameNotFoundException("Einheitsadmin ohne zugeordnete Einheit");

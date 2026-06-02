@@ -76,9 +76,7 @@ public class PersonalController {
             @RequestParam(required = false) String phone,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate birthdate,
             @RequestParam(required = false) Long qualificationTypeId,
-            @RequestParam(required = false) Long userId,
             @RequestParam(required = false, defaultValue = "false") boolean allowLogin,
-            @RequestParam(required = false) String loginUsername,
             @RequestParam(required = false) String diveraUcrId,
             @RequestParam(required = false) String notes,
             @RequestParam(required = false) PersonStatus status,
@@ -94,9 +92,7 @@ public class PersonalController {
                     email,
                     phone,
                     birthdate,
-                    userId,
                     allowLogin,
-                    loginUsername,
                     notes,
                     status,
                     qualificationTypeId,
@@ -111,7 +107,9 @@ public class PersonalController {
             if (result.initialPassword() != null) {
                 message += " Login: „"
                         + result.createdUsername()
-                        + "“, Startpasswort: "
+                        + "“"
+                        + (email != null && !email.isBlank() ? " oder E-Mail „" + email.trim() + "“" : "")
+                        + ", Startpasswort: "
                         + result.initialPassword()
                         + " (E-Mail-Versand folgt später).";
             }
@@ -126,9 +124,7 @@ public class PersonalController {
                     email,
                     phone,
                     birthdate,
-                    userId,
                     allowLogin,
-                    loginUsername,
                     notes,
                     status);
             return "redirect:/personal/new?unit=" + unit + "&tab=stammdaten";
@@ -315,9 +311,7 @@ public class PersonalController {
             String email,
             String phone,
             LocalDate birthdate,
-            Long userId,
             boolean allowLogin,
-            String loginUsername,
             String notes,
             PersonStatus status) {
         redirectAttributes.addFlashAttribute("formFirstName", firstName);
@@ -325,9 +319,7 @@ public class PersonalController {
         redirectAttributes.addFlashAttribute("formEmail", email);
         redirectAttributes.addFlashAttribute("formPhone", phone);
         redirectAttributes.addFlashAttribute("formBirthdate", birthdate);
-        redirectAttributes.addFlashAttribute("formUserId", userId);
         redirectAttributes.addFlashAttribute("formAllowLogin", allowLogin);
-        redirectAttributes.addFlashAttribute("formLoginUsername", loginUsername);
         redirectAttributes.addFlashAttribute("formNotes", notes);
         redirectAttributes.addFlashAttribute("formStatus", status);
     }

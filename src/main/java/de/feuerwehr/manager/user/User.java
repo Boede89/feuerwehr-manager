@@ -34,6 +34,10 @@ public class User {
     @Column(nullable = false, unique = true, length = 64)
     private String username;
 
+    /** Optional: Anmeldung zusätzlich mit dieser E-Mail (z. B. von Personen-Stammdaten). */
+    @Column(name = "login_email", unique = true, length = 255)
+    private String loginEmail;
+
     /** BCrypt-Hash; null möglich für reine RFID-Nutzer (später). */
     @Column(name = "password_hash", length = 255)
     private String passwordHash;

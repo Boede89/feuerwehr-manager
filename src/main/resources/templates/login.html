@@ -20,8 +20,9 @@
 
     <form th:action="@{/login}" method="post">
       <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-      <label for="username">Benutzername</label>
-      <input id="username" name="username" type="text" autocomplete="username" required autofocus/>
+      <label for="username">Benutzername oder E-Mail</label>
+      <input id="username" name="username" type="text" autocomplete="username" required autofocus
+             placeholder="z. B. m.mustermann oder name@feuerwehr.de"/>
       <label for="password">Passwort</label>
       <input id="password" name="password" type="password" autocomplete="current-password" required/>
       <button type="submit" class="btn btn-block">Anmelden</button>

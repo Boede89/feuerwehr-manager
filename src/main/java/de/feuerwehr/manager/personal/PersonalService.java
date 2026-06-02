@@ -6,7 +6,6 @@ import de.feuerwehr.manager.unit.UnitRepository;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserManagementService;
 import de.feuerwehr.manager.user.UserRepository;
-import de.feuerwehr.manager.user.UsernameHelper;
 import jakarta.servlet.http.HttpServletRequest;
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -164,9 +163,7 @@ public class PersonalService {
             String email,
             String phone,
             LocalDate birthdate,
-            Long userId,
             boolean allowLogin,
-            String loginUsername,
             String notes,
             PersonStatus status,
             Long qualificationTypeId,
@@ -175,14 +172,20 @@ public class PersonalService {
             List<String> ricCodes,
             long actorUserId,
             HttpServletRequest request) {
-        Long linkedUserId = userId;
+        Long linkedUserId = null;
         String generatedPassword = null;
         String createdUsername = null;
         if (allowLogin) {
             String password = generateNumericLoginPassword();
-            String username = resolveLoginUsername(firstName, lastName, loginUsername);
+            String username = userManagementService.allocateUniqueUsername(firstName, lastName);
             User user = userManagementService.createUserForPerson(
-                    username, (firstName + " " + lastName).trim(), password, unitId, actorUserId, request);
+                    username,
+                    (firstName + " " + lastName).trim(),
+                    password,
+                    unitId,
+                    email,
+                    actorUserId,
+                    request);
             linkedUserId = user.getId();
             generatedPassword = password;
             createdUsername = username;
@@ -251,7 +254,16 @@ public class PersonalService {
         if (status != null) {
             person.setStatus(status);
         }
+        syncLoginEmailFromPerson(person);
         return personRepository.save(person);
+    }
+
+    private void syncLoginEmailFromPerson(Person person) {
+        if (person.getUser() == null) {
+            return;
+        }
+        String email = person.getEmail();
+        person.getUser().setLoginEmail(email == null || email.isBlank() ? null : email.trim().toLowerCase());
     }
 
     @Transactional
@@ -450,18 +462,6 @@ public class PersonalService {
 
     private static String generateNumericLoginPassword() {
         return String.format("%04d", LOGIN_PASSWORD_RANDOM.nextInt(10_000));
-    }
-
-    private String resolveLoginUsername(String firstName, String lastName, String loginUsername) {
-        if (loginUsername != null && !loginUsername.isBlank()) {
-            String custom = UsernameHelper.sanitizeUsername(loginUsername);
-            UsernameHelper.validate(custom);
-            if (userRepository.existsByUsernameIgnoreCase(custom)) {
-                throw new IllegalArgumentException("Benutzername ist bereits vergeben");
-            }
-            return custom;
-        }
-        return userManagementService.allocateUniqueUsername(firstName, lastName);
     }
 
     private QualificationType resolveQualificationForWrite(long qualificationTypeId, Unit unit) {

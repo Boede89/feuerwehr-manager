@@ -59,7 +59,7 @@
               th:if="${u.unit != null}" th:text="${u.unit.name}">Einheit</span>
         <span class="badge" th:classappend="${u.active} ? ' active' : ' inactive'"
               th:text="${u.active} ? 'Aktiv' : 'Inaktiv'">Status</span>
-        <span class="badge active" th:if="${u.role.isAdminLevel()}"
+        <span class="badge active" th:if="${u.role.adminLevel}"
               th:text="${T(de.feuerwehr.manager.user.UserRoleLabels).label(u.role)}">Admin</span>
       </span>
       <a class="btn btn-secondary" th:href="@{/settings/users/{id}(id=${u.id})}">Bearbeiten</a>

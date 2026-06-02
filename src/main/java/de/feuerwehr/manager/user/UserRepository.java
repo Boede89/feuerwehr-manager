@@ -35,6 +35,21 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("""
             SELECT u FROM User u
             LEFT JOIN FETCH u.unit
+            WHERE u.anonymizedAt IS NULL
+            ORDER BY u.username
+            """)
+    List<User> findAllByAnonymizedAtIsNullWithUnitOrderByUsernameAsc();
+
+    @Query("""
+            SELECT u FROM User u
+            LEFT JOIN FETCH u.unit
+            WHERE LOWER(u.loginEmail) = LOWER(:email)
+            """)
+    Optional<User> findByLoginEmailIgnoreCaseWithUnit(@Param("email") String email);
+
+    @Query("""
+            SELECT u FROM User u
+            LEFT JOIN FETCH u.unit
             WHERE u.anonymizedAt IS NULL AND u.unit.id = :unitId
             ORDER BY u.username
             """)

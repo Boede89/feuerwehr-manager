@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Mein Bereich – Feuerwehr-Manager</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<header class="bar">
+  <h1>Mein Bereich</h1>
+  <a class="link" th:href="@{/}">← Dashboard</a>
+</header>
+<main>
+  <div class="card">
+    <p class="hint" style="margin-top:0;">
+      Angemeldet als <strong th:text="${displayName}">Name</strong>
+      (<span th:text="'@' + ${username}">@user</span>)
+    </p>
+    <p class="hint" style="margin-top:1rem;">
+      Hier kommen später persönliche Einstellungen und Informationen, die Sie selbst einsehen
+      und teilweise bearbeiten können.
+    </p>
+    <div class="actions" style="margin-top:1.25rem;">
+      <a class="btn btn-secondary" th:href="@{/profile/password}">Passwort ändern</a>
+    </div>
+  </div>
+</main>
+</body>
+</html>

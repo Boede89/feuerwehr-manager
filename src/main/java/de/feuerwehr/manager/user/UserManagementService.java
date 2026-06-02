@@ -28,7 +28,7 @@ public class UserManagementService {
 
     public List<User> listAccounts(AppUserDetails actor) {
         if (actor != null && actor.getRole().isSuperAdmin()) {
-            return userRepository.findAllByAnonymizedAtIsNullOrderByUsernameAsc();
+            return userRepository.findAllByAnonymizedAtIsNullWithUnitOrderByUsernameAsc();
         }
         if (actor != null && actor.getRole().isUnitAdmin() && actor.getUnitId() != null) {
             return userRepository.findAllByAnonymizedAtIsNullAndUnitIdOrderByUsernameAsc(actor.getUnitId());
@@ -75,6 +75,7 @@ public class UserManagementService {
             String displayName,
             String plainPassword,
             long unitId,
+            String loginEmail,
             long actorUserId,
             HttpServletRequest request) {
         UsernameHelper.validate(username);
@@ -82,9 +83,14 @@ public class UserManagementService {
         if (userRepository.existsByUsernameIgnoreCase(username)) {
             throw new IllegalArgumentException("Benutzername ist bereits vergeben");
         }
+        String normalizedEmail = normalizeLoginEmail(loginEmail);
+        if (normalizedEmail != null && userRepository.findByLoginEmailIgnoreCaseWithUnit(normalizedEmail).isPresent()) {
+            throw new IllegalArgumentException("E-Mail wird bereits für die Anmeldung verwendet");
+        }
         Unit unit = unitRepository.findById(unitId).orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden"));
         User user = new User();
         user.setUsername(username.trim());
+        user.setLoginEmail(normalizedEmail);
         user.setDisplayName(displayName.trim());
         user.setRole(UserRole.USER);
         user.setUnit(unit);
@@ -255,6 +261,13 @@ public class UserManagementService {
         if (supers <= 1) {
             throw new IllegalArgumentException("Es muss mindestens ein aktiver Superadmin bleiben");
         }
+    }
+
+    private static String normalizeLoginEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return null;
+        }
+        return email.trim().toLowerCase();
     }
 
     private void validatePassword(String plainPassword) {
