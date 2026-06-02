@@ -197,8 +197,10 @@
         </div>
       </form>
       <form method="post" th:action="@{/personal/{id}/delete(id=${person.id})}"
-            style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border);"
-            th:if="${activeTab == 'stammdaten' and !editMode}"
+            class="panel-edit"
+            th:classappend="${editMode and activeTab == 'stammdaten'} ? ' is-active' : ''"
+            style="margin-top:0;padding-top:1rem;border-top:1px solid var(--border);"
+            th:if="${activeTab == 'stammdaten' and editMode}"
             onsubmit="return confirm('Person wirklich löschen?');">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="unit" th:value="${unitId}"/>
