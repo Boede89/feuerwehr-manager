@@ -43,7 +43,3 @@ Technisch vorbereitet:
 - Deaktivieren: `FEUERWEHR_RFID_API_ENABLED=false`
 
 **Lesegerät am PC:** Viele Geräte emulieren eine Tastatur; eine spätere UI kann die Eingabe abfangen und die API aufrufen. Chip-Registrierung erfolgt durch Admins (Verwaltungsoberfläche folgt).
-
-## DSGVO
-
-Siehe [DSGVO.md](DSGVO.md).
