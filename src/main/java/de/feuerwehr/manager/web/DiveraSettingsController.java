@@ -1,11 +1,13 @@
 package de.feuerwehr.manager.web;
 
+import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitDiveraSettings;
 import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
 import de.feuerwehr.manager.unit.UnitService;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,16 +25,19 @@ public class DiveraSettingsController {
     private final UnitDiveraSettingsRepository diveraSettingsRepository;
 
     @GetMapping
-    public String form(@RequestParam(name = "unit", required = false) Long unitId, Model model) {
-        if (unitService.findActiveOrdered().isEmpty()) {
+    public String form(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            Model model) {
+        if (unitService.findActiveOrdered(actor).isEmpty()) {
             return "redirect:/settings/units?setup=1";
         }
-        Optional<Unit> unit = unitService.resolveActiveUnit(unitId);
+        Optional<Unit> unit = unitService.resolveActiveUnit(unitId, actor);
         if (unit.isEmpty()) {
             return "redirect:/settings/units?setup=1";
         }
         long resolvedId = unit.get().getId();
-        model.addAttribute("units", unitService.findActiveOrdered());
+        model.addAttribute("units", unitService.findActiveOrdered(actor));
         model.addAttribute("unitId", resolvedId);
         Optional<UnitDiveraSettings> opt = diveraSettingsRepository.findByUnitId(resolvedId);
         if (opt.isPresent()) {

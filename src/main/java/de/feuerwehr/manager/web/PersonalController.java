@@ -7,6 +7,7 @@ import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.personal.PersonalService.CourseCompletionInput;
 import de.feuerwehr.manager.personal.PersonalService.PersonCreateResult;
 import de.feuerwehr.manager.personal.PersonalService.PersonDetailView;
+import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
@@ -39,10 +40,14 @@ public class PersonalController {
 
     private final UnitService unitService;
     private final PersonalService personalService;
+    private final AccessControlService accessControlService;
 
     @GetMapping
-    public String index(@RequestParam(name = "unit", required = false) Long unitId, Model model) {
-        Unit unit = resolveUnit(unitId, model);
+    public String index(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            Model model) {
+        Unit unit = resolveUnit(unitId, actor, model);
         var persons = personalService.listPersons(unit.getId());
         model.addAttribute("persons", persons);
         model.addAttribute("personCount", persons.size());
@@ -51,10 +56,11 @@ public class PersonalController {
 
     @GetMapping("/new")
     public String newForm(
+            @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
             @RequestParam(name = "tab", defaultValue = "stammdaten") String tab,
             Model model) {
-        Unit unit = resolveUnit(unitId, model);
+        Unit unit = resolveUnit(unitId, actor, model);
         personalService.seedDefaultQualificationsIfEmpty(unit.getId());
         populateNewPersonModel(model, unit, normalizeTab(tab));
         return "personal/person-detail";
@@ -131,6 +137,7 @@ public class PersonalController {
 
     @GetMapping("/{id}")
     public String detail(
+            @AuthenticationPrincipal AppUserDetails actor,
             @PathVariable long id,
             @RequestParam(name = "unit", required = false) Long unitId,
             @RequestParam(name = "tab", defaultValue = "stammdaten") String tab,
@@ -138,6 +145,7 @@ public class PersonalController {
             Model model) {
         PersonDetailView detail = personalService.loadPersonDetailView(id);
         Person person = detail.person();
+        accessControlService.requireUnitAccess(actor, person.getUnit().getId());
         Unit unit = person.getUnit();
         model.addAttribute("unitId", unit.getId());
         model.addAttribute("currentUnitName", unit.getName());
@@ -204,8 +212,11 @@ public class PersonalController {
     }
 
     @GetMapping("/setup/qualifications")
-    public String qualifications(@RequestParam(name = "unit", required = false) Long unitId, Model model) {
-        Unit unit = resolveUnit(unitId, model);
+    public String qualifications(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            Model model) {
+        Unit unit = resolveUnit(unitId, actor, model);
         model.addAttribute("types", personalService.listQualificationTypes(unit.getId(), false));
         return "personal/qualifications";
     }
@@ -224,8 +235,11 @@ public class PersonalController {
     }
 
     @GetMapping("/setup/courses")
-    public String courses(@RequestParam(name = "unit", required = false) Long unitId, Model model) {
-        Unit unit = resolveUnit(unitId, model);
+    public String courses(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            Model model) {
+        Unit unit = resolveUnit(unitId, actor, model);
         model.addAttribute("courses", personalService.listCourses(unit.getId(), false));
         model.addAttribute("qualificationTypes", personalService.listQualificationTypes(unit.getId(), true));
         return "personal/courses";
@@ -352,15 +366,16 @@ public class PersonalController {
         return inputs;
     }
 
-    private Unit resolveUnit(Long unitId, Model model) {
-        Optional<Unit> unit = unitService.resolveActiveUnit(unitId);
+    private Unit resolveUnit(Long unitId, AppUserDetails actor, Model model) {
+        Optional<Unit> unit = unitService.resolveActiveUnit(unitId, actor);
         if (unit.isEmpty()) {
             throw new IllegalStateException("Keine aktive Einheit");
         }
         Unit resolved = unit.get();
         model.addAttribute("unitId", resolved.getId());
         model.addAttribute("currentUnitName", resolved.getName());
-        model.addAttribute("units", unitService.findActiveOrdered());
+        model.addAttribute("units", unitService.findActiveOrdered(actor));
+        model.addAttribute("unitSwitchDisabled", actor != null && !actor.getRole().isSuperAdmin());
         return resolved;
     }
 }

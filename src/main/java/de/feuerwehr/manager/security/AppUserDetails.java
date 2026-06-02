@@ -17,6 +17,7 @@ public class AppUserDetails implements UserDetails {
     private final String passwordHash;
     private final String displayName;
     private final UserRole role;
+    private final Long unitId;
     private final boolean active;
 
     public AppUserDetails(User user) {
@@ -25,6 +26,7 @@ public class AppUserDetails implements UserDetails {
         this.passwordHash = user.getPasswordHash();
         this.displayName = user.getDisplayName();
         this.role = user.getRole();
+        this.unitId = user.getUnit() != null ? user.getUnit().getId() : null;
         this.active = user.isActive();
     }
 

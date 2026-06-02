@@ -20,6 +20,7 @@
     <p class="hint" th:text="'Passwort mindestens ' + ${minPasswordLength} + ' Zeichen. RFID-Chip kann nach dem Anlegen zugewiesen werden.'">Passwort</p>
     <form method="post" th:action="@{/settings/users}">
       <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+      <input type="hidden" name="unitId" th:if="${!isSuperAdmin and !#lists.isEmpty(units)}" th:value="${units[0].id}"/>
       <label for="username">Benutzername</label>
       <input id="username" name="username" type="text" required minlength="3" maxlength="64"
              pattern="[a-zA-Z0-9._-]+" autocomplete="off" placeholder="z. B. m.mustermann"/>
@@ -29,8 +30,18 @@
       <input id="password" name="password" type="password" required th:minlength="${minPasswordLength}" autocomplete="new-password"/>
       <label for="role">Rolle</label>
       <select id="role" name="role">
-        <option th:each="r : ${roles}" th:value="${r.name()}" th:text="${r.name() == 'ADMIN'} ? 'Administrator' : 'Benutzer'">Rolle</option>
+        <option th:each="r : ${roles}" th:value="${r.name()}"
+                th:text="${T(de.feuerwehr.manager.user.UserRoleLabels).label(r)}">Rolle</option>
       </select>
+      <th:block th:if="${isSuperAdmin}">
+        <label for="unitId">Einheit</label>
+        <select id="unitId" name="unitId">
+          <option value="">— keine (nur Superadmin) —</option>
+          <option th:each="u : ${units}" th:value="${u.id}" th:text="${u.name}">Einheit</option>
+        </select>
+        <p class="hint">Einheitsadmin und Benutzer müssen einer Einheit zugeordnet werden.</p>
+      </th:block>
+      <p class="hint" th:unless="${isSuperAdmin}">Neue Konten werden Ihrer Einheit zugeordnet. Nur Superadmins können Einheitsadmin-Rechte vergeben.</p>
       <button type="submit" class="btn btn-block">Benutzer anlegen</button>
     </form>
   </div>
@@ -44,9 +55,12 @@
       <span>
         <strong th:text="${u.displayName}">Name</strong>
         <span class="hint" style="margin:0;display:block;" th:text="'@' + ${u.username}">@user</span>
+        <span class="hint" style="margin:0;display:block;"
+              th:if="${u.unit != null}" th:text="${u.unit.name}">Einheit</span>
         <span class="badge" th:classappend="${u.active} ? ' active' : ' inactive'"
               th:text="${u.active} ? 'Aktiv' : 'Inaktiv'">Status</span>
-        <span class="badge active" th:if="${u.role.name() == 'ADMIN'}">Admin</span>
+        <span class="badge active" th:if="${u.role.isAdminLevel()}"
+              th:text="${T(de.feuerwehr.manager.user.UserRoleLabels).label(u.role)}">Admin</span>
       </span>
       <a class="btn btn-secondary" th:href="@{/settings/users/{id}(id=${u.id})}">Bearbeiten</a>
     </div>

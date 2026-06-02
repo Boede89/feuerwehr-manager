@@ -25,15 +25,16 @@ public class DashboardController {
             @RequestParam(name = "unit", required = false) Long unitId,
             Model model) {
         model.addAttribute("currentUser", currentUser);
-        if (unitService.findActiveOrdered().isEmpty()) {
+        if (unitService.findActiveOrdered(currentUser).isEmpty()) {
             return "redirect:/settings/units?setup=1";
         }
-        Optional<Unit> unit = unitService.resolveActiveUnit(unitId);
+        Optional<Unit> unit = unitService.resolveActiveUnit(unitId, currentUser);
         if (unit.isEmpty()) {
             return "redirect:/settings/units?setup=1";
         }
         long resolvedId = unit.get().getId();
-        model.addAttribute("units", unitService.findActiveOrdered());
+        model.addAttribute("units", unitService.findActiveOrdered(currentUser));
+        model.addAttribute("unitSwitchDisabled", currentUser != null && !currentUser.getRole().isSuperAdmin());
         model.addAttribute("unitId", resolvedId);
         model.addAttribute("currentUnitName", unit.get().getName());
         model.addAttribute("divera", diveraService.getAlarmsForUnit(resolvedId));

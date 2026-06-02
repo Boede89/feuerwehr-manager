@@ -71,8 +71,10 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/rfid")
                         .permitAll()
-                        .requestMatchers("/settings/users/**", "/settings/test-mode/**")
-                        .hasRole("ADMIN")
+                        .requestMatchers("/settings/users/**")
+                        .hasAnyRole("SUPER_ADMIN", "UNIT_ADMIN")
+                        .requestMatchers("/settings/units/**", "/settings/test-mode/**")
+                        .hasRole("SUPER_ADMIN")
                         .anyRequest()
                         .authenticated())
                 .formLogin(form -> form

@@ -16,9 +16,24 @@ public class WebUiAdvice {
     private final SecurityProperties securityProperties;
     private final TestModeService testModeService;
 
+    @ModelAttribute("isSuperAdmin")
+    public boolean isSuperAdmin(@AuthenticationPrincipal AppUserDetails user) {
+        return user != null && user.getRole().isSuperAdmin();
+    }
+
+    @ModelAttribute("isUnitAdmin")
+    public boolean isUnitAdmin(@AuthenticationPrincipal AppUserDetails user) {
+        return user != null && user.getRole().isUnitAdmin();
+    }
+
     @ModelAttribute("isAdmin")
     public boolean isAdmin(@AuthenticationPrincipal AppUserDetails user) {
-        return user != null && user.getRole() == UserRole.ADMIN;
+        return user != null && user.getRole().isAdminLevel();
+    }
+
+    @ModelAttribute("canManageUnits")
+    public boolean canManageUnits(@AuthenticationPrincipal AppUserDetails user) {
+        return user != null && user.getRole().isSuperAdmin();
     }
 
     @ModelAttribute("testModeEnabled")

@@ -2,7 +2,11 @@ package de.feuerwehr.manager.user;
 
 import de.feuerwehr.manager.dsgvo.AuditEventType;
 import de.feuerwehr.manager.dsgvo.AuditService;
+import de.feuerwehr.manager.security.AccessControlService;
+import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.SecurityProperties;
+import de.feuerwehr.manager.unit.Unit;
+import de.feuerwehr.manager.unit.UnitRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -15,13 +19,21 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserManagementService {
 
     private final UserRepository userRepository;
+    private final UnitRepository unitRepository;
     private final UserRfidCardRepository rfidCardRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
     private final SecurityProperties securityProperties;
+    private final AccessControlService accessControlService;
 
-    public List<User> listAccounts() {
-        return userRepository.findAllByAnonymizedAtIsNullOrderByUsernameAsc();
+    public List<User> listAccounts(AppUserDetails actor) {
+        if (actor != null && actor.getRole().isSuperAdmin()) {
+            return userRepository.findAllByAnonymizedAtIsNullOrderByUsernameAsc();
+        }
+        if (actor != null && actor.getRole().isUnitAdmin() && actor.getUnitId() != null) {
+            return userRepository.findAllByAnonymizedAtIsNullAndUnitIdOrderByUsernameAsc(actor.getUnitId());
+        }
+        return List.of();
     }
 
     @Transactional
@@ -30,8 +42,10 @@ public class UserManagementService {
             String displayName,
             String plainPassword,
             UserRole role,
-            long actorUserId,
+            Long unitId,
+            AppUserDetails actor,
             HttpServletRequest request) {
+        accessControlService.requireCanAssignRole(actor, role);
         UsernameHelper.validate(username);
         validatePassword(plainPassword);
         if (userRepository.existsByUsernameIgnoreCase(username)) {
@@ -43,17 +57,44 @@ public class UserManagementService {
         user.setRole(role != null ? role : UserRole.USER);
         user.setActive(true);
         user.setPasswordHash(passwordEncoder.encode(plainPassword));
+        applyUnit(user, unitId, actor);
         User saved = userRepository.save(user);
         auditService.record(
                 AuditEventType.USER_CREATED,
-                actorUserId,
+                actor.getUserId(),
                 saved.getId(),
                 request,
                 "Benutzer angelegt");
         return saved;
     }
 
-    /** Vorschlag + ggf. Suffix bei Kollision (m.mustermann, m.mustermann2, …). */
+    /** Login-Konto beim Anlegen einer Person (immer Rolle USER, Einheit = Person). */
+    @Transactional
+    public User createUserForPerson(
+            String username,
+            String displayName,
+            String plainPassword,
+            long unitId,
+            long actorUserId,
+            HttpServletRequest request) {
+        UsernameHelper.validate(username);
+        validatePassword(plainPassword);
+        if (userRepository.existsByUsernameIgnoreCase(username)) {
+            throw new IllegalArgumentException("Benutzername ist bereits vergeben");
+        }
+        Unit unit = unitRepository.findById(unitId).orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden"));
+        User user = new User();
+        user.setUsername(username.trim());
+        user.setDisplayName(displayName.trim());
+        user.setRole(UserRole.USER);
+        user.setUnit(unit);
+        user.setActive(true);
+        user.setPasswordHash(passwordEncoder.encode(plainPassword));
+        User saved = userRepository.save(user);
+        auditService.record(AuditEventType.USER_CREATED, actorUserId, saved.getId(), request, "Benutzer über Personal angelegt");
+        return saved;
+    }
+
     public String allocateUniqueUsername(String firstName, String lastName) {
         String base = UsernameHelper.suggestFromPersonName(firstName, lastName);
         if (!userRepository.existsByUsernameIgnoreCase(base)) {
@@ -74,13 +115,16 @@ public class UserManagementService {
             String username,
             String displayName,
             UserRole role,
+            Long unitId,
             boolean active,
-            long actorUserId,
+            AppUserDetails actor,
             HttpServletRequest request) {
-        User user = userRepository.findById(userId).orElseThrow();
+        User user = userRepository.findByIdWithUnit(userId).orElseThrow();
         if (user.getAnonymizedAt() != null) {
             throw new IllegalArgumentException("Konto wurde gelöscht");
         }
+        accessControlService.requireCanManageUser(actor, user);
+        accessControlService.requireCanAssignRole(actor, role);
         UsernameHelper.validate(username);
         String trimmedUsername = username.trim();
         if (!trimmedUsername.equalsIgnoreCase(user.getUsername())) {
@@ -89,43 +133,34 @@ public class UserManagementService {
             }
             user.setUsername(trimmedUsername);
         }
-        if (!active && user.getId().equals(actorUserId)) {
+        if (!active && user.getId().equals(actor.getUserId())) {
             throw new IllegalArgumentException("Sie können sich nicht selbst deaktivieren");
         }
-        if (role != UserRole.ADMIN && user.getRole() == UserRole.ADMIN) {
-            long admins = userRepository.countByRoleAndActiveTrueAndAnonymizedAtIsNull(UserRole.ADMIN);
-            if (admins <= 1) {
-                throw new IllegalArgumentException("Es muss mindestens ein aktiver Administrator bleiben");
-            }
-        }
-        if (!active && user.getRole() == UserRole.ADMIN) {
-            long admins = userRepository.countByRoleAndActiveTrueAndAnonymizedAtIsNull(UserRole.ADMIN);
-            if (admins <= 1) {
-                throw new IllegalArgumentException("Der letzte Administrator kann nicht deaktiviert werden");
-            }
-        }
+        ensureNotLastSuperAdmin(user, role, active);
         user.setDisplayName(displayName.trim());
         user.setRole(role);
         user.setActive(active);
+        applyUnit(user, unitId, actor);
         User saved = userRepository.save(user);
         auditService.record(
-                AuditEventType.USER_UPDATED, actorUserId, saved.getId(), request, "Benutzer aktualisiert");
+                AuditEventType.USER_UPDATED, actor.getUserId(), saved.getId(), request, "Benutzer aktualisiert");
         return saved;
     }
 
     @Transactional
     public void setPasswordByAdmin(
-            long userId, String plainPassword, long actorUserId, HttpServletRequest request) {
+            long userId, String plainPassword, AppUserDetails actor, HttpServletRequest request) {
         validatePassword(plainPassword);
-        User user = userRepository.findById(userId).orElseThrow();
+        User user = userRepository.findByIdWithUnit(userId).orElseThrow();
         if (user.getAnonymizedAt() != null) {
             throw new IllegalArgumentException("Konto wurde gelöscht");
         }
+        accessControlService.requireCanManageUser(actor, user);
         user.setPasswordHash(passwordEncoder.encode(plainPassword));
         userRepository.save(user);
         auditService.record(
                 AuditEventType.PASSWORD_CHANGED,
-                actorUserId,
+                actor.getUserId(),
                 userId,
                 request,
                 "Passwort durch Administrator gesetzt");
@@ -145,8 +180,9 @@ public class UserManagementService {
 
     @Transactional
     public UserRfidCard registerRfidCard(
-            long userId, String rawCardUid, String label, long actorUserId, HttpServletRequest request) {
-        User user = userRepository.findById(userId).orElseThrow();
+            long userId, String rawCardUid, String label, AppUserDetails actor, HttpServletRequest request) {
+        User user = userRepository.findByIdWithUnit(userId).orElseThrow();
+        accessControlService.requireCanManageUser(actor, user);
         if (user.getAnonymizedAt() != null) {
             throw new IllegalArgumentException("Konto wurde gelöscht");
         }
@@ -165,7 +201,7 @@ public class UserManagementService {
         UserRfidCard saved = rfidCardRepository.save(card);
         auditService.record(
                 AuditEventType.RFID_CARD_REGISTERED,
-                actorUserId,
+                actor.getUserId(),
                 userId,
                 request,
                 "RFID-Karte registriert");
@@ -173,13 +209,14 @@ public class UserManagementService {
     }
 
     @Transactional
-    public void revokeRfidCard(long cardId, long actorUserId, HttpServletRequest request) {
+    public void revokeRfidCard(long cardId, AppUserDetails actor, HttpServletRequest request) {
         UserRfidCard card = rfidCardRepository.findById(cardId).orElseThrow();
+        accessControlService.requireCanManageUser(actor, card.getUser());
         card.setActive(false);
         rfidCardRepository.save(card);
         auditService.record(
                 AuditEventType.RFID_CARD_REVOKED,
-                actorUserId,
+                actor.getUserId(),
                 card.getUser().getId(),
                 request,
                 "RFID-Karte deaktiviert");
@@ -189,11 +226,41 @@ public class UserManagementService {
         return rfidCardRepository.findByUserId(userId);
     }
 
+    private void applyUnit(User user, Long unitId, AppUserDetails actor) {
+        if (user.getRole() == UserRole.SUPER_ADMIN) {
+            user.setUnit(null);
+            return;
+        }
+        Long effectiveUnitId = unitId;
+        if (actor != null && actor.getRole().isUnitAdmin()) {
+            effectiveUnitId = actor.getUnitId();
+        }
+        if (effectiveUnitId == null) {
+            throw new IllegalArgumentException("Bitte eine Einheit zuordnen");
+        }
+        Unit unit = unitRepository.findById(effectiveUnitId).orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden"));
+        user.setUnit(unit);
+    }
+
+    private void ensureNotLastSuperAdmin(User user, UserRole newRole, boolean active) {
+        if (user.getRole() != UserRole.SUPER_ADMIN) {
+            return;
+        }
+        boolean removingSuper =
+                newRole != UserRole.SUPER_ADMIN || !active;
+        if (!removingSuper) {
+            return;
+        }
+        long supers = userRepository.countByRoleAndActiveTrueAndAnonymizedAtIsNull(UserRole.SUPER_ADMIN);
+        if (supers <= 1) {
+            throw new IllegalArgumentException("Es muss mindestens ein aktiver Superadmin bleiben");
+        }
+    }
+
     private void validatePassword(String plainPassword) {
         int min = securityProperties.minPasswordLength();
         if (plainPassword == null || plainPassword.length() < min) {
             throw new IllegalArgumentException("Passwort mindestens " + min + " Zeichen");
         }
     }
-
 }

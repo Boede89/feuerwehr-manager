@@ -182,8 +182,8 @@ public class PersonalService {
         if (allowLogin) {
             String password = generateNumericLoginPassword();
             String username = resolveLoginUsername(firstName, lastName, loginUsername);
-            User user = userManagementService.createUser(
-                    username, (firstName + " " + lastName).trim(), password, UserRole.USER, actorUserId, request);
+            User user = userManagementService.createUserForPerson(
+                    username, (firstName + " " + lastName).trim(), password, unitId, actorUserId, request);
             linkedUserId = user.getId();
             generatedPassword = password;
             createdUsername = username;

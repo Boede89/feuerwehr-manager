@@ -28,6 +28,7 @@ header.bar {
 header.bar h1 { margin: 0; font-size: 1.05rem; font-weight: 700; }
 header.bar.bar-compact { padding: 0.45rem 0.75rem; gap: 0.5rem; }
 header.bar a.link { color: #93c5fd; font-weight: 600; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; }
+.bar-unit-label { margin: 0; white-space: nowrap; font-weight: 600; color: #334155; }
 .bar-actions {
   display: flex; align-items: center; gap: 0.5rem; flex-wrap: nowrap; flex-shrink: 0;
 }

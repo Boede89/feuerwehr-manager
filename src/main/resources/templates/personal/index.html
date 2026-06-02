@@ -10,12 +10,13 @@
 <header class="bar bar-compact">
   <h1>Personal</h1>
   <div class="bar-actions">
-    <form method="get" th:action="@{/personal}" class="bar-form">
+    <form method="get" th:action="@{/personal}" class="bar-form" th:if="${!unitSwitchDisabled}">
       <label for="unitPersonal" class="sr-only">Einheit</label>
       <select class="unit-select unit-select-compact" id="unitPersonal" name="unit" onchange="this.form.submit()">
         <option th:each="u : ${units}" th:value="${u.id}" th:selected="${u.id == unitId}" th:text="${u.name}">Einheit</option>
       </select>
     </form>
+    <span class="hint bar-unit-label" th:if="${unitSwitchDisabled}" th:text="${currentUnitName}">Einheit</span>
     <a class="link" th:href="@{/(unit=${unitId})}">← Dashboard</a>
   </div>
 </header>

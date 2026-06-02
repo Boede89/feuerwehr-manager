@@ -18,7 +18,7 @@
   <div class="ok" th:if="${saved}" th:text="${message} ?: 'Gespeichert.'">OK</div>
   <div class="err" th:if="${error}" th:text="${error}">Fehler</div>
 
-  <div class="card testmode-settings" th:if="${isAdmin}" style="margin-top:0;border-color:#fbbf24;background:#fffbeb;">
+  <div class="card testmode-settings" th:if="${isSuperAdmin}" style="margin-top:0;border-color:#fbbf24;background:#fffbeb;">
     <div class="testmode-settings-row">
       <div>
         <h2 style="margin:0;font-size:1rem;">Testmodus</h2>
@@ -47,7 +47,7 @@
       <span>→</span>
     </a>
     <a class="list-row" th:if="${isAdmin}" th:href="@{/settings/users}" style="text-decoration:none;color:inherit;">
-      <span><strong>Benutzer</strong><br/><span class="hint" style="margin:0;">Konten, Rollen, RFID-Chips (nur Admin)</span></span>
+      <span><strong>Benutzer</strong><br/><span class="hint" style="margin:0;">Konten, Rollen, RFID-Chips</span></span>
       <span>→</span>
     </a>
     <a class="list-row" th:if="${hasActiveUnit}" th:href="@{/personal/setup/qualifications(unit=${unitId})}" style="text-decoration:none;color:inherit;">
@@ -58,8 +58,8 @@
       <span><strong>Lehrgänge</strong><br/><span class="hint" style="margin:0;">Kurse und Zuordnung zu Qualifikationen</span></span>
       <span>→</span>
     </a>
-    <a class="list-row" th:href="@{/settings/units}" style="text-decoration:none;color:inherit;">
-      <span><strong>Einheiten</strong><br/><span class="hint" style="margin:0;">Feuerwehren / Standorte anlegen und verwalten</span></span>
+    <a class="list-row" th:if="${canManageUnits}" th:href="@{/settings/units}" style="text-decoration:none;color:inherit;">
+      <span><strong>Einheiten</strong><br/><span class="hint" style="margin:0;">Feuerwehren / Standorte anlegen und verwalten (Superadmin)</span></span>
       <span>→</span>
     </a>
     <a class="list-row" th:if="${hasActiveUnit}" th:href="@{/settings/divera(unit=${unitId})}" style="text-decoration:none;color:inherit;">

@@ -1,6 +1,7 @@
 package de.feuerwehr.manager.unit;
 
 import de.feuerwehr.manager.personal.PersonRepository;
+import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.settings.TestModeService;
 import java.util.List;
 import java.util.Optional;
@@ -29,12 +30,38 @@ public class UnitService {
     }
 
     @Transactional(readOnly = true)
+    public List<Unit> findActiveOrdered(AppUserDetails actor) {
+        if (actor != null && actor.getRole().isSuperAdmin()) {
+            return findActiveOrdered();
+        }
+        if (actor != null && actor.getUnitId() != null) {
+            return findById(actor.getUnitId()).filter(Unit::isActive).map(List::of).orElse(List.of());
+        }
+        return findActiveOrdered();
+    }
+
+    @Transactional(readOnly = true)
     public Optional<Unit> findById(long id) {
         return unitRepository.findVisibleById(id, testModeService.isEnabled());
     }
 
     @Transactional(readOnly = true)
     public Optional<Unit> resolveActiveUnit(Long requestedId) {
+        return resolveActiveUnit(requestedId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Unit> resolveActiveUnit(Long requestedId, AppUserDetails actor) {
+        if (actor != null && !actor.getRole().isSuperAdmin()) {
+            Long assignedUnitId = actor.getUnitId();
+            if (assignedUnitId == null) {
+                return Optional.empty();
+            }
+            Optional<Unit> assigned = findById(assignedUnitId).filter(Unit::isActive);
+            assigned.ifPresent(u -> unitSelectionService.remember(u.getId()));
+            return assigned;
+        }
+
         List<Unit> active = findActiveOrdered();
         if (active.isEmpty()) {
             return Optional.empty();

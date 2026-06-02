@@ -26,8 +26,21 @@
     <label for="role">Rolle</label>
     <select id="role" name="role">
       <option th:each="r : ${roles}" th:value="${r.name()}" th:selected="${r == user.role}"
-              th:text="${r.name() == 'ADMIN'} ? 'Administrator' : 'Benutzer'">Rolle</option>
+              th:text="${T(de.feuerwehr.manager.user.UserRoleLabels).label(r)}">Rolle</option>
     </select>
+    <input type="hidden" name="unitId" th:if="${!isSuperAdmin and user.unit != null}" th:value="${user.unit.id}"/>
+    <th:block th:if="${isSuperAdmin}">
+      <label for="unitId">Einheit</label>
+      <select id="unitId" name="unitId">
+        <option value="" th:selected="${user.unit == null}">— keine (nur Superadmin) —</option>
+        <option th:each="u : ${units}" th:value="${u.id}"
+                th:selected="${user.unit != null and user.unit.id == u.id}"
+                th:text="${u.name}">Einheit</option>
+      </select>
+    </th:block>
+    <p class="hint" th:if="${!isSuperAdmin and user.unit != null}">
+      Einheit: <strong th:text="${user.unit.name}">—</strong>
+    </p>
     <div class="checkbox-row">
       <input type="checkbox" id="active" name="active" value="true" th:checked="${user.active}"/>
       <label for="active" style="margin:0;font-weight:600;">Konto aktiv</label>

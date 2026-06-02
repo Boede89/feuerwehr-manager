@@ -27,6 +27,17 @@ public class UserService {
         return userRepository.findByUsernameIgnoreCase(username.trim());
     }
 
+    public Optional<User> findByUsernameWithUnit(String username) {
+        if (username == null || username.isBlank()) {
+            return Optional.empty();
+        }
+        return userRepository.findByUsernameIgnoreCaseWithUnit(username.trim());
+    }
+
+    public Optional<User> findByIdWithUnit(long id) {
+        return userRepository.findByIdWithUnit(id);
+    }
+
     public Optional<User> findActiveByRfidCardUid(String rawCardUid) {
         String normalized = RfidCardUidNormalizer.normalize(rawCardUid);
         if (!RfidCardUidNormalizer.isValid(normalized)) {
@@ -45,7 +56,7 @@ public class UserService {
         User user = new User();
         user.setUsername(normalizedUsername);
         user.setDisplayName(displayName);
-        user.setRole(UserRole.ADMIN);
+        user.setRole(UserRole.SUPER_ADMIN);
         user.setActive(true);
         user.setPasswordHash(passwordEncoder.encode(plainPassword));
         return userRepository.save(user);

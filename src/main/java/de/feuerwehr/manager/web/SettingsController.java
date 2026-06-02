@@ -1,7 +1,9 @@
 package de.feuerwehr.manager.web;
 
+import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.unit.UnitService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,8 +18,11 @@ public class SettingsController {
     private final UnitService unitService;
 
     @GetMapping
-    public String index(@RequestParam(name = "unit", required = false) Long unitId, Model model) {
-        unitService.resolveActiveUnit(unitId).ifPresent(u -> {
+    public String index(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            Model model) {
+        unitService.resolveActiveUnit(unitId, actor).ifPresent(u -> {
             model.addAttribute("unitId", u.getId());
             model.addAttribute("hasActiveUnit", true);
         });
