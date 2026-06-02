@@ -4,6 +4,7 @@ import de.feuerwehr.manager.personal.PersonRepository;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.settings.TestModeService;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -50,7 +51,6 @@ public class UnitService {
         return resolveActiveUnit(requestedId, null);
     }
 
-    @Transactional(readOnly = true)
     public Optional<Unit> resolveActiveUnit(Long requestedId, AppUserDetails actor) {
         if (actor != null && !actor.getRole().isSuperAdmin()) {
             Long assignedUnitId = actor.getUnitId();
@@ -68,7 +68,7 @@ public class UnitService {
         }
         if (requestedId != null) {
             for (Unit u : active) {
-                if (u.getId().equals(requestedId)) {
+                if (Objects.equals(u.getId(), requestedId)) {
                     unitSelectionService.remember(u.getId());
                     return Optional.of(u);
                 }
@@ -77,7 +77,15 @@ public class UnitService {
         Optional<Long> remembered = unitSelectionService.getRemembered();
         if (remembered.isPresent()) {
             for (Unit u : active) {
-                if (u.getId().equals(remembered.get())) {
+                if (Objects.equals(u.getId(), remembered.get())) {
+                    return Optional.of(u);
+                }
+            }
+        }
+        if (actor != null && actor.getRole().isSuperAdmin() && actor.getUnitId() != null) {
+            for (Unit u : active) {
+                if (Objects.equals(u.getId(), actor.getUnitId())) {
+                    unitSelectionService.remember(u.getId());
                     return Optional.of(u);
                 }
             }

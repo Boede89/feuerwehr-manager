@@ -32,11 +32,12 @@
     <th:block th:if="${isSuperAdmin}">
       <label for="unitId">Einheit</label>
       <select id="unitId" name="unitId">
-        <option value="" th:selected="${user.unit == null}">— keine (nur Superadmin) —</option>
+        <option value="" th:selected="${user.unit == null}">— keine Stamm-Einheit —</option>
         <option th:each="u : ${units}" th:value="${u.id}"
                 th:selected="${user.unit != null and user.unit.id == u.id}"
                 th:text="${u.name}">Einheit</option>
       </select>
+      <p class="hint">Stamm-Einheit: Superadmin erscheint in der Personal-Liste dieser Einheit (bei gewählter Einheit oben).</p>
     </th:block>
     <p class="hint" th:if="${!isSuperAdmin and user.unit != null}">
       Einheit: <strong th:text="${user.unit.name}">—</strong>

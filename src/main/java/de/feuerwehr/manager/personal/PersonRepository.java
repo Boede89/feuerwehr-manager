@@ -37,6 +37,14 @@ public interface PersonRepository extends JpaRepository<Person, Long> {
             """)
     Optional<Person> findShadowByProductionSourceId(@Param("sourceId") long sourceId);
 
+    @Query("""
+            SELECT p FROM Person p
+            WHERE p.user.id = :userId AND p.unit.id = :unitId
+              AND p.anonymizedAt IS NULL AND p.testData = :testData
+            """)
+    Optional<Person> findActiveByUserIdAndUnitId(
+            @Param("userId") long userId, @Param("unitId") long unitId, @Param("testData") boolean testData);
+
     @Modifying
     @Query("DELETE FROM Person p WHERE p.testData = true")
     void deleteAllByTestDataTrue();

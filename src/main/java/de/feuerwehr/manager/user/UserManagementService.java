@@ -5,6 +5,7 @@ import de.feuerwehr.manager.dsgvo.AuditService;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.SecurityProperties;
+import de.feuerwehr.manager.personal.PersonUserLinkService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
 import jakarta.servlet.http.HttpServletRequest;
@@ -25,6 +26,7 @@ public class UserManagementService {
     private final AuditService auditService;
     private final SecurityProperties securityProperties;
     private final AccessControlService accessControlService;
+    private final PersonUserLinkService personUserLinkService;
 
     public List<User> listAccounts(AppUserDetails actor) {
         if (actor != null && actor.getRole().isSuperAdmin()) {
@@ -58,7 +60,8 @@ public class UserManagementService {
         user.setActive(true);
         user.setPasswordHash(passwordEncoder.encode(plainPassword));
         applyUnit(user, unitId, actor);
-        User saved = userRepository.save(user);
+        User saved = userRepository.findByIdWithUnit(userRepository.save(user).getId()).orElseThrow();
+        personUserLinkService.ensurePersonForUser(saved);
         auditService.record(
                 AuditEventType.USER_CREATED,
                 actor.getUserId(),
@@ -147,7 +150,8 @@ public class UserManagementService {
         user.setRole(role);
         user.setActive(active);
         applyUnit(user, unitId, actor);
-        User saved = userRepository.save(user);
+        User saved = userRepository.findByIdWithUnit(userRepository.save(user).getId()).orElseThrow();
+        personUserLinkService.ensurePersonForUser(saved);
         auditService.record(
                 AuditEventType.USER_UPDATED, actor.getUserId(), saved.getId(), request, "Benutzer aktualisiert");
         return saved;
@@ -234,7 +238,14 @@ public class UserManagementService {
 
     private void applyUnit(User user, Long unitId, AppUserDetails actor) {
         if (user.getRole() == UserRole.SUPER_ADMIN) {
-            user.setUnit(null);
+            if (unitId == null || unitId <= 0) {
+                user.setUnit(null);
+            } else {
+                Unit unit = unitRepository
+                        .findById(unitId)
+                        .orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden"));
+                user.setUnit(unit);
+            }
             return;
         }
         Long effectiveUnitId = unitId;

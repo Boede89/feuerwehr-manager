@@ -33,10 +33,6 @@ public class DashboardController {
             return "redirect:/settings/units?setup=1";
         }
         long resolvedId = unit.get().getId();
-        model.addAttribute("units", unitService.findActiveOrdered(currentUser));
-        model.addAttribute("unitSwitchDisabled", currentUser != null && !currentUser.getRole().isSuperAdmin());
-        model.addAttribute("unitId", resolvedId);
-        model.addAttribute("currentUnitName", unit.get().getName());
         model.addAttribute("divera", diveraService.getAlarmsForUnit(resolvedId));
         return "dashboard";
     }

@@ -9,19 +9,7 @@
 <body>
 <header class="bar bar-compact">
   <h1>Feuerwehr-Manager</h1>
-  <div class="bar-actions">
-    <form method="get" action="/" class="bar-form" th:if="${!unitSwitchDisabled}">
-      <label for="unit" class="sr-only">Einheit</label>
-      <select class="unit-select unit-select-compact" id="unit" name="unit" onchange="this.form.submit()">
-        <option th:each="u : ${units}" th:value="${u.id}" th:selected="${u.id == unitId}" th:text="${u.name}">Einheit</option>
-      </select>
-    </form>
-    <span class="hint bar-unit-label" th:if="${unitSwitchDisabled}" th:text="${currentUnitName}">Einheit</span>
-    <form method="post" th:action="@{/logout}" class="bar-form">
-      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-      <button type="submit" class="btn btn-sm btn-secondary">Abmelden</button>
-    </form>
-  </div>
+  <div class="bar-actions" th:replace="~{fragments/app-header-actions :: actions}"></div>
 </header>
 
 <main>

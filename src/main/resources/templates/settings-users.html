@@ -36,10 +36,10 @@
       <th:block th:if="${isSuperAdmin}">
         <label for="unitId">Einheit</label>
         <select id="unitId" name="unitId">
-          <option value="">— keine (nur Superadmin) —</option>
+          <option value="">— keine Stamm-Einheit —</option>
           <option th:each="u : ${units}" th:value="${u.id}" th:text="${u.name}">Einheit</option>
         </select>
-        <p class="hint">Einheitsadmin und Benutzer müssen einer Einheit zugeordnet werden.</p>
+        <p class="hint">Superadmins können optional eine Stamm-Einheit haben (erscheinen dann in deren Personal-Liste). Einheitsadmin und Benutzer benötigen eine Einheit.</p>
       </th:block>
       <p class="hint" th:unless="${isSuperAdmin}">Neue Konten werden Ihrer Einheit zugeordnet. Nur Superadmins können Einheitsadmin-Rechte vergeben.</p>
       <button type="submit" class="btn btn-block">Benutzer anlegen</button>
