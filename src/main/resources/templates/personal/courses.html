@@ -1,0 +1,44 @@
+﻿<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Lehrgänge – Personal</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<header class="bar">
+  <h1>Lehrgänge</h1>
+  <a class="link" th:href="@{/personal(unit=${unitId})}">← Personal</a>
+</header>
+<main>
+  <div class="ok" th:if="${saved}" th:text="${message} ?: 'Gespeichert.'">OK</div>
+  <div class="err" th:if="${error}" th:text="${error}">Fehler</div>
+
+  <form method="post" th:action="@{/personal/setup/courses}" class="card">
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+    <input type="hidden" name="unit" th:value="${unitId}"/>
+    <label for="name">Neuer Lehrgang</label>
+    <input id="name" name="name" type="text" required maxlength="255" placeholder="z. B. AGT"/>
+    <label for="qualificationTypeId">Erreichte Qualifikation (optional)</label>
+    <select id="qualificationTypeId" name="qualificationTypeId">
+      <option value="">— keine —</option>
+      <option th:each="q : ${qualificationTypes}" th:value="${q.id}" th:text="${q.name}">Quali</option>
+    </select>
+    <button type="submit" class="btn btn-block">Anlegen</button>
+  </form>
+
+  <div class="list">
+    <h2>Vorhanden</h2>
+    <div class="list-row" th:if="${#lists.isEmpty(courses)}"><span>Keine Lehrgänge.</span></div>
+    <div class="list-row" th:each="c : ${courses}">
+      <span>
+        <strong th:text="${c.name}">Lehrgang</strong>
+        <span class="hint" th:if="${c.qualificationType != null}" th:text="'→ ' + ${c.qualificationType.name}" style="margin:0;display:block;"></span>
+      </span>
+      <span class="badge" th:classappend="${c.active} ? ' active' : ' inactive'" th:text="${c.active} ? 'Aktiv' : 'Inaktiv'">Status</span>
+    </div>
+  </div>
+</main>
+</body>
+</html>

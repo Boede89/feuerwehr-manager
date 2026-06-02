@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Personal – Feuerwehr-Manager</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<header class="bar">
+  <h1>Personal</h1>
+  <a class="link" th:href="@{/(unit=${unitId})}">← Dashboard</a>
+</header>
+<main>
+  <p class="hint">Einheit: <strong th:text="${currentUnitName}">—</strong> · <span th:text="${personCount}">0</span> Personen</p>
+  <div class="ok" th:if="${saved}" th:text="${message} ?: 'Gespeichert.'">OK</div>
+  <div class="err" th:if="${error}" th:text="${error}">Fehler</div>
+
+  <div class="list" style="margin-top:0;">
+    <h2>Verwaltung</h2>
+    <a class="list-row" th:href="@{/personal/setup/qualifications(unit=${unitId})}" style="text-decoration:none;color:inherit;">
+      <span><strong>Qualifikationen</strong><br/><span class="hint" style="margin:0;">z. B. GF, TF, Mannschaft</span></span>
+      <span>→</span>
+    </a>
+    <a class="list-row" th:href="@{/personal/setup/courses(unit=${unitId})}" style="text-decoration:none;color:inherit;">
+      <span><strong>Lehrgänge</strong><br/><span class="hint" style="margin:0;">Kurse und Zuordnung zu Qualifikationen</span></span>
+      <span>→</span>
+    </a>
+  </div>
+
+  <div class="card">
+    <h2 style="margin:0 0 0.5rem;font-size:1.05rem;">Neue Person</h2>
+    <form method="post" th:action="@{/personal}">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+      <input type="hidden" name="unit" th:value="${unitId}"/>
+      <label for="firstName">Vorname</label>
+      <input id="firstName" name="firstName" type="text" required maxlength="100"/>
+      <label for="lastName">Nachname</label>
+      <input id="lastName" name="lastName" type="text" required maxlength="100"/>
+      <label for="email">E-Mail (optional)</label>
+      <input id="email" name="email" type="email" maxlength="255"/>
+      <label for="phone">Telefon (optional)</label>
+      <input id="phone" name="phone" type="tel" maxlength="50"/>
+      <button type="submit" class="btn btn-block">Person anlegen</button>
+    </form>
+  </div>
+
+  <div class="list">
+    <h2>Personen</h2>
+    <div class="list-row" th:if="${#lists.isEmpty(persons)}">
+      <span>Noch keine Personen erfasst.</span>
+    </div>
+    <div class="list-row" th:each="p : ${persons}">
+      <span>
+        <strong th:text="${p.firstName + ' ' + p.lastName}">Name</strong>
+        <span class="hint" style="margin:0;display:block;"
+              th:if="${p.qualificationType != null}" th:text="${p.qualificationType.name}">Quali</span>
+        <span class="badge" th:classappend="${p.status.name() == 'ACTIVE'} ? ' active' : ' inactive'"
+              th:text="${p.status.name() == 'ACTIVE'} ? 'Aktiv' : 'Inaktiv'">Status</span>
+      </span>
+      <a class="btn btn-secondary" th:href="@{/personal/{id}(id=${p.id},unit=${unitId})}">Bearbeiten</a>
+    </div>
+  </div>
+</main>
+</body>
+</html>

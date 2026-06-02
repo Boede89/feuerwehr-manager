@@ -1,0 +1,82 @@
+﻿<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Person bearbeiten – Feuerwehr-Manager</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<header class="bar">
+  <h1 th:text="${person.firstName + ' ' + person.lastName}">Person</h1>
+  <a class="link" th:href="@{/personal(unit=${unitId})}">← Personal</a>
+</header>
+<main>
+  <div class="ok" th:if="${saved}" th:text="${message} ?: 'Gespeichert.'">OK</div>
+  <div class="err" th:if="${error}" th:text="${error}">Fehler</div>
+
+  <form method="post" th:action="@{/personal/{id}(id=${person.id})}" class="card">
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+    <input type="hidden" name="unit" th:value="${unitId}"/>
+
+    <label for="firstName">Vorname</label>
+    <input id="firstName" name="firstName" type="text" required maxlength="100" th:value="${person.firstName}"/>
+    <label for="lastName">Nachname</label>
+    <input id="lastName" name="lastName" type="text" required maxlength="100" th:value="${person.lastName}"/>
+    <label for="email">E-Mail</label>
+    <input id="email" name="email" type="email" maxlength="255" th:value="${person.email}"/>
+    <label for="phone">Telefon</label>
+    <input id="phone" name="phone" type="tel" maxlength="50" th:value="${person.phone}"/>
+    <label for="birthdate">Geburtsdatum</label>
+    <input id="birthdate" name="birthdate" type="date" th:value="${person.birthdate}"/>
+
+    <label for="qualificationTypeId">Qualifikation</label>
+    <select id="qualificationTypeId" name="qualificationTypeId">
+      <option value="">— keine —</option>
+      <option th:each="q : ${qualificationTypes}" th:value="${q.id}" th:selected="${person.qualificationType != null and person.qualificationType.id == q.id}"
+              th:text="${q.name}">Quali</option>
+    </select>
+
+    <label for="userId">Verknüpftes Login (optional)</label>
+    <select id="userId" name="userId">
+      <option value="">— kein Login —</option>
+      <option th:each="u : ${linkableUsers}" th:value="${u.id}"
+              th:selected="${person.user != null and person.user.id == u.id}"
+              th:text="${u.displayName + ' (@' + u.username + ')'}">User</option>
+    </select>
+
+    <label for="diveraUcrId">Divera UCR-ID (optional)</label>
+    <input id="diveraUcrId" name="diveraUcrId" type="text" maxlength="64" th:value="${person.diveraUcrId}"/>
+
+    <label for="status">Status</label>
+    <select id="status" name="status">
+      <option th:each="s : ${statuses}" th:value="${s.name()}" th:selected="${s == person.status}"
+              th:text="${s.name() == 'ACTIVE'} ? 'Aktiv' : 'Inaktiv'">Status</option>
+    </select>
+
+    <label for="notes">Notizen</label>
+    <input id="notes" name="notes" type="text" maxlength="512" th:value="${person.notes}"/>
+
+    <h2 style="margin:1.25rem 0 0.5rem;font-size:1.05rem;">Lehrgänge (Info)</h2>
+    <p class="hint" th:if="${#lists.isEmpty(completions)}">Noch keine Lehrgänge zugewiesen.</p>
+    <ul th:if="${!#lists.isEmpty(completions)}" class="hint" style="margin:0 0 1rem 1rem;">
+      <li th:each="c : ${completions}">
+        <span th:text="${c.course.name}">Lehrgang</span>
+        <span th:if="${c.completionYear != null}" th:text="' (' + ${c.completionYear} + ')'">(Jahr)</span>
+      </li>
+    </ul>
+
+    <button type="submit" class="btn btn-block">Speichern</button>
+  </form>
+
+  <form method="post" th:action="@{/personal/{id}/delete(id=${person.id})}" class="card"
+        onsubmit="return confirm('Person wirklich löschen?');">
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+    <input type="hidden" name="unit" th:value="${unitId}"/>
+    <h2 style="margin:0 0 0.5rem;font-size:1.05rem;color:#991b1b;">Person löschen</h2>
+    <p class="hint">Entfernt die Person aus der Liste. Bestehende Verknüpfungen werden gelöst.</p>
+    <button type="submit" class="btn btn-block" style="background:#dc2626;">Löschen</button>
+  </form>
+</main>
+</body>
+</html>
