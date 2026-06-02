@@ -18,28 +18,26 @@
   <div class="ok" th:if="${saved}" th:text="${message} ?: 'Gespeichert.'">OK</div>
   <div class="err" th:if="${error}" th:text="${error}">Fehler</div>
 
-  <div class="card" th:if="${isAdmin}" style="margin-top:0;border-color:#fbbf24;background:#fffbeb;">
-    <h2 style="margin:0 0 0.5rem;font-size:1.05rem;">Testmodus</h2>
-    <p class="hint" th:if="${testModeEnabled}" style="margin:0 0 1rem;">
-      <strong>Aktiv.</strong> Personal, Qualifikationen und Lehrgänge werden als Testdaten gespeichert und sind im Produktivbetrieb nicht sichtbar.
-      Einheiten aus dem Produktivbetrieb können weiter genutzt werden.
-    </p>
-    <p class="hint" th:unless="${testModeEnabled}" style="margin:0 0 1rem;">
-      Zum Ausprobieren aller Funktionen ohne Auswirkung auf Produktivdaten (Personal, Qualifikationen, Lehrgänge).
-    </p>
-    <form th:if="${testModeEnabled}" method="post" th:action="@{/settings/test-mode/disable}" class="testmode-disable-form">
-      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-      <p class="hint" style="margin:0 0 0.75rem;">Testmodus beenden:</p>
-      <div class="actions">
-        <button type="submit" name="deleteData" value="false" class="btn btn-secondary">Beenden, Testdaten behalten</button>
-        <button type="submit" name="deleteData" value="true" class="btn" style="background:#b45309;"
-                onclick="return confirm('Alle Testdaten unwiderruflich löschen?');">Beenden und Testdaten löschen</button>
+  <div class="card testmode-settings" th:if="${isAdmin}" style="margin-top:0;border-color:#fbbf24;background:#fffbeb;">
+    <div class="testmode-settings-row">
+      <div>
+        <h2 style="margin:0;font-size:1rem;">Testmodus</h2>
+        <p class="hint" th:if="${testModeEnabled}" style="margin:0.35rem 0 0;">
+          Aktiv — Fachdaten nur als Test, Produktivdaten unverändert.
+        </p>
+        <p class="hint" th:unless="${testModeEnabled}" style="margin:0.35rem 0 0;">
+          Funktionen ausprobieren ohne Auswirkung auf Produktivdaten.
+        </p>
       </div>
-    </form>
-    <form th:unless="${testModeEnabled}" method="post" th:action="@{/settings/test-mode/enable}">
-      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-      <button type="submit" class="btn">Testmodus aktivieren</button>
-    </form>
+      <form th:if="${testModeEnabled}" method="post" th:action="@{/settings/test-mode/disable}" style="margin:0;">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <button type="submit" class="btn btn-sm btn-secondary">Testmodus beenden</button>
+      </form>
+      <form th:unless="${testModeEnabled}" method="post" th:action="@{/settings/test-mode/enable}" style="margin:0;">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <button type="submit" class="btn btn-sm">Testmodus aktivieren</button>
+      </form>
+    </div>
   </div>
 
   <div class="list">

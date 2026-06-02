@@ -5,7 +5,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
@@ -24,17 +23,11 @@ public class TestModeSettingsController {
     }
 
     @PostMapping("/disable")
-    public String disable(
-            @RequestParam(defaultValue = "false") boolean deleteData, RedirectAttributes redirectAttributes) {
-        testModeService.disable(deleteData);
+    public String disable(RedirectAttributes redirectAttributes) {
+        testModeService.disable(false);
         redirectAttributes.addFlashAttribute("saved", true);
-        if (deleteData) {
-            redirectAttributes.addFlashAttribute("message", "Testmodus beendet. Testdaten wurden gelöscht.");
-        } else {
-            redirectAttributes.addFlashAttribute(
-                    "message",
-                    "Testmodus beendet. Testdaten bleiben gespeichert und sind im Produktivbetrieb nicht sichtbar.");
-        }
+        redirectAttributes.addFlashAttribute(
+                "message", "Testmodus beendet. Testdaten bleiben gespeichert und sind im Produktivbetrieb nicht sichtbar.");
         return "redirect:/settings";
     }
 }
