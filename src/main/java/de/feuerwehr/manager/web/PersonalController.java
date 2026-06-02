@@ -7,6 +7,7 @@ import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.personal.PersonalService.CourseCompletionInput;
 import de.feuerwehr.manager.personal.PersonalService.PersonCreateResult;
 import de.feuerwehr.manager.personal.PersonalService.PersonDetailView;
+import de.feuerwehr.manager.personal.PersonalService.StammdatenUpdateResult;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.unit.Unit;
@@ -158,6 +159,7 @@ public class PersonalController {
 
     @PostMapping("/{id}")
     public String update(
+            @AuthenticationPrincipal AppUserDetails actor,
             @PathVariable long id,
             @RequestParam long unit,
             @RequestParam(defaultValue = "stammdaten") String section,
@@ -167,7 +169,7 @@ public class PersonalController {
             @RequestParam(required = false) String phone,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate birthdate,
             @RequestParam(required = false) Long qualificationTypeId,
-            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false, defaultValue = "false") boolean allowLogin,
             @RequestParam(required = false) String diveraUcrId,
             @RequestParam(required = false) String notes,
             @RequestParam(required = false) PersonStatus status,
@@ -181,11 +183,36 @@ public class PersonalController {
                 case "lehrgaenge" -> personalService.updateLehrgaenge(
                         id, qualificationTypeId, parseCourseCompletions(courseIds, request));
                 case "divera" -> personalService.updateDivera(id, diveraUcrId, ricCodes);
-                default -> personalService.updateStammdaten(
-                        id, firstName, lastName, email, phone, birthdate, userId, notes, status);
+                default -> {
+                    StammdatenUpdateResult result = personalService.updateStammdaten(
+                            id,
+                            firstName,
+                            lastName,
+                            email,
+                            phone,
+                            birthdate,
+                            allowLogin,
+                            notes,
+                            status,
+                            actor.getUserId(),
+                            request);
+                    String message = "Gespeichert.";
+                    if (result.initialPassword() != null) {
+                        message += " Login: „"
+                                + result.createdUsername()
+                                + "“"
+                                + (email != null && !email.isBlank() ? " oder E-Mail „" + email.trim() + "“" : "")
+                                + ", Startpasswort: "
+                                + result.initialPassword()
+                                + ".";
+                    }
+                    redirectAttributes.addFlashAttribute("message", message);
+                }
             }
             redirectAttributes.addFlashAttribute("saved", true);
-            redirectAttributes.addFlashAttribute("message", "Gespeichert.");
+            if (!redirectAttributes.getFlashAttributes().containsKey("message")) {
+                redirectAttributes.addFlashAttribute("message", "Gespeichert.");
+            }
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return "redirect:/personal/" + id + "?unit=" + unit + "&tab=" + tab + "&edit=1";
@@ -270,7 +297,6 @@ public class PersonalController {
 
     private void populatePersonDetailData(Model model, long unitId, PersonDetailView detail) {
         model.addAttribute("qualificationTypes", personalService.listQualificationTypes(unitId, true));
-        model.addAttribute("linkableUsers", personalService.listLinkableUsers());
         model.addAttribute("statuses", PersonStatus.values());
         model.addAttribute("unitCourses", personalService.listCourses(unitId, true));
         if (detail == null) {

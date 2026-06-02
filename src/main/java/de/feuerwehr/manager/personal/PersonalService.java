@@ -128,10 +128,6 @@ public class PersonalService {
         return new PersonDetailView(person, completions, diveraRics);
     }
 
-    public List<User> listLinkableUsers() {
-        return userRepository.findAllByAnonymizedAtIsNullOrderByUsernameAsc();
-    }
-
     @Transactional
     public Person createPerson(
             long unitId,
@@ -224,16 +220,18 @@ public class PersonalService {
     }
 
     @Transactional
-    public Person updateStammdaten(
+    public StammdatenUpdateResult updateStammdaten(
             long personId,
             String firstName,
             String lastName,
             String email,
             String phone,
             LocalDate birthdate,
-            Long userId,
+            boolean allowLogin,
             String notes,
-            PersonStatus status) {
+            PersonStatus status,
+            long actorUserId,
+            HttpServletRequest request) {
         validateName(firstName, lastName);
         Person person = writablePerson(requirePerson(personId));
         person.setFirstName(firstName.trim());
@@ -242,20 +240,34 @@ public class PersonalService {
         person.setPhone(blankToNull(phone));
         person.setBirthdate(birthdate);
         person.setNotes(blankToNull(notes));
-        if (userId != null && userId > 0) {
-            User user = userRepository.findById(userId).orElseThrow();
-            if (user.getAnonymizedAt() != null) {
-                throw new IllegalArgumentException("Benutzerkonto ist gelöscht");
+        String generatedPassword = null;
+        String createdUsername = null;
+        if (allowLogin) {
+            if (person.getUser() == null) {
+                String password = generateNumericLoginPassword();
+                String username = userManagementService.allocateUniqueUsername(firstName, lastName);
+                User user = userManagementService.createUserForPerson(
+                        username,
+                        (firstName + " " + lastName).trim(),
+                        password,
+                        person.getUnit().getId(),
+                        email,
+                        actorUserId,
+                        request);
+                person.setUser(user);
+                generatedPassword = password;
+                createdUsername = username;
+            } else {
+                syncLoginEmailFromPerson(person);
             }
-            person.setUser(user);
         } else {
             person.setUser(null);
         }
         if (status != null) {
             person.setStatus(status);
         }
-        syncLoginEmailFromPerson(person);
-        return personRepository.save(person);
+        Person saved = personRepository.save(person);
+        return new StammdatenUpdateResult(requirePerson(saved.getId()), createdUsername, generatedPassword);
     }
 
     private void syncLoginEmailFromPerson(Person person) {
@@ -562,6 +574,8 @@ public class PersonalService {
     public record CourseCompletionInput(Long courseId, Integer completionYear, LocalDate completedOn) {}
 
     public record PersonCreateResult(Person person, String createdUsername, String initialPassword) {}
+
+    public record StammdatenUpdateResult(Person person, String createdUsername, String initialPassword) {}
 
     public record PersonDetailView(
             Person person, List<PersonCourseCompletion> completions, List<PersonDiveraRic> diveraRics) {}

@@ -167,13 +167,17 @@
         <input id="phone" name="phone" type="tel" maxlength="50" th:value="${person.phone}"/>
         <label for="birthdate">Geburtsdatum</label>
         <input id="birthdate" name="birthdate" type="date" th:value="${person.birthdate}"/>
-        <label for="userId">Verknüpftes Login</label>
-        <select id="userId" name="userId">
-          <option value="">— kein Login —</option>
-          <option th:each="u : ${linkableUsers}" th:value="${u.id}"
-                  th:selected="${person.user != null ? person.user.id == u.id : false}"
-                  th:text="${u.displayName + ' (@' + u.username + ')'}">User</option>
-        </select>
+        <label class="checkbox-row" for="allowLoginEdit" style="display:flex;align-items:center;gap:0.5rem;margin-top:0.75rem;cursor:pointer;">
+          <input id="allowLoginEdit" name="allowLogin" type="checkbox" value="true"
+                 th:checked="${person.user != null}"/>
+          Login erlauben
+        </label>
+        <p class="hint" style="margin-top:0.25rem;" th:if="${person.user == null}">
+          Legt automatisch ein Benutzerkonto an. Startpasswort wird nach dem Speichern angezeigt.
+        </p>
+        <p class="hint" style="margin-top:0.25rem;" th:if="${person.user != null}">
+          Login aktiv (<span th:text="'@' + ${person.user.username}">@user</span>). Abwählen hebt nur die Verknüpfung auf, das Benutzerkonto bleibt unter Einstellungen erhalten.
+        </p>
         <label for="status">Status</label>
         <select id="status" name="status">
           <option th:each="s : ${statuses}" th:value="${s.name()}" th:selected="${s == person.status}"
