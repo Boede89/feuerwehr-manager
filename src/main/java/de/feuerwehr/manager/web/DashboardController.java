@@ -32,8 +32,10 @@ public class DashboardController {
         if (unit.isEmpty()) {
             return "redirect:/settings/units?setup=1";
         }
-        long resolvedId = unit.get().getId();
-        model.addAttribute("divera", diveraService.getAlarmsForUnit(resolvedId));
+        Unit resolved = unit.get();
+        model.addAttribute("unitId", resolved.getId());
+        model.addAttribute("currentUnitName", resolved.getName());
+        model.addAttribute("divera", diveraService.getAlarmsForUnit(resolved.getId()));
         return "dashboard";
     }
 }

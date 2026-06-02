@@ -2,23 +2,23 @@
 <html lang="de" xmlns:th="http://www.thymeleaf.org">
 <body>
 <th:block th:fragment="actions">
-  <form method="post" th:action="@{/unit/select}" class="bar-form" th:if="${!unitSwitchDisabled and units != null}">
-    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-    <input type="hidden" name="redirect" th:value="${currentRequestPath}"/>
-    <label for="unitSwitcher" class="sr-only">Einheit</label>
-    <select class="unit-select unit-select-compact" id="unitSwitcher" name="unit"
-            onchange="this.form.submit()">
-      <option th:each="u : ${units}" th:value="${u.id}"
-              th:selected="${unitId != null and u.id == unitId}"
-              th:text="${u.name}">Einheit</option>
-    </select>
-  </form>
+  <label th:if="${!unitSwitchDisabled and units != null}" for="unitSwitcher" class="sr-only">Einheit</label>
+  <select th:if="${!unitSwitchDisabled and units != null}"
+          class="unit-select unit-select-compact"
+          id="unitSwitcher"
+          data-unit-switch
+          aria-label="Einheit wählen">
+    <option th:each="u : ${units}" th:value="${u.id}"
+            th:selected="${unitId != null and u.id.equals(unitId)}"
+            th:text="${u.name}">Einheit</option>
+  </select>
   <span class="hint bar-unit-label" th:if="${unitSwitchDisabled and currentUnitName != null}"
         th:text="${currentUnitName}">Einheit</span>
   <form method="post" th:action="@{/logout}" class="bar-form">
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
     <button type="submit" class="btn btn-sm btn-secondary">Abmelden</button>
   </form>
+  <script th:src="@{/js/unit-switcher.js}" defer></script>
 </th:block>
 </body>
 </html>
