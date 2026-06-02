@@ -2,6 +2,7 @@ package de.feuerwehr.manager.config;
 
 import de.feuerwehr.manager.dsgvo.DsgvoProperties;
 import de.feuerwehr.manager.security.AppUserDetailsService;
+import de.feuerwehr.manager.security.AuditLogoutSuccessHandler;
 import de.feuerwehr.manager.security.PrivacyConsentFilter;
 import de.feuerwehr.manager.security.RfidAuthenticationProvider;
 import de.feuerwehr.manager.security.SecurityProperties;
@@ -43,7 +44,10 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(
-            HttpSecurity http, PrivacyConsentFilter privacyConsentFilter) throws Exception {
+            HttpSecurity http,
+            PrivacyConsentFilter privacyConsentFilter,
+            AuditLogoutSuccessHandler auditLogoutSuccessHandler)
+            throws Exception {
         http
                 .csrf(csrf -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse()))
                 .sessionManagement(session -> session
@@ -70,7 +74,7 @@ public class SecurityConfig {
                         .permitAll())
                 .logout(logout -> logout
                         .logoutUrl("/logout")
-                        .logoutSuccessUrl("/login?logout")
+                        .logoutSuccessHandler(auditLogoutSuccessHandler)
                         .deleteCookies("JSESSIONID")
                         .permitAll())
                 .headers(headers -> headers
