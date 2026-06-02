@@ -63,23 +63,6 @@ public class UserService {
     }
 
     @Transactional
-    public UserRfidCard registerRfidCard(User user, String rawCardUid, String label) {
-        String normalized = RfidCardUidNormalizer.normalize(rawCardUid);
-        if (!RfidCardUidNormalizer.isValid(normalized)) {
-            throw new IllegalArgumentException("Ungültige Chip-ID");
-        }
-        if (rfidCardRepository.existsByCardUid(normalized)) {
-            throw new IllegalArgumentException("Chip ist bereits registriert");
-        }
-        UserRfidCard card = new UserRfidCard();
-        card.setUser(user);
-        card.setCardUid(normalized);
-        card.setLabel(label);
-        card.setActive(true);
-        return rfidCardRepository.save(card);
-    }
-
-    @Transactional
     public void recordSuccessfulLogin(long userId) {
         userRepository.findById(userId).ifPresent(user -> {
             user.setLastLoginAt(Instant.now());

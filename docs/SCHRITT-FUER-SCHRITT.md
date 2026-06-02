@@ -85,7 +85,15 @@ Details: [LOGIN.md](LOGIN.md), [DSGVO.md](DSGVO.md).
 
 ---
 
-## Schritt 5: Divera in der Web-UI eintragen (keine Datei-Änderung)
+## Schritt 5: Passwort und Benutzer (empfohlen)
+
+1. **Einstellungen** → **Mein Passwort** – `changeme` durch ein sicheres Passwort ersetzen.
+2. Als **Administrator**: **Einstellungen** → **Benutzer** – weitere Konten für Kollegen anlegen.
+3. Optional: RFID-Chip pro Benutzer unter **Bearbeiten** registrieren (für späteres Lesegerät).
+
+---
+
+## Schritt 6: Divera in der Web-UI eintragen (keine Datei-Änderung)
 
 1. Im Dashboard auf die Kachel **„Einstellungen“** tippen/klicken  
    **oder** direkt aufrufen:  
@@ -101,7 +109,7 @@ Hinweise auf der Seite:
 
 ---
 
-## Schritt 6: Prüfen, ob Divera-Daten ankommen
+## Schritt 7: Prüfen, ob Divera-Daten ankommen
 
 1. Zurück über **„Zurück zum Dashboard“** oder erneut `http://<IP>:8080/?unit=1`
 2. Im Bereich **„Divera – aktuelle Einsätze“** sollten bei gültigem Key die Alarme erscheinen (oder eine leere Liste, wenn gerade kein Einsatz aktiv ist).
@@ -112,7 +120,7 @@ Optional JSON für spätere App:
 
 ---
 
-## Schritt 7 (optional): Polling für spätere Push-Benachrichtigungen
+## Schritt 8 (optional): Polling für spätere Push-Benachrichtigungen
 
 Standardmäßig **aus**. Du kannst es **ohne Änderung an Projektdateien** einschalten, indem du auf dem Host **vor** `docker compose up` eine Umgebungsvariable setzt:
 
@@ -148,8 +156,9 @@ docker compose up -d --build
 | 0 | `git clone https://github.com/Boede89/feuerwehr-manager.git` und `cd feuerwehr-manager` |
 | 1 | `chmod +x install.sh && ./install.sh` |
 | 2 | Browser: `http://<Server>:8080` |
-| 3 | **Einstellungen** (Kachel) → **Divera**: URL prüfen, **Access Key** eintragen → **Speichern** |
-| 4 | Dashboard prüfen (Divera-Liste / JSON-Endpunkt) |
+| 3 | **Einstellungen** → **Mein Passwort** ändern |
+| 4 | **Einstellungen** → **Divera**: URL prüfen, **Access Key** eintragen → **Speichern** |
+| 5 | Dashboard prüfen (Divera-Liste / JSON-Endpunkt) |
 
 ---
 

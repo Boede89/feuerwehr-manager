@@ -16,6 +16,14 @@
   <p class="hint">Grundkonfiguration für den Betrieb. Weitere Module folgen später.</p>
   <div class="list">
     <h2>Bereiche</h2>
+    <a class="list-row" th:href="@{/profile/password}" style="text-decoration:none;color:inherit;">
+      <span><strong>Mein Passwort</strong><br/><span class="hint" style="margin:0;">Eigenes Passwort ändern</span></span>
+      <span>→</span>
+    </a>
+    <a class="list-row" th:if="${isAdmin}" th:href="@{/settings/users}" style="text-decoration:none;color:inherit;">
+      <span><strong>Benutzer</strong><br/><span class="hint" style="margin:0;">Konten, Rollen, RFID-Chips (nur Admin)</span></span>
+      <span>→</span>
+    </a>
     <a class="list-row" th:href="@{/settings/units}" style="text-decoration:none;color:inherit;">
       <span><strong>Einheiten</strong><br/><span class="hint" style="margin:0;">Feuerwehren / Standorte anlegen und verwalten</span></span>
       <span>→</span>

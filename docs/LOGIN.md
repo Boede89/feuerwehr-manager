@@ -33,6 +33,8 @@ Danach mit `admin` / `changeme` anmelden und `RESET` wieder **aus** lassen.
 
 - Formular unter `/login`
 - Sitzung läuft nach **8 Stunden** ab (konfigurierbar über `server.servlet.session.timeout`)
+- **Eigenes Passwort ändern:** Einstellungen → **Mein Passwort** (`/profile/password`)
+- **Weitere Benutzer (Admin):** Einstellungen → **Benutzer** (`/settings/users`) – anlegen, Rolle, Passwort, RFID-Chip
 
 ## RFID (später)
 

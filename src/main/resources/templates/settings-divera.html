@@ -15,6 +15,7 @@
   <div class="ok" th:if="${saved}">Gespeichert.</div>
 
   <form method="post" th:action="@{/settings/divera}" class="card">
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
     <label for="unitSelect">Einheit</label>
     <select id="unitSelect" name="unit" onchange="window.location='/settings/divera?unit='+encodeURIComponent(this.value)">
       <option th:each="u : ${units}"
