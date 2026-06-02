@@ -63,6 +63,9 @@ public class Person {
     @Column(name = "test_data", nullable = false)
     private boolean testData;
 
+    @Column(name = "production_source_id")
+    private Long productionSourceId;
+
     @Column(name = "divera_ucr_id", length = 64)
     private String diveraUcrId;
 

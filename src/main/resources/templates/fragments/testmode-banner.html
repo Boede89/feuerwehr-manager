@@ -2,7 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
 <div th:fragment="banner" th:if="${testModeEnabled}" class="testmode-banner" role="status">
-  <strong>Testmodus aktiv</strong> — Sie arbeiten mit Testdaten. Produktivdaten bleiben unverändert sichtbar (Einheiten), alle neuen Personen, Qualifikationen und Lehrgänge sind nur Testdaten.
+  <strong>Testmodus aktiv</strong> — Sie sehen Produktiv- und Testdaten. Änderungen an Produktivdatensätzen werden nur als Testkopie gespeichert; nach Beenden des Testmodus gelten wieder die unveränderten Produktivdaten.
 </div>
 </body>
 </html>

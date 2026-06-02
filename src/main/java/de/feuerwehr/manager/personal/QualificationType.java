@@ -40,4 +40,7 @@ public class QualificationType {
 
     @Column(name = "test_data", nullable = false)
     private boolean testData;
+
+    @Column(name = "production_source_id")
+    private Long productionSourceId;
 }

@@ -28,6 +28,14 @@ public interface PersonRepository extends JpaRepository<Person, Long> {
 
     long countByUnitIdAndAnonymizedAtIsNullAndTestData(long unitId, boolean testData);
 
+    @Query("""
+            SELECT p FROM Person p
+            LEFT JOIN FETCH p.qualificationType
+            LEFT JOIN FETCH p.unit
+            WHERE p.productionSourceId = :sourceId AND p.anonymizedAt IS NULL
+            """)
+    Optional<Person> findShadowByProductionSourceId(@Param("sourceId") long sourceId);
+
     @Modifying
     @Query("DELETE FROM Person p WHERE p.testData = true")
     void deleteAllByTestDataTrue();
