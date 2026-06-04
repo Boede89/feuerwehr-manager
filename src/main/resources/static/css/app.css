@@ -1137,53 +1137,92 @@ input:focus, select:focus, textarea:focus {
   font-weight: 700;
 }
 
-.totp-status-hint {
+/* 2FA-Einstellungen (Layout wie FW-Hub) */
+.totp-panel .totp-status-hint {
   font-size: 13px;
   color: var(--text-muted);
   margin: 0 0 16px;
   line-height: 1.45;
 }
 
-.totp-muted {
+.totp-panel .totp-muted {
   font-size: 13px;
   color: var(--text-muted);
   margin: 0 0 12px;
 }
 
-.totp-muted--sm {
+.totp-panel .totp-muted--sm {
   font-size: 12px;
-  margin-bottom: 6px;
+  margin: 0 0 6px;
 }
 
-.totp-qr-area { margin-top: 16px; }
+.totp-panel .totp-qr-area {
+  margin-top: 16px;
+}
 
-.totp-qr-wrap {
+.totp-panel .totp-qr-wrap {
   margin-bottom: 16px;
   display: flex;
   justify-content: flex-start;
 }
 
-.totp-qr-box {
+.totp-panel .totp-qr-box {
   background: #ffffff;
   padding: 12px;
   border-radius: 8px;
   display: inline-block;
+  line-height: 0;
 }
 
-.totp-uri {
+.totp-panel .totp-uri {
   font-size: 11px;
   margin-bottom: 16px;
+  word-break: break-all;
 }
 
-.totp-code-group {
+.totp-panel .totp-code-group {
   max-width: 200px;
+  margin-bottom: 0;
 }
 
-.totp-actions { margin-top: 12px; }
+.totp-panel .totp-code-group label {
+  margin: 0 0 5px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: 0;
+}
 
-.totp-disable-confirm { margin-top: 16px; }
+.totp-panel .totp-code-input {
+  width: 100%;
+  text-align: center;
+  font-size: 20px;
+  letter-spacing: 6px;
+  font-weight: 700;
+  min-height: auto;
+  padding: 8px 12px;
+}
 
-.totp-disable-msg { margin-bottom: 12px; }
+.totp-panel .totp-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.totp-panel .totp-action-form {
+  display: contents;
+}
+
+.totp-panel .totp-disable-confirm {
+  margin-top: 16px;
+}
+
+.totp-panel .totp-disable-msg {
+  margin-bottom: 12px;
+}
 
 .error-msg {
   color: var(--error, var(--rot));

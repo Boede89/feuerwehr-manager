@@ -88,7 +88,7 @@
     </div>
   </div>
 
-  <div class="card card--narrow mt-md" id="settings-totp-card">
+  <div class="card card--narrow mt-md totp-panel" id="settings-totp-card">
     <div class="card__header">2-Faktor-Authentifizierung</div>
     <div class="card__body">
       <p class="totp-status-hint" th:if="${totpEnabled}">
@@ -100,7 +100,7 @@
 
       <th:block th:unless="${totpEnabled}">
         <div id="totp-setup-area" th:style="${totpSetupActive} ? 'display:none' : null">
-          <form method="post" th:action="@{/settings/totp/setup}">
+          <form method="post" th:action="@{/settings/totp/setup}" class="totp-action-form">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
             <button type="submit" class="btn btn--secondary">2FA einrichten</button>
           </form>
@@ -115,18 +115,22 @@
           </div>
           <p class="totp-muted totp-muted--sm">Oder manuell eingeben:</p>
           <div id="totp-uri" class="terminal totp-uri" th:if="${totpSetupUri}" th:text="${totpSetupUri}">otpauth://…</div>
-          <form method="post" th:action="@{/settings/totp/confirm}">
-            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-            <div class="form-group totp-code-group">
-              <label for="totp-code">Code bestätigen</label>
-              <input type="text" id="totp-code" name="code" maxlength="6" inputmode="numeric"
-                     placeholder="000000" class="totp-code-input" autocomplete="one-time-code" required/>
-            </div>
-            <div class="btn-group totp-actions">
+          <div class="form-group totp-code-group">
+            <label for="totp-code">Code bestätigen</label>
+            <input type="text" id="totp-code" name="code" form="totp-confirm-form"
+                   maxlength="6" inputmode="numeric" placeholder="000000"
+                   class="totp-code-input" autocomplete="one-time-code" required/>
+          </div>
+          <div class="btn-group totp-actions">
+            <form id="totp-confirm-form" method="post" th:action="@{/settings/totp/confirm}" class="totp-action-form">
+              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
               <button type="submit" class="btn btn--primary">2FA aktivieren</button>
-              <button type="submit" class="btn btn--outline" th:formaction="@{/settings/totp/cancel}">Abbrechen</button>
-            </div>
-          </form>
+            </form>
+            <form method="post" th:action="@{/settings/totp/cancel}" class="totp-action-form">
+              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+              <button type="submit" class="btn btn--outline">Abbrechen</button>
+            </form>
+          </div>
         </div>
       </th:block>
 
@@ -137,18 +141,19 @@
         <div id="totp-disable-confirm" class="totp-disable-confirm"
              th:style="${totpDisableActive} ? null : 'display:none'">
           <p class="error-msg totp-disable-msg">Gib deinen aktuellen Authenticator-Code ein, um 2FA zu deaktivieren:</p>
-          <form method="post" th:action="@{/settings/totp/disable}">
-            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-            <div class="form-group totp-code-group">
-              <label for="totp-disable-code">Aktueller Code</label>
-              <input type="text" id="totp-disable-code" name="code" maxlength="6" inputmode="numeric"
-                     placeholder="000000" class="totp-code-input" autocomplete="one-time-code" required/>
-            </div>
-            <div class="btn-group totp-actions">
+          <div class="form-group totp-code-group">
+            <label for="totp-disable-code">Aktueller Code</label>
+            <input type="text" id="totp-disable-code" name="code" form="totp-disable-form"
+                   maxlength="6" inputmode="numeric" placeholder="000000"
+                   class="totp-code-input" autocomplete="one-time-code" required/>
+          </div>
+          <div class="btn-group totp-actions">
+            <form id="totp-disable-form" method="post" th:action="@{/settings/totp/disable}" class="totp-action-form">
+              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
               <button type="submit" class="btn btn--danger">Deaktivieren bestätigen</button>
-              <button type="button" class="btn btn--outline" id="btn-cancel-disable-totp">Abbrechen</button>
-            </div>
-          </form>
+            </form>
+            <button type="button" class="btn btn--outline" id="btn-cancel-disable-totp">Abbrechen</button>
+          </div>
         </div>
       </th:block>
     </div>
