@@ -87,12 +87,13 @@ public class UserTotpService {
     }
 
     @Transactional(readOnly = true)
-    public byte[] qrImageForSession(HttpSession session) {
+    public byte[] qrImageForSession(long userId, HttpSession session) {
         Object uri = session.getAttribute(de.feuerwehr.manager.security.TotpSessionKeys.SETUP_OTPAUTH_URI);
         if (uri == null || uri.toString().isBlank()) {
             throw new IllegalArgumentException("Kein aktives 2FA-Setup.");
         }
-        return totpService.generateQrPng(uri.toString());
+        User user = requireActiveUser(userId);
+        return totpService.generateQrPng(requirePendingSecret(user), user.getUsername());
     }
 
     @Transactional

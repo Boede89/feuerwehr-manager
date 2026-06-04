@@ -3,6 +3,7 @@ package de.feuerwehr.manager.security;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
 import de.feuerwehr.manager.user.UserService;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -29,7 +30,7 @@ public class TotpAuthenticationSuccessHandler extends SavedRequestAwareAuthentic
     @Override
     public void onAuthenticationSuccess(
             HttpServletRequest request, HttpServletResponse response, Authentication authentication)
-            throws IOException {
+            throws IOException, ServletException {
         AppUserDetails details = (AppUserDetails) authentication.getPrincipal();
         User user = userRepository.findById(details.getUserId()).orElse(null);
         if (user == null || !user.isTotpEnabled() || user.getTotpSecret() == null || user.getTotpSecret().isBlank()) {

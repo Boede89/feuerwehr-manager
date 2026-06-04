@@ -33,7 +33,19 @@ public class TotpService {
     }
 
     public String buildOtpAuthUri(String secret, String username) {
-        QrData data = new QrData.Builder()
+        return buildQrData(secret, username).getUri();
+    }
+
+    public byte[] generateQrPng(String secret, String username) {
+        try {
+            return qrGenerator.generate(buildQrData(secret, username));
+        } catch (QrGenerationException e) {
+            throw new IllegalStateException("QR-Code konnte nicht erzeugt werden.", e);
+        }
+    }
+
+    private static QrData buildQrData(String secret, String username) {
+        return new QrData.Builder()
                 .label(username)
                 .secret(secret)
                 .issuer(ISSUER)
@@ -41,15 +53,6 @@ public class TotpService {
                 .digits(6)
                 .period(30)
                 .build();
-        return data.getUri();
-    }
-
-    public byte[] generateQrPng(String otpauthUri) {
-        try {
-            return qrGenerator.generate(otpauthUri);
-        } catch (QrGenerationException e) {
-            throw new IllegalStateException("QR-Code konnte nicht erzeugt werden.", e);
-        }
     }
 
     public boolean verifyCode(String secret, String code) {

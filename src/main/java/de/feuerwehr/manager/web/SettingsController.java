@@ -59,7 +59,7 @@ public class SettingsController {
 
     @GetMapping("/totp/qr")
     public ResponseEntity<byte[]> totpQr(@AuthenticationPrincipal AppUserDetails actor, HttpSession session) {
-        byte[] png = userTotpService.qrImageForSession(session);
+        byte[] png = userTotpService.qrImageForSession(actor.getUserId(), session);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CACHE_CONTROL, "no-store")
                 .contentType(MediaType.IMAGE_PNG)
