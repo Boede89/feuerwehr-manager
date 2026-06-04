@@ -3,6 +3,7 @@ package de.feuerwehr.manager.personal;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.user.User;
+import de.feuerwehr.manager.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PersonUserLinkService {
 
     private final PersonRepository personRepository;
+    private final UserRepository userRepository;
     private final TestModeService testModeService;
 
     @Transactional
@@ -37,6 +39,23 @@ public class PersonUserLinkService {
         person.setStatus(PersonStatus.ACTIVE);
         person.setTestData(testData);
         personRepository.save(person);
+        syncLoginEmailFromLinkedPersons(user);
+    }
+
+    /** Übernimmt E-Mail aus verknüpfter Person, falls login_email noch leer ist. */
+    @Transactional
+    public void syncLoginEmailFromLinkedPersons(User user) {
+        if (user == null || user.getId() == null || user.getLoginEmail() != null) {
+            return;
+        }
+        personRepository.findAllByUserIdAndAnonymizedAtIsNull(user.getId()).stream()
+                .map(Person::getEmail)
+                .filter(e -> e != null && !e.isBlank())
+                .findFirst()
+                .ifPresent(email -> {
+                    user.setLoginEmail(email.trim().toLowerCase());
+                    userRepository.save(user);
+                });
     }
 
     private static String[] splitDisplayName(String displayName) {

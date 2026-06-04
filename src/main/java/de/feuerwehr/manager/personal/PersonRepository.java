@@ -45,6 +45,8 @@ public interface PersonRepository extends JpaRepository<Person, Long> {
     Optional<Person> findActiveByUserIdAndUnitId(
             @Param("userId") long userId, @Param("unitId") long unitId, @Param("testData") boolean testData);
 
+    List<Person> findAllByUserIdAndAnonymizedAtIsNull(long userId);
+
     @Modifying
     @Query("DELETE FROM Person p WHERE p.testData = true")
     void deleteAllByTestDataTrue();

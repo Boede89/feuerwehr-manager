@@ -216,7 +216,11 @@ public class PersonalService {
         if (status != null) {
             person.setStatus(status);
         }
-        return personRepository.save(person);
+        Person saved = personRepository.save(person);
+        if (saved.getUser() != null) {
+            syncLoginEmailFromPerson(saved);
+        }
+        return saved;
     }
 
     @Transactional
@@ -275,7 +279,9 @@ public class PersonalService {
             return;
         }
         String email = person.getEmail();
-        person.getUser().setLoginEmail(email == null || email.isBlank() ? null : email.trim().toLowerCase());
+        User user = person.getUser();
+        user.setLoginEmail(email == null || email.isBlank() ? null : email.trim().toLowerCase());
+        userRepository.save(user);
     }
 
     @Transactional

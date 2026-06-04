@@ -34,7 +34,7 @@ public class UserService {
         return userRepository.findByUsernameIgnoreCaseWithUnit(username.trim());
     }
 
-    /** Anmeldung mit Benutzername oder login_email. */
+    /** Anmeldung mit Benutzername, login_email oder E-Mail aus verknüpften Personen-Stammdaten. */
     public Optional<User> findActiveForLogin(String login) {
         if (login == null || login.isBlank()) {
             return Optional.empty();
@@ -44,7 +44,12 @@ public class UserService {
         if (byUsername.isPresent()) {
             return byUsername.filter(this::isLoginAllowed);
         }
-        return userRepository.findByLoginEmailIgnoreCaseWithUnit(trimmed).filter(this::isLoginAllowed);
+        String normalized = LoginIdentifierHelper.normalize(trimmed);
+        Optional<User> byLoginEmail = userRepository.findByLoginEmailIgnoreCaseWithUnit(normalized);
+        if (byLoginEmail.isPresent()) {
+            return byLoginEmail.filter(this::isLoginAllowed);
+        }
+        return userRepository.findByPersonEmailIgnoreCaseWithUnit(normalized).filter(this::isLoginAllowed);
     }
 
     private boolean isLoginAllowed(User user) {

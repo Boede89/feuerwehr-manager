@@ -87,7 +87,8 @@ public class UserManagementService {
             throw new IllegalArgumentException("Benutzername ist bereits vergeben");
         }
         String normalizedEmail = normalizeLoginEmail(loginEmail);
-        if (normalizedEmail != null && userRepository.findByLoginEmailIgnoreCaseWithUnit(normalizedEmail).isPresent()) {
+        if (normalizedEmail != null
+                && userRepository.findByLoginEmailIgnoreCaseExcludingId(normalizedEmail, null).isPresent()) {
             throw new IllegalArgumentException("E-Mail wird bereits für die Anmeldung verwendet");
         }
         Unit unit = unitRepository.findById(unitId).orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden"));
