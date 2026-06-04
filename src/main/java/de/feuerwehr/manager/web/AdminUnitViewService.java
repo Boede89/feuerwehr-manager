@@ -148,6 +148,8 @@ public class AdminUnitViewService {
 
     @Transactional(readOnly = true)
     public void populateAusbildung(Model model, long unitId) {
+        unitRoleService.ensureSystemRoles(unitId);
+        model.addAttribute("unitDienstgrade", unitRoleService.listDienstgrade(unitId));
         model.addAttribute("qualificationTypes", personalService.listQualificationTypes(unitId, false));
         model.addAttribute("courses", personalService.listCourses(unitId, false));
     }

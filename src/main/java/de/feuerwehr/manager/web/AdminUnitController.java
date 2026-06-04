@@ -624,6 +624,7 @@ public class AdminUnitController {
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam long unit,
             @RequestParam String name,
+            @RequestParam(name = "dienstgradRoleId", required = false) Long dienstgradRoleId,
             RedirectAttributes redirectAttributes) {
         return withUnit(
                 actor,
@@ -631,7 +632,7 @@ public class AdminUnitController {
                 redirectAttributes,
                 "ausbildung",
                 () -> {
-                    personalService.createQualificationType(unit, name);
+                    personalService.createQualificationType(unit, name, dienstgradRoleId);
                     redirectAttributes.addFlashAttribute("message", "Qualifikation angelegt.");
                 },
                 "openModal=qualification-new");
@@ -644,6 +645,7 @@ public class AdminUnitController {
             @RequestParam long qualificationTypeId,
             @RequestParam String name,
             @RequestParam(required = false, defaultValue = "false") boolean active,
+            @RequestParam(name = "dienstgradRoleId", required = false) Long dienstgradRoleId,
             RedirectAttributes redirectAttributes) {
         return withUnit(
                 actor,
@@ -651,7 +653,8 @@ public class AdminUnitController {
                 redirectAttributes,
                 "ausbildung",
                 () -> {
-                    personalService.updateQualificationType(unit, qualificationTypeId, name, active);
+                    personalService.updateQualificationType(
+                            unit, qualificationTypeId, name, active, dienstgradRoleId);
                     redirectAttributes.addFlashAttribute("message", "Qualifikation gespeichert.");
                 });
     }

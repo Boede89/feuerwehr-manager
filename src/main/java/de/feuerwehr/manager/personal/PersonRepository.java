@@ -21,7 +21,8 @@ public interface PersonRepository extends JpaRepository<Person, Long> {
     @Query("""
             SELECT p FROM Person p
             LEFT JOIN FETCH p.unit
-            LEFT JOIN FETCH p.qualificationType
+            LEFT JOIN FETCH p.qualificationType qt
+            LEFT JOIN FETCH qt.dienstgradRole
             LEFT JOIN FETCH p.user
             WHERE p.id = :id AND p.anonymizedAt IS NULL AND p.testData = :testData
             """)
@@ -55,6 +56,14 @@ public interface PersonRepository extends JpaRepository<Person, Long> {
             ORDER BY p.id
             """)
     List<Person> findAllByUserIdIn(@Param("userIds") Collection<Long> userIds);
+
+    @Query(
+            """
+            SELECT p FROM Person p
+            LEFT JOIN FETCH p.user
+            WHERE p.qualificationType.id = :qualificationTypeId AND p.anonymizedAt IS NULL
+            """)
+    List<Person> findByQualificationTypeId(@Param("qualificationTypeId") long qualificationTypeId);
 
     @Modifying
     @Query("DELETE FROM Person p WHERE p.testData = true")

@@ -9,10 +9,33 @@ import org.springframework.data.repository.query.Param;
 
 public interface QualificationTypeRepository extends JpaRepository<QualificationType, Long> {
 
+    @Query(
+            """
+            SELECT q FROM QualificationType q
+            LEFT JOIN FETCH q.dienstgradRole
+            WHERE q.unit.id = :unitId AND q.testData = :testData AND q.active = TRUE
+            ORDER BY q.sortOrder ASC, q.name ASC
+            """)
     List<QualificationType> findByUnitIdAndTestDataAndActiveTrueOrderBySortOrderAscNameAsc(
-            long unitId, boolean testData);
+            @Param("unitId") long unitId, @Param("testData") boolean testData);
 
-    List<QualificationType> findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(long unitId, boolean testData);
+    @Query(
+            """
+            SELECT q FROM QualificationType q
+            LEFT JOIN FETCH q.dienstgradRole
+            WHERE q.unit.id = :unitId AND q.testData = :testData
+            ORDER BY q.sortOrder ASC, q.name ASC
+            """)
+    List<QualificationType> findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(
+            @Param("unitId") long unitId, @Param("testData") boolean testData);
+
+    @Query(
+            """
+            SELECT q FROM QualificationType q
+            LEFT JOIN FETCH q.dienstgradRole
+            WHERE q.id = :id
+            """)
+    Optional<QualificationType> findByIdWithDienstgradRole(@Param("id") long id);
 
     @Query("SELECT q FROM QualificationType q WHERE q.productionSourceId = :sourceId")
     Optional<QualificationType> findShadowByProductionSourceId(@Param("sourceId") long sourceId);

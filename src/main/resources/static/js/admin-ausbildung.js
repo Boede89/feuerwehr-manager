@@ -92,6 +92,8 @@
       btn.addEventListener('click', function () {
         var input = document.getElementById('qualNameNew');
         if (input) input.value = '';
+        var dg = document.getElementById('qualDienstgradNew');
+        if (dg) dg.value = '';
       });
     });
 
@@ -109,6 +111,8 @@
         document.getElementById('edit-qualification-id').value = btn.getAttribute('data-id') || '';
         document.getElementById('qualNameEdit').value = btn.getAttribute('data-name') || '';
         document.getElementById('qualActiveEdit').checked = btn.getAttribute('data-active') === 'true';
+        var dgEdit = document.getElementById('qualDienstgradEdit');
+        if (dgEdit) dgEdit.value = btn.getAttribute('data-dienstgrad-role-id') || '';
       });
     });
 

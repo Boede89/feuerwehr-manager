@@ -248,7 +248,7 @@ public class PersonalController {
     public String createQualification(
             @RequestParam long unit, @RequestParam String name, RedirectAttributes redirectAttributes) {
         try {
-            personalService.createQualificationType(unit, name);
+            personalService.createQualificationType(unit, name, null);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Qualifikation angelegt.");
         } catch (IllegalArgumentException e) {

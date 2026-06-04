@@ -418,6 +418,14 @@ public class UserManagementService {
         }
     }
 
+    /** Dienstgrad am Benutzer setzen (z. B. aus Qualifikation der Person). */
+    @Transactional
+    public void syncDienstgradForUser(long userId, Long dienstgradRoleId) {
+        User user = userRepository.findByIdWithUnit(userId).orElseThrow(() -> new IllegalArgumentException("Benutzer nicht gefunden"));
+        applyDienstgrad(user, dienstgradRoleId);
+        userRepository.save(user);
+    }
+
     private void applyDienstgrad(User user, Long dienstgradRoleId) {
         if (user.getRole() != UserRole.USER) {
             user.setOrganizationalRole(null);

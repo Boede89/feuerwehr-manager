@@ -14,14 +14,19 @@
           <tr>
             <th class="table__th-sort" scope="col" data-sort-key="name" tabindex="0" role="columnheader"
                 aria-sort="none">Name</th>
+            <th class="table__th-sort" scope="col" data-sort-key="dienstgrad" tabindex="0" role="columnheader"
+                aria-sort="none">Dienstgrad-Rolle</th>
             <th scope="col">Status</th>
             <th scope="col">Aktionen</th>
           </tr>
           </thead>
           <tbody id="qualification-tbody">
           <tr th:each="t : ${qualificationTypes}" class="qualification-row"
-              th:attr="data-sort-name=${t.name}">
+              th:attr="data-sort-name=${t.name},
+                       data-sort-dienstgrad=${t.dienstgradRole != null ? t.dienstgradRole.name : ''}">
             <td><strong th:text="${t.name}">Qualifikation</strong></td>
+            <td class="text-muted text-sm"
+                th:text="${t.dienstgradRole != null ? t.dienstgradRole.name : '—'}">—</td>
             <td>
               <span class="badge" th:classappend="${t.active} ? ' active' : ' inactive'"
                     th:text="${t.active} ? 'Aktiv' : 'Inaktiv'">Status</span>
@@ -29,7 +34,8 @@
             <td>
               <div class="btn-group">
                 <button type="button" class="btn btn--outline btn--sm" data-open-modal="modal-qualification-edit"
-                        th:data-id="${t.id}" th:data-name="${t.name}" th:data-active="${t.active}">Bearb.</button>
+                        th:data-id="${t.id}" th:data-name="${t.name}" th:data-active="${t.active}"
+                        th:attr="data-dienstgrad-role-id=${t.dienstgradRole != null ? t.dienstgradRole.id : ''}">Bearb.</button>
                 <form method="post" th:action="@{/admin/unit/qualifications/delete}" class="table-inline-form"
                       data-confirm="Qualifikation wirklich löschen? Zugeordnete Personen und Lehrgänge verlieren die Zuordnung.">
                   <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
@@ -117,6 +123,14 @@
             <input id="qualNameNew" name="name" type="text" required maxlength="128"
                    placeholder="z. B. Gruppenführer" autofocus/>
           </div>
+          <div class="form-group">
+            <label for="qualDienstgradNew">Dienstgrad-Rolle (optional)</label>
+            <select id="qualDienstgradNew" name="dienstgradRoleId">
+              <option value="">— kein Dienstgrad —</option>
+              <option th:each="dg : ${unitDienstgrade}" th:value="${dg.id}" th:text="${dg.name}">DG</option>
+            </select>
+            <p class="hint">Nur Rollen vom Typ Dienstgrad. Beim Login wird diese Rolle an die Person übergeben.</p>
+          </div>
         </div>
         <div class="modal__footer">
           <button type="submit" class="btn btn--primary">Speichern</button>
@@ -140,6 +154,13 @@
           <div class="form-group">
             <label for="qualNameEdit">Name <span class="required">*</span></label>
             <input id="qualNameEdit" name="name" type="text" required maxlength="128"/>
+          </div>
+          <div class="form-group">
+            <label for="qualDienstgradEdit">Dienstgrad-Rolle (optional)</label>
+            <select id="qualDienstgradEdit" name="dienstgradRoleId">
+              <option value="">— kein Dienstgrad —</option>
+              <option th:each="dg : ${unitDienstgrade}" th:value="${dg.id}" th:text="${dg.name}">DG</option>
+            </select>
           </div>
           <label class="checkbox-row">
             <input type="checkbox" id="qualActiveEdit" name="active" value="true"/> Aktiv

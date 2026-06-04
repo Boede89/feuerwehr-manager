@@ -3,6 +3,8 @@ package de.feuerwehr.manager.personal;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
+import de.feuerwehr.manager.unit.UnitRole;
+import de.feuerwehr.manager.unit.UnitRoleService;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserManagementService;
 import de.feuerwehr.manager.user.UserRepository;
@@ -34,6 +36,7 @@ public class PersonalService {
     private final PersonDiveraRicRepository diveraRicRepository;
     private final UserRepository userRepository;
     private final UserManagementService userManagementService;
+    private final UnitRoleService unitRoleService;
     private final TestModeService testModeService;
 
     private static final SecureRandom LOGIN_PASSWORD_RANDOM = new SecureRandom();
@@ -219,6 +222,7 @@ public class PersonalService {
         Person saved = personRepository.save(person);
         if (saved.getUser() != null) {
             syncLoginEmailFromPerson(saved);
+            syncUserDienstgradFromPersonQualification(saved);
         }
         return saved;
     }
@@ -271,7 +275,9 @@ public class PersonalService {
             person.setStatus(status);
         }
         Person saved = personRepository.save(person);
-        return new StammdatenUpdateResult(requirePerson(saved.getId()), createdUsername, generatedPassword);
+        Person reloaded = requirePerson(saved.getId());
+        syncUserDienstgradFromPersonQualification(reloaded);
+        return new StammdatenUpdateResult(reloaded, createdUsername, generatedPassword);
     }
 
     private void syncLoginEmailFromPerson(Person person) {
@@ -294,7 +300,9 @@ public class PersonalService {
         }
         personRepository.save(person);
         saveCourseCompletions(person.getId(), inputs);
-        return requirePerson(personId);
+        Person saved = requirePerson(personId);
+        syncUserDienstgradFromPersonQualification(saved);
+        return saved;
     }
 
     @Transactional
@@ -341,7 +349,7 @@ public class PersonalService {
     }
 
     @Transactional
-    public QualificationType createQualificationType(long unitId, String name) {
+    public QualificationType createQualificationType(long unitId, String name, Long dienstgradRoleId) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Name fehlt");
         }
@@ -349,6 +357,7 @@ public class PersonalService {
         QualificationType type = new QualificationType();
         type.setUnit(unit);
         type.setName(name.trim());
+        applyDienstgradRoleOnQualification(type, unit, dienstgradRoleId);
         type.setSortOrder((int) qualificationTypeRepository
                 .findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(unitId, testModeService.isEnabled())
                 .size());
@@ -378,7 +387,7 @@ public class PersonalService {
 
     @Transactional
     public QualificationType updateQualificationType(
-            long unitId, long qualificationTypeId, String name, boolean active) {
+            long unitId, long qualificationTypeId, String name, boolean active, Long dienstgradRoleId) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Name fehlt");
         }
@@ -386,7 +395,10 @@ public class PersonalService {
         QualificationType type = resolveQualificationForWrite(qualificationTypeId, unit);
         type.setName(name.trim());
         type.setActive(active);
-        return qualificationTypeRepository.save(type);
+        applyDienstgradRoleOnQualification(type, unit, dienstgradRoleId);
+        QualificationType saved = qualificationTypeRepository.save(type);
+        syncUsersDienstgradForQualification(saved);
+        return saved;
     }
 
     @Transactional
@@ -556,7 +568,50 @@ public class PersonalService {
         shadow.setActive(prod.isActive());
         shadow.setTestData(true);
         shadow.setProductionSourceId(prod.getId());
+        shadow.setDienstgradRole(prod.getDienstgradRole());
         return shadow;
+    }
+
+    private void applyDienstgradRoleOnQualification(
+            QualificationType type, Unit unit, Long dienstgradRoleId) {
+        if (dienstgradRoleId == null || dienstgradRoleId <= 0) {
+            type.setDienstgradRole(null);
+            return;
+        }
+        UnitRole role = unitRoleService.requireDienstgradRole(unit.getId(), dienstgradRoleId);
+        type.setDienstgradRole(role);
+    }
+
+    private void syncUserDienstgradFromPersonQualification(Person person) {
+        if (person.getUser() == null) {
+            return;
+        }
+        Long roleId = null;
+        QualificationType qt = person.getQualificationType();
+        if (qt != null && qt.getDienstgradRole() != null) {
+            roleId = qt.getDienstgradRole().getId();
+        } else if (qt != null) {
+            roleId = qualificationTypeRepository
+                    .findByIdWithDienstgradRole(qt.getId())
+                    .map(q -> q.getDienstgradRole())
+                    .filter(r -> r != null)
+                    .map(UnitRole::getId)
+                    .orElse(null);
+        }
+        userManagementService.syncDienstgradForUser(person.getUser().getId(), roleId);
+    }
+
+    private void syncUsersDienstgradForQualification(QualificationType qualification) {
+        QualificationType loaded = qualificationTypeRepository
+                .findByIdWithDienstgradRole(qualification.getId())
+                .orElse(qualification);
+        Long roleId =
+                loaded.getDienstgradRole() != null ? loaded.getDienstgradRole().getId() : null;
+        for (Person person : personRepository.findByQualificationTypeId(loaded.getId())) {
+            if (person.getUser() != null) {
+                userManagementService.syncDienstgradForUser(person.getUser().getId(), roleId);
+            }
+        }
     }
 
     private Course resolveCourseForWrite(long courseId, Unit unit) {

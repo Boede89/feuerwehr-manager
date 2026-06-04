@@ -1,6 +1,7 @@
 package de.feuerwehr.manager.personal;
 
 import de.feuerwehr.manager.unit.Unit;
+import de.feuerwehr.manager.unit.UnitRole;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -31,6 +32,11 @@ public class QualificationType {
 
     @Column(nullable = false, length = 128)
     private String name;
+
+    /** Dienstgrad-Rolle (nur Typ DIENSTGRAD) – wird beim Login aus der Personen-Qualifikation übernommen. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "dienstgrad_role_id")
+    private UnitRole dienstgradRole;
 
     @Column(name = "sort_order", nullable = false)
     private int sortOrder;
