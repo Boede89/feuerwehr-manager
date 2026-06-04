@@ -15,6 +15,7 @@
           <tr>
             <th>Benutzername</th>
             <th>Anzeigename</th>
+            <th>E-Mail</th>
             <th>Rolle</th>
             <th>Einheit</th>
             <th>Status</th>
@@ -25,6 +26,7 @@
           <tr th:each="u : ${adminUsers}">
             <td th:text="${u.username}">user</td>
             <td th:text="${u.displayName}">Name</td>
+            <td class="text-muted text-sm" th:text="${u.loginEmail != null ? u.loginEmail : '—'}">—</td>
             <td>
               <span class="badge" th:classappend="${u.role.adminLevel} ? ' badge--admin' : ''"
                     th:text="${T(de.feuerwehr.manager.user.UserRoleLabels).label(u.role)}">Rolle</span>
@@ -36,12 +38,20 @@
             </td>
             <td>
               <div class="btn-group">
-                <a class="btn btn--outline btn--sm"
-                   th:href="@{/settings/users/{id}(id=${u.id}, unit=${unitId})}">Bearbeiten</a>
+                <button type="button" class="btn btn--outline btn--sm"
+                        data-open-modal="modal-edit-user"
+                        th:data-user-id="${u.id}"
+                        th:data-username="${u.username}"
+                        th:data-display-name="${u.displayName}"
+                        th:data-login-email="${u.loginEmail}"
+                        th:data-role="${u.role.name()}"
+                        th:data-unit-id="${u.unit != null ? u.unit.id : ''}"
+                        th:data-active="${u.active}">Bearbeiten</button>
                 <button type="button" class="btn btn--outline btn--sm"
                         data-open-modal="modal-reset-pw"
                         th:data-reset-url="@{/admin/users/{id}/password(id=${u.id})}"
-                        th:data-username="${u.username}">PW Reset</button>
+                        th:data-username="${u.username}"
+                        th:data-login-email="${u.loginEmail}">PW Reset</button>
                 <a class="btn btn--outline btn--sm"
                    th:href="@{/admin/users/{id}/export(id=${u.id})}">Export</a>
               </div>
@@ -55,14 +65,36 @@
     </div>
   </div>
 
+  <!-- RFID-Daten pro Benutzer (für Bearbeiten-Modal) -->
+  <th:block th:each="u : ${adminUsers}">
+    <div th:id="'edit-user-rfid-src-' + ${u.id}" class="edit-user-rfid-src" hidden>
+      <th:block th:if="${#lists.isEmpty(rfidCardsByUserId.get(u.id))}">
+        <p class="hint">Noch kein RFID-Chip registriert.</p>
+      </th:block>
+      <ul class="rfid-chip-list" th:if="${!#lists.isEmpty(rfidCardsByUserId.get(u.id))}">
+        <li th:each="c : ${rfidCardsByUserId.get(u.id)}">
+          <code th:text="${c.cardUid}">UID</code>
+          <span th:if="${c.label != null}" th:text="' – ' + ${c.label}">Label</span>
+          <span class="badge" th:classappend="${c.active} ? ' active' : ' inactive'"
+                th:text="${c.active} ? 'Aktiv' : 'Deaktiviert'">Status</span>
+          <form th:if="${c.active}" method="post" class="table-inline-form"
+                th:action="@{/admin/users/{uid}/rfid/{cid}/revoke(uid=${u.id},cid=${c.id},scope=${adminScope},unit=${unitId})}">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <button type="submit" class="btn btn--outline btn--sm">Deaktivieren</button>
+          </form>
+        </li>
+      </ul>
+    </div>
+  </th:block>
+
   <!-- Modal: Neuer Benutzer -->
   <div id="modal-new-user" class="modal-overlay">
-    <div class="modal" role="dialog" aria-labelledby="modal-new-user-title">
+    <div class="modal modal--lg" role="dialog" aria-labelledby="modal-new-user-title">
       <div class="modal__header">
         <h3 id="modal-new-user-title">Neuen Benutzer anlegen</h3>
         <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
       </div>
-      <form method="post" th:action="@{/admin/users}">
+      <form method="post" th:action="@{/admin/users}" id="form-new-user">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="scope" th:value="${adminScope}"/>
         <input type="hidden" name="unit" th:if="${unitId != null}" th:value="${unitId}"/>
@@ -70,34 +102,61 @@
           <p class="hint" th:if="${adminUsersGlobalOnly}">
             Nur Superadmin- und Einheitsadmin-Konten. Für normale Benutzer die Einheits-Verwaltung nutzen.
           </p>
-          <div class="form-group">
-            <label for="adminUsername">Benutzername</label>
-            <input id="adminUsername" name="username" type="text" required minlength="3" maxlength="64"
-                   pattern="[a-zA-Z0-9._-]+" autocomplete="off" placeholder="z. B. m.mustermann"/>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="adminUsername">Benutzername</label>
+              <input id="adminUsername" name="username" type="text" required minlength="3" maxlength="64"
+                     pattern="[a-zA-Z0-9._-]+" autocomplete="off" placeholder="z. B. m.mustermann"/>
+            </div>
+            <div class="form-group">
+              <label for="adminDisplayName">Anzeigename</label>
+              <input id="adminDisplayName" name="displayName" type="text" required maxlength="255"/>
+            </div>
+            <div class="form-group form-group--full">
+              <label for="adminLoginEmail">E-Mail (Anmeldung &amp; Passwort-Versand)</label>
+              <input id="adminLoginEmail" name="loginEmail" type="email" maxlength="255" autocomplete="email"
+                     placeholder="name@feuerwehr.de"/>
+            </div>
+            <div class="form-group">
+              <label for="adminPassword">Initiales Passwort</label>
+              <input id="adminPassword" name="password" type="password" required th:minlength="${minPasswordLength}" autocomplete="new-password"/>
+            </div>
+            <div class="form-group">
+              <label for="adminRole">Rolle</label>
+              <select id="adminRole" name="role" data-unit-role-select>
+                <option th:each="r : ${assignableRoles}" th:value="${r.name()}"
+                        th:text="${T(de.feuerwehr.manager.user.UserRoleLabels).label(r)}">Rolle</option>
+              </select>
+            </div>
+            <div class="form-group form-group--full" id="adminUnitField" th:if="${showUnitPicker}"
+                 data-unit-field>
+              <label for="adminUnitIdForm">Einheit</label>
+              <select id="adminUnitIdForm" name="unitIdForm" data-unit-select>
+                <option value="">— keine Stamm-Einheit —</option>
+                <option th:each="un : ${units}" th:value="${un.id}" th:text="${un.name}"
+                        th:selected="${userFormUnitId != null and userFormUnitId == un.id}">Einheit</option>
+              </select>
+              <p class="hint" data-unit-hint-super>Bei Superadmin optional leer lassen.</p>
+              <p class="hint" data-unit-hint-required hidden>Für diese Rolle ist eine Einheit erforderlich.</p>
+            </div>
+            <div class="form-group form-group--full" th:if="${smtpConfigured}">
+              <label class="checkbox-row">
+                <input type="checkbox" name="sendPasswordEmail" value="true" checked/>
+                Passwort per E-Mail senden
+              </label>
+            </div>
           </div>
-          <div class="form-group">
-            <label for="adminDisplayName">Anzeigename</label>
-            <input id="adminDisplayName" name="displayName" type="text" required maxlength="255" placeholder="Max Mustermann"/>
-          </div>
-          <div class="form-group">
-            <label for="adminPassword">Initiales Passwort</label>
-            <input id="adminPassword" name="password" type="password" required th:minlength="${minPasswordLength}" autocomplete="new-password"/>
-          </div>
-          <div class="form-group">
-            <label for="adminRole">Rolle</label>
-            <select id="adminRole" name="role">
-              <option th:each="r : ${assignableRoles}" th:value="${r.name()}"
-                      th:text="${T(de.feuerwehr.manager.user.UserRoleLabels).label(r)}">Rolle</option>
-            </select>
-          </div>
-          <div class="form-group" th:if="${adminScope == 'global'}">
-            <label for="adminUnitIdForm">Einheit</label>
-            <select id="adminUnitIdForm" name="unitIdForm">
-              <option value="" th:if="${adminUsersGlobalOnly == null or !adminUsersGlobalOnly}">— keine Stamm-Einheit —</option>
-              <option th:each="u : ${units}" th:value="${u.id}" th:text="${u.name}">Einheit</option>
-            </select>
-            <p class="hint" th:if="${adminUsersGlobalOnly}">Für Einheitsadmins Pflicht; für Superadmins optional.</p>
-            <p class="hint" th:unless="${adminUsersGlobalOnly}">Superadmins können optional eine Stamm-Einheit haben.</p>
+          <hr class="modal-divider"/>
+          <p class="hint"><strong>RFID-Chip (optional)</strong> — Chip-ID vom Lesegerät (Hex, z. B. A1B2C3D4)</p>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="adminCardUid">Chip-ID</label>
+              <input id="adminCardUid" name="cardUid" type="text" placeholder="z. B. A1B2C3D4" autocomplete="off"/>
+            </div>
+            <div class="form-group">
+              <label for="adminCardLabel">Bezeichnung (optional)</label>
+              <input id="adminCardLabel" name="cardLabel" type="text" maxlength="255" placeholder="z. B. Dienstausweis"/>
+            </div>
           </div>
         </div>
         <div class="modal__footer">
@@ -105,6 +164,86 @@
           <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Modal: Benutzer bearbeiten -->
+  <div id="modal-edit-user" class="modal-overlay">
+    <div class="modal modal--lg" role="dialog">
+      <div class="modal__header">
+        <h3>Benutzer bearbeiten — <span id="edit-user-title">—</span></h3>
+        <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
+      </div>
+      <form id="form-edit-user" method="post" th:action="@{/admin/users/0}">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="scope" th:value="${adminScope}"/>
+        <input type="hidden" name="unit" th:if="${unitId != null}" th:value="${unitId}"/>
+        <div class="modal__body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="editUsername">Benutzername</label>
+              <input id="editUsername" name="username" type="text" required minlength="3" maxlength="64"
+                     pattern="[a-zA-Z0-9._-]+" autocomplete="off"/>
+            </div>
+            <div class="form-group">
+              <label for="editDisplayName">Anzeigename</label>
+              <input id="editDisplayName" name="displayName" type="text" required maxlength="255"/>
+            </div>
+            <div class="form-group form-group--full">
+              <label for="editLoginEmail">E-Mail (Anmeldung &amp; Passwort-Versand)</label>
+              <input id="editLoginEmail" name="loginEmail" type="email" maxlength="255" autocomplete="email"/>
+            </div>
+            <div class="form-group">
+              <label for="editRole">Rolle</label>
+              <select id="editRole" name="role" data-unit-role-select>
+                <option th:each="r : ${assignableRoles}" th:value="${r.name()}"
+                        th:text="${T(de.feuerwehr.manager.user.UserRoleLabels).label(r)}">Rolle</option>
+              </select>
+            </div>
+            <div class="form-group" id="editUnitField" th:if="${showUnitPicker}" data-unit-field>
+              <label for="editUnitIdForm">Einheit</label>
+              <select id="editUnitIdForm" name="unitIdForm" data-unit-select>
+                <option value="">— keine Stamm-Einheit —</option>
+                <option th:each="un : ${units}" th:value="${un.id}" th:text="${un.name}">Einheit</option>
+              </select>
+              <p class="hint" data-unit-hint-super>Bei Superadmin optional leer lassen.</p>
+              <p class="hint" data-unit-hint-required hidden>Für diese Rolle ist eine Einheit erforderlich.</p>
+            </div>
+            <div class="form-group">
+              <label class="checkbox-row">
+                <input type="checkbox" id="editActive" name="active" value="true"/>
+                Konto aktiv
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button type="submit" class="btn btn--primary">Speichern</button>
+          <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
+        </div>
+      </form>
+      <div class="modal__body modal__body--section">
+          <hr class="modal-divider"/>
+          <h4 class="modal-subheading">RFID-Chips</h4>
+          <div id="edit-user-rfid-list"></div>
+          <p class="hint">Neuen Chip registrieren:</p>
+          <form id="form-edit-rfid" method="post" th:action="@{/admin/users/0/rfid}">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <input type="hidden" name="scope" th:value="${adminScope}"/>
+            <input type="hidden" name="unit" th:if="${unitId != null}" th:value="${unitId}"/>
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="editCardUid">Chip-ID</label>
+                <input id="editCardUid" name="cardUid" type="text" placeholder="z. B. A1B2C3D4"/>
+              </div>
+              <div class="form-group">
+                <label for="editCardLabel">Bezeichnung</label>
+                <input id="editCardLabel" name="cardLabel" type="text" maxlength="255"/>
+              </div>
+            </div>
+            <button type="submit" class="btn btn--outline btn--sm">Chip registrieren</button>
+          </form>
+      </div>
     </div>
   </div>
 
@@ -121,10 +260,20 @@
         <input type="hidden" name="unit" th:if="${unitId != null}" th:value="${unitId}"/>
         <div class="modal__body">
           <p id="reset-pw-username" class="hint">Benutzer: —</p>
+          <p id="reset-pw-email" class="hint text-muted text-sm"></p>
           <div class="form-group">
             <label for="reset-pw-value">Neues Passwort</label>
             <input id="reset-pw-value" name="newPassword" type="password" required th:minlength="${minPasswordLength}" autocomplete="new-password"/>
           </div>
+          <div class="form-group" th:if="${smtpConfigured}">
+            <label class="checkbox-row">
+              <input type="checkbox" name="sendPasswordEmail" value="true" checked/>
+              Passwort per E-Mail senden
+            </label>
+          </div>
+          <p class="hint" th:unless="${smtpConfigured}">
+            SMTP ist nicht konfiguriert — Passwort kann nicht per E-Mail versendet werden.
+          </p>
         </div>
         <div class="modal__footer">
           <button type="submit" class="btn btn--primary">Zurücksetzen</button>

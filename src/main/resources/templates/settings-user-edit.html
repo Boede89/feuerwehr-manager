@@ -24,6 +24,8 @@
     <p class="hint">Format z. B. m.mustermann (Buchstaben, Ziffern, Punkt, Unterstrich, Bindestrich).</p>
     <label for="displayName">Anzeigename</label>
     <input id="displayName" name="displayName" type="text" required maxlength="255" th:value="${user.displayName}"/>
+    <label for="loginEmail">E-Mail (Anmeldung &amp; Passwort-Versand)</label>
+    <input id="loginEmail" name="loginEmail" type="email" maxlength="255" th:value="${user.loginEmail}" autocomplete="email"/>
     <label for="role">Rolle</label>
     <select id="role" name="role">
       <option th:each="r : ${roles}" th:value="${r.name()}" th:selected="${r == user.role}"

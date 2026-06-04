@@ -24,6 +24,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
             """)
     Optional<User> findByIdWithUnit(@Param("id") long id);
 
+    long countByAnonymizedAtIsNull();
+
     boolean existsByUsernameIgnoreCase(String username);
 
     boolean existsByUsernameIgnoreCaseAndIdNot(String username, long id);

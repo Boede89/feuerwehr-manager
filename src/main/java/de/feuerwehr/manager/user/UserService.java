@@ -24,7 +24,7 @@ public class UserService {
         if (username == null || username.isBlank()) {
             return Optional.empty();
         }
-        return userRepository.findByUsernameIgnoreCase(username.trim());
+        return userRepository.findByUsernameIgnoreCase(username.trim()).filter(u -> u.getAnonymizedAt() == null);
     }
 
     public Optional<User> findByUsernameWithUnit(String username) {

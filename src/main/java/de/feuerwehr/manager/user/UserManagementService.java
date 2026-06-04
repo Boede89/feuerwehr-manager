@@ -58,9 +58,12 @@ public class UserManagementService {
     public User createUser(
             String username,
             String displayName,
+            String loginEmail,
             String plainPassword,
             UserRole role,
             Long unitId,
+            String rfidCardUid,
+            String rfidLabel,
             AppUserDetails actor,
             HttpServletRequest request) {
         accessControlService.requireCanAssignRole(actor, role);
@@ -69,14 +72,24 @@ public class UserManagementService {
         if (userRepository.existsByUsernameIgnoreCase(username)) {
             throw new IllegalArgumentException("Benutzername ist bereits vergeben");
         }
+        String normalizedEmail = normalizeLoginEmail(loginEmail);
+        if (normalizedEmail != null
+                && userRepository.findByLoginEmailIgnoreCaseExcludingId(normalizedEmail, null).isPresent()) {
+            throw new IllegalArgumentException("E-Mail wird bereits für die Anmeldung verwendet");
+        }
         User user = new User();
         user.setUsername(username.trim());
         user.setDisplayName(displayName.trim());
+        user.setLoginEmail(normalizedEmail);
         user.setRole(role != null ? role : UserRole.USER);
         user.setActive(true);
         user.setPasswordHash(passwordEncoder.encode(plainPassword));
         applyUnit(user, unitId, actor);
         User saved = userRepository.findByIdWithUnit(userRepository.save(user).getId()).orElseThrow();
+        if (rfidCardUid != null && !rfidCardUid.isBlank()) {
+            registerRfidCard(saved.getId(), rfidCardUid, rfidLabel, actor, request);
+            saved = userRepository.findByIdWithUnit(saved.getId()).orElseThrow();
+        }
         personUserLinkService.ensurePersonForUser(saved);
         auditService.record(
                 AuditEventType.USER_CREATED,
@@ -140,6 +153,7 @@ public class UserManagementService {
             long userId,
             String username,
             String displayName,
+            String loginEmail,
             UserRole role,
             Long unitId,
             boolean active,
@@ -163,7 +177,15 @@ public class UserManagementService {
             throw new IllegalArgumentException("Sie können sich nicht selbst deaktivieren");
         }
         ensureNotLastSuperAdmin(user, role, active);
+        String normalizedEmail = normalizeLoginEmail(loginEmail);
+        if (normalizedEmail != null
+                && userRepository
+                        .findByLoginEmailIgnoreCaseExcludingId(normalizedEmail, userId)
+                        .isPresent()) {
+            throw new IllegalArgumentException("E-Mail wird bereits für die Anmeldung verwendet");
+        }
         user.setDisplayName(displayName.trim());
+        user.setLoginEmail(normalizedEmail);
         user.setRole(role);
         user.setActive(active);
         applyUnit(user, unitId, actor);

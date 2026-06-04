@@ -59,7 +59,7 @@ public class UserSettingsController {
             RedirectAttributes redirectAttributes) {
         try {
             User created = userManagementService.createUser(
-                    username, displayName, password, role, unitId, actor, request);
+                    username, displayName, null, password, role, unitId, null, null, actor, request);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute(
                     "message", "Benutzer „" + created.getUsername() + "“ wurde angelegt.");
@@ -99,6 +99,7 @@ public class UserSettingsController {
             @PathVariable long id,
             @RequestParam String username,
             @RequestParam String displayName,
+            @RequestParam(required = false) String loginEmail,
             @RequestParam UserRole role,
             @RequestParam(required = false) Long unitId,
             @RequestParam(required = false) String active,
@@ -107,7 +108,7 @@ public class UserSettingsController {
         boolean isActive = "true".equalsIgnoreCase(active);
         try {
             userManagementService.updateUser(
-                    id, username, displayName, role, unitId, isActive, actor, request);
+                    id, username, displayName, loginEmail, role, unitId, isActive, actor, request);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Benutzer wurde gespeichert.");
             return "redirect:/settings/users/" + id;

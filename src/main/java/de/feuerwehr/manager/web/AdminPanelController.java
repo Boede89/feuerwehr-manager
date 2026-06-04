@@ -8,10 +8,13 @@ import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitDiveraSettings;
 import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
 import de.feuerwehr.manager.unit.UnitService;
+import de.feuerwehr.manager.mail.AccountMailService;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserManagementService;
+import de.feuerwehr.manager.user.UserRfidCard;
 import de.feuerwehr.manager.user.UserRole;
 import de.feuerwehr.manager.user.UserRoleLabels;
+import de.feuerwehr.manager.user.UserService;
 import de.feuerwehr.manager.web.dto.UserDataExport;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -50,6 +53,8 @@ public class AdminPanelController {
     private final UserManagementService userManagementService;
     private final AdminGlobalViewService adminGlobalViewService;
     private final ObjectMapper objectMapper;
+    private final AccountMailService accountMailService;
+    private final UserService userService;
 
     @GetMapping
     public String index(
@@ -79,7 +84,8 @@ public class AdminPanelController {
         if ("global".equals(scope)) {
             populateGlobalUserFormModel(model);
             switch (tab) {
-                case "benutzer" -> model.addAttribute("adminUsers", userManagementService.listAdminLevelAccounts());
+                case "benutzer" ->
+                        populateAdminUsersTab(model, userManagementService.listAdminLevelAccounts());
                 case "konfiguration" -> adminGlobalViewService.populateKonfiguration(model);
                 case "einheiten" -> adminGlobalViewService.populateEinheiten(model);
                 case "schnittstellen" -> adminGlobalViewService.populateSmtp(model);
@@ -120,7 +126,7 @@ public class AdminPanelController {
             model.addAttribute("moduleDefs", Arrays.asList(AppModule.values()));
         }
         if ("benutzer".equals(tab)) {
-            model.addAttribute("adminUsers", userManagementService.listAccounts(actor, resolvedId));
+            populateAdminUsersTab(model, userManagementService.listAccounts(actor, resolvedId));
         }
 
         return "admin/index";
@@ -157,9 +163,13 @@ public class AdminPanelController {
             @RequestParam(name = "unit", required = false) Long unitId,
             @RequestParam String username,
             @RequestParam String displayName,
+            @RequestParam(required = false) String loginEmail,
             @RequestParam String password,
             @RequestParam(defaultValue = "USER") UserRole role,
             @RequestParam(required = false) Long unitIdForm,
+            @RequestParam(required = false) String cardUid,
+            @RequestParam(required = false) String cardLabel,
+            @RequestParam(name = "sendPasswordEmail", defaultValue = "false") boolean sendPasswordEmail,
             HttpServletRequest request,
             RedirectAttributes redirectAttributes) {
         try {
@@ -167,17 +177,54 @@ public class AdminPanelController {
                 throw new IllegalArgumentException(
                         "Im globalen Adminpanel können nur Superadmin- und Einheitsadmin-Konten angelegt werden.");
             }
-            Long effectiveUnitId = "global".equals(scope) ? unitIdForm : unitId;
+            Long effectiveUnitId = resolveEffectiveUnitId(scope, unitId, unitIdForm, role, actor);
             User created = userManagementService.createUser(
-                    username, displayName, password, role, effectiveUnitId, actor, request);
+                    username,
+                    displayName,
+                    loginEmail,
+                    password,
+                    role,
+                    effectiveUnitId,
+                    cardUid,
+                    cardLabel,
+                    actor,
+                    request);
+            String message = "Benutzer „" + created.getUsername() + "“ wurde angelegt.";
+            message = appendMailNotice(message, created, password, sendPasswordEmail, false);
             redirectAttributes.addFlashAttribute("saved", true);
-            redirectAttributes.addFlashAttribute(
-                    "message", "Benutzer „" + created.getUsername() + "“ wurde angelegt.");
+            redirectAttributes.addFlashAttribute("message", message);
             return redirectAfterUser(scope, unitId, actor);
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return redirectAfterUser(scope, unitId, actor);
         }
+    }
+
+    @PostMapping("/users/{id}")
+    public String updateUser(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @RequestParam(name = "scope") String scope,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam String username,
+            @RequestParam String displayName,
+            @RequestParam(required = false) String loginEmail,
+            @RequestParam UserRole role,
+            @RequestParam(required = false) Long unitIdForm,
+            @RequestParam(required = false) String active,
+            HttpServletRequest request,
+            RedirectAttributes redirectAttributes) {
+        try {
+            boolean isActive = "true".equalsIgnoreCase(active);
+            Long effectiveUnitId = resolveEffectiveUnitId(scope, unitId, unitIdForm, role, actor);
+            userManagementService.updateUser(
+                    id, username, displayName, loginEmail, role, effectiveUnitId, isActive, actor, request);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "Benutzer wurde gespeichert.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return redirectAfterUser(scope, unitId, actor);
     }
 
     @PostMapping("/users/{id}/password")
@@ -187,12 +234,55 @@ public class AdminPanelController {
             @RequestParam String newPassword,
             @RequestParam(name = "scope") String scope,
             @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "sendPasswordEmail", defaultValue = "false") boolean sendPasswordEmail,
             HttpServletRequest request,
             RedirectAttributes redirectAttributes) {
         try {
             userManagementService.setPasswordByAdmin(id, newPassword, actor, request);
+            User user = userService.findByIdWithUnit(id).orElseThrow();
+            String message = "Passwort wurde zurückgesetzt.";
+            message = appendMailNotice(message, user, newPassword, sendPasswordEmail, true);
             redirectAttributes.addFlashAttribute("saved", true);
-            redirectAttributes.addFlashAttribute("message", "Passwort wurde zurückgesetzt.");
+            redirectAttributes.addFlashAttribute("message", message);
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return redirectAfterUser(scope, unitId, actor);
+    }
+
+    @PostMapping("/users/{id}/rfid")
+    public String addRfid(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @RequestParam(name = "scope") String scope,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam String cardUid,
+            @RequestParam(required = false) String cardLabel,
+            HttpServletRequest request,
+            RedirectAttributes redirectAttributes) {
+        try {
+            userManagementService.registerRfidCard(id, cardUid, cardLabel, actor, request);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "RFID-Chip wurde registriert.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return redirectAfterUser(scope, unitId, actor);
+    }
+
+    @PostMapping("/users/{id}/rfid/{cardId}/revoke")
+    public String revokeRfid(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @PathVariable long cardId,
+            @RequestParam(name = "scope") String scope,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            HttpServletRequest request,
+            RedirectAttributes redirectAttributes) {
+        try {
+            userManagementService.revokeRfidCard(cardId, actor, request);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "RFID-Chip wurde deaktiviert.");
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
@@ -280,12 +370,54 @@ public class AdminPanelController {
         }
     }
 
+    private void populateAdminUsersTab(Model model, List<User> users) {
+        model.addAttribute("adminUsers", users);
+        Map<Long, List<UserRfidCard>> rfidMap = new LinkedHashMap<>();
+        for (User user : users) {
+            rfidMap.put(user.getId(), userManagementService.listRfidCards(user.getId()));
+        }
+        model.addAttribute("rfidCardsByUserId", rfidMap);
+        model.addAttribute("smtpConfigured", accountMailService.canSendMail());
+    }
+
+    private String appendMailNotice(
+            String baseMessage, User user, String plainPassword, boolean sendMail, boolean passwordReset) {
+        if (!sendMail) {
+            return baseMessage;
+        }
+        Optional<String> mailError = accountMailService.sendPasswordNotification(user, plainPassword, passwordReset);
+        if (mailError.isEmpty()) {
+            return baseMessage + " Passwort wurde per E-Mail versendet.";
+        }
+        return baseMessage + " " + mailError.get();
+    }
+
+    private static Long resolveEffectiveUnitId(
+            String scope, Long scopeUnitId, Long unitIdForm, UserRole role, AppUserDetails actor) {
+        if ("global".equals(scope)) {
+            return emptyToNull(unitIdForm);
+        }
+        if (actor != null && actor.getRole().isSuperAdmin()) {
+            Long fromForm = emptyToNull(unitIdForm);
+            if (role == UserRole.SUPER_ADMIN) {
+                return fromForm;
+            }
+            return fromForm != null ? fromForm : scopeUnitId;
+        }
+        return scopeUnitId;
+    }
+
+    private static Long emptyToNull(Long unitId) {
+        return unitId == null || unitId <= 0 ? null : unitId;
+    }
+
     private void populateGlobalUserFormModel(Model model) {
         model.addAttribute("assignableRoles", List.of(UserRole.SUPER_ADMIN, UserRole.UNIT_ADMIN));
         model.addAttribute("units", unitService.findActiveOrdered());
         model.addAttribute("userFormUnitId", null);
         model.addAttribute("roleLabels", UserRoleLabels.class);
         model.addAttribute("adminUsersGlobalOnly", true);
+        model.addAttribute("showUnitPicker", true);
     }
 
     private void populateUserFormModel(AppUserDetails actor, Model model, Long scopeUnitId) {
@@ -294,6 +426,7 @@ public class AdminPanelController {
         model.addAttribute("units", unitService.findActiveOrdered(actor));
         model.addAttribute("userFormUnitId", scopeUnitId);
         model.addAttribute("roleLabels", UserRoleLabels.class);
+        model.addAttribute("showUnitPicker", actor.getRole().isSuperAdmin());
     }
 
     private static String redirectAfterUser(String scope, Long unitId, AppUserDetails actor) {

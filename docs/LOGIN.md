@@ -2,10 +2,12 @@
 
 ## Erster Start
 
-1. Nach Installation existiert **kein** Benutzer → beim Start wird automatisch ein Administrator angelegt.
+1. **Nur wenn die Datenbank noch keinen Benutzer hat**, legt die App beim Start automatisch einen Administrator an (Ersteinrichtung).
 2. Standard: Benutzername `admin`, Passwort `changeme` (nur Entwicklung).
 3. In Produktion: `FEUERWEHR_BOOTSTRAP_ADMIN_PASSWORD` setzen **vor** dem ersten Start.
 4. Browser: `http://<Server>:8080` → Weiterleitung zu `/login`.
+
+Ein gelöschter Bootstrap-`admin` wird **nicht** bei jedem Neustart neu angelegt. Nur ein komplett leeres System (0 aktive Konten) löst die Erstanlage aus.
 ## Anmeldung schlägt fehl?
 
 **Prüfen, ob der Admin existiert** (auf dem Server):
@@ -15,7 +17,8 @@ docker compose exec mysql mysql -uff -pffsecret feuerwehr_manager \
   -e "SELECT id, username, active, password_hash IS NOT NULL AS has_pw FROM users;"
 ```
 
-- **Keine Zeile:** App neu starten (`docker compose restart app`) – legt `admin` an.
+- **Keine Zeile (leere DB):** App neu starten (`docker compose restart app`) – legt `admin` an.
+- **Nur gelöschte Konten, aber andere Benutzer existieren:** kein neuer `admin` – anderen Superadmin nutzen oder DB zurücksetzen.
 - **Zeile vorhanden, Login geht nicht:** Passwort einmalig zurücksetzen:
 
 ```bash
