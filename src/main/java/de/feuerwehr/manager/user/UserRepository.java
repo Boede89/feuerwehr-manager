@@ -20,6 +20,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("""
             SELECT u FROM User u
             LEFT JOIN FETCH u.unit
+            LEFT JOIN FETCH u.organizationalRole
             WHERE u.id = :id
             """)
     Optional<User> findByIdWithUnit(@Param("id") long id);
@@ -74,10 +75,23 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("""
             SELECT u FROM User u
             LEFT JOIN FETCH u.unit
+            LEFT JOIN FETCH u.organizationalRole
             WHERE u.anonymizedAt IS NULL AND u.unit.id = :unitId
             ORDER BY u.username
             """)
     List<User> findAllByAnonymizedAtIsNullAndUnitIdOrderByUsernameAsc(@Param("unitId") long unitId);
+
+    /** Einheits-Benutzerliste für Einheitsadmin (nur normale Benutzer, keine Admins). */
+    @Query("""
+            SELECT u FROM User u
+            LEFT JOIN FETCH u.unit
+            LEFT JOIN FETCH u.organizationalRole
+            WHERE u.anonymizedAt IS NULL
+              AND u.unit.id = :unitId
+              AND u.role = 'USER'
+            ORDER BY u.username
+            """)
+    List<User> findUnitMemberAccountsByUnitId(@Param("unitId") long unitId);
 
     long countByRoleAndActiveTrueAndAnonymizedAtIsNull(UserRole role);
 

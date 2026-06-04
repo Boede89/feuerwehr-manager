@@ -16,7 +16,9 @@
             <th>Benutzername</th>
             <th>Anzeigename</th>
             <th>E-Mail</th>
-            <th>Rolle</th>
+            <th th:if="${showOrganizationalRole}">Systemrolle</th>
+            <th th:unless="${showOrganizationalRole}">Rolle</th>
+            <th th:if="${showOrganizationalRole}">Einheitsrolle</th>
             <th>Einheit</th>
             <th>Status</th>
             <th>Aktionen</th>
@@ -31,13 +33,18 @@
               <span class="badge" th:classappend="${u.role.adminLevel} ? ' badge--admin' : ''"
                     th:text="${T(de.feuerwehr.manager.user.UserRoleLabels).label(u.role)}">Rolle</span>
             </td>
+            <td th:if="${showOrganizationalRole}"
+                th:text="${u.organizationalRole != null ? u.organizationalRole.name : '—'}">—</td>
             <td th:text="${u.unit != null ? u.unit.name : '—'}">Einheit</td>
             <td>
               <span class="badge" th:classappend="${u.active} ? ' active' : ' inactive'"
                     th:text="${u.active} ? 'Aktiv' : 'Inaktiv'">Status</span>
             </td>
             <td>
-              <div class="btn-group">
+              <span class="text-subtle text-sm" th:if="${canManageUserById != null and !canManageUserById.get(u.id)}">
+                Nur Superadmin
+              </span>
+              <div class="btn-group" th:if="${canManageUserById == null or canManageUserById.get(u.id)}">
                 <button type="button" class="btn btn--outline btn--sm"
                         data-open-modal="modal-edit-user"
                         th:data-user-id="${u.id}"
@@ -46,6 +53,7 @@
                         th:data-login-email="${u.loginEmail}"
                         th:data-role="${u.role.name()}"
                         th:data-unit-id="${u.unit != null ? u.unit.id : ''}"
+                        th:data-org-role-id="${u.organizationalRole != null ? u.organizationalRole.id : ''}"
                         th:data-active="${u.active}">Bearbeiten</button>
                 <button type="button" class="btn btn--outline btn--sm"
                         data-open-modal="modal-reset-pw"
@@ -129,11 +137,25 @@
               <label for="adminPassword">Initiales Passwort</label>
               <input id="adminPassword" name="password" type="password" required th:minlength="${minPasswordLength}" autocomplete="new-password"/>
             </div>
-            <div class="form-group">
+            <div class="form-group" th:if="${unitUserManagement}">
+              <label>Systemrolle</label>
+              <input type="hidden" name="role" value="USER"/>
+              <p class="hint" style="margin:0;">Benutzer (normales Konto)</p>
+            </div>
+            <div class="form-group" th:unless="${unitUserManagement}">
               <label for="adminRole">Rolle</label>
               <select id="adminRole" name="role" data-unit-role-select>
                 <option th:each="r : ${assignableRoles}" th:value="${r.name()}"
                         th:text="${T(de.feuerwehr.manager.user.UserRoleLabels).label(r)}">Rolle</option>
+              </select>
+            </div>
+            <div class="form-group" th:if="${showOrganizationalRole}">
+              <label for="adminOrgRole">Einheitsrolle</label>
+              <select id="adminOrgRole" name="organizationalRoleId" required>
+                <option value="">— Bitte wählen —</option>
+                <option th:each="ur : ${unitAssignableRoles}" th:value="${ur.id}"
+                        th:selected="${ur.systemRole}"
+                        th:text="${ur.name + (ur.systemRole ? ' (Standard)' : '')}">Rolle</option>
               </select>
             </div>
             <div class="form-group form-group--full" id="adminUnitField" th:if="${showUnitPicker}"
@@ -203,11 +225,24 @@
               <label for="editLoginEmail">E-Mail (Anmeldung &amp; Passwort-Versand)</label>
               <input id="editLoginEmail" name="loginEmail" type="email" maxlength="255" autocomplete="email"/>
             </div>
-            <div class="form-group">
+            <div class="form-group" th:if="${unitUserManagement}">
+              <label>Systemrolle</label>
+              <input type="hidden" name="role" value="USER"/>
+              <p class="hint" style="margin:0;">Benutzer (normales Konto)</p>
+            </div>
+            <div class="form-group" th:unless="${unitUserManagement}">
               <label for="editRole">Rolle</label>
               <select id="editRole" name="role" data-unit-role-select>
                 <option th:each="r : ${assignableRoles}" th:value="${r.name()}"
                         th:text="${T(de.feuerwehr.manager.user.UserRoleLabels).label(r)}">Rolle</option>
+              </select>
+            </div>
+            <div class="form-group" th:if="${showOrganizationalRole}">
+              <label for="editOrgRole">Einheitsrolle</label>
+              <select id="editOrgRole" name="organizationalRoleId" required>
+                <option value="">— Bitte wählen —</option>
+                <option th:each="ur : ${unitAssignableRoles}" th:value="${ur.id}"
+                        th:text="${ur.name + (ur.systemRole ? ' (Standard)' : '')}">Rolle</option>
               </select>
             </div>
             <div class="form-group" id="editUnitField" th:if="${showUnitPicker}" data-unit-field>

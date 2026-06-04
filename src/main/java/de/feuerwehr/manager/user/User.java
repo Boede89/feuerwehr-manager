@@ -1,6 +1,7 @@
 package de.feuerwehr.manager.user;
 
 import de.feuerwehr.manager.unit.Unit;
+import de.feuerwehr.manager.unit.UnitRole;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -52,6 +53,11 @@ public class User {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "unit_id")
     private Unit unit;
+
+    /** Dienstgrad / Funktion / Standardrolle mit Modul-Berechtigungen. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organizational_role_id")
+    private UnitRole organizationalRole;
 
     @Column(nullable = false)
     private boolean active = true;

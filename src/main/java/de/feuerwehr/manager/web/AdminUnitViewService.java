@@ -42,6 +42,7 @@ public class AdminUnitViewService {
     }
 
     public void populateRollen(Model model, long unitId) {
+        unitRoleService.ensureSystemRoles(unitId);
         List<UnitRole> roles = unitRoleService.listRoles(unitId);
         model.addAttribute("unitRoles", roles);
         model.addAttribute("rolePermissionOptions", UnitRolePermission.permissionOptions());

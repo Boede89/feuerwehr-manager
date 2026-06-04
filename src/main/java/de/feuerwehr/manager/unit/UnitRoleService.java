@@ -11,19 +11,54 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class UnitRoleService {
 
+    public static final String SYSTEM_ROLE_NAME = "Benutzer";
+
     private final UnitRoleRepository unitRoleRepository;
     private final UnitRepository unitRepository;
     private final ObjectMapper objectMapper;
+
+    @Transactional
+    public void ensureSystemRoles(long unitId) {
+        unitRoleRepository
+                .findByUnitIdAndName(unitId, SYSTEM_ROLE_NAME)
+                .ifPresentOrElse(
+                        existing -> {
+                            if (!existing.isSystemRole()) {
+                                existing.setSystemRole(true);
+                                unitRoleRepository.save(existing);
+                            }
+                        },
+                        () -> {
+                            Unit unit = unitRepository.findById(unitId).orElseThrow();
+                            UnitRole role = new UnitRole();
+                            role.setUnit(unit);
+                            role.setName(SYSTEM_ROLE_NAME);
+                            role.setRoleType(UnitRoleType.DIENSTGRAD);
+                            role.setSystemRole(true);
+                            role.setPermissionsJson(toJson(UnitRolePermission.defaultBenutzerPermissions()));
+                            role.setSortOrder(-1);
+                            unitRoleRepository.save(role);
+                        });
+    }
 
     @Transactional(readOnly = true)
     public List<UnitRole> listRoles(long unitId) {
         return unitRoleRepository.findByUnitIdOrderBySortOrderAscNameAsc(unitId);
     }
 
+    @Transactional(readOnly = true)
+    public UnitRole requireAssignableRole(long unitId, long roleId) {
+        UnitRole role = unitRoleRepository
+                .findByIdAndUnitId(roleId, unitId)
+                .orElseThrow(() -> new IllegalArgumentException("Einheitsrolle nicht gefunden."));
+        return role;
+    }
+
     @Transactional
     public UnitRole create(long unitId, String name, UnitRoleType type, List<String> permissions, Integer level) {
         Unit unit = unitRepository.findById(unitId).orElseThrow();
         String trimmed = normalizeName(name);
+        rejectReservedName(trimmed);
         if (unitRoleRepository.existsByUnitIdAndName(unitId, trimmed)) {
             throw new IllegalArgumentException("Eine Rolle mit diesem Namen existiert bereits.");
         }
@@ -31,6 +66,7 @@ public class UnitRoleService {
         role.setUnit(unit);
         role.setName(trimmed);
         role.setRoleType(type != null ? type : UnitRoleType.DIENSTGRAD);
+        role.setSystemRole(false);
         role.setPermissionsJson(toJson(UnitRolePermission.filterAllowed(permissions)));
         role.setRoleLevel(type == UnitRoleType.FUNKTION ? null : level);
         return unitRoleRepository.save(role);
@@ -42,7 +78,12 @@ public class UnitRoleService {
         UnitRole role = unitRoleRepository
                 .findByIdAndUnitId(roleId, unitId)
                 .orElseThrow(() -> new IllegalArgumentException("Rolle nicht gefunden."));
+        if (role.isSystemRole()) {
+            role.setPermissionsJson(toJson(UnitRolePermission.filterAllowed(permissions)));
+            return unitRoleRepository.save(role);
+        }
         String trimmed = normalizeName(name);
+        rejectReservedName(trimmed);
         if (unitRoleRepository.existsByUnitIdAndNameAndIdNot(unitId, trimmed, roleId)) {
             throw new IllegalArgumentException("Eine Rolle mit diesem Namen existiert bereits.");
         }
@@ -60,6 +101,9 @@ public class UnitRoleService {
         UnitRole role = unitRoleRepository
                 .findByIdAndUnitId(roleId, unitId)
                 .orElseThrow(() -> new IllegalArgumentException("Rolle nicht gefunden."));
+        if (role.isSystemRole()) {
+            throw new IllegalArgumentException("Die Standardrolle „Benutzer“ kann nicht gelöscht werden.");
+        }
         unitRoleRepository.delete(role);
     }
 
@@ -88,5 +132,12 @@ public class UnitRoleService {
             throw new IllegalArgumentException("Bitte einen Rollennamen eingeben.");
         }
         return name.trim();
+    }
+
+    private static void rejectReservedName(String name) {
+        if (SYSTEM_ROLE_NAME.equalsIgnoreCase(name)) {
+            throw new IllegalArgumentException(
+                    "Der Name „Benutzer“ ist für die Standardrolle reserviert.");
+        }
     }
 }

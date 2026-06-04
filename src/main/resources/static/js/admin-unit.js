@@ -26,8 +26,11 @@
       var form = document.getElementById('form-unit-role');
       var title = document.getElementById('modal-unit-role-title');
       var roleId = btn.getAttribute('data-role-id');
+      var isSystem = btn.getAttribute('data-role-system') === 'true';
       var nameInput = document.getElementById('unit-role-name');
       var typeSelect = document.getElementById('unit-role-type');
+      var nameGroup = document.getElementById('unit-role-name-group');
+      var typeGroup = document.getElementById('unit-role-type-group');
       if (!form || !title) return;
 
       var createAction = form.getAttribute('data-create-action');
@@ -43,6 +46,10 @@
         nameInput.value = btn.getAttribute('data-role-name') || '';
         typeSelect.value = btn.getAttribute('data-role-type') || 'DIENSTGRAD';
         setPermChecks(parsePerms(btn.getAttribute('data-role-perms')));
+        if (nameInput) nameInput.readOnly = isSystem;
+        if (typeSelect) typeSelect.disabled = isSystem;
+        if (nameGroup) nameGroup.hidden = isSystem;
+        if (typeGroup) typeGroup.hidden = isSystem;
       } else {
         title.textContent = 'Rolle anlegen';
         if (createAction) form.action = createAction;
@@ -53,6 +60,16 @@
         nameInput.value = '';
         typeSelect.value = 'DIENSTGRAD';
         setPermChecks([]);
+        if (nameInput) {
+          nameInput.readOnly = false;
+          nameInput.value = '';
+        }
+        if (typeSelect) {
+          typeSelect.disabled = false;
+          typeSelect.value = 'DIENSTGRAD';
+        }
+        if (nameGroup) nameGroup.hidden = false;
+        if (typeGroup) typeGroup.hidden = false;
       }
     });
   });

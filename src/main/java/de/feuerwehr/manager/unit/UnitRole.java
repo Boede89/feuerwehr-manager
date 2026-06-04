@@ -47,6 +47,10 @@ public class UnitRole {
     @Column(name = "sort_order", nullable = false)
     private int sortOrder;
 
+    /** Standardrolle „Benutzer“ – Berechtigungen anpassbar, nicht löschbar. */
+    @Column(name = "system_role", nullable = false)
+    private boolean systemRole;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;
 }

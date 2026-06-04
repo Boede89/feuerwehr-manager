@@ -35,6 +35,11 @@ public final class UnitRolePermission {
     }
 
     /** Flache Liste für Thymeleaf (ohne Map-Zugriff mit dynamischen Keys). */
+    /** Standard-Berechtigungen für die Systemrolle „Benutzer“. */
+    public static List<String> defaultBenutzerPermissions() {
+        return List.of("personal.read", "personal.write");
+    }
+
     public static List<RolePermissionOption> permissionOptions() {
         return MODULES.stream()
                 .flatMap(m -> m.levels().stream()

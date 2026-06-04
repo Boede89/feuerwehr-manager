@@ -8,6 +8,8 @@ import de.feuerwehr.manager.security.SecurityProperties;
 import de.feuerwehr.manager.personal.PersonUserLinkService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
+import de.feuerwehr.manager.unit.UnitRole;
+import de.feuerwehr.manager.unit.UnitRoleService;
 import de.feuerwehr.manager.web.dto.UserDataExport;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
@@ -30,6 +32,7 @@ public class UserManagementService {
     private final AccessControlService accessControlService;
     private final PersonUserLinkService personUserLinkService;
     private final UserService userService;
+    private final UnitRoleService unitRoleService;
 
     public List<User> listAccounts(AppUserDetails actor) {
         return listAccounts(actor, null);
@@ -50,7 +53,7 @@ public class UserManagementService {
             return userRepository.findAllByAnonymizedAtIsNullWithUnitOrderByUsernameAsc();
         }
         if (actor != null && actor.getRole().isUnitAdmin() && actor.getUnitId() != null) {
-            return userRepository.findAllByAnonymizedAtIsNullAndUnitIdOrderByUsernameAsc(actor.getUnitId());
+            return userRepository.findUnitMemberAccountsByUnitId(actor.getUnitId());
         }
         return List.of();
     }
@@ -65,6 +68,7 @@ public class UserManagementService {
             Long unitId,
             String rfidCardUid,
             String rfidLabel,
+            Long organizationalRoleId,
             AppUserDetails actor,
             HttpServletRequest request) {
         accessControlService.requireCanAssignRole(actor, role);
@@ -86,6 +90,7 @@ public class UserManagementService {
         user.setActive(true);
         user.setPasswordHash(passwordEncoder.encode(plainPassword));
         applyUnit(user, unitId, actor);
+        applyOrganizationalRole(user, organizationalRoleId);
         User saved = userRepository.findByIdWithUnit(userRepository.save(user).getId()).orElseThrow();
         if (rfidCardUid != null && !rfidCardUid.isBlank()) {
             registerRfidCard(saved.getId(), rfidCardUid, rfidLabel, actor, request);
@@ -158,6 +163,7 @@ public class UserManagementService {
             UserRole role,
             Long unitId,
             boolean active,
+            Long organizationalRoleId,
             AppUserDetails actor,
             HttpServletRequest request) {
         User user = userRepository.findByIdWithUnit(userId).orElseThrow();
@@ -190,6 +196,7 @@ public class UserManagementService {
         user.setRole(role);
         user.setActive(active);
         applyUnit(user, unitId, actor);
+        applyOrganizationalRole(user, organizationalRoleId);
         User saved = userRepository.findByIdWithUnit(userRepository.save(user).getId()).orElseThrow();
         personUserLinkService.ensurePersonForUser(saved);
         auditService.record(
@@ -332,6 +339,28 @@ public class UserManagementService {
             return "****";
         }
         return "****" + uid.substring(uid.length() - 4);
+    }
+
+    private void applyOrganizationalRole(User user, Long organizationalRoleId) {
+        if (user.getRole() != UserRole.USER) {
+            user.setOrganizationalRole(null);
+            return;
+        }
+        if (user.getUnit() == null) {
+            throw new IllegalArgumentException("Benutzer ohne Einheit kann keine Einheitsrolle erhalten.");
+        }
+        long unitId = user.getUnit().getId();
+        UnitRole role;
+        if (organizationalRoleId != null && organizationalRoleId > 0) {
+            role = unitRoleService.requireAssignableRole(unitId, organizationalRoleId);
+        } else {
+            unitRoleService.ensureSystemRoles(unitId);
+            role = unitRoleService.listRoles(unitId).stream()
+                    .filter(UnitRole::isSystemRole)
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Standardrolle „Benutzer“ fehlt."));
+        }
+        user.setOrganizationalRole(role);
     }
 
     private void applyUnit(User user, Long unitId, AppUserDetails actor) {

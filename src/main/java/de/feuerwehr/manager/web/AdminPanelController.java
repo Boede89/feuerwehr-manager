@@ -7,6 +7,8 @@ import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitDiveraSettings;
 import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
+import de.feuerwehr.manager.security.AccessControlService;
+import de.feuerwehr.manager.unit.UnitRoleService;
 import de.feuerwehr.manager.unit.UnitService;
 import de.feuerwehr.manager.mail.AccountMailService;
 import de.feuerwehr.manager.user.User;
@@ -56,6 +58,8 @@ public class AdminPanelController {
     private final ObjectMapper objectMapper;
     private final AccountMailService accountMailService;
     private final UserService userService;
+    private final UnitRoleService unitRoleService;
+    private final AccessControlService accessControlService;
 
     @GetMapping
     public String index(
@@ -87,7 +91,7 @@ public class AdminPanelController {
             populateGlobalUserFormModel(model);
             switch (tab) {
                 case "benutzer" ->
-                        populateAdminUsersTab(model, userManagementService.listAdminLevelAccounts());
+                        populateAdminUsersTab(model, userManagementService.listAdminLevelAccounts(), actor);
                 case "konfiguration" -> adminGlobalViewService.populateKonfiguration(model);
                 case "einheiten" -> adminGlobalViewService.populateEinheiten(model);
                 case "schnittstellen" -> adminGlobalViewService.populateSmtp(model);
@@ -177,6 +181,7 @@ public class AdminPanelController {
             @RequestParam(required = false) Long unitIdForm,
             @RequestParam(required = false) String cardUid,
             @RequestParam(required = false) String cardLabel,
+            @RequestParam(required = false) Long organizationalRoleId,
             @RequestParam(name = "sendPasswordEmail", defaultValue = "false") boolean sendPasswordEmail,
             HttpServletRequest request,
             RedirectAttributes redirectAttributes) {
@@ -185,7 +190,15 @@ public class AdminPanelController {
                 throw new IllegalArgumentException(
                         "Im globalen Adminpanel können nur Superadmin- und Einheitsadmin-Konten angelegt werden.");
             }
+            if ("einheit".equals(scope) && actor.getRole().isUnitAdmin()) {
+                role = UserRole.USER;
+            }
             Long effectiveUnitId = resolveEffectiveUnitId(scope, unitId, unitIdForm, role, actor);
+            if ("einheit".equals(scope)
+                    && role == UserRole.USER
+                    && (organizationalRoleId == null || organizationalRoleId <= 0)) {
+                throw new IllegalArgumentException("Bitte eine Einheitsrolle wählen.");
+            }
             User created = userManagementService.createUser(
                     username,
                     displayName,
@@ -195,6 +208,7 @@ public class AdminPanelController {
                     effectiveUnitId,
                     cardUid,
                     cardLabel,
+                    organizationalRoleId,
                     actor,
                     request);
             String message = "Benutzer „" + created.getUsername() + "“ wurde angelegt.";
@@ -220,13 +234,26 @@ public class AdminPanelController {
             @RequestParam UserRole role,
             @RequestParam(required = false) Long unitIdForm,
             @RequestParam(required = false) String active,
+            @RequestParam(required = false) Long organizationalRoleId,
             HttpServletRequest request,
             RedirectAttributes redirectAttributes) {
         try {
             boolean isActive = "true".equalsIgnoreCase(active);
+            if ("einheit".equals(scope) && actor.getRole().isUnitAdmin()) {
+                role = UserRole.USER;
+            }
             Long effectiveUnitId = resolveEffectiveUnitId(scope, unitId, unitIdForm, role, actor);
             userManagementService.updateUser(
-                    id, username, displayName, loginEmail, role, effectiveUnitId, isActive, actor, request);
+                    id,
+                    username,
+                    displayName,
+                    loginEmail,
+                    role,
+                    effectiveUnitId,
+                    isActive,
+                    organizationalRoleId,
+                    actor,
+                    request);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Benutzer wurde gespeichert.");
         } catch (IllegalArgumentException e) {
@@ -404,16 +431,23 @@ public class AdminPanelController {
     }
 
     private void populateUnitUsersTab(Model model, AppUserDetails actor, long unitId) {
-        populateAdminUsersTab(model, userManagementService.listAccounts(actor, unitId));
+        unitRoleService.ensureSystemRoles(unitId);
+        populateAdminUsersTab(model, userManagementService.listAccounts(actor, unitId), actor);
+        model.addAttribute("unitAssignableRoles", unitRoleService.listRoles(unitId));
+        model.addAttribute("showOrganizationalRole", true);
+        model.addAttribute("unitUserManagement", true);
     }
 
-    private void populateAdminUsersTab(Model model, List<User> users) {
+    private void populateAdminUsersTab(Model model, List<User> users, AppUserDetails actor) {
         model.addAttribute("adminUsers", users);
         Map<Long, List<UserRfidCard>> rfidMap = new LinkedHashMap<>();
+        Map<Long, Boolean> canManage = new LinkedHashMap<>();
         for (User user : users) {
             rfidMap.put(user.getId(), userManagementService.listRfidCards(user.getId()));
+            canManage.put(user.getId(), accessControlService.canManageUser(actor, user));
         }
         model.addAttribute("rfidCardsByUserId", rfidMap);
+        model.addAttribute("canManageUserById", canManage);
         model.addAttribute("smtpConfigured", accountMailService.canSendMail());
     }
 
@@ -464,6 +498,12 @@ public class AdminPanelController {
         model.addAttribute("userFormUnitId", scopeUnitId);
         model.addAttribute("roleLabels", UserRoleLabels.class);
         model.addAttribute("showUnitPicker", actor.getRole().isSuperAdmin());
+        if (scopeUnitId != null) {
+            unitRoleService.ensureSystemRoles(scopeUnitId);
+            model.addAttribute("unitAssignableRoles", unitRoleService.listRoles(scopeUnitId));
+            model.addAttribute("showOrganizationalRole", true);
+            model.addAttribute("unitUserManagement", actor.getRole().isUnitAdmin());
+        }
     }
 
     private static String redirectAfterUser(String scope, Long unitId, AppUserDetails actor) {

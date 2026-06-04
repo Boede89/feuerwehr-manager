@@ -77,7 +77,7 @@
           <tr th:each="c : ${courses}">
             <td th:text="${c.name}">Lehrgang</td>
             <td class="text-muted text-sm"
-                th:text="${c.qualificationType != null} ? ${c.qualificationType.name} : '—'">—</td>
+                th:text="${c.qualificationType != null ? c.qualificationType.name : '—'}">—</td>
             <td>
               <span class="badge" th:classappend="${c.active} ? ' active' : ' inactive'"
                     th:text="${c.active} ? 'Aktiv' : 'Inaktiv'">Status</span>

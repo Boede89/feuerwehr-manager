@@ -20,20 +20,33 @@ public class AccessControlService {
         }
     }
 
-    public void requireCanManageUser(AppUserDetails actor, User target) {
-        if (actor == null || actor.getRole().isSuperAdmin()) {
-            return;
+    public boolean canManageUser(AppUserDetails actor, User target) {
+        if (actor == null || target == null) {
+            return false;
+        }
+        if (actor.getRole().isSuperAdmin()) {
+            return true;
         }
         if (!actor.getRole().isUnitAdmin()) {
-            throw new IllegalArgumentException("Keine Berechtigung zur Benutzerverwaltung");
+            return false;
+        }
+        if (target.getRole() == UserRole.SUPER_ADMIN || target.getRole().isAssignableOnlyBySuperAdmin()) {
+            return false;
         }
         Long actorUnit = actor.getUnitId();
         Long targetUnit = target.getUnit() != null ? target.getUnit().getId() : null;
-        if (actorUnit == null || targetUnit == null || !actorUnit.equals(targetUnit)) {
+        return actorUnit != null && actorUnit.equals(targetUnit);
+    }
+
+    public void requireCanManageUser(AppUserDetails actor, User target) {
+        if (!canManageUser(actor, target)) {
+            if (target != null && target.getRole() == UserRole.SUPER_ADMIN) {
+                throw new IllegalArgumentException("Superadmin-Konten können nur vom Superadmin verwaltet werden.");
+            }
+            if (target != null && target.getRole().isAssignableOnlyBySuperAdmin()) {
+                throw new IllegalArgumentException("Keine Berechtigung zur Verwaltung dieses Kontos");
+            }
             throw new IllegalArgumentException("Kein Zugriff auf diesen Benutzer");
-        }
-        if (target.getRole().isAssignableOnlyBySuperAdmin()) {
-            throw new IllegalArgumentException("Keine Berechtigung zur Verwaltung dieses Kontos");
         }
     }
 

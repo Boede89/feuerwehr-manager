@@ -15,4 +15,6 @@ public interface UnitRoleRepository extends JpaRepository<UnitRole, Long> {
     boolean existsByUnitIdAndName(long unitId, String name);
 
     long countByUnitIdAndRoleType(long unitId, UnitRoleType roleType);
+
+    java.util.Optional<UnitRole> findByUnitIdAndName(long unitId, String name);
 }

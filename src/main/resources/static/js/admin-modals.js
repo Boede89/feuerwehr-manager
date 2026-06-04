@@ -113,6 +113,8 @@
         setVal('editLoginEmail', btn.dataset.loginEmail || '');
         const roleEl = document.getElementById('editRole');
         if (roleEl && btn.dataset.role) roleEl.value = btn.dataset.role;
+        const orgRoleEl = document.getElementById('editOrgRole');
+        if (orgRoleEl && btn.dataset.orgRoleId) orgRoleEl.value = btn.dataset.orgRoleId;
         const unitEl = document.getElementById('editUnitIdForm');
         if (unitEl) unitEl.value = btn.dataset.unitId || '';
         const activeEl = document.getElementById('editActive');
