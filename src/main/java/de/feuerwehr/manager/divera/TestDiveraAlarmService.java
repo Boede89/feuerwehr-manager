@@ -26,6 +26,37 @@ public class TestDiveraAlarmService {
     private final ObjectMapper objectMapper;
 
     @Transactional
+    public WebhookOutcome startEinsatzFromPayload(long unitId, String rawBody) {
+        if (!testModeService.isEnabled()) {
+            return new WebhookOutcome(WebhookStatus.BAD_REQUEST, null, "Testmodus ist nicht aktiv");
+        }
+        if (!unitRepository.existsById(unitId)) {
+            return new WebhookOutcome(WebhookStatus.BAD_REQUEST, null, "Unbekannte Einheit");
+        }
+        if (rawBody == null || rawBody.isBlank()) {
+            return new WebhookOutcome(WebhookStatus.BAD_REQUEST, null, "JSON fehlt");
+        }
+        try {
+            JsonNode root = objectMapper.readTree(rawBody);
+            Optional<DiveraAlarmJsonParser.ParsedAlarm> parsed = DiveraAlarmJsonParser.parseFirst(root);
+            if (parsed.isEmpty()) {
+                return new WebhookOutcome(WebhookStatus.BAD_REQUEST, null, "Kein Alarm im JSON erkannt");
+            }
+            DiveraAlarmJsonParser.ParsedAlarm p = parsed.get();
+            if (repository.findByUnitIdAndAlarmIdAndClosedFalse(unitId, p.alarmId()).isPresent()) {
+                return new WebhookOutcome(WebhookStatus.BAD_REQUEST, null, "Dieser Einsatz läuft bereits");
+            }
+            TestDiveraAlarm saved = saveParsed(unitId, asOpenAlarm(p));
+            return new WebhookOutcome(
+                    WebhookStatus.ACCEPTED,
+                    saved.getExternalId() != null ? saved.getExternalId() : "test:" + saved.getAlarmId(),
+                    "Einsatz gestartet — sichtbar auf der Startseite");
+        } catch (Exception e) {
+            return new WebhookOutcome(WebhookStatus.BAD_REQUEST, null, "Ungültiges JSON: " + e.getMessage());
+        }
+    }
+
+    @Transactional
     public WebhookOutcome ingestTestWebhook(long unitId, String rawBody) {
         if (!testModeService.isEnabled()) {
             return new WebhookOutcome(WebhookStatus.BAD_REQUEST, null, "Testmodus ist nicht aktiv");
@@ -44,10 +75,10 @@ public class TestDiveraAlarmService {
             }
             TestDiveraAlarm saved = saveParsed(unitId, parsed.get());
             String ext = saved.getExternalId() != null ? saved.getExternalId() : "test:" + saved.getAlarmId();
-            return new WebhookOutcome(
-                    WebhookStatus.ACCEPTED,
-                    ext,
-                    "Testalarm gespeichert — erscheint auf der Startseite");
+            String msg = saved.isClosed()
+                    ? "Webhook verarbeitet (Einsatz geschlossen — nicht auf der Startseite)"
+                    : "Testalarm gespeichert — erscheint auf der Startseite";
+            return new WebhookOutcome(WebhookStatus.ACCEPTED, ext, msg);
         } catch (Exception e) {
             return new WebhookOutcome(WebhookStatus.BAD_REQUEST, null, "Ungültiges JSON: " + e.getMessage());
         }
@@ -88,6 +119,26 @@ public class TestDiveraAlarmService {
         alarm.setClosed(true);
         alarm.setClosedAt(Instant.now());
         repository.save(alarm);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isAlarmRunning(long unitId, long diveraAlarmId) {
+        if (!testModeService.isEnabled()) {
+            return false;
+        }
+        return repository.findByUnitIdAndAlarmIdAndClosedFalse(unitId, diveraAlarmId).isPresent();
+    }
+
+    private static DiveraAlarmJsonParser.ParsedAlarm asOpenAlarm(DiveraAlarmJsonParser.ParsedAlarm p) {
+        return new DiveraAlarmJsonParser.ParsedAlarm(
+                p.alarmId(),
+                p.externalId(),
+                p.title(),
+                p.text(),
+                p.address(),
+                p.dateEpochSeconds(),
+                p.tsCreateSeconds(),
+                false);
     }
 
     public List<DiveraAlarmSummary> mergeInto(DiveraAlarmsResponse apiResponse, List<DiveraAlarmSummary> testAlarms) {

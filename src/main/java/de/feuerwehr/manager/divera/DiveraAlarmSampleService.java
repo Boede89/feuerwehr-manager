@@ -28,6 +28,7 @@ public class DiveraAlarmSampleService {
     private final TestModeService testModeService;
     private final DiveraAlarmRawJson diveraAlarmRawJson;
     private final ObjectMapper objectMapper;
+    private final TestDiveraAlarmService testDiveraAlarmService;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void captureFromApiResponse(long unitId, DiveraAlarmsResponse response) {
@@ -78,8 +79,24 @@ public class DiveraAlarmSampleService {
                         s.getAlarmId(),
                         s.getTitle(),
                         s.getAddress(),
-                        CAPTURED_FMT.format(s.getCapturedAt())))
+                        CAPTURED_FMT.format(s.getCapturedAt()),
+                        testDiveraAlarmService.isAlarmRunning(unitId, s.getAlarmId())))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<String> payloadForUnit(long unitId, long sampleId) {
+        if (!testModeService.isEnabled()) {
+            return Optional.empty();
+        }
+        return repository.findByIdAndUnitId(sampleId, unitId).map(DiveraAlarmSample::getWebhookPayload);
+    }
+
+    @Transactional
+    public DiveraWebhookService.WebhookOutcome startEinsatzFromSample(long unitId, long sampleId) {
+        String payload = payloadForUnit(unitId, sampleId)
+                .orElseThrow(() -> new IllegalArgumentException("Beispiel-Einsatz nicht gefunden"));
+        return testDiveraAlarmService.startEinsatzFromPayload(unitId, payload);
     }
 
     @Transactional
@@ -91,14 +108,6 @@ public class DiveraAlarmSampleService {
                 .findByIdAndUnitId(sampleId, unitId)
                 .orElseThrow(() -> new IllegalArgumentException("Beispiel-Einsatz nicht gefunden"));
         repository.delete(sample);
-    }
-
-    @Transactional(readOnly = true)
-    public Optional<String> payloadForUnit(long unitId, long sampleId) {
-        if (!testModeService.isEnabled()) {
-            return Optional.empty();
-        }
-        return repository.findByIdAndUnitId(sampleId, unitId).map(DiveraAlarmSample::getWebhookPayload);
     }
 
     private void upsert(long unitId, long alarmId, String title, String address, String payload) {

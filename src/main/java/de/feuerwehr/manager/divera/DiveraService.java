@@ -19,22 +19,17 @@ public class DiveraService {
 
     @Transactional(readOnly = true)
     public DiveraAlarmsResponse getAlarmsForUnit(long unitId) {
+        if (testModeService.isEnabled()) {
+            List<DiveraAlarmSummary> running = testDiveraAlarmService.listOpenSummariesForUnit(unitId);
+            return DiveraAlarmsResponse.ok(running);
+        }
+
         DiveraAlarmsResponse apiResponse = diveraSettingsRepository
                 .findByUnitId(unitId)
                 .map(cfg -> diveraApiClient.fetchAlarms(cfg.getApiBaseUrl(), cfg.getAccessKey()))
                 .orElse(DiveraAlarmsResponse.fail("Keine Divera-Einstellungen für diese Einheit"));
 
-        if (testModeService.isEnabled()) {
-            diveraAlarmSampleService.captureFromApiResponse(unitId, apiResponse);
-        }
-
-        DiveraAlarmsResponse visible = testModeService.isEnabled() ? apiResponse : withoutClosedAlarms(apiResponse);
-
-        List<DiveraAlarmSummary> testAlarms = testDiveraAlarmService.listOpenSummariesForUnit(unitId);
-        if (testAlarms.isEmpty()) {
-            return visible;
-        }
-        return DiveraAlarmsResponse.ok(testDiveraAlarmService.mergeInto(visible, testAlarms));
+        return withoutClosedAlarms(apiResponse);
     }
 
     private static DiveraAlarmsResponse withoutClosedAlarms(DiveraAlarmsResponse response) {

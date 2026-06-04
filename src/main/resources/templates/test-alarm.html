@@ -8,8 +8,8 @@
     <div>
       <h2>Testalarm</h2>
       <p>
-        Simuliert einen eingehenden DIVERA-Webhook <strong>nur in dieser Anwendung</strong> —
-        es wird <strong>kein</strong> Alarm bei DIVERA ausgelöst und nichts nach außen gesendet.
+        Starten und beenden Sie Test-Einsätze aus gespeicherten DIVERA-Beispielen.
+        Nur <strong>gestartete</strong> Einsätze erscheinen im Testmodus auf der Startseite — es wird nichts an DIVERA gesendet.
       </p>
     </div>
   </div>
@@ -21,15 +21,15 @@
     <div class="card__header">Beispiel-Einsätze von DIVERA</div>
     <div class="card__body">
       <p class="hint">
-        Beim Öffnen dieser Seite werden Einsätze von DIVERA abgerufen und hier dauerhaft als Beispiele gespeichert.
+        Einsätze von DIVERA werden hier als Vorlagen gespeichert. Mit <strong>Einsatz starten</strong> erscheinen sie auf der Startseite.
       </p>
       <p class="hint" id="test-alarm-samples-empty" th:classappend="${!#lists.isEmpty(alarmSamples)} ? 'hidden' : ''">
-        Keine Einsätze von DIVERA geliefert. Prüfen Sie Access Key und Schnittstellen-Einstellungen, dann
-        <strong>Von DIVERA aktualisieren</strong>.
+        Keine Beispiele vorhanden. Prüfen Sie den Access Key und klicken Sie auf <strong>Von DIVERA aktualisieren</strong>.
       </p>
       <p class="hint" id="test-alarm-samples-loading" hidden>Lade Einsätze von DIVERA …</p>
       <div id="test-alarm-samples-page-list">
-        <div class="list-row test-alarm-sample-row" th:each="s : ${alarmSamples}">
+        <div class="list-row test-alarm-sample-row" th:each="s : ${alarmSamples}"
+             th:attr="data-sample-id=${s.id}">
           <span>
             <strong th:text="${s.title}">Titel</strong>
             <span th:if="${s.address != null and !#strings.isEmpty(s.address)}"> · </span>
@@ -37,8 +37,12 @@
             <br>
             <span class="hint hint--inline"
                   th:text="'DIVERA #' + ${s.alarmId} + ' · ' + ${s.capturedAt}">Meta</span>
+            <span class="badge badge-warning" th:if="${s.running}" style="margin-left: 0.35rem;">läuft</span>
           </span>
           <span class="btn-group btn-group--inline">
+            <button type="button" class="btn btn--primary btn--sm btn-test-sample-start"
+                    th:attr="data-sample-id=${s.id}"
+                    th:disabled="${s.running}">Einsatz starten</button>
             <button type="button" class="btn btn--outline btn--sm btn-test-sample-load"
                     th:attr="data-sample-id=${s.id}">In JSON laden</button>
             <button type="button" class="btn btn--outline btn--sm btn-test-sample-delete"
@@ -57,46 +61,48 @@
     </div>
   </div>
 
+  <div class="card" id="test-alarm-active-card">
+    <div class="card__header">Laufende Test-Einsätze</div>
+    <div class="card__body">
+      <p class="hint" id="test-alarm-active-empty" th:classappend="${!#lists.isEmpty(openTestAlarms)} ? 'hidden' : ''">
+        Kein Einsatz gestartet. Wählen Sie oben bei einem Beispiel <strong>Einsatz starten</strong>.
+      </p>
+      <div id="test-alarm-active-list">
+        <div class="list-row" th:each="a : ${openTestAlarms}" th:attr="data-test-alarm-id=${a.id}">
+          <span>
+            <strong th:text="${a.title}">Titel</strong>
+            <span th:if="${a.address != null and !#strings.isEmpty(a.address)}"> · </span>
+            <span th:text="${a.address}">Adresse</span>
+          </span>
+          <button type="button" class="btn btn--outline btn--sm btn-test-alarm-close"
+                  th:attr="data-alarm-id=${a.id}">
+            Einsatz beenden
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="card">
-    <div class="card__header">Webhook-Payload (JSON)</div>
+    <div class="card__header">Webhook-Payload (JSON, optional)</div>
     <div class="card__body">
       <p class="hint">
-        Einheit: <strong th:text="${currentUnitName}">—</strong>
-        (ID <span th:text="${testAlarmUnitId}">1</span>).
-        Die Verarbeitung entspricht dem echten Endpunkt
-        <code>/api/webhook/divera</code>, ohne Secret-Prüfung im Testmodus.
+        Für manuelle Tests: JSON bearbeiten und als Webhook simulieren (geschlossene Einsätze erscheinen nicht auf der Startseite).
       </p>
       <div class="form-group form-group--full">
         <label for="testAlarmJson">JSON-Daten</label>
-        <textarea id="testAlarmJson" class="field test-alarm-json" rows="16"
+        <textarea id="testAlarmJson" class="field test-alarm-json" rows="12"
                   th:text="${sampleJson}"></textarea>
       </div>
       <div class="btn-group">
-        <button type="button" class="btn btn--primary" id="btn-test-alarm-send">
-          Test-Webhook senden
+        <button type="button" class="btn btn--outline" id="btn-test-alarm-send">
+          Webhook senden (erweitert)
         </button>
       </div>
       <p class="hint" id="test-alarm-result" hidden aria-live="polite"></p>
     </div>
   </div>
 
-  <div class="card" id="test-alarm-active-card" th:if="${!#lists.isEmpty(openTestAlarms)}">
-    <div class="card__header">Aktive Testalarme</div>
-    <div class="card__body">
-      <p class="hint">Diese Alarme erscheinen auf der Startseite unter „Divera – aktuelle Einsätze“.</p>
-      <div class="list-row" th:each="a : ${openTestAlarms}">
-        <span>
-          <strong th:text="${a.title}">Titel</strong>
-          <span th:if="${a.address != null and !#strings.isEmpty(a.address)}"> · </span>
-          <span th:text="${a.address}">Adresse</span>
-        </span>
-        <button type="button" class="btn btn--outline btn--sm btn-test-alarm-close"
-                th:attr="data-alarm-id=${a.id}">
-          Alarm beenden
-        </button>
-      </div>
-    </div>
-  </div>
   <script th:src="@{/js/test-alarm.js}" defer></script>
 </main>
 </html>

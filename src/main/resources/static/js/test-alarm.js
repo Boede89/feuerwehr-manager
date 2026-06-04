@@ -55,6 +55,9 @@
       var title = item.title || 'Einsatz ' + item.alarmId;
       var addr = item.address ? ' · ' + item.address : '';
       var metaLine = 'DIVERA #' + item.alarmId + ' · ' + (item.capturedAt || '');
+      var runningBadge = item.running
+        ? ' <span class="badge badge-warning" style="margin-left:0.35rem">läuft</span>'
+        : '';
       label.innerHTML =
         '<strong>' +
         escapeHtml(title) +
@@ -62,10 +65,20 @@
         escapeHtml(addr) +
         '<br><span class="hint hint--inline">' +
         escapeHtml(metaLine) +
-        '</span>';
+        '</span>' +
+        runningBadge;
 
       var actions = document.createElement('span');
       actions.className = 'btn-group btn-group--inline';
+
+      var startBtn = document.createElement('button');
+      startBtn.type = 'button';
+      startBtn.className = 'btn btn--primary btn--sm btn-test-sample-start';
+      startBtn.textContent = 'Einsatz starten';
+      startBtn.setAttribute('data-sample-id', String(item.id));
+      if (item.running) {
+        startBtn.disabled = true;
+      }
 
       var loadBtn = document.createElement('button');
       loadBtn.type = 'button';
@@ -79,6 +92,7 @@
       deleteBtn.textContent = 'Löschen';
       deleteBtn.setAttribute('data-sample-id', String(item.id));
 
+      actions.appendChild(startBtn);
       actions.appendChild(loadBtn);
       actions.appendChild(deleteBtn);
       row.appendChild(label);
@@ -90,6 +104,11 @@
   var samplesListEl = document.getElementById('test-alarm-samples-page-list');
   if (samplesListEl) {
     samplesListEl.addEventListener('click', function (e) {
+      var startBtn = e.target.closest('.btn-test-sample-start');
+      if (startBtn) {
+        startSample(startBtn.getAttribute('data-sample-id'), startBtn);
+        return;
+      }
       var loadBtn = e.target.closest('.btn-test-sample-load');
       if (loadBtn) {
         loadSamplePayload(loadBtn.getAttribute('data-sample-id'), loadBtn);
@@ -100,6 +119,46 @@
         deleteSample(deleteBtn.getAttribute('data-sample-id'), deleteBtn);
       }
     });
+  }
+
+  function reloadSoon() {
+    window.setTimeout(function () {
+      window.location.reload();
+    }, 400);
+  }
+
+  function startSample(sampleId, triggerBtn) {
+    var unitId = meta.getAttribute('data-unit-id');
+    if (!unitId || !sampleId) return;
+    if (triggerBtn) triggerBtn.disabled = true;
+    var body = new URLSearchParams();
+    body.set('unit', unitId);
+    fetch('/test-alarm/samples/' + sampleId + '/start', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-XSRF-TOKEN': getCsrfToken(),
+        Accept: 'application/json',
+      },
+      credentials: 'same-origin',
+      body: body.toString(),
+    })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (data) {
+        var ok = data && data.ok;
+        notify(data && data.message ? data.message : 'Fertig', ok ? 'success' : 'error');
+        if (ok) {
+          reloadSoon();
+        }
+      })
+      .catch(function () {
+        notify('Anfrage fehlgeschlagen', 'error');
+      })
+      .finally(function () {
+        if (triggerBtn) triggerBtn.disabled = false;
+      });
   }
 
   function loadSamplePayload(sampleId, triggerBtn) {
@@ -268,9 +327,7 @@
           result.className = ok ? 'hint text-success' : 'hint text-danger';
         }
         if (ok) {
-          window.setTimeout(function () {
-            window.location.reload();
-          }, 500);
+          reloadSoon();
         }
       })
       .catch(function () {
@@ -280,6 +337,16 @@
         if (btn) btn.disabled = false;
       });
   });
+
+  var activeListEl = document.getElementById('test-alarm-active-list');
+  if (activeListEl) {
+    activeListEl.addEventListener('click', function (e) {
+      var closeBtn = e.target.closest('.btn-test-alarm-close');
+      if (closeBtn) {
+        closeAlarm(closeBtn.getAttribute('data-alarm-id'), closeBtn);
+      }
+    });
+  }
 
   function closeAlarm(testRecordId, triggerBtn) {
     var unitId = meta.getAttribute('data-unit-id');
@@ -305,12 +372,7 @@
         var ok = data && data.ok;
         notify(data && data.message ? data.message : 'Fertig', ok ? 'success' : 'error');
         if (ok) {
-          var row = triggerBtn && triggerBtn.closest('.list-row');
-          if (row) row.remove();
-          var card = document.getElementById('test-alarm-active-card');
-          if (card && !card.querySelector('.list-row')) {
-            card.remove();
-          }
+          reloadSoon();
         }
       })
       .catch(function () {
@@ -320,10 +382,4 @@
         if (triggerBtn) triggerBtn.disabled = false;
       });
   }
-
-  document.querySelectorAll('.btn-test-alarm-close').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      closeAlarm(btn.getAttribute('data-alarm-id'), btn);
-    });
-  });
 })();

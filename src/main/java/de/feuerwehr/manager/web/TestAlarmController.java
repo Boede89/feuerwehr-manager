@@ -89,6 +89,28 @@ public class TestAlarmController {
         return diveraAlarmSampleService.listForUnit(unit);
     }
 
+    @PostMapping("/samples/{id}/start")
+    @ResponseBody
+    public ActionResultDto startSample(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @PathVariable long id) {
+        try {
+            requireTestMode();
+            unitService
+                    .resolveActiveUnit(unit, actor)
+                    .orElseThrow(() -> new IllegalArgumentException("Kein Zugriff auf diese Einheit."));
+            WebhookOutcome outcome = diveraAlarmSampleService.startEinsatzFromSample(unit, id);
+            if (outcome.status() == WebhookStatus.ACCEPTED) {
+                return ActionResultDto.success(outcome.message());
+            }
+            return ActionResultDto.failure(
+                    outcome.message() != null ? outcome.message() : "Einsatz konnte nicht gestartet werden");
+        } catch (IllegalArgumentException e) {
+            return ActionResultDto.failure(e.getMessage());
+        }
+    }
+
     @PostMapping("/samples/{id}/delete")
     @ResponseBody
     public ActionResultDto deleteSample(
@@ -139,7 +161,7 @@ public class TestAlarmController {
                     .resolveActiveUnit(unit, actor)
                     .orElseThrow(() -> new IllegalArgumentException("Kein Zugriff auf diese Einheit."));
             testDiveraAlarmService.closeAlarm(unit, id);
-            return ActionResultDto.success("Testalarm beendet — er verschwindet von der Startseite.");
+            return ActionResultDto.success("Einsatz beendet — nicht mehr auf der Startseite.");
         } catch (IllegalArgumentException e) {
             return ActionResultDto.failure(e.getMessage());
         }
