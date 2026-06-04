@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('Testalarm', ~{::main})}">
+<main>
+  <div th:replace="~{fragments/testmode-banner :: banner}"></div>
+
+  <div class="page-header">
+    <div>
+      <h2>Testalarm</h2>
+      <p>
+        Simuliert einen eingehenden DIVERA-Webhook <strong>nur in dieser Anwendung</strong> —
+        es wird <strong>kein</strong> Alarm bei DIVERA ausgelöst und nichts nach außen gesendet.
+      </p>
+    </div>
+  </div>
+
+  <div id="test-alarm-meta" hidden
+       th:attr="data-unit-id=${testAlarmUnitId},data-csrf-token=${_csrf.token}"></div>
+
+  <div class="card">
+    <div class="card__header">Webhook-Payload (JSON)</div>
+    <div class="card__body">
+      <p class="hint">
+        Einheit: <strong th:text="${currentUnitName}">—</strong>
+        (ID <span th:text="${testAlarmUnitId}">1</span>).
+        Die Verarbeitung entspricht dem echten Endpunkt
+        <code>/api/webhook/divera</code>, ohne Secret-Prüfung im Testmodus.
+      </p>
+      <div class="form-group form-group--full">
+        <label for="testAlarmJson">JSON-Daten</label>
+        <textarea id="testAlarmJson" class="field test-alarm-json" rows="16"
+                  th:text="${sampleJson}"></textarea>
+      </div>
+      <div class="btn-group">
+        <button type="button" class="btn btn--outline btn--sm" id="btn-test-alarm-sample">
+          Beispiel laden
+        </button>
+        <button type="button" class="btn btn--primary" id="btn-test-alarm-send">
+          Test-Webhook senden
+        </button>
+      </div>
+      <p class="hint" id="test-alarm-result" hidden aria-live="polite"></p>
+    </div>
+  </div>
+  <script th:src="@{/js/test-alarm.js}" defer></script>
+</main>
+</html>

@@ -1342,6 +1342,21 @@ code {
   border-bottom-color: #7c3aed;
 }
 
+.topnav__item--test { color: var(--gelb); }
+.topnav__item--test:hover { color: var(--gelb); }
+.topnav__item--test.active {
+  color: var(--gelb);
+  border-bottom-color: var(--gelb);
+}
+
+.test-alarm-json {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+  min-height: 280px;
+  resize: vertical;
+}
+
 /* Module toggles */
 .module-row {
   display: flex;

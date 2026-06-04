@@ -135,6 +135,9 @@ public class WebUiAdvice {
         if (path.startsWith("/my-area") || path.startsWith("/profile")) {
             return "my-area";
         }
+        if (path.startsWith("/test-alarm")) {
+            return "test-alarm";
+        }
         if (path.startsWith("/admin")) {
             return "admin";
         }
