@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.settings;
 
+import de.feuerwehr.manager.divera.TestDiveraAlarmRepository;
 import de.feuerwehr.manager.personal.CourseRepository;
 import de.feuerwehr.manager.personal.PersonRepository;
 import de.feuerwehr.manager.personal.QualificationTypeRepository;
@@ -21,6 +22,7 @@ public class TestModeService {
     private final QualificationTypeRepository qualificationTypeRepository;
     private final UnitRepository unitRepository;
     private final UnitDiveraSettingsRepository diveraSettingsRepository;
+    private final TestDiveraAlarmRepository testDiveraAlarmRepository;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -64,6 +66,7 @@ public class TestModeService {
         qualificationTypeRepository.deleteAllByTestDataTrue();
         diveraSettingsRepository.deleteAllByUnitTestDataTrue();
         unitRepository.deleteAllByTestDataTrue();
+        testDiveraAlarmRepository.deleteAllAlarms();
         entityManager.flush();
     }
 

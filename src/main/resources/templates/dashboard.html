@@ -32,7 +32,8 @@
             <span th:text="${a.address}">Adresse</span>
             <span class="hint hint--inline" th:if="${a.closed}"> (geschlossen)</span>
           </span>
-          <span class="badge active" th:text="${a.id}">ID</span>
+          <span class="badge active" th:if="${!a.testAlarm}" th:text="${a.id}">ID</span>
+          <span class="badge badge-warning" th:if="${a.testAlarm}">Test</span>
         </div>
       </th:block>
     </div>

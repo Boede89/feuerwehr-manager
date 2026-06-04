@@ -3,6 +3,7 @@ package de.feuerwehr.manager.web;
 import de.feuerwehr.manager.divera.DiveraWebhookService;
 import de.feuerwehr.manager.divera.DiveraWebhookService.WebhookOutcome;
 import de.feuerwehr.manager.divera.DiveraWebhookService.WebhookStatus;
+import de.feuerwehr.manager.divera.TestDiveraAlarmService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
@@ -43,6 +44,7 @@ public class TestAlarmController {
     private final TestModeService testModeService;
     private final UnitService unitService;
     private final DiveraWebhookService diveraWebhookService;
+    private final TestDiveraAlarmService testDiveraAlarmService;
 
     @GetMapping
     public String page(
@@ -57,7 +59,26 @@ public class TestAlarmController {
                 .orElseThrow(() -> new IllegalArgumentException("Bitte zuerst eine Einheit auswählen."));
         model.addAttribute("testAlarmUnitId", unit.getId());
         model.addAttribute("sampleJson", SAMPLE_JSON.trim());
+        model.addAttribute("openTestAlarms", testDiveraAlarmService.listOpenForUnit(unit.getId()));
         return "test-alarm";
+    }
+
+    @PostMapping("/close")
+    @ResponseBody
+    public ActionResultDto close(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam long id) {
+        try {
+            requireTestMode();
+            unitService
+                    .resolveActiveUnit(unit, actor)
+                    .orElseThrow(() -> new IllegalArgumentException("Kein Zugriff auf diese Einheit."));
+            testDiveraAlarmService.closeAlarm(unit, id);
+            return ActionResultDto.success("Testalarm beendet — er verschwindet von der Startseite.");
+        } catch (IllegalArgumentException e) {
+            return ActionResultDto.failure(e.getMessage());
+        }
     }
 
     @PostMapping("/send")

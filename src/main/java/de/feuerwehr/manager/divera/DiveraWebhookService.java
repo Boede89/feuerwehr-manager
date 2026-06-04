@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 public class DiveraWebhookService {
 
     private final UnitDiveraSettingsRepository diveraSettingsRepository;
+    private final TestDiveraAlarmService testDiveraAlarmService;
     private final ObjectMapper objectMapper;
 
     public enum WebhookStatus {
@@ -28,27 +29,14 @@ public class DiveraWebhookService {
 
     /**
      * Simuliert einen DIVERA-Webhook im Testmodus (kein Aufruf nach DIVERA, keine Secret-Prüfung).
+     * Speichert den Alarm für die Startseite; beim Beenden des Testmodus werden alle Testalarme gelöscht.
      */
     public WebhookOutcome handleTestWebhook(long unitId, String rawBody) {
-        Optional<UnitDiveraSettings> cfgOpt = diveraSettingsRepository.findByUnitId(unitId);
-        if (cfgOpt.isEmpty()) {
-            return new WebhookOutcome(WebhookStatus.BAD_REQUEST, null, "Keine Divera-Einstellungen für diese Einheit");
+        WebhookOutcome outcome = testDiveraAlarmService.ingestTestWebhook(unitId, rawBody);
+        if (outcome.status() == WebhookStatus.ACCEPTED) {
+            log.info("[Divera-Webhook-Test] unit={} externalId={}", unitId, outcome.externalId());
         }
-        if (rawBody == null || rawBody.isBlank()) {
-            return new WebhookOutcome(WebhookStatus.BAD_REQUEST, null, "JSON fehlt");
-        }
-        try {
-            JsonNode root = objectMapper.readTree(rawBody);
-            log.info("[Divera-Webhook-Test] unit={} payload={}", unitId, root);
-            String externalId = extractExternalId(root);
-            return new WebhookOutcome(
-                    WebhookStatus.ACCEPTED,
-                    externalId,
-                    "Test-Webhook verarbeitet (nur lokal, kein DIVERA-Aufruf)");
-        } catch (Exception e) {
-            log.error("[Divera-Webhook-Test] JSON-Fehler unit={}: {}", unitId, e.getMessage());
-            return new WebhookOutcome(WebhookStatus.BAD_REQUEST, null, "Ungültiges JSON: " + e.getMessage());
-        }
+        return outcome;
     }
 
     public WebhookOutcome handleWebhook(long unitId, String secretFromQuery, String secretFromHeader, String rawBody) {
