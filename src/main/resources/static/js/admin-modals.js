@@ -129,7 +129,19 @@
 
       if (modalId === 'modal-new-user') {
         const form = document.getElementById('form-new-user');
-        if (form) syncUnitRequirement(form);
+        if (form) {
+          const roleEl = document.getElementById('adminRole');
+          const defaultRole = form.getAttribute('data-default-role') || 'USER';
+          if (roleEl) roleEl.value = defaultRole;
+          const defaultUnitId = form.getAttribute('data-default-unit-id');
+          const unitGlobal = document.getElementById('adminUnitIdForm');
+          const unitEinheit = document.getElementById('adminUnitIdFormEinheit');
+          if (defaultUnitId) {
+            if (unitGlobal) unitGlobal.value = defaultUnitId;
+            if (unitEinheit) unitEinheit.value = defaultUnitId;
+          }
+          syncUnitRequirement(form);
+        }
       }
     });
   });

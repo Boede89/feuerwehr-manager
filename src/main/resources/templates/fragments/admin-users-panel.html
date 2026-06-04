@@ -155,7 +155,8 @@
         <h3>Neuen Benutzer anlegen</h3>
         <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
       </div>
-      <form method="post" th:action="@{/admin/users}" id="form-new-user">
+      <form method="post" th:action="@{/admin/users}" id="form-new-user"
+            th:attr="data-default-unit-id=${userFormUnitId}, data-default-role=USER">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="scope" th:value="${adminScope}"/>
         <input type="hidden" name="unit" th:if="${unitId != null}" th:value="${unitId}"/>
@@ -185,6 +186,7 @@
               <label for="adminRole">Systemrolle</label>
               <select id="adminRole" name="role" data-unit-role-select data-dienstgrad-toggle>
                 <option th:each="r : ${assignableRoles}" th:value="${r.name()}"
+                        th:selected="${r.name() == 'USER'}"
                         th:text="${T(de.feuerwehr.manager.user.UserRoleLabels).label(r)}">Rolle</option>
               </select>
             </div>
@@ -199,7 +201,17 @@
               <label for="adminUnitIdForm">Einheit</label>
               <select id="adminUnitIdForm" name="unitIdForm" data-unit-select>
                 <option value="">— keine Stamm-Einheit —</option>
-                <option th:each="un : ${units}" th:value="${un.id}" th:text="${un.name}">Einheit</option>
+                <option th:each="un : ${units}" th:value="${un.id}" th:text="${un.name}"
+                        th:selected="${userFormUnitId != null and userFormUnitId == un.id}">Einheit</option>
+              </select>
+              <p class="hint" data-unit-hint-super>Bei Superadmin optional leer lassen.</p>
+              <p class="hint" data-unit-hint-required hidden>Für diese Rolle ist eine Einheit erforderlich.</p>
+            </div>
+            <div class="form-group form-group--full" id="adminUnitFieldEinheit" th:if="${showUnitPickerInUnit}" data-unit-field>
+              <label for="adminUnitIdFormEinheit">Einheit</label>
+              <select id="adminUnitIdFormEinheit" name="unitIdForm" data-unit-select required>
+                <option th:each="un : ${units}" th:value="${un.id}" th:text="${un.name}"
+                        th:selected="${userFormUnitId != null and userFormUnitId == un.id}">Einheit</option>
               </select>
             </div>
             <div class="form-group form-group--full" th:if="${smtpConfigured}">
@@ -264,12 +276,15 @@
                         th:text="${T(de.feuerwehr.manager.user.UserRoleLabels).label(r)}">Rolle</option>
               </select>
             </div>
-            <div class="form-group" id="editUnitField" th:if="${showUnitPicker}" data-unit-field>
+            <div class="form-group" id="editUnitField" th:if="${showUnitPicker or showUnitPickerInUnit}" data-unit-field>
               <label for="editUnitIdForm">Einheit</label>
-              <select id="editUnitIdForm" name="unitIdForm" data-unit-select>
-                <option value="">— keine —</option>
+              <select id="editUnitIdForm" name="unitIdForm" data-unit-select
+                      th:attr="required=${showUnitPickerInUnit} ? 'required' : null">
+                <option value="" th:if="${showUnitPicker}">— keine —</option>
                 <option th:each="un : ${units}" th:value="${un.id}" th:text="${un.name}">Einheit</option>
               </select>
+              <p class="hint" data-unit-hint-super th:if="${showUnitPicker}">Bei Superadmin optional leer lassen.</p>
+              <p class="hint" data-unit-hint-required hidden th:if="${showUnitPicker or showUnitPickerInUnit}">Für diese Rolle ist eine Einheit erforderlich.</p>
             </div>
             <div class="form-group">
               <label class="checkbox-row">

@@ -190,6 +190,10 @@ public class AdminPanelController {
                 throw new IllegalArgumentException(
                         "Im globalen Adminpanel können nur Superadmin- und Einheitsadmin-Konten angelegt werden.");
             }
+            if ("einheit".equals(scope) && role == UserRole.SUPER_ADMIN) {
+                throw new IllegalArgumentException(
+                        "Superadmin kann nur im globalen Adminpanel vergeben werden.");
+            }
             Long effectiveUnitId = resolveEffectiveUnitId(scope, unitId, unitIdForm, role, actor);
             User created = userManagementService.createUser(
                     username,
@@ -231,6 +235,10 @@ public class AdminPanelController {
             RedirectAttributes redirectAttributes) {
         try {
             boolean isActive = "true".equalsIgnoreCase(active);
+            if ("einheit".equals(scope) && role == UserRole.SUPER_ADMIN) {
+                throw new IllegalArgumentException(
+                        "Superadmin kann nur im globalen Adminpanel vergeben werden.");
+            }
             Long effectiveUnitId = resolveEffectiveUnitId(scope, unitId, unitIdForm, role, actor);
             userManagementService.updateUser(
                     id,
@@ -545,17 +553,33 @@ public class AdminPanelController {
     }
 
     private void populateUserFormModel(AppUserDetails actor, Model model, Long scopeUnitId) {
-        List<UserRole> roles = UserRole.assignableBy(actor.getRole()).stream().sorted().toList();
-        model.addAttribute("assignableRoles", roles);
+        model.addAttribute("assignableRoles", resolveAssignableRoles(actor, scopeUnitId));
         model.addAttribute("units", unitService.findActiveOrdered(actor));
         model.addAttribute("userFormUnitId", scopeUnitId);
         model.addAttribute("roleLabels", UserRoleLabels.class);
-        model.addAttribute("showUnitPicker", actor.getRole().isSuperAdmin());
+        model.addAttribute("showUnitPicker", actor.getRole().isSuperAdmin() && scopeUnitId == null);
+        model.addAttribute("showUnitPickerInUnit", actor.getRole().isSuperAdmin() && scopeUnitId != null);
         if (scopeUnitId != null) {
             unitRoleService.ensureSystemRoles(scopeUnitId);
             model.addAttribute("unitDienstgrade", unitRoleService.listDienstgrade(scopeUnitId));
             model.addAttribute("showUnitUserRoles", true);
         }
+    }
+
+    private static List<UserRole> resolveAssignableRoles(AppUserDetails actor, Long scopeUnitId) {
+        if (scopeUnitId != null) {
+            if (actor.getRole().isSuperAdmin()) {
+                return List.of(UserRole.USER, UserRole.UNIT_ADMIN);
+            }
+            if (actor.getRole().isUnitAdmin()) {
+                return List.of(UserRole.USER, UserRole.UNIT_ADMIN);
+            }
+            return List.of();
+        }
+        if (actor.getRole().isSuperAdmin()) {
+            return List.of(UserRole.SUPER_ADMIN, UserRole.UNIT_ADMIN);
+        }
+        return UserRole.assignableBy(actor.getRole()).stream().sorted().toList();
     }
 
     private static String redirectAfterUser(String scope, Long unitId, AppUserDetails actor) {
