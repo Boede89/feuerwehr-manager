@@ -4,6 +4,9 @@ import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.technik.Room;
 import de.feuerwehr.manager.technik.RoomRepository;
 import de.feuerwehr.manager.technik.Vehicle;
+import de.feuerwehr.manager.technik.VehicleFormData;
+import de.feuerwehr.manager.technik.VehicleServiceStatus;
+import de.feuerwehr.manager.technik.VehicleTypes;
 import de.feuerwehr.manager.technik.VehicleEquipment;
 import de.feuerwehr.manager.technik.VehicleEquipmentCategory;
 import de.feuerwehr.manager.technik.VehicleEquipmentCategoryRepository;
@@ -239,25 +242,40 @@ public class UnitAdminService {
     }
 
     @Transactional
-    public Vehicle createVehicle(long unitId, String name, String description) {
+    public Vehicle createVehicle(long unitId, VehicleFormData form) {
         Unit unit = requireUnit(unitId);
         Vehicle v = new Vehicle();
         v.setUnit(unit);
-        v.setName(requireName(name));
-        v.setDescription(trimToNull(description));
         v.setTestData(testModeService.testDataScope());
+        v.setSortOrder(listVehicles(unitId).size());
+        applyVehicleForm(v, form);
         return vehicleRepository.save(v);
     }
 
     @Transactional
-    public Vehicle updateVehicle(long unitId, long vehicleId, String name, String description, boolean active) {
+    public Vehicle updateVehicle(long unitId, long vehicleId, VehicleFormData form) {
         Vehicle v = vehicleRepository
                 .findByIdAndUnitId(vehicleId, unitId)
                 .orElseThrow(() -> new IllegalArgumentException("Fahrzeug nicht gefunden."));
-        v.setName(requireName(name));
-        v.setDescription(trimToNull(description));
-        v.setActive(active);
+        applyVehicleForm(v, form);
         return vehicleRepository.save(v);
+    }
+
+    private static void applyVehicleForm(Vehicle v, VehicleFormData form) {
+        v.setName(requireName(form.name()));
+        v.setDescription(trimToNull(form.description()));
+        v.setVehicleType(VehicleTypes.normalizeKey(form.vehicleType()));
+        v.setLicensePlate(trimToNull(form.licensePlate()));
+        v.setYearBuilt(form.yearBuilt());
+        v.setPhone(trimToNull(form.phone()));
+        v.setLengthM(form.lengthM());
+        v.setWidthM(form.widthM());
+        v.setHeightM(form.heightM());
+        v.setWeightKg(form.weightKg());
+        String status = VehicleServiceStatus.normalize(form.serviceStatus());
+        v.setServiceStatus(status);
+        v.setActive(VehicleServiceStatus.isActive(status));
+        v.setNotes(trimToNull(form.notes()));
     }
 
     @Transactional

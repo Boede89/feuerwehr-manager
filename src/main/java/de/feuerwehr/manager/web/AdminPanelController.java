@@ -132,9 +132,7 @@ public class AdminPanelController {
                 if (selectedVehicleId != null) {
                     model.addAttribute("selectedVehicleId", selectedVehicleId);
                 }
-                model.addAttribute(
-                        "vehicleSubTab",
-                        vehicleSubTab != null && "geraete".equalsIgnoreCase(vehicleSubTab) ? "geraete" : "uebersicht");
+                model.addAttribute("vehicleSubTab", normalizeVehicleSubTab(vehicleSubTab));
                 adminUnitViewService.populateTechnik(model, resolvedId);
             }
             case "ausbildung" -> adminUnitViewService.populateAusbildung(model, resolvedId);
@@ -566,6 +564,17 @@ public class AdminPanelController {
             case "konfiguration", "benutzer", "rollen", "schnittstellen", "module", "technik", "ausbildung" -> tab;
             case "personal" -> "ausbildung";
             default -> "konfiguration";
+        };
+    }
+
+    static String normalizeVehicleSubTab(String tab) {
+        if (tab == null || tab.isBlank()) {
+            return "uebersicht";
+        }
+        return switch (tab.toLowerCase()) {
+            case "geraete" -> "geraete";
+            case "checklisten" -> "checklisten";
+            default -> "uebersicht";
         };
     }
 }

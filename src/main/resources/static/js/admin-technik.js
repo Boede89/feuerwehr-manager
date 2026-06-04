@@ -18,17 +18,21 @@
 
   var tabBar = document.getElementById('vehicle-detail-tabs');
   if (tabBar) {
+    function showVehicleTab(tab) {
+      tabBar.querySelectorAll('[data-vehicle-tab]').forEach(function (b) {
+        b.classList.toggle('tab-btn--active', b.getAttribute('data-vehicle-tab') === tab);
+      });
+      document.querySelectorAll('.vehicle-tab-panel').forEach(function (panel) {
+        panel.hidden = true;
+      });
+      var panel = document.getElementById('tab-vehicle-' + tab);
+      if (panel) panel.hidden = false;
+    }
+    var initial = tabBar.getAttribute('data-active-tab') || 'uebersicht';
+    showVehicleTab(initial);
     tabBar.querySelectorAll('[data-vehicle-tab]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        var tab = btn.getAttribute('data-vehicle-tab');
-        tabBar.querySelectorAll('[data-vehicle-tab]').forEach(function (b) {
-          b.classList.toggle('tab-btn--active', b === btn);
-        });
-        document.querySelectorAll('.vehicle-tab-panel').forEach(function (panel) {
-          panel.style.display = 'none';
-        });
-        var panel = document.getElementById('tab-vehicle-' + tab);
-        if (panel) panel.style.display = '';
+        showVehicleTab(btn.getAttribute('data-vehicle-tab'));
       });
     });
   }

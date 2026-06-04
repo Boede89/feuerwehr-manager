@@ -7,6 +7,8 @@ import de.feuerwehr.manager.settings.AppModule;
 import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.technik.Vehicle;
 import de.feuerwehr.manager.technik.VehicleEquipment;
+import de.feuerwehr.manager.technik.VehicleServiceStatus;
+import de.feuerwehr.manager.technik.VehicleTypes;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitAdminService;
 import de.feuerwehr.manager.unit.UnitCalendarAccount;
@@ -85,7 +87,8 @@ public class AdminUnitViewService {
     public void populateTechnik(Model model, long unitId) {
         List<Vehicle> vehicles = unitAdminService.listVehicles(unitId);
         model.addAttribute("vehicles", vehicles);
-        model.addAttribute("rooms", unitAdminService.listRooms(unitId));
+        model.addAttribute("vehicleTypeLabels", VehicleTypes.labels());
+        model.addAttribute("serviceStatusLabels", VehicleServiceStatus.labels());
         model.addAttribute("equipmentCountByVehicleId", unitAdminService.equipmentCountByVehicleId(unitId));
         Long resolvedVehicleId = null;
         Object param = model.getAttribute("selectedVehicleId");
@@ -104,6 +107,8 @@ public class AdminUnitViewService {
                     });
             model.addAttribute("equipmentCategories", unitAdminService.listEquipmentCategories(selectedVehicleId));
             model.addAttribute("equipmentItems", unitAdminService.listEquipment(selectedVehicleId));
+        } else {
+            model.addAttribute("rooms", unitAdminService.listRooms(unitId));
         }
     }
 

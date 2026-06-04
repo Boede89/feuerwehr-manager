@@ -74,15 +74,6 @@
     });
   });
 
-  document.querySelectorAll('[data-open-modal="modal-vehicle-edit"]').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      document.getElementById('edit-vehicle-id').value = btn.getAttribute('data-id') || '';
-      document.getElementById('edit-vehicle-name').value = btn.getAttribute('data-name') || '';
-      document.getElementById('edit-vehicle-desc').value = btn.getAttribute('data-desc') || '';
-      document.getElementById('edit-vehicle-active').checked = btn.getAttribute('data-active') === 'true';
-    });
-  });
-
   document.querySelectorAll('[data-open-modal="modal-room-edit"]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       document.getElementById('edit-room-id').value = btn.getAttribute('data-id') || '';

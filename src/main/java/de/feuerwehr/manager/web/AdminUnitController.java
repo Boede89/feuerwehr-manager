@@ -1,6 +1,8 @@
 package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.personal.PersonalService;
+import de.feuerwehr.manager.technik.VehicleFormData;
+import java.math.BigDecimal;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitAdminService;
@@ -249,11 +251,44 @@ public class AdminUnitController {
             @RequestParam long unit,
             @RequestParam String name,
             @RequestParam(required = false) String description,
+            @RequestParam(required = false) String vehicleType,
+            @RequestParam(required = false) String licensePlate,
+            @RequestParam(required = false) Integer yearBuilt,
+            @RequestParam(required = false) String phone,
+            @RequestParam(required = false) String lengthM,
+            @RequestParam(required = false) String widthM,
+            @RequestParam(required = false) String heightM,
+            @RequestParam(required = false) Integer weightKg,
+            @RequestParam(required = false) String serviceStatus,
+            @RequestParam(required = false) String notes,
             RedirectAttributes redirectAttributes) {
-        return withUnit(actor, unit, redirectAttributes, "technik", () -> {
-            unitAdminService.createVehicle(unit, name, description);
+        try {
+            unitService
+                    .resolveActiveUnit(unit, actor)
+                    .orElseThrow(() -> new IllegalArgumentException("Keine gültige Einheit."));
+            long newId = unitAdminService
+                    .createVehicle(
+                            unit,
+                            toVehicleForm(
+                                    name,
+                                    description,
+                                    vehicleType,
+                                    licensePlate,
+                                    yearBuilt,
+                                    phone,
+                                    lengthM,
+                                    widthM,
+                                    heightM,
+                                    weightKg,
+                                    serviceStatus,
+                                    notes))
+                    .getId();
             redirectAttributes.addFlashAttribute("message", "Fahrzeug angelegt.");
-        });
+            return "redirect:/admin?scope=einheit&tab=technik&unit=" + unit + "&vehicle=" + newId;
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return "redirect:/admin?scope=einheit&tab=technik&unit=" + unit;
+        }
     }
 
     @PostMapping("/vehicles/update")
@@ -263,7 +298,16 @@ public class AdminUnitController {
             @RequestParam long vehicleId,
             @RequestParam String name,
             @RequestParam(required = false) String description,
-            @RequestParam(required = false) String active,
+            @RequestParam(required = false) String vehicleType,
+            @RequestParam(required = false) String licensePlate,
+            @RequestParam(required = false) Integer yearBuilt,
+            @RequestParam(required = false) String phone,
+            @RequestParam(required = false) String lengthM,
+            @RequestParam(required = false) String widthM,
+            @RequestParam(required = false) String heightM,
+            @RequestParam(required = false) Integer weightKg,
+            @RequestParam(required = false) String serviceStatus,
+            @RequestParam(required = false) String notes,
             RedirectAttributes redirectAttributes) {
         return withUnit(
                 actor,
@@ -271,7 +315,22 @@ public class AdminUnitController {
                 redirectAttributes,
                 "technik",
                 () -> {
-                    unitAdminService.updateVehicle(unit, vehicleId, name, description, "true".equalsIgnoreCase(active));
+                    unitAdminService.updateVehicle(
+                            unit,
+                            vehicleId,
+                            toVehicleForm(
+                                    name,
+                                    description,
+                                    vehicleType,
+                                    licensePlate,
+                                    yearBuilt,
+                                    phone,
+                                    lengthM,
+                                    widthM,
+                                    heightM,
+                                    weightKg,
+                                    serviceStatus,
+                                    notes));
                     redirectAttributes.addFlashAttribute("message", "Fahrzeug gespeichert.");
                 },
                 "vehicle=" + vehicleId);
@@ -484,6 +543,41 @@ public class AdminUnitController {
             url += "&" + extraQuery;
         }
         return url;
+    }
+
+    private static VehicleFormData toVehicleForm(
+            String name,
+            String description,
+            String vehicleType,
+            String licensePlate,
+            Integer yearBuilt,
+            String phone,
+            String lengthM,
+            String widthM,
+            String heightM,
+            Integer weightKg,
+            String serviceStatus,
+            String notes) {
+        return new VehicleFormData(
+                name,
+                description,
+                vehicleType,
+                licensePlate,
+                yearBuilt,
+                phone,
+                parseDecimal(lengthM),
+                parseDecimal(widthM),
+                parseDecimal(heightM),
+                weightKg,
+                serviceStatus,
+                notes);
+    }
+
+    private static BigDecimal parseDecimal(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return new BigDecimal(value.trim().replace(',', '.'));
     }
 
     private static List<String> permissionList(String[] permissions) {
