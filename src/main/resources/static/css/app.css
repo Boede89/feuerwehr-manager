@@ -1371,6 +1371,10 @@ select.field {
   margin-bottom: 1.25rem;
 }
 
+.my-area-contact-hint {
+  margin: 0.5rem 0 0;
+}
+
 .emergency-contacts-hint {
   margin-bottom: 1rem;
 }
