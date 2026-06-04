@@ -29,6 +29,7 @@ public class UserManagementService {
     private final SecurityProperties securityProperties;
     private final AccessControlService accessControlService;
     private final PersonUserLinkService personUserLinkService;
+    private final UserService userService;
 
     public List<User> listAccounts(AppUserDetails actor) {
         return listAccounts(actor, null);
@@ -255,6 +256,26 @@ public class UserManagementService {
                 request,
                 "RFID-Karte registriert");
         return saved;
+    }
+
+    @Transactional
+    public void deleteUserByAdmin(long userId, AppUserDetails actor, HttpServletRequest request) {
+        if (actor.getUserId().equals(userId)) {
+            throw new IllegalArgumentException("Sie können sich nicht selbst löschen.");
+        }
+        User target = userRepository.findByIdWithUnit(userId).orElseThrow();
+        if (target.getAnonymizedAt() != null) {
+            throw new IllegalArgumentException("Konto wurde bereits gelöscht.");
+        }
+        accessControlService.requireCanManageUser(actor, target);
+        if (target.getRole() == UserRole.SUPER_ADMIN && target.isActive()) {
+            long supers = userRepository.countByRoleAndActiveTrueAndAnonymizedAtIsNull(UserRole.SUPER_ADMIN);
+            if (supers <= 1) {
+                throw new IllegalArgumentException("Der letzte aktive Superadmin kann nicht gelöscht werden.");
+            }
+        }
+        userService.anonymizeUser(userId);
+        auditService.record(AuditEventType.USER_ANONYMIZED, actor.getUserId(), userId, request, null);
     }
 
     @Transactional

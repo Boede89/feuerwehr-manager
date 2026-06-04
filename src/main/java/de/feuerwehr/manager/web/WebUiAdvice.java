@@ -44,6 +44,11 @@ public class WebUiAdvice {
         return globalSettingsService.get().getLogoBase64();
     }
 
+    @ModelAttribute("currentUserId")
+    public Long currentUserId(@AuthenticationPrincipal AppUserDetails user) {
+        return user != null ? user.getUserId() : null;
+    }
+
     @ModelAttribute("isSuperAdmin")
     public boolean isSuperAdmin(@AuthenticationPrincipal AppUserDetails user) {
         return user != null && user.getRole().isSuperAdmin();

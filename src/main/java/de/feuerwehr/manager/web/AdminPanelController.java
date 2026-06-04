@@ -289,6 +289,24 @@ public class AdminPanelController {
         return redirectAfterUser(scope, unitId, actor);
     }
 
+    @PostMapping("/users/{id}/delete")
+    public String deleteUser(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @RequestParam(name = "scope") String scope,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            HttpServletRequest request,
+            RedirectAttributes redirectAttributes) {
+        try {
+            userManagementService.deleteUserByAdmin(id, actor, request);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "Benutzerkonto wurde gelöscht.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return redirectAfterUser(scope, unitId, actor);
+    }
+
     @GetMapping("/users/{id}/export")
     public ResponseEntity<byte[]> exportUser(
             @AuthenticationPrincipal AppUserDetails actor, @PathVariable long id) throws Exception {
