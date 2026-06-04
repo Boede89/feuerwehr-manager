@@ -1626,10 +1626,63 @@ select.field {
 }
 
 .settings-subheading {
-  margin: 0;
+  margin: 0 0 16px;
   font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text);
+}
+
+/* Einstellungen — volle Seitenbreite wie FW-Hub, einheitliche Feldhöhen */
+.settings-page .card {
+  width: 100%;
+  max-width: none;
+}
+
+.settings-page .settings-form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  align-items: start;
+  width: 100%;
+}
+
+.settings-page .settings-form-grid--password {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+  .settings-page .settings-form-grid--password {
+    grid-template-columns: 1fr;
+  }
+}
+
+.settings-page .settings-form-grid .form-group--full {
+  grid-column: 1 / -1;
+}
+
+.settings-page .settings-form-grid .form-group:not(:has(> .hint))::after {
+  display: none;
+}
+
+.settings-page .settings-form-grid .form-group input[type="text"],
+.settings-page .settings-form-grid .form-group input[type="password"],
+.settings-page .settings-form-grid .form-group input[type="email"] {
+  min-height: var(--touch);
+  height: var(--touch);
+  box-sizing: border-box;
+}
+
+.settings-page .settings-form-grid .form-group .field--disabled {
+  min-height: var(--touch);
+  height: var(--touch);
+}
+
+.settings-page .settings-actions {
+  margin-top: 16px;
+}
+
+.settings-page .settings-divider {
+  margin: 20px 0;
 }
 
 .emergency-contacts-hint {
