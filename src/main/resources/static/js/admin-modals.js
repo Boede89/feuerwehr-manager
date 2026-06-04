@@ -148,4 +148,22 @@
   });
 
   initUnitRoleHandlers();
+
+  function initTestModeToggle() {
+    const form = document.getElementById('testmode-toggle-form');
+    const checkbox = document.getElementById('testmode-toggle-checkbox');
+    const hidden = document.getElementById('testmode-enabled-param');
+    if (!form || !checkbox || !hidden) return;
+
+    checkbox.addEventListener('change', () => {
+      hidden.value = checkbox.checked ? 'true' : 'false';
+      if (typeof form.requestSubmit === 'function') {
+        form.requestSubmit();
+      } else {
+        setTimeout(() => form.submit(), 0);
+      }
+    });
+  }
+
+  initTestModeToggle();
 })();

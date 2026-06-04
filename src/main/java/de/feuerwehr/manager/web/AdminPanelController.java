@@ -304,20 +304,27 @@ public class AdminPanelController {
     @PostMapping("/test-mode")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public String setTestMode(
-            @RequestParam(name = "enabled", defaultValue = "false") boolean enabled,
+            @RequestParam(name = "enabled", defaultValue = "false") String enabled,
             @RequestParam(name = "scope", defaultValue = "einheit") String scope,
-            @RequestParam(name = "tab", defaultValue = "benutzer") String tab,
+            @RequestParam(name = "tab", defaultValue = "schnittstellen") String tab,
             @RequestParam(name = "unit", required = false) Long unitId,
             RedirectAttributes redirectAttributes) {
-        if (enabled) {
-            testModeService.enable();
-            redirectAttributes.addFlashAttribute("saved", true);
-            redirectAttributes.addFlashAttribute(
-                    "message", "Testmodus ist aktiv. Neue und geänderte Fachdaten gelten nur als Testdaten.");
-        } else {
-            testModeService.disable();
-            redirectAttributes.addFlashAttribute("saved", true);
-            redirectAttributes.addFlashAttribute("message", "Testmodus beendet. Alle Teständerungen wurden verworfen.");
+        boolean turnOn = "true".equalsIgnoreCase(enabled) || "on".equalsIgnoreCase(enabled) || "1".equals(enabled);
+        try {
+            if (turnOn) {
+                testModeService.enable();
+                redirectAttributes.addFlashAttribute("saved", true);
+                redirectAttributes.addFlashAttribute(
+                        "message",
+                        "Testmodus ist aktiv. Neue und geänderte Fachdaten gelten nur als Testdaten.");
+            } else {
+                testModeService.disable();
+                redirectAttributes.addFlashAttribute("saved", true);
+                redirectAttributes.addFlashAttribute(
+                        "message", "Testmodus beendet. Alle Teständerungen wurden verworfen.");
+            }
+        } catch (RuntimeException e) {
+            redirectAttributes.addFlashAttribute("error", "Testmodus konnte nicht umgeschaltet werden: " + e.getMessage());
         }
         return buildAdminRedirect(scope, tab, unitId);
     }

@@ -40,7 +40,7 @@ public class TestModeService {
     public void enable() {
         ApplicationSettings settings = settings();
         settings.setTestModeEnabled(true);
-        settingsRepository.save(settings);
+        settingsRepository.saveAndFlush(settings);
     }
 
     @Transactional
@@ -48,7 +48,7 @@ public class TestModeService {
         purgeAllTestData();
         ApplicationSettings settings = settings();
         settings.setTestModeEnabled(false);
-        settingsRepository.save(settings);
+        settingsRepository.saveAndFlush(settings);
     }
 
     @Transactional
@@ -70,6 +70,15 @@ public class TestModeService {
     private ApplicationSettings settings() {
         return settingsRepository
                 .findById(ApplicationSettings.SINGLETON_ID)
-                .orElseThrow(() -> new IllegalStateException("Anwendungseinstellungen fehlen"));
+                .orElseGet(this::createDefaultSettings);
+    }
+
+    private ApplicationSettings createDefaultSettings() {
+        ApplicationSettings settings = new ApplicationSettings();
+        settings.setId(ApplicationSettings.SINGLETON_ID);
+        settings.setTestModeEnabled(false);
+        settings.setSmtpPort(587);
+        settings.setSmtpEncryption("TLS");
+        return settingsRepository.save(settings);
     }
 }
