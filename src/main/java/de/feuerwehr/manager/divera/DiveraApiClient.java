@@ -16,11 +16,8 @@ import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
 
 /**
- * Divera 24/7 REST – entspricht dem bisherigen Abruf {@code GET /api/v2/alarms?accesskey=…}
- * (vgl. {@code fetch_divera_alarms} in der PHP-Anwendung).
- *
- * <p>Im Testmodus: {@code GET /api/v2/alarms/list} ohne {@code closed=0}, damit auch geschlossene
- * Einsätze geliefert werden (vgl. DIVERA OpenAPI).
+ * Divera 24/7 REST – {@code GET /api/v2/alarms?accesskey=…} (nicht archivierte Alarme).
+ * Geschlossene Einsätze werden in {@link DiveraService} nur im Produktivbetrieb ausgeblendet.
  */
 @Service
 public class DiveraApiClient {
@@ -36,15 +33,8 @@ public class DiveraApiClient {
         this.restClient = RestClient.builder().requestFactory(rf).build();
     }
 
-    /** Nur nicht geschlossene, nicht archivierte Alarme (Produktivbetrieb). */
-    public DiveraAlarmsResponse fetchOpenAlarms(String apiBaseUrl, String accessKey) {
-        return fetchAlarms(apiBaseUrl, accessKey, false);
-    }
-
-    /**
-     * @param includeClosedAlarms {@code true} im Testmodus: auch geschlossene Einsätze über {@code /alarms/list}
-     */
-    public DiveraAlarmsResponse fetchAlarms(String apiBaseUrl, String accessKey, boolean includeClosedAlarms) {
+    /** Alle nicht archivierten Alarme von DIVERA (offen und geschlossen). */
+    public DiveraAlarmsResponse fetchAlarms(String apiBaseUrl, String accessKey) {
         String key = accessKey == null ? "" : accessKey.trim().replaceAll("[\\r\\n\\t\\v]+", "");
         if (key.isEmpty()) {
             return DiveraAlarmsResponse.fail("Divera Access Key fehlt (in den Einheitseinstellungen hinterlegen)");
@@ -53,7 +43,7 @@ public class DiveraApiClient {
         if (base.isEmpty()) {
             base = "https://app.divera247.com";
         }
-        URI uri = includeClosedAlarms ? buildListUri(base, key) : buildActiveUri(base, key);
+        URI uri = buildAlarmsUri(base, key);
 
         try {
             String raw = restClient.get().uri(uri).retrieve().body(String.class);
@@ -75,17 +65,8 @@ public class DiveraApiClient {
         }
     }
 
-    private static URI buildActiveUri(String base, String key) {
+    private static URI buildAlarmsUri(String base, String key) {
         return UriComponentsBuilder.fromUriString(base + "/api/v2/alarms")
-                .queryParam("accesskey", key)
-                .encode(StandardCharsets.UTF_8)
-                .build()
-                .toUri();
-    }
-
-    /** Ohne {@code closed=0}: offene und geschlossene, nicht archivierte Alarme. */
-    private static URI buildListUri(String base, String key) {
-        return UriComponentsBuilder.fromUriString(base + "/api/v2/alarms/list")
                 .queryParam("accesskey", key)
                 .encode(StandardCharsets.UTF_8)
                 .build()
