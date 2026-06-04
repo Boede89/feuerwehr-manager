@@ -329,7 +329,7 @@ public class UnitAdminService {
 
     @Transactional(readOnly = true)
     public List<VehicleEquipment> listEquipment(long vehicleId) {
-        return equipmentRepository.findByVehicleIdOrderBySortOrderAscNameAsc(vehicleId);
+        return equipmentRepository.findByVehicleIdWithCategoryOrderBySortOrderAscNameAsc(vehicleId);
     }
 
     @Transactional(readOnly = true)

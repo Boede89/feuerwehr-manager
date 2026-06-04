@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 
 @Service
@@ -85,6 +86,7 @@ public class AdminUnitViewService {
         model.addAttribute("moduleDefs", Arrays.asList(AppModule.values()));
     }
 
+    @Transactional(readOnly = true)
     public void populateTechnik(Model model, long unitId) {
         unitVehicleTypeService.ensureDefaults(unitId);
         List<Vehicle> vehicles = unitAdminService.listVehicles(unitId);
@@ -93,26 +95,34 @@ public class AdminUnitViewService {
         model.addAttribute("vehicleTypeLabels", unitVehicleTypeService.labelsMap(unitId));
         model.addAttribute("serviceStatusLabels", VehicleServiceStatus.labels());
         model.addAttribute("equipmentCountByVehicleId", unitAdminService.equipmentCountByVehicleId(unitId));
-        Long resolvedVehicleId = null;
-        Object param = model.getAttribute("selectedVehicleId");
-        if (param instanceof Long id) {
-            resolvedVehicleId = id;
-        }
-        final Long selectedVehicleId = resolvedVehicleId;
+        Long selectedVehicleId = resolveSelectedVehicleId(model.getAttribute("selectedVehicleId"));
         model.addAttribute("selectedVehicleId", selectedVehicleId);
         if (selectedVehicleId != null) {
-            vehicles.stream()
+            Optional<Vehicle> selected = vehicles.stream()
                     .filter(v -> v.getId().equals(selectedVehicleId))
-                    .findFirst()
-                    .ifPresent(v -> {
-                        model.addAttribute("selectedVehicle", v);
-                        model.addAttribute("selectedVehicleName", v.getName());
-                    });
-            model.addAttribute("equipmentCategories", unitAdminService.listEquipmentCategories(selectedVehicleId));
-            model.addAttribute("equipmentItems", unitAdminService.listEquipment(selectedVehicleId));
+                    .findFirst();
+            if (selected.isPresent()) {
+                Vehicle v = selected.get();
+                model.addAttribute("selectedVehicle", v);
+                model.addAttribute("selectedVehicleName", v.getName());
+                model.addAttribute("equipmentCategories", unitAdminService.listEquipmentCategories(selectedVehicleId));
+                model.addAttribute("equipmentItems", unitAdminService.listEquipment(selectedVehicleId));
+            } else {
+                model.addAttribute("vehicleNotFound", true);
+            }
         } else {
             model.addAttribute("rooms", unitAdminService.listRooms(unitId));
         }
+    }
+
+    private static Long resolveSelectedVehicleId(Object param) {
+        if (param instanceof Long id) {
+            return id;
+        }
+        if (param instanceof Number number) {
+            return number.longValue();
+        }
+        return null;
     }
 
     public void populateAusbildung(Model model, long unitId) {

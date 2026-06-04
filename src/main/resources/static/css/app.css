@@ -414,9 +414,15 @@ button, input, select, textarea {
   border-bottom-color: var(--accent, var(--rot));
 }
 
-/* Nur JS-Tabs (z. B. Personendetail): inaktive Panels ausblenden */
-.tab-panel:not(.active) { display: none; }
-.tab-panel.active { display: block; }
+/* Nur JS-Tabs (z. B. Personendetail, Fahrzeug-Detail): inaktive Panels ausblenden */
+.tab-panel:not(.active),
+.vehicle-tab-panel:not(.active) {
+  display: none;
+}
+.tab-panel.active,
+.vehicle-tab-panel.active {
+  display: block;
+}
 
 .admin-panel { display: block; }
 
