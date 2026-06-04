@@ -6,7 +6,9 @@ import de.feuerwehr.manager.personal.QualificationType;
 import de.feuerwehr.manager.settings.AppModule;
 import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.technik.EquipmentRow;
+import de.feuerwehr.manager.technik.ChecklistInterval;
 import de.feuerwehr.manager.technik.Vehicle;
+import de.feuerwehr.manager.technik.VehicleChecklistService;
 import de.feuerwehr.manager.technik.VehicleEquipment;
 import de.feuerwehr.manager.technik.VehicleServiceStatus;
 import de.feuerwehr.manager.technik.UnitVehicleTypeService;
@@ -44,6 +46,7 @@ public class AdminUnitViewService {
     private final ModuleSettingsService moduleSettingsService;
     private final PersonalService personalService;
     private final UnitVehicleTypeService unitVehicleTypeService;
+    private final VehicleChecklistService vehicleChecklistService;
 
     public void populateKonfiguration(Model model, Unit unit) {
         model.addAttribute("unit", unit);
@@ -112,6 +115,19 @@ public class AdminUnitViewService {
                         unitAdminService.listEquipment(selectedVehicleId).stream()
                                 .map(AdminUnitViewService::toEquipmentRow)
                                 .collect(Collectors.toList()));
+                model.addAttribute("checklistIntervalOptions", ChecklistInterval.options());
+                model.addAttribute(
+                        "checklistTemplates",
+                        vehicleChecklistService.listTemplates(unitId, selectedVehicleId));
+                model.addAttribute(
+                        "checklistHistory",
+                        vehicleChecklistService.listHistory(unitId, selectedVehicleId));
+                Long checklistViewId = resolveSelectedVehicleId(model.getAttribute("checklistViewId"));
+                if (checklistViewId != null) {
+                    vehicleChecklistService
+                            .getDetail(unitId, selectedVehicleId, checklistViewId)
+                            .ifPresent(d -> model.addAttribute("checklistDetail", d));
+                }
             } else {
                 model.addAttribute("vehicleNotFound", true);
             }

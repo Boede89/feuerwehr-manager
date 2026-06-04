@@ -68,6 +68,7 @@ public class AdminPanelController {
             @RequestParam(name = "tab", required = false) String tab,
             @RequestParam(name = "vehicle", required = false) Long selectedVehicleId,
             @RequestParam(name = "vt", required = false) String vehicleSubTab,
+            @RequestParam(name = "checklist", required = false) Long checklistViewId,
             Model model) {
         boolean superAdmin = actor.getRole().isSuperAdmin();
         if (!superAdmin) {
@@ -135,6 +136,9 @@ public class AdminPanelController {
                     model.addAttribute("selectedVehicleId", selectedVehicleId);
                 }
                 model.addAttribute("vehicleSubTab", normalizeVehicleSubTab(vehicleSubTab));
+                if (checklistViewId != null) {
+                    model.addAttribute("checklistViewId", checklistViewId);
+                }
                 unitVehicleTypeService.ensureDefaults(resolvedId);
                 adminUnitViewService.populateTechnik(model, resolvedId);
             }

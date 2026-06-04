@@ -80,5 +80,116 @@
         if (sel) sel.value = catId;
       });
     });
+
+    var tplItemsWrap = document.getElementById('tpl-items-wrap');
+    var btnAddTplItem = document.getElementById('btn-add-tpl-item');
+    var formChecklistTemplate = document.getElementById('form-checklist-template');
+
+    function addTemplateItemRow(focus) {
+      if (!tplItemsWrap) return;
+      var idx = tplItemsWrap.children.length;
+      var div = document.createElement('div');
+      div.className = 'tpl-item-row';
+      div.innerHTML =
+        '<input type="text" name="itemLabel" class="tpl-item-input field" maxlength="200" ' +
+        'placeholder="Prüfpunkt ' + (idx + 1) + '" />' +
+        '<button type="button" class="tpl-item-remove" title="Entfernen" aria-label="Entfernen">✕</button>';
+      div.querySelector('.tpl-item-remove').addEventListener('click', function () {
+        div.remove();
+      });
+      tplItemsWrap.appendChild(div);
+      if (focus) div.querySelector('input').focus();
+    }
+
+    function resetTemplateModal() {
+      var nameEl = document.getElementById('tpl-name');
+      var intervalEl = document.getElementById('tpl-interval');
+      if (nameEl) nameEl.value = '';
+      if (intervalEl) intervalEl.value = 'manuell';
+      if (tplItemsWrap) {
+        tplItemsWrap.innerHTML = '';
+        addTemplateItemRow(false);
+      }
+    }
+
+    document.querySelectorAll('[data-open-modal="modal-checklist-template"]').forEach(function (btn) {
+      btn.addEventListener('click', resetTemplateModal);
+    });
+
+    if (btnAddTplItem) {
+      btnAddTplItem.addEventListener('click', function () {
+        addTemplateItemRow(true);
+      });
+    }
+
+    if (formChecklistTemplate) {
+      formChecklistTemplate.addEventListener('submit', function (e) {
+        var labels = formChecklistTemplate.querySelectorAll('input[name="itemLabel"]');
+        var any = false;
+        labels.forEach(function (inp) {
+          if (inp.value.trim()) any = true;
+        });
+        if (!any) {
+          e.preventDefault();
+          window.alert('Mindestens einen Prüfpunkt eingeben.');
+        }
+      });
+    }
+
+    function escHtml(s) {
+      var d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    document.querySelectorAll('.btn-fill-checklist').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var templateId = btn.getAttribute('data-template-id');
+        var templateName = btn.getAttribute('data-template-name') || 'Checkliste';
+        var itemsJson = btn.getAttribute('data-items-json') || '[]';
+        var items;
+        try {
+          items = JSON.parse(itemsJson);
+        } catch (err) {
+          items = [];
+        }
+        document.getElementById('fill-template-id').value = templateId || '';
+        document.getElementById('modal-fill-title').textContent = templateName + ' ausfüllen';
+        document.getElementById('fill-notes').value = '';
+        document.getElementById('fill-notes').disabled = false;
+
+        var wrap = document.getElementById('fill-items-wrap');
+        wrap.innerHTML = items
+          .map(function (item, i) {
+            return (
+              '<div class="fill-item">' +
+              '<div class="fill-item__label">' + escHtml(item.label || '') + '</div>' +
+              '<div class="fill-item__radios">' +
+              '<input type="hidden" name="itemId" value="' + escHtml(String(item.id)) + '"/>' +
+              '<label class="fill-radio-label text-success">' +
+              '<input type="radio" name="result" value="ok"' + (i === 0 ? '' : '') + ' checked /> OK</label>' +
+              '<label class="fill-radio-label text-danger">' +
+              '<input type="radio" name="result" value="mangel" /> Mangel</label>' +
+              '<label class="fill-radio-label text-muted">' +
+              '<input type="radio" name="result" value="nicht_geprueft" /> Nicht geprüft</label>' +
+              '<input type="text" name="itemNote" class="field field--sm" maxlength="300" placeholder="Notiz…"/>' +
+              '</div></div>'
+            );
+          })
+          .join('');
+
+        var overlay = document.getElementById('modal-checklist-fill');
+        if (overlay) {
+          overlay.classList.add('active');
+          document.body.classList.add('modal-open');
+        }
+      });
+    });
+
+    var detailModal = document.getElementById('modal-checklist-detail');
+    if (detailModal) {
+      detailModal.classList.add('active');
+      document.body.classList.add('modal-open');
+    }
   });
 })();

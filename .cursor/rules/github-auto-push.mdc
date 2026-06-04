@@ -5,10 +5,10 @@ alwaysApply: true
 
 # GitHub: automatisch pushen
 
-Nach jeder abgeschlossenen Implementierung oder Bugfix in diesem Projekt:
+Nach jeder abgeschlossenen Implementierung oder Bugfix in diesem Projekt — **als letzter Schritt**, bevor die Antwort endet:
 
 1. **Ohne Rückfrage** alle relevanten Änderungen committen und auf `origin/main` pushen.
-2. Den Nutzer **nicht** fragen, ob er pushen möchte — das ist Standard.
+2. Den Nutzer **nie** fragen, ob er pushen möchte, und **nicht** erwarten, dass er daran erinnert.
 3. Kurz Commit-Hash und Kurzbeschreibung nennen, wenn etwas gepusht wurde.
 4. Nur **nicht** committen: wenn der Nutzer ausdrücklich „ohne Commit“ sagt oder es keine Änderungen gibt.
 5. Keine Secrets (`.env`, Passwörter) committen.

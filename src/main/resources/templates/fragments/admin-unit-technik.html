@@ -259,7 +259,11 @@
       <div class="card">
         <div class="card__header card__header--toolbar">
           <span>Beladung &amp; Ausrüstung</span>
-          <button type="button" class="btn btn--primary btn--sm" data-open-modal="modal-equipment-new">+ Gerät</button>
+          <div class="btn-group">
+            <button type="button" class="btn btn--outline btn--sm" data-open-modal="modal-equipment-categories"
+                    title="Gerätekategorien verwalten">⚙ Kategorien</button>
+            <button type="button" class="btn btn--primary btn--sm" data-open-modal="modal-equipment-new">+ Gerät</button>
+          </div>
         </div>
         <div class="card__body card__body--flush">
           <div class="table-wrapper" th:if="${equipmentRows != null and !#lists.isEmpty(equipmentRows)}">
@@ -298,42 +302,6 @@
         </div>
       </div>
 
-      <details class="card mt-md">
-        <summary class="card__header summary-clickable">Kategorien</summary>
-        <div class="card__body">
-          <form method="post" th:action="@{/admin/unit/equipment/categories}" class="form-grid">
-            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-            <input type="hidden" name="unit" th:value="${unitId}"/>
-            <input type="hidden" name="vehicleId" th:value="${selectedVehicleId}"/>
-            <div class="form-group">
-              <label for="newCategoryName">Neue Kategorie</label>
-              <input id="newCategoryName" name="name" type="text" required maxlength="255"/>
-            </div>
-            <div class="form-group form-group--submit">
-              <button type="submit" class="btn btn--outline btn--sm">Hinzufügen</button>
-            </div>
-          </form>
-          <div class="table-wrapper mt-sm" th:if="${!#lists.isEmpty(equipmentCategories)}">
-            <table class="table">
-              <thead><tr><th>Kategorie</th><th></th></tr></thead>
-              <tbody>
-              <tr th:each="cat : ${equipmentCategories}">
-                <td th:text="${cat.name}">Kategorie</td>
-                <td>
-                  <form method="post" th:action="@{/admin/unit/equipment/categories/delete}" class="table-inline-form">
-                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-                    <input type="hidden" name="unit" th:value="${unitId}"/>
-                    <input type="hidden" name="vehicleId" th:value="${selectedVehicleId}"/>
-                    <input type="hidden" name="categoryId" th:value="${cat.id}"/>
-                    <button type="submit" class="btn btn--danger btn--sm">Entfernen</button>
-                  </form>
-                </td>
-              </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </details>
     </div>
 
     <div id="tab-vehicle-checklisten" class="vehicle-tab-panel"
@@ -341,17 +309,70 @@
       <div class="form-grid--2 form-grid--align-start">
         <div class="card">
           <div class="card__header card__header--toolbar">
-            <span>Checklisten-Vorlagen</span>
-            <button type="button" class="btn btn--primary btn--sm" disabled title="Folgt in einer späteren Version">+ Vorlage</button>
+            <span>Vorlagen</span>
+            <button type="button" class="btn btn--primary btn--sm" data-open-modal="modal-checklist-template">+ Vorlage</button>
           </div>
-          <div class="card__body">
-            <p class="hint">Checklisten-Vorlagen pro Fahrzeug — wie in FW-Hub — werden hier noch angebunden.</p>
+          <div class="card__body card__body--flush">
+            <th:block th:if="${checklistTemplates != null and !#lists.isEmpty(checklistTemplates)}">
+              <div class="list-row" th:each="tpl : ${checklistTemplates}">
+                <div class="list-row__body">
+                  <div class="list-row__title" th:text="${tpl.name}">Vorlage</div>
+                  <div class="list-row__meta"
+                       th:text="|${tpl.intervalLabel} · ${tpl.itemCount} Punkte|">Manuell · 3 Punkte</div>
+                </div>
+                <div class="list-row__actions">
+                  <button type="button" class="btn btn--primary btn--sm btn-fill-checklist"
+                          th:attr="data-template-id=${tpl.id},
+                                   data-template-name=${tpl.name},
+                                   data-items-json=${tpl.itemsJson}">Ausfüllen</button>
+                  <form method="post" th:action="@{/admin/unit/checklists/templates/delete}" class="table-inline-form"
+                        data-confirm="Vorlage löschen? Alle ausgefüllten Checklisten dieser Vorlage werden ebenfalls gelöscht.">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <input type="hidden" name="unit" th:value="${unitId}"/>
+                    <input type="hidden" name="vehicleId" th:value="${selectedVehicleId}"/>
+                    <input type="hidden" name="templateId" th:value="${tpl.id}"/>
+                    <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
+                  </form>
+                </div>
+              </div>
+            </th:block>
+            <p class="table-empty" th:if="${checklistTemplates == null or #lists.isEmpty(checklistTemplates)}">
+              Keine Vorlagen.
+            </p>
           </div>
         </div>
         <div class="card">
           <div class="card__header"><span>Historie</span></div>
-          <div class="card__body">
-            <p class="hint">Abgeschlossene Checklisten erscheinen später in dieser Übersicht.</p>
+          <div class="card__body card__body--flush">
+            <th:block th:if="${checklistHistory != null and !#lists.isEmpty(checklistHistory)}">
+              <div class="list-row" th:each="cl : ${checklistHistory}">
+                <div class="list-row__body">
+                  <div class="list-row__title" th:text="${cl.templateName}">Vorlage</div>
+                  <div class="list-row__meta">
+                    <span th:text="${#temporals.format(cl.filledAt, 'dd.MM.yyyy HH:mm')}">01.01.2025</span>
+                    <span th:text="' · ' + ${cl.filledName}"> · Name</span>
+                    <span class="text-success" th:text="' · ' + ${cl.okCount} + ' OK'"> · 2 OK</span>
+                    <span class="required" th:if="${cl.mangelCount > 0}"
+                          th:text="' · ' + ${cl.mangelCount} + ' Mängel'"> · 1 Mängel</span>
+                  </div>
+                </div>
+                <div class="list-row__actions">
+                  <a class="btn btn--outline btn--sm"
+                     th:href="@{/admin(scope='einheit', tab='technik', unit=${unitId}, vehicle=${selectedVehicleId}, vt='checklisten', checklist=${cl.id})}">Detail</a>
+                  <form method="post" th:action="@{/admin/unit/checklists/delete}" class="table-inline-form"
+                        data-confirm="Checkliste löschen?">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <input type="hidden" name="unit" th:value="${unitId}"/>
+                    <input type="hidden" name="vehicleId" th:value="${selectedVehicleId}"/>
+                    <input type="hidden" name="checklistId" th:value="${cl.id}"/>
+                    <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
+                  </form>
+                </div>
+              </div>
+            </th:block>
+            <p class="table-empty" th:if="${checklistHistory == null or #lists.isEmpty(checklistHistory)}">
+              Noch keine ausgefüllten Checklisten.
+            </p>
           </div>
         </div>
       </div>
@@ -445,6 +466,55 @@
     </div>
   </div>
 
+  <div id="modal-equipment-categories" class="modal-overlay" th:if="${selectedVehicleId != null}">
+    <div class="modal" role="dialog">
+      <div class="modal__header">
+        <h3>Gerätekategorien verwalten</h3>
+        <button type="button" class="modal__close" data-close-modal>✕</button>
+      </div>
+      <div class="modal__body">
+        <div class="table-wrapper" th:if="${equipmentCategories != null and !#lists.isEmpty(equipmentCategories)}">
+          <table class="table">
+            <thead>
+            <tr><th>Kategorie</th><th></th></tr>
+            </thead>
+            <tbody>
+            <tr th:each="cat : ${equipmentCategories}">
+              <td th:text="${cat.name}">Kategorie</td>
+              <td>
+                <form method="post" th:action="@{/admin/unit/equipment/categories/delete}" class="table-inline-form"
+                      data-confirm="Kategorie wirklich löschen? Zugeordnete Geräte bleiben ohne Kategorie.">
+                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                  <input type="hidden" name="unit" th:value="${unitId}"/>
+                  <input type="hidden" name="vehicleId" th:value="${selectedVehicleId}"/>
+                  <input type="hidden" name="categoryId" th:value="${cat.id}"/>
+                  <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
+                </form>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="hint" th:if="${equipmentCategories == null or #lists.isEmpty(equipmentCategories)}">
+          Noch keine Kategorien. Legen Sie unten die erste Kategorie an.
+        </p>
+        <form method="post" th:action="@{/admin/unit/equipment/categories}" class="types-add-row mt-md">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <input type="hidden" name="unit" th:value="${unitId}"/>
+          <input type="hidden" name="vehicleId" th:value="${selectedVehicleId}"/>
+          <div class="form-group form-group--inline-flex">
+            <label for="newCategoryName">Kategorie</label>
+            <input id="newCategoryName" name="name" type="text" required maxlength="255" placeholder="z. B. Atemschutz"/>
+          </div>
+          <button type="submit" class="btn btn--primary btn--sm" title="Kategorie hinzufügen">+</button>
+        </form>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--outline" data-close-modal>Fertig</button>
+      </div>
+    </div>
+  </div>
+
   <div id="modal-equipment-new" class="modal-overlay" th:if="${selectedVehicleId != null}">
     <div class="modal" role="dialog">
       <div class="modal__header"><h3>Gerät anlegen</h3>
@@ -501,6 +571,99 @@
           <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div id="modal-checklist-template" class="modal-overlay" th:if="${selectedVehicleId != null}">
+    <div class="modal modal--md" role="dialog">
+      <div class="modal__header">
+        <h3>Vorlage anlegen</h3>
+        <button type="button" class="modal__close" data-close-modal>✕</button>
+      </div>
+      <form method="post" th:action="@{/admin/unit/checklists/templates}" id="form-checklist-template">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <input type="hidden" name="vehicleId" th:value="${selectedVehicleId}"/>
+        <div class="modal__body">
+          <div class="form-group">
+            <label for="tpl-name">Name <span class="required">*</span></label>
+            <input id="tpl-name" name="name" type="text" required maxlength="200" placeholder="z. B. Tagesdienstcheck"/>
+          </div>
+          <div class="form-group">
+            <label for="tpl-interval">Turnus</label>
+            <select id="tpl-interval" name="interval">
+              <option th:each="entry : ${checklistIntervalOptions}"
+                      th:value="${entry.key}" th:text="${entry.value}">Manuell</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Prüfpunkte</label>
+            <div id="tpl-items-wrap" class="tpl-items"></div>
+            <button type="button" class="btn btn--outline btn--sm" id="btn-add-tpl-item">+ Punkt hinzufügen</button>
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button type="submit" class="btn btn--primary">Vorlage speichern</button>
+          <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-checklist-fill" class="modal-overlay" th:if="${selectedVehicleId != null}">
+    <div class="modal modal--md" role="dialog">
+      <div class="modal__header">
+        <h3 id="modal-fill-title">Checkliste ausfüllen</h3>
+        <button type="button" class="modal__close" data-close-modal>✕</button>
+      </div>
+      <form method="post" th:action="@{/admin/unit/checklists}" id="form-checklist-fill">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <input type="hidden" name="vehicleId" th:value="${selectedVehicleId}"/>
+        <input type="hidden" name="templateId" id="fill-template-id"/>
+        <div class="modal__body">
+          <div id="fill-items-wrap"></div>
+          <div class="form-group mt-sm">
+            <label for="fill-notes">Gesamtnotiz</label>
+            <textarea id="fill-notes" name="notes" rows="2" maxlength="2000"></textarea>
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button type="submit" class="btn btn--primary" id="btn-submit-fill">Checkliste speichern</button>
+          <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-checklist-detail" class="modal-overlay" th:if="${checklistDetail != null}">
+    <div class="modal modal--md" role="dialog">
+      <div class="modal__header">
+        <h3 th:text="|${checklistDetail.templateName} — Ergebnis|">Checkliste — Ergebnis</h3>
+        <button type="button" class="modal__close" data-close-modal>✕</button>
+      </div>
+      <div class="modal__body">
+        <p class="hint mb-sm">
+          <span th:text="${#temporals.format(checklistDetail.filledAt, 'dd.MM.yyyy HH:mm')}">Datum</span>
+          <span th:text="' · ' + ${checklistDetail.filledName}"> · Name</span>
+        </p>
+        <div class="cl-result-row" th:each="e : ${checklistDetail.entries}">
+          <span class="text-sm" th:text="${e.itemLabel}">Punkt</span>
+          <span class="text-xs fw-semibold text-success" th:if="${e.result == 'ok'}">✓ OK</span>
+          <span class="text-xs fw-semibold text-danger" th:if="${e.result == 'mangel'}">✗ Mangel</span>
+          <span class="text-xs fw-semibold text-muted" th:if="${e.result != 'ok' and e.result != 'mangel'}">– Nicht geprüft</span>
+          <span class="text-muted text-xs" th:if="${e.note != null and !#strings.isEmpty(e.note)}"
+                th:text="' — ' + ${e.note}">Notiz</span>
+        </div>
+        <div class="form-group mt-sm" th:if="${checklistDetail.notes != null and !#strings.isEmpty(checklistDetail.notes)}">
+          <label>Gesamtnotiz</label>
+          <p class="text-sm" th:text="${checklistDetail.notes}">Notiz</p>
+        </div>
+      </div>
+      <div class="modal__footer">
+        <a class="btn btn--outline"
+           th:href="@{/admin(scope='einheit', tab='technik', unit=${unitId}, vehicle=${selectedVehicleId}, vt='checklisten')}">Schließen</a>
+      </div>
     </div>
   </div>
 

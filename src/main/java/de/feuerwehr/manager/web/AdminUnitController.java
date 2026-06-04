@@ -2,6 +2,7 @@ package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.technik.UnitVehicleTypeService;
+import de.feuerwehr.manager.technik.VehicleChecklistService;
 import de.feuerwehr.manager.technik.VehicleFormData;
 import java.math.BigDecimal;
 import de.feuerwehr.manager.security.AppUserDetails;
@@ -38,6 +39,7 @@ public class AdminUnitController {
     private final UnitDiveraSettingsRepository diveraSettingsRepository;
     private final PersonalService personalService;
     private final UnitVehicleTypeService unitVehicleTypeService;
+    private final VehicleChecklistService vehicleChecklistService;
 
     @PostMapping("/config")
     public String saveConfig(
@@ -492,6 +494,98 @@ public class AdminUnitController {
                     redirectAttributes.addFlashAttribute("message", "Gerät registriert.");
                 },
                 "vehicle=" + vehicleId + "&vt=geraete");
+    }
+
+    @PostMapping("/checklists/templates")
+    public String createChecklistTemplate(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam long vehicleId,
+            @RequestParam String name,
+            @RequestParam(required = false, defaultValue = "manuell") String interval,
+            @RequestParam(name = "itemLabel", required = false) List<String> itemLabels,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(
+                actor,
+                unit,
+                redirectAttributes,
+                "technik",
+                () -> {
+                    vehicleChecklistService.createTemplate(
+                            unit, vehicleId, name, interval, itemLabels, actor.getUserId());
+                    redirectAttributes.addFlashAttribute("message", "Vorlage gespeichert.");
+                },
+                "vehicle=" + vehicleId + "&vt=checklisten");
+    }
+
+    @PostMapping("/checklists/templates/delete")
+    public String deleteChecklistTemplate(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam long vehicleId,
+            @RequestParam long templateId,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(
+                actor,
+                unit,
+                redirectAttributes,
+                "technik",
+                () -> {
+                    vehicleChecklistService.deleteTemplate(unit, vehicleId, templateId);
+                    redirectAttributes.addFlashAttribute("message", "Vorlage gelöscht.");
+                },
+                "vehicle=" + vehicleId + "&vt=checklisten");
+    }
+
+    @PostMapping("/checklists")
+    public String createChecklist(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam long vehicleId,
+            @RequestParam long templateId,
+            @RequestParam(required = false) String notes,
+            @RequestParam(name = "itemId", required = false) List<Long> itemIds,
+            @RequestParam(name = "result", required = false) List<String> results,
+            @RequestParam(name = "itemNote", required = false) List<String> itemNotes,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(
+                actor,
+                unit,
+                redirectAttributes,
+                "technik",
+                () -> {
+                    vehicleChecklistService.createChecklist(
+                            unit,
+                            vehicleId,
+                            templateId,
+                            notes,
+                            itemIds,
+                            results,
+                            itemNotes,
+                            actor.getUserId(),
+                            actor.getDisplayName());
+                    redirectAttributes.addFlashAttribute("message", "Checkliste gespeichert.");
+                },
+                "vehicle=" + vehicleId + "&vt=checklisten");
+    }
+
+    @PostMapping("/checklists/delete")
+    public String deleteChecklist(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam long vehicleId,
+            @RequestParam long checklistId,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(
+                actor,
+                unit,
+                redirectAttributes,
+                "technik",
+                () -> {
+                    vehicleChecklistService.deleteChecklist(unit, vehicleId, checklistId);
+                    redirectAttributes.addFlashAttribute("message", "Checkliste gelöscht.");
+                },
+                "vehicle=" + vehicleId + "&vt=checklisten");
     }
 
     @PostMapping("/equipment/delete")
