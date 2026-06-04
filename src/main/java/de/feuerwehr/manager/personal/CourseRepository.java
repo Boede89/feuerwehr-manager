@@ -17,7 +17,13 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
             """)
     List<Course> findActiveByUnitId(@Param("unitId") long unitId, @Param("testData") boolean testData);
 
-    List<Course> findByUnitIdAndTestDataOrderByNameAsc(long unitId, boolean testData);
+    @Query("""
+            SELECT c FROM Course c
+            LEFT JOIN FETCH c.qualificationType
+            WHERE c.unit.id = :unitId AND c.testData = :testData
+            ORDER BY c.name
+            """)
+    List<Course> findByUnitIdAndTestDataOrderByNameAsc(@Param("unitId") long unitId, @Param("testData") boolean testData);
 
     @Query("SELECT c FROM Course c LEFT JOIN FETCH c.qualificationType WHERE c.productionSourceId = :sourceId")
     Optional<Course> findShadowByProductionSourceId(@Param("sourceId") long sourceId);

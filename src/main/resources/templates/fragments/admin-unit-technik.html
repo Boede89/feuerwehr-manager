@@ -160,7 +160,7 @@
       <div class="btn-group vehicle-detail-header__actions">
         <button type="button" class="btn btn--outline btn--sm" data-open-modal="modal-vehicle-edit">Bearbeiten</button>
         <form method="post" th:action="@{/admin/unit/vehicles/delete}" class="table-inline-form"
-              onsubmit="return confirm('Fahrzeug wirklich löschen? Alle Geräte werden mitgelöscht.');">
+              data-confirm="Fahrzeug wirklich löschen? Alle Geräte werden mitgelöscht.">
           <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
           <input type="hidden" name="unit" th:value="${unitId}"/>
           <input type="hidden" name="vehicleId" th:value="${selectedVehicle.id}"/>
@@ -262,7 +262,7 @@
           <button type="button" class="btn btn--primary btn--sm" data-open-modal="modal-equipment-new">+ Gerät</button>
         </div>
         <div class="card__body card__body--flush">
-          <div class="table-wrapper" th:if="${!#lists.isEmpty(equipmentItems)}">
+          <div class="table-wrapper" th:if="${equipmentRows != null and !#lists.isEmpty(equipmentRows)}">
             <table class="table">
               <thead>
               <tr>
@@ -272,20 +272,20 @@
               </tr>
               </thead>
               <tbody>
-              <tr th:each="eq : ${equipmentItems}" class="data-row">
-                <td class="fw-semibold" th:text="${eq.name}">Gerät</td>
-                <td class="text-muted text-sm" th:text="${eq.category != null ? eq.category.name : '—'}">—</td>
+              <tr th:each="row : ${equipmentRows}" class="data-row">
+                <td class="fw-semibold" th:text="${row.name()}">Gerät</td>
+                <td class="text-muted text-sm" th:text="${row.categoryName() != null ? row.categoryName() : '—'}">—</td>
                 <td>
                   <div class="btn-group">
                     <button type="button" class="btn btn--outline btn--sm" data-open-modal="modal-equipment-edit"
-                            th:data-id="${eq.id}" th:data-name="${eq.name}"
-                            th:attr="data-category-id=${eq.category != null ? eq.category.id : ''}">Bearb.</button>
+                            th:data-id="${row.id()}" th:data-name="${row.name()}"
+                            th:attr="data-category-id=${row.categoryId()}">Bearb.</button>
                     <form method="post" th:action="@{/admin/unit/equipment/delete}" class="table-inline-form"
-                          onsubmit="return confirm('Gerät wirklich löschen?');">
+                          data-confirm="Gerät wirklich löschen?">
                       <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
                       <input type="hidden" name="unit" th:value="${unitId}"/>
                       <input type="hidden" name="vehicleId" th:value="${selectedVehicleId}"/>
-                      <input type="hidden" name="equipmentId" th:value="${eq.id}"/>
+                      <input type="hidden" name="equipmentId" th:value="${row.id()}"/>
                       <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
                     </form>
                   </div>
@@ -294,7 +294,7 @@
               </tbody>
             </table>
           </div>
-          <p class="table-empty" th:if="${#lists.isEmpty(equipmentItems)}">Keine Geräte eingetragen.</p>
+          <p class="table-empty" th:if="${equipmentRows == null or #lists.isEmpty(equipmentRows)}">Keine Geräte eingetragen.</p>
         </div>
       </div>
 
@@ -376,7 +376,7 @@
               <td th:text="${t.label}">LKW</td>
               <td>
                 <form method="post" th:action="@{/admin/unit/vehicle-types/delete}" class="table-inline-form"
-                      onsubmit="return confirm('Fahrzeugtyp wirklich löschen?');">
+                      data-confirm="Fahrzeugtyp wirklich löschen?">
                   <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
                   <input type="hidden" name="unit" th:value="${unitId}"/>
                   <input type="hidden" name="typeId" th:value="${t.id}"/>

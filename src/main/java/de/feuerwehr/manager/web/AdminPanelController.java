@@ -7,6 +7,7 @@ import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.unit.UnitRoleService;
+import de.feuerwehr.manager.technik.UnitVehicleTypeService;
 import de.feuerwehr.manager.unit.UnitService;
 import de.feuerwehr.manager.mail.AccountMailService;
 import de.feuerwehr.manager.user.User;
@@ -52,6 +53,7 @@ public class AdminPanelController {
     private final UserManagementService userManagementService;
     private final AdminGlobalViewService adminGlobalViewService;
     private final AdminUnitViewService adminUnitViewService;
+    private final UnitVehicleTypeService unitVehicleTypeService;
     private final ObjectMapper objectMapper;
     private final AccountMailService accountMailService;
     private final UserService userService;
@@ -133,6 +135,7 @@ public class AdminPanelController {
                     model.addAttribute("selectedVehicleId", selectedVehicleId);
                 }
                 model.addAttribute("vehicleSubTab", normalizeVehicleSubTab(vehicleSubTab));
+                unitVehicleTypeService.ensureDefaults(resolvedId);
                 adminUnitViewService.populateTechnik(model, resolvedId);
             }
             case "ausbildung" -> adminUnitViewService.populateAusbildung(model, resolvedId);

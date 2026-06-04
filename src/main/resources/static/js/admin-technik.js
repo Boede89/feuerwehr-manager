@@ -8,6 +8,13 @@
   }
 
   onReady(function () {
+    document.querySelectorAll('form[data-confirm]').forEach(function (form) {
+      form.addEventListener('submit', function (e) {
+        var msg = form.getAttribute('data-confirm');
+        if (msg && !window.confirm(msg)) e.preventDefault();
+      });
+    });
+
     document.querySelectorAll('.vehicle-row').forEach(function (row) {
       row.addEventListener('click', function () {
         var href = row.getAttribute('data-href');

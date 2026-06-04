@@ -5,6 +5,7 @@ import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.personal.QualificationType;
 import de.feuerwehr.manager.settings.AppModule;
 import de.feuerwehr.manager.settings.ModuleSettingsService;
+import de.feuerwehr.manager.technik.EquipmentRow;
 import de.feuerwehr.manager.technik.Vehicle;
 import de.feuerwehr.manager.technik.VehicleEquipment;
 import de.feuerwehr.manager.technik.VehicleServiceStatus;
@@ -26,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -88,7 +90,6 @@ public class AdminUnitViewService {
 
     @Transactional(readOnly = true)
     public void populateTechnik(Model model, long unitId) {
-        unitVehicleTypeService.ensureDefaults(unitId);
         List<Vehicle> vehicles = unitAdminService.listVehicles(unitId);
         model.addAttribute("vehicles", vehicles);
         model.addAttribute("vehicleTypes", unitVehicleTypeService.list(unitId));
@@ -106,7 +107,11 @@ public class AdminUnitViewService {
                 model.addAttribute("selectedVehicle", v);
                 model.addAttribute("selectedVehicleName", v.getName());
                 model.addAttribute("equipmentCategories", unitAdminService.listEquipmentCategories(selectedVehicleId));
-                model.addAttribute("equipmentItems", unitAdminService.listEquipment(selectedVehicleId));
+                model.addAttribute(
+                        "equipmentRows",
+                        unitAdminService.listEquipment(selectedVehicleId).stream()
+                                .map(AdminUnitViewService::toEquipmentRow)
+                                .collect(Collectors.toList()));
             } else {
                 model.addAttribute("vehicleNotFound", true);
             }
@@ -125,11 +130,19 @@ public class AdminUnitViewService {
         return null;
     }
 
+    @Transactional(readOnly = true)
     public void populateAusbildung(Model model, long unitId) {
-        List<QualificationType> types = personalService.listQualificationTypes(unitId, false);
-        List<Course> courses = personalService.listCourses(unitId, false);
-        model.addAttribute("qualificationTypes", types);
-        model.addAttribute("courses", courses);
+        model.addAttribute("qualificationTypes", personalService.listQualificationTypes(unitId, false));
+        model.addAttribute("courses", personalService.listCourses(unitId, false));
+    }
+
+    private static EquipmentRow toEquipmentRow(VehicleEquipment eq) {
+        var cat = eq.getCategory();
+        return new EquipmentRow(
+                eq.getId(),
+                eq.getName(),
+                cat != null ? cat.getId() : null,
+                cat != null ? cat.getName() : null);
     }
 
     private void populateDivera(Model model, long unitId) {
