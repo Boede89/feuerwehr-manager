@@ -8,12 +8,11 @@
       <button type="button" class="btn btn--primary btn--sm" data-open-modal="modal-unit-role">+ Rolle anlegen</button>
     </div>
     <div class="card__body card__body--flush">
-      <p class="hint hint--pad">Dienstgrade und Zusatzfunktionen mit Modul-Berechtigungen (wie FW-Hub).</p>
       <div class="table-wrapper" th:if="${!#lists.isEmpty(unitRoles)}">
         <table class="table">
           <thead>
           <tr>
-            <th>Name</th>
+            <th>Rollenname</th>
             <th>Typ</th>
             <th>Module</th>
             <th>Aktionen</th>
@@ -23,9 +22,12 @@
           <tr th:each="r : ${unitRoles}">
             <td><strong th:text="${r.name}">Rolle</strong></td>
             <td>
-              <span class="badge" th:text="${r.roleType.name() == 'DIENSTGRAD'} ? 'Dienstgrad' : 'Zusatzfunktion'">Typ</span>
+              <span th:class="${r.roleType.name() == 'FUNKTION'} ? 'badge-warning' : 'badge-success'"
+                    th:text="${r.roleType.name() == 'DIENSTGRAD'} ? 'Dienstgrad' : 'Zusatzfunktion'">Typ</span>
             </td>
-            <td class="text-muted text-sm" th:text="${permissionLabelsByRoleId[r.id]}">—</td>
+            <td class="text-sm"
+                th:classappend="${permissionLabelsByRoleId[r.id] == 'keine'} ? ' text-subtle' : ''"
+                th:text="${permissionLabelsByRoleId[r.id]}">—</td>
             <td>
               <div class="btn-group">
                 <button type="button" class="btn btn--outline btn--sm" data-open-modal="modal-unit-role"
@@ -64,21 +66,26 @@
         <div class="modal__body">
           <div class="form-group">
             <label for="unit-role-name">Rollenname</label>
-            <input id="unit-role-name" name="name" type="text" required maxlength="128" placeholder="z. B. Truppführer"/>
+            <input id="unit-role-name" name="name" type="text" required maxlength="128" placeholder="z. B. Truppführer" autocomplete="off"/>
           </div>
           <div class="form-group">
             <label for="unit-role-type">Typ</label>
             <select id="unit-role-type" name="roleType">
-              <option value="DIENSTGRAD">Dienstgrad</option>
-              <option value="FUNKTION">Zusatzfunktion</option>
+              <option value="DIENSTGRAD">Dienstgrad (z. B. Truppführer, Gruppenführer)</option>
+              <option value="FUNKTION">Zusatzfunktion (z. B. Gerätewart, Lagerverwalter)</option>
             </select>
           </div>
-          <p class="hint">Modul-Berechtigungen</p>
-          <div class="perm-check-grid" id="unit-role-perms">
-            <label class="checkbox-row" th:each="entry : ${rolePermissionLabels}">
-              <input type="checkbox" name="permissions" th:value="${entry.key}"/>
-              <span th:text="${entry.value}">Modul</span>
-            </label>
+          <div class="form-group">
+            <label>Module</label>
+            <div class="admin-check-list" id="unit-role-perms">
+              <th:block th:each="mod : ${roleModuleDefs}">
+                <label class="check-label" th:each="level : ${mod.levels()}">
+                  <input type="checkbox" name="permissions"
+                         th:value="${mod.key() + '.' + level.suffix()}"/>
+                  <span th:text="${rolePermissionLabels[mod.key() + '.' + level.suffix()]}">Modul</span>
+                </label>
+              </th:block>
+            </div>
           </div>
         </div>
         <div class="modal__footer">

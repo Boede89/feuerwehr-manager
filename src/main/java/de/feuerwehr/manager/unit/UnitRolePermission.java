@@ -1,37 +1,41 @@
 package de.feuerwehr.manager.unit;
 
+import de.feuerwehr.manager.settings.AppModule;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
-/** Modul-Berechtigungen für Einheits-Rollen (angelehnt an FW-Hub). */
+/** Modul-Berechtigungen für Einheits-Rollen (angelehnt an FW-Hub, Keys wie {@code personal.read}). */
 public final class UnitRolePermission {
 
-    public static final String PERSONAL = "personal";
-    public static final String RESERVIERUNGEN = "reservierungen";
-    public static final String ATEMSCHUTZ = "atemschutz";
-    public static final String BERICHTE = "berichte";
-    public static final String AUSWERTUNG = "auswertung";
-    public static final String TECHNIK = "technik";
+    private static final List<RoleModuleDefinition> MODULES = List.of(
+            module(AppModule.PERSONAL, RolePermissionLevel.READ, RolePermissionLevel.WRITE),
+            module(AppModule.RESERVIERUNGEN, RolePermissionLevel.READ, RolePermissionLevel.WRITE),
+            module(AppModule.ATEMSCHUTZ, RolePermissionLevel.READ, RolePermissionLevel.WRITE),
+            module(AppModule.BERICHTE, RolePermissionLevel.READ, RolePermissionLevel.WRITE, RolePermissionLevel.APPROVE),
+            module(AppModule.AUSWERTUNG, RolePermissionLevel.READ, RolePermissionLevel.WRITE),
+            new RoleModuleDefinition(
+                    "technik",
+                    "Technik & Geräte",
+                    false,
+                    List.of(RolePermissionLevel.READ, RolePermissionLevel.WRITE)));
 
-    private static final Set<String> ALLOWED = Set.of(
-            PERSONAL, RESERVIERUNGEN, ATEMSCHUTZ, BERICHTE, AUSWERTUNG, TECHNIK);
+    private static final Set<String> ALLOWED = MODULES.stream()
+            .flatMap(m -> m.levels().stream().map(l -> l.permissionKey(m.key())))
+            .collect(Collectors.toUnmodifiableSet());
 
-    private static final Map<String, String> LABELS = new LinkedHashMap<>();
-
-    static {
-        LABELS.put(PERSONAL, "Personal");
-        LABELS.put(RESERVIERUNGEN, "Reservierungen");
-        LABELS.put(ATEMSCHUTZ, "Atemschutz");
-        LABELS.put(BERICHTE, "Berichte");
-        LABELS.put(AUSWERTUNG, "Auswertung");
-        LABELS.put(TECHNIK, "Technik");
-    }
+    private static final Map<String, String> LABELS = buildLabels();
 
     private UnitRolePermission() {}
 
-    public static Map<String, String> labels() {
+    public static List<RoleModuleDefinition> moduleDefinitions() {
+        return MODULES;
+    }
+
+    public static Map<String, String> permissionLabels() {
         return LABELS;
     }
 
@@ -39,6 +43,61 @@ public final class UnitRolePermission {
         if (permissions == null) {
             return List.of();
         }
-        return permissions.stream().filter(ALLOWED::contains).distinct().toList();
+        LinkedHashSet<String> normalized = new LinkedHashSet<>();
+        for (String raw : permissions) {
+            if (raw == null || raw.isBlank()) {
+                continue;
+            }
+            String trimmed = raw.trim();
+            if (ALLOWED.contains(trimmed)) {
+                normalized.add(trimmed);
+                continue;
+            }
+            expandLegacyKey(trimmed).forEach(normalized::add);
+        }
+        return List.copyOf(normalized);
+    }
+
+    public static String formatPermission(String key) {
+        return LABELS.getOrDefault(key, key);
+    }
+
+    public static String formatPermissionsSummary(List<String> permissions) {
+        List<String> allowed = filterAllowed(permissions);
+        if (allowed.isEmpty()) {
+            return "keine";
+        }
+        return allowed.stream().map(UnitRolePermission::formatPermission).collect(Collectors.joining(", "));
+    }
+
+    private static RoleModuleDefinition module(AppModule module, RolePermissionLevel... levels) {
+        return new RoleModuleDefinition(
+                module.key(),
+                module.label() + (module.implemented() ? "" : " (demnächst)"),
+                !module.implemented(),
+                List.of(levels));
+    }
+
+    private static Map<String, String> buildLabels() {
+        Map<String, String> map = new LinkedHashMap<>();
+        for (RoleModuleDefinition module : MODULES) {
+            for (RolePermissionLevel level : module.levels()) {
+                String key = level.permissionKey(module.key());
+                map.put(key, module.label().replace(" (demnächst)", "") + " (" + level.label() + ")");
+            }
+        }
+        return map;
+    }
+
+    /** Alte Einträge ohne Stufe (z. B. {@code personal}) → Lesen + Schreiben. */
+    private static List<String> expandLegacyKey(String key) {
+        if (key.contains(".")) {
+            return List.of();
+        }
+        return MODULES.stream()
+                .filter(m -> m.key().equals(key))
+                .findFirst()
+                .map(m -> m.levels().stream().map(l -> l.permissionKey(m.key())).toList())
+                .orElse(List.of());
     }
 }

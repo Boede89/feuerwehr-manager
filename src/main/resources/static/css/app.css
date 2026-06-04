@@ -1264,10 +1264,30 @@ code {
   flex-shrink: 0;
 }
 
-.perm-check-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 8px 16px;
+.admin-check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.badge-success {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--gruen-hell);
+  color: var(--gruen);
+}
+
+.badge-warning {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--orange-hell, rgba(251, 191, 36, 0.2));
+  color: var(--gelb, #b45309);
 }
 
 .card--muted .card__body {

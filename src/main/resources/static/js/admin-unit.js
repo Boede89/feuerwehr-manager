@@ -8,9 +8,16 @@
     }
   }
 
+  function permSelected(cbValue, perms) {
+    if (perms.indexOf(cbValue) >= 0) return true;
+    var dot = cbValue.indexOf('.');
+    if (dot > 0 && perms.indexOf(cbValue.substring(0, dot)) >= 0) return true;
+    return false;
+  }
+
   function setPermChecks(perms) {
     document.querySelectorAll('#unit-role-perms input[type="checkbox"]').forEach(function (cb) {
-      cb.checked = perms.indexOf(cb.value) >= 0;
+      cb.checked = permSelected(cb.value, perms);
     });
   }
 

@@ -72,14 +72,7 @@ public class UnitRoleService {
     }
 
     public String formatPermissionsLabel(UnitRole role) {
-        List<String> perms = parsePermissions(role);
-        if (perms.isEmpty()) {
-            return "keine";
-        }
-        return perms.stream()
-                .map(p -> UnitRolePermission.labels().getOrDefault(p, p))
-                .reduce((a, b) -> a + ", " + b)
-                .orElse("keine");
+        return UnitRolePermission.formatPermissionsSummary(parsePermissions(role));
     }
 
     private String toJson(List<String> permissions) {
