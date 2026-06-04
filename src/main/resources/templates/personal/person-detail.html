@@ -1,13 +1,12 @@
 <!DOCTYPE html>
-<html lang="de" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments/head :: head(${isNewPerson ? 'Neue Person' : personDisplayName})}"></head>
-<body th:attr="data-person-create=${isNewPerson}">
-<div th:insert="~{fragments/app-shell :: shell-start}"></div>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout(${isNewPerson ? 'Neue Person' : personDisplayName}, ~{::main})}">
+<main th:attr="data-person-create=${isNewPerson}">
 
   <div class="member-detail-header">
     <a class="btn btn--outline btn--sm page-back" th:href="@{/personal(unit=${unitId})}">← Zurück</a>
     <div>
-      <h2 class="member-detail-title" style="margin:0;font-size:18px;font-weight:700;"
+      <h2 class="member-detail-title"
           th:text="${isNewPerson ? 'Neue Person' : personDisplayName}">Person</h2>
       <p class="hint" th:text="${currentUnitName}">Einheit</p>
     </div>
@@ -299,7 +298,6 @@
       </form>
     </section>
   </th:block>
-<div th:insert="~{fragments/app-shell :: shell-end}"></div>
-<script th:src="@{/js/personal-detail.js}"></script>
-</body>
+  <script th:src="@{/js/personal-detail.js}"></script>
+</main>
 </html>

@@ -1,9 +1,7 @@
 <!DOCTYPE html>
-<html lang="de" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments/head :: head('Startseite')}"></head>
-<body>
-<div th:insert="~{fragments/app-shell :: shell-start}"></div>
-
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('Startseite', ~{::main})}">
+<main>
   <div class="page-header">
     <div>
       <h2 th:text="${currentUser != null ? 'Willkommen, ' + currentUser.displayName : 'Startseite'}">Willkommen</h2>
@@ -32,7 +30,7 @@
             <strong th:text="${a.title}">Titel</strong>
             <span th:if="${a.address != null and !#strings.isEmpty(a.address)}"> · </span>
             <span th:text="${a.address}">Adresse</span>
-            <span class="hint" th:if="${a.closed}" style="display:inline;margin:0;"> (geschlossen)</span>
+            <span class="hint hint--inline" th:if="${a.closed}"> (geschlossen)</span>
           </span>
           <span class="badge active" th:text="${a.id}">ID</span>
         </div>
@@ -40,8 +38,6 @@
     </div>
   </div>
 
-  <p class="hint" style="margin-top:16px;">JSON: <code th:text="'/api/v1/units/' + ${unitId} + '/divera/alarms'">/api/…</code></p>
-
-<div th:insert="~{fragments/app-shell :: shell-end}"></div>
-</body>
+  <p class="page-footer-hint">JSON: <code th:text="'/api/v1/units/' + ${unitId} + '/divera/alarms'">/api/…</code></p>
+</main>
 </html>

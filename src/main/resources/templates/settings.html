@@ -1,9 +1,7 @@
 <!DOCTYPE html>
-<html lang="de" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments/head :: head('Einstellungen')}"></head>
-<body>
-<div th:insert="~{fragments/app-shell :: shell-start}"></div>
-
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('Einstellungen', ~{::main})}">
+<main>
   <div class="page-header">
     <div>
       <h2>Einstellungen</h2>
@@ -15,68 +13,68 @@
   <div class="ok" th:if="${saved}" th:text="${message} ?: 'Gespeichert.'">OK</div>
   <div class="err" th:if="${error}" th:text="${error}">Fehler</div>
 
-  <div class="card" th:if="${isSuperAdmin}" style="border-color:var(--gelb);background:var(--orange-hell);">
+  <div class="card card--warning" th:if="${isSuperAdmin}">
     <div class="testmode-settings-row">
       <div>
-        <h2 style="margin:0;font-size:1rem;">Testmodus</h2>
-        <p class="hint" th:if="${testModeEnabled}" style="margin:0.35rem 0 0;">
+        <h3 class="card-section-title">Testmodus</h3>
+        <p class="hint" th:if="${testModeEnabled}">
           Aktiv — Produktivdaten sichtbar; Änderungen nur als Testkopie. Beim Beenden werden alle Teständerungen gelöscht.
         </p>
-        <p class="hint" th:unless="${testModeEnabled}" style="margin:0.35rem 0 0;">
+        <p class="hint" th:unless="${testModeEnabled}">
           Ausprobieren ohne Auswirkung auf Produktivdaten; Teständerungen werden beim Beenden verworfen.
         </p>
       </div>
-      <form th:if="${testModeEnabled}" method="post" th:action="@{/settings/test-mode/disable}" style="margin:0;">
+      <form th:if="${testModeEnabled}" method="post" th:action="@{/settings/test-mode/disable}" class="bar-form">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <button type="submit" class="btn btn--outline btn--sm">Testmodus beenden</button>
       </form>
-      <form th:unless="${testModeEnabled}" method="post" th:action="@{/settings/test-mode/enable}" style="margin:0;">
+      <form th:unless="${testModeEnabled}" method="post" th:action="@{/settings/test-mode/enable}" class="bar-form">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <button type="submit" class="btn btn--sm">Testmodus aktivieren</button>
       </form>
     </div>
   </div>
 
-  <div class="card" style="margin-top:0;">
+  <div class="card card--flush-header">
     <div class="card__header">Darstellung</div>
-    <p class="hint" style="margin:0 0 12px;">Helles oder dunkles Farbschema (wird im Browser gespeichert).</p>
-    <div class="btn-group" role="group" aria-label="Design">
-      <button type="button" class="btn btn--outline" data-theme-choice="light">☀️ Helles Design</button>
-      <button type="button" class="btn btn--outline" data-theme-choice="dark">🌙 Dunkles Design</button>
+    <div class="card__body">
+      <p class="hint">Helles oder dunkles Farbschema (wird im Browser gespeichert).</p>
+      <div class="btn-group" role="group" aria-label="Design">
+        <button type="button" class="btn btn--outline" data-theme-choice="light">☀️ Helles Design</button>
+        <button type="button" class="btn btn--outline" data-theme-choice="dark">🌙 Dunkles Design</button>
+      </div>
     </div>
   </div>
 
   <div class="list">
     <h2>Bereiche</h2>
     <a class="list-row" th:href="@{/profile/password}">
-      <span><strong>Mein Passwort</strong><br/><span class="hint" style="margin:0;">Eigenes Passwort ändern</span></span>
+      <span><strong>Mein Passwort</strong><br/><span class="hint hint--block">Eigenes Passwort ändern</span></span>
       <span>→</span>
     </a>
     <a class="list-row" th:if="${isAdmin}" th:href="@{/settings/users}">
-      <span><strong>Benutzer</strong><br/><span class="hint" style="margin:0;">Konten, Rollen, RFID-Chips</span></span>
+      <span><strong>Benutzer</strong><br/><span class="hint hint--block">Konten, Rollen, RFID-Chips</span></span>
       <span>→</span>
     </a>
     <a class="list-row" th:if="${hasActiveUnit}" th:href="@{/personal/setup/qualifications(unit=${unitId})}">
-      <span><strong>Qualifikationen</strong><br/><span class="hint" style="margin:0;">z. B. GF, TF, Mannschaft</span></span>
+      <span><strong>Qualifikationen</strong><br/><span class="hint hint--block">z. B. GF, TF, Mannschaft</span></span>
       <span>→</span>
     </a>
     <a class="list-row" th:if="${hasActiveUnit}" th:href="@{/personal/setup/courses(unit=${unitId})}">
-      <span><strong>Lehrgänge</strong><br/><span class="hint" style="margin:0;">Kurse und Qualifikationen</span></span>
+      <span><strong>Lehrgänge</strong><br/><span class="hint hint--block">Kurse und Qualifikationen</span></span>
       <span>→</span>
     </a>
     <a class="list-row" th:if="${canManageUnits}" th:href="@{/settings/units}">
-      <span><strong>Einheiten</strong><br/><span class="hint" style="margin:0;">Feuerwehren / Standorte (Superadmin)</span></span>
+      <span><strong>Einheiten</strong><br/><span class="hint hint--block">Feuerwehren / Standorte (Superadmin)</span></span>
       <span>→</span>
     </a>
     <a class="list-row" th:if="${hasActiveUnit}" th:href="@{/settings/divera(unit=${unitId})}">
-      <span><strong>Divera</strong><br/><span class="hint" style="margin:0;">Access Key und API-URL</span></span>
+      <span><strong>Divera</strong><br/><span class="hint hint--block">Access Key und API-URL</span></span>
       <span>→</span>
     </a>
     <div class="list-row" th:unless="${hasActiveUnit}">
-      <span><strong>Divera</strong><br/><span class="hint" style="margin:0;">Zuerst eine aktive Einheit anlegen.</span></span>
+      <span><strong>Divera</strong><br/><span class="hint hint--block">Zuerst eine aktive Einheit anlegen.</span></span>
     </div>
   </div>
-
-<div th:insert="~{fragments/app-shell :: shell-end}"></div>
-</body>
+</main>
 </html>

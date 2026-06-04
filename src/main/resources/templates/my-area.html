@@ -1,9 +1,7 @@
 <!DOCTYPE html>
-<html lang="de" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments/head :: head('Mein Bereich')}"></head>
-<body>
-<div th:insert="~{fragments/app-shell :: shell-start}"></div>
-
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('Mein Bereich', ~{::main})}">
+<main>
   <div class="page-header">
     <div>
       <h2>Mein Bereich</h2>
@@ -16,14 +14,12 @@
       Angemeldet als <strong th:text="${displayName}">Name</strong>
       (<span th:text="'@' + ${username}">@user</span>)
     </p>
-    <p class="hint" style="margin-top:16px;">
+    <p class="hint">
       Hier kommen später persönliche Felder, die Sie selbst einsehen und teilweise bearbeiten können.
     </p>
-    <div class="actions" style="margin-top:20px;">
+    <div class="actions">
       <a class="btn btn--outline" th:href="@{/profile/password}">Passwort ändern</a>
     </div>
   </div>
-
-<div th:insert="~{fragments/app-shell :: shell-end}"></div>
-</body>
+</main>
 </html>

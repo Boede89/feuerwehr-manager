@@ -38,9 +38,10 @@
     });
   }
 
-  if (document.body.getAttribute('data-person-create') === 'true') {
-    const tabButtons = document.querySelectorAll('.person-tab-btn');
-    const panels = document.querySelectorAll('#personCreateForm .tab-panel');
+  var createRoot = document.querySelector('[data-person-create="true"]');
+  if (createRoot) {
+    const tabButtons = createRoot.querySelectorAll('.person-tab-btn');
+    const panels = createRoot.querySelectorAll('#personCreateForm .tab-panel');
 
     function showTab(tabId) {
       panels.forEach((panel) => {
