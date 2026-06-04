@@ -40,7 +40,7 @@
        th:href="@{/settings(unit=${unitId})}">Einstellungen</a>
     <a class="topnav__item topnav__item--admin" th:if="${isAdmin}"
        th:classappend="${activeNav == 'admin'} ? ' active' : ''"
-       th:href="@{/admin(scope='einheit', tab='module', unit=${unitId})}">Adminpanel</a>
+       th:href="@{/admin(scope='einheit', tab='konfiguration', unit=${unitId})}">Adminpanel</a>
   </nav>
   <main class="page-main">
     <div class="page-main__inner">

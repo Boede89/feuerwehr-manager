@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<th:block th:fragment="panel">
+  <div class="card">
+    <div class="card__header card__header--toolbar">
+      <span>Fahrzeuge</span>
+      <button type="button" class="btn btn--primary btn--sm" data-open-modal="modal-vehicle-new">+ Fahrzeug</button>
+    </div>
+    <div class="card__body card__body--flush">
+      <div class="table-wrapper" th:if="${!#lists.isEmpty(vehicles)}">
+        <table class="table">
+          <thead>
+          <tr>
+            <th>Name</th>
+            <th>Beschreibung</th>
+            <th>Status</th>
+            <th>Aktionen</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="v : ${vehicles}">
+            <td>
+              <a th:href="@{/admin(scope='einheit', tab='technik', unit=${unitId}, vehicle=${v.id})}"
+                 th:text="${v.name}">LF</a>
+            </td>
+            <td class="text-muted text-sm" th:text="${v.description} ?: '—'">—</td>
+            <td>
+              <span class="badge" th:classappend="${v.active} ? ' active' : ' inactive'"
+                    th:text="${v.active} ? 'Aktiv' : 'Inaktiv'">Status</span>
+            </td>
+            <td>
+              <div class="btn-group">
+                <a class="btn btn--outline btn--sm"
+                   th:href="@{/admin(scope='einheit', tab='technik', unit=${unitId}, vehicle=${v.id})}">Geräte</a>
+                <button type="button" class="btn btn--outline btn--sm" data-open-modal="modal-vehicle-edit"
+                        th:data-id="${v.id}" th:data-name="${v.name}" th:data-desc="${v.description}"
+                        th:data-active="${v.active}">Bearbeiten</button>
+                <form method="post" th:action="@{/admin/unit/vehicles/delete}" class="table-inline-form"
+                      onsubmit="return confirm('Fahrzeug wirklich löschen?');">
+                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                  <input type="hidden" name="unit" th:value="${unitId}"/>
+                  <input type="hidden" name="vehicleId" th:value="${v.id}"/>
+                  <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="table-empty" th:if="${#lists.isEmpty(vehicles)}">Noch keine Fahrzeuge angelegt.</p>
+    </div>
+  </div>
+
+  <div class="card" th:if="${selectedVehicleId != null}">
+    <div class="card__header">Geräte — <span th:text="${selectedVehicleName}">Fahrzeug</span></div>
+    <div class="card__body">
+      <form method="post" th:action="@{/admin/unit/equipment}" class="form-grid">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <input type="hidden" name="vehicleId" th:value="${selectedVehicleId}"/>
+        <div class="form-group">
+          <label for="eqName">Gerät</label>
+          <input id="eqName" name="name" type="text" required maxlength="255" placeholder="z. B. HD-Rohr"/>
+        </div>
+        <div class="form-group form-group--submit">
+          <button type="submit" class="btn btn--primary">Gerät hinzufügen</button>
+        </div>
+      </form>
+      <div class="table-wrapper mt-md" th:if="${!#lists.isEmpty(equipmentItems)}">
+        <table class="table">
+          <thead>
+          <tr><th>Name</th><th>Kategorie</th><th></th></tr>
+          </thead>
+          <tbody>
+          <tr th:each="eq : ${equipmentItems}">
+            <td th:text="${eq.name}">Gerät</td>
+            <td class="text-muted text-sm" th:text="${eq.category != null} ? ${eq.category.name} : '—'">—</td>
+            <td>
+              <form method="post" th:action="@{/admin/unit/equipment/delete}" class="table-inline-form">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <input type="hidden" name="unit" th:value="${unitId}"/>
+                <input type="hidden" name="vehicleId" th:value="${selectedVehicleId}"/>
+                <input type="hidden" name="equipmentId" th:value="${eq.id}"/>
+                <button type="submit" class="btn btn--danger btn--sm">Entfernen</button>
+              </form>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="hint" th:if="${#lists.isEmpty(equipmentItems)}">Noch keine Geräte für dieses Fahrzeug.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__header card__header--toolbar">
+      <span>Räume</span>
+      <button type="button" class="btn btn--primary btn--sm" data-open-modal="modal-room-new">+ Raum</button>
+    </div>
+    <div class="card__body card__body--flush">
+      <div class="table-wrapper" th:if="${!#lists.isEmpty(rooms)}">
+        <table class="table">
+          <thead>
+          <tr><th>Name</th><th>Beschreibung</th><th>Status</th><th>Aktionen</th></tr>
+          </thead>
+          <tbody>
+          <tr th:each="r : ${rooms}">
+            <td th:text="${r.name}">Raum</td>
+            <td class="text-muted text-sm" th:text="${r.description} ?: '—'">—</td>
+            <td>
+              <span class="badge" th:classappend="${r.active} ? ' active' : ' inactive'"
+                    th:text="${r.active} ? 'Aktiv' : 'Inaktiv'">Status</span>
+            </td>
+            <td>
+              <div class="btn-group">
+                <button type="button" class="btn btn--outline btn--sm" data-open-modal="modal-room-edit"
+                        th:data-id="${r.id}" th:data-name="${r.name}" th:data-desc="${r.description}"
+                        th:data-active="${r.active}">Bearbeiten</button>
+                <form method="post" th:action="@{/admin/unit/rooms/delete}" class="table-inline-form"
+                      onsubmit="return confirm('Raum wirklich löschen?');">
+                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                  <input type="hidden" name="unit" th:value="${unitId}"/>
+                  <input type="hidden" name="roomId" th:value="${r.id}"/>
+                  <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="table-empty" th:if="${#lists.isEmpty(rooms)}">Noch keine Räume angelegt.</p>
+    </div>
+  </div>
+
+  <!-- Modal: Fahrzeug anlegen -->
+  <div id="modal-vehicle-new" class="modal-overlay">
+    <div class="modal" role="dialog">
+      <div class="modal__header"><h3>Fahrzeug anlegen</h3>
+        <button type="button" class="modal__close" data-close-modal>✕</button></div>
+      <form method="post" th:action="@{/admin/unit/vehicles}">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <div class="modal__body">
+          <div class="form-group"><label>Name</label><input name="name" type="text" required maxlength="100"/></div>
+          <div class="form-group"><label>Beschreibung</label><input name="description" type="text" maxlength="500"/></div>
+        </div>
+        <div class="modal__footer">
+          <button type="submit" class="btn btn--primary">Anlegen</button>
+          <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Fahrzeug bearbeiten -->
+  <div id="modal-vehicle-edit" class="modal-overlay">
+    <div class="modal" role="dialog">
+      <div class="modal__header"><h3>Fahrzeug bearbeiten</h3>
+        <button type="button" class="modal__close" data-close-modal>✕</button></div>
+      <form id="form-vehicle-edit" method="post" th:action="@{/admin/unit/vehicles/update}">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <input type="hidden" name="vehicleId" id="edit-vehicle-id"/>
+        <div class="modal__body">
+          <div class="form-group"><label>Name</label><input id="edit-vehicle-name" name="name" type="text" required/></div>
+          <div class="form-group"><label>Beschreibung</label><input id="edit-vehicle-desc" name="description" type="text"/></div>
+          <label class="checkbox-row"><input type="checkbox" id="edit-vehicle-active" name="active" value="true"/> Aktiv</label>
+        </div>
+        <div class="modal__footer">
+          <button type="submit" class="btn btn--primary">Speichern</button>
+          <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Raum anlegen / bearbeiten (analog) -->
+  <div id="modal-room-new" class="modal-overlay">
+    <div class="modal" role="dialog">
+      <div class="modal__header"><h3>Raum anlegen</h3>
+        <button type="button" class="modal__close" data-close-modal>✕</button></div>
+      <form method="post" th:action="@{/admin/unit/rooms}">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <div class="modal__body">
+          <div class="form-group"><label>Name</label><input name="name" type="text" required maxlength="100"/></div>
+          <div class="form-group"><label>Beschreibung</label><input name="description" type="text"/></div>
+        </div>
+        <div class="modal__footer">
+          <button type="submit" class="btn btn--primary">Anlegen</button>
+          <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-room-edit" class="modal-overlay">
+    <div class="modal" role="dialog">
+      <div class="modal__header"><h3>Raum bearbeiten</h3>
+        <button type="button" class="modal__close" data-close-modal>✕</button></div>
+      <form method="post" th:action="@{/admin/unit/rooms/update}">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <input type="hidden" name="roomId" id="edit-room-id"/>
+        <div class="modal__body">
+          <div class="form-group"><label>Name</label><input id="edit-room-name" name="name" type="text" required/></div>
+          <div class="form-group"><label>Beschreibung</label><input id="edit-room-desc" name="description" type="text"/></div>
+          <label class="checkbox-row"><input type="checkbox" id="edit-room-active" name="active" value="true"/> Aktiv</label>
+        </div>
+        <div class="modal__footer">
+          <button type="submit" class="btn btn--primary">Speichern</button>
+          <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</th:block>
+</body>
+</html>

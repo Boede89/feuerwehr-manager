@@ -35,7 +35,7 @@
   <nav class="tab-bar admin-scope-bar" th:if="${showGlobalScope}" aria-label="Bereich">
     <a class="tab-btn"
        th:classappend="${adminScope == 'einheit'} ? ' tab-btn--active' : ''"
-       th:href="@{/admin(scope='einheit', tab='module', unit=${unitId})}">Einheit</a>
+       th:href="@{/admin(scope='einheit', tab='konfiguration', unit=${unitId})}">Einheit</a>
     <a class="tab-btn"
        th:classappend="${adminScope == 'global'} ? ' tab-btn--active' : ''"
        th:href="@{/admin(scope='global', tab='konfiguration')}">Global</a>
@@ -95,101 +95,52 @@
 
     <th:block th:unless="${noUnit}">
       <nav class="tab-bar" aria-label="Einheit">
-        <a class="tab-btn" th:classappend="${adminTab == 'module'} ? ' tab-btn--active' : ''"
-           th:href="@{/admin(scope='einheit', tab='module', unit=${unitId})}">Module</a>
-        <a class="tab-btn" th:classappend="${adminTab == 'schnittstellen'} ? ' tab-btn--active' : ''"
-           th:href="@{/admin(scope='einheit', tab='schnittstellen', unit=${unitId})}">Schnittstellen</a>
-        <a class="tab-btn" th:classappend="${adminTab == 'personal'} ? ' tab-btn--active' : ''"
-           th:href="@{/admin(scope='einheit', tab='personal', unit=${unitId})}">Personal-Stamm</a>
+        <a class="tab-btn" th:classappend="${adminTab == 'konfiguration'} ? ' tab-btn--active' : ''"
+           th:href="@{/admin(scope='einheit', tab='konfiguration', unit=${unitId})}">Konfiguration</a>
         <a class="tab-btn" th:classappend="${adminTab == 'benutzer'} ? ' tab-btn--active' : ''"
            th:href="@{/admin(scope='einheit', tab='benutzer', unit=${unitId})}">Benutzer</a>
+        <a class="tab-btn" th:classappend="${adminTab == 'rollen'} ? ' tab-btn--active' : ''"
+           th:href="@{/admin(scope='einheit', tab='rollen', unit=${unitId})}">Rollen</a>
+        <a class="tab-btn" th:classappend="${adminTab == 'schnittstellen'} ? ' tab-btn--active' : ''"
+           th:href="@{/admin(scope='einheit', tab='schnittstellen', unit=${unitId})}">Schnittstellen</a>
+        <a class="tab-btn" th:classappend="${adminTab == 'module'} ? ' tab-btn--active' : ''"
+           th:href="@{/admin(scope='einheit', tab='module', unit=${unitId})}">Module</a>
+        <a class="tab-btn" th:classappend="${adminTab == 'technik'} ? ' tab-btn--active' : ''"
+           th:href="@{/admin(scope='einheit', tab='technik', unit=${unitId})}">Technik</a>
+        <a class="tab-btn" th:classappend="${adminTab == 'ausbildung'} ? ' tab-btn--active' : ''"
+           th:href="@{/admin(scope='einheit', tab='ausbildung', unit=${unitId})}">Qualifikationen / Lehrgänge</a>
       </nav>
 
-      <div class="admin-panel" th:if="${adminTab == 'module'}">
-        <div class="card">
-          <div class="card__header">Module</div>
-          <div class="card__body card__body--flush">
-            <p class="hint hint--pad">Module für <strong th:text="${currentUnitName}">Einheit</strong> aktivieren oder deaktivieren.</p>
-            <form method="post" th:action="@{/admin/modules}">
-              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-              <input type="hidden" name="unit" th:value="${unitId}"/>
-              <div th:each="m : ${moduleDefs}" class="module-row">
-                <div class="module-row__info">
-                  <span class="module-row__icon" th:text="${m.icon}">📦</span>
-                  <div>
-                    <div class="module-row__label">
-                      <span th:text="${m.label}">Modul</span>
-                      <span class="text-subtle text-xs" th:if="${!m.implemented}"> · Demnächst</span>
-                    </div>
-                    <div class="module-row__desc" th:text="${m.description}">Beschreibung</div>
-                  </div>
-                </div>
-                <label class="toggle-switch">
-                  <input type="checkbox"
-                         th:name="${'module_' + m.key}"
-                         th:checked="${modulesEnabled.get(m)}"
-                         th:disabled="${!m.implemented}"/>
-                  <span class="toggle-switch__track"></span>
-                </label>
-              </div>
-              <div class="card__footer">
-                <button type="submit" class="btn btn--primary">Änderungen speichern</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-
-      <div class="admin-panel" th:if="${adminTab == 'schnittstellen'}">
-        <div class="card">
-          <div class="card__header">⚡ DIVERA 24/7</div>
-          <div class="card__body">
-            <p class="hint">
-              Einstellungen für <strong th:text="${currentUnitName}">Einheit</strong>.
-            </p>
-            <form method="post" th:action="@{/admin/divera}" class="form-grid">
-              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-              <input type="hidden" name="unit" th:value="${unitId}"/>
-              <div class="form-group form-group--full">
-                <label for="apiBaseUrl">API-Basis-URL</label>
-                <input id="apiBaseUrl" name="apiBaseUrl" type="url" th:value="${apiBaseUrl}" placeholder="https://app.divera247.com"/>
-              </div>
-              <div class="form-group">
-                <label for="accessKey">Divera Access Key</label>
-                <input id="accessKey" name="accessKey" type="password" autocomplete="off" placeholder="Neuen Key eintragen zum Ändern"/>
-                <p class="hint" th:if="${accessKeyConfigured}">Key ist hinterlegt. Feld leer lassen = unverändert.</p>
-                <p class="hint" th:unless="${accessKeyConfigured}">Key aus Divera 24/7 eintragen und speichern.</p>
-              </div>
-              <div class="form-group form-group--submit">
-                <button type="submit" class="btn btn--primary">Speichern</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-
-      <div class="admin-panel" th:if="${adminTab == 'personal'}">
-        <div class="admin-link-cards">
-          <a class="card admin-link-card" th:href="@{/personal/setup/qualifications(unit=${unitId})}">
-            <div class="card__header">Qualifikationen</div>
-            <div class="card__body">
-              <p class="hint">z. B. GF, TF, Mannschaft — für die Einheit pflegen.</p>
-            </div>
-          </a>
-          <a class="card admin-link-card" th:href="@{/personal/setup/courses(unit=${unitId})}">
-            <div class="card__header">Lehrgänge</div>
-            <div class="card__body">
-              <p class="hint">Kurse und zugeordnete Qualifikationen.</p>
-            </div>
-          </a>
-        </div>
+      <div class="admin-panel" th:if="${adminTab == 'konfiguration'}">
+        <div th:replace="~{fragments/admin-unit-konfiguration :: panel}"></div>
       </div>
 
       <div class="admin-panel" th:if="${adminTab == 'benutzer'}">
         <div th:replace="~{fragments/admin-users-panel :: panel(adminScope='einheit', unitId=${unitId})}"></div>
       </div>
+
+      <div class="admin-panel" th:if="${adminTab == 'rollen'}">
+        <div th:replace="~{fragments/admin-unit-rollen :: panel}"></div>
+      </div>
+
+      <div class="admin-panel" th:if="${adminTab == 'schnittstellen'}">
+        <div th:replace="~{fragments/admin-unit-schnittstellen :: panel}"></div>
+      </div>
+
+      <div class="admin-panel" th:if="${adminTab == 'module'}">
+        <div th:replace="~{fragments/admin-unit-module :: panel}"></div>
+      </div>
+
+      <div class="admin-panel" th:if="${adminTab == 'technik'}">
+        <div th:replace="~{fragments/admin-unit-technik :: panel}"></div>
+      </div>
+
+      <div class="admin-panel" th:if="${adminTab == 'ausbildung'}">
+        <div th:replace="~{fragments/admin-unit-ausbildung :: panel}"></div>
+      </div>
     </th:block>
   </th:block>
   <script th:src="@{/js/admin-modals.js}" defer></script>
+  <script th:src="@{/js/admin-unit.js}" defer></script>
 </main>
 </html>

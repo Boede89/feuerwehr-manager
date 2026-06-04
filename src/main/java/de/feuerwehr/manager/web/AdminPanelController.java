@@ -52,6 +52,7 @@ public class AdminPanelController {
     private final TestModeService testModeService;
     private final UserManagementService userManagementService;
     private final AdminGlobalViewService adminGlobalViewService;
+    private final AdminUnitViewService adminUnitViewService;
     private final ObjectMapper objectMapper;
     private final AccountMailService accountMailService;
     private final UserService userService;
@@ -62,6 +63,7 @@ public class AdminPanelController {
             @RequestParam(name = "unit", required = false) Long unitId,
             @RequestParam(name = "scope", defaultValue = "einheit") String scope,
             @RequestParam(name = "tab", required = false) String tab,
+            @RequestParam(name = "vehicle", required = false) Long selectedVehicleId,
             Model model) {
         boolean superAdmin = actor.getRole().isSuperAdmin();
         if (!superAdmin) {
@@ -73,7 +75,7 @@ public class AdminPanelController {
         if ("global".equals(scope)) {
             tab = normalizeGlobalTab(tab != null ? tab : "konfiguration");
         } else {
-            tab = normalizeUnitTab(tab != null ? tab : "module");
+            tab = normalizeUnitTab(tab != null ? tab : "konfiguration");
         }
 
         model.addAttribute("adminScope", scope);
@@ -116,17 +118,23 @@ public class AdminPanelController {
 
         model.addAttribute("unitId", resolvedId);
         model.addAttribute("currentUnitName", active.getName());
+        model.addAttribute("unit", active);
         populateUserFormModel(actor, model, resolvedId);
 
-        if ("schnittstellen".equals(tab)) {
-            populateDivera(model, resolvedId);
-        }
-        if ("module".equals(tab)) {
-            model.addAttribute("modulesEnabled", moduleSettingsService.modulesEnabled(resolvedId));
-            model.addAttribute("moduleDefs", Arrays.asList(AppModule.values()));
-        }
-        if ("benutzer".equals(tab)) {
-            populateAdminUsersTab(model, userManagementService.listAccounts(actor, resolvedId));
+        switch (tab) {
+            case "konfiguration" -> adminUnitViewService.populateKonfiguration(model, active);
+            case "rollen" -> adminUnitViewService.populateRollen(model, resolvedId);
+            case "schnittstellen" -> adminUnitViewService.populateSchnittstellen(model, resolvedId);
+            case "module" -> adminUnitViewService.populateModule(model, resolvedId);
+            case "technik" -> {
+                if (selectedVehicleId != null) {
+                    model.addAttribute("selectedVehicleId", selectedVehicleId);
+                }
+                adminUnitViewService.populateTechnik(model, resolvedId);
+            }
+            case "ausbildung" -> adminUnitViewService.populateAusbildung(model, resolvedId);
+            case "benutzer" -> populateUnitUsersTab(model, actor, resolvedId);
+            default -> adminUnitViewService.populateKonfiguration(model, active);
         }
 
         return "admin/index";
@@ -395,6 +403,13 @@ public class AdminPanelController {
         }
     }
 
+    private void populateUnitUsersTab(Model model, AppUserDetails actor, long unitId) {
+        List<User> users = userManagementService.listAccounts(actor, unitId).stream()
+                .filter(u -> u.getRole() != UserRole.SUPER_ADMIN)
+                .toList();
+        populateAdminUsersTab(model, users);
+    }
+
     private void populateAdminUsersTab(Model model, List<User> users) {
         model.addAttribute("adminUsers", users);
         Map<Long, List<UserRfidCard>> rfidMap = new LinkedHashMap<>();
@@ -481,8 +496,9 @@ public class AdminPanelController {
 
     private static String normalizeUnitTab(String tab) {
         return switch (tab) {
-            case "module", "schnittstellen", "personal", "benutzer" -> tab;
-            default -> "module";
+            case "konfiguration", "benutzer", "rollen", "schnittstellen", "module", "technik", "ausbildung" -> tab;
+            case "personal" -> "ausbildung";
+            default -> "konfiguration";
         };
     }
 }

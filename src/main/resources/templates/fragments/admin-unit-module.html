@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<th:block th:fragment="panel">
+  <div class="card">
+    <div class="card__header">Module</div>
+    <div class="card__body card__body--flush">
+      <p class="hint hint--pad">Module für <strong th:text="${currentUnitName}">Einheit</strong> aktivieren oder deaktivieren.</p>
+      <form method="post" th:action="@{/admin/modules}">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <div th:each="m : ${moduleDefs}" class="module-row">
+          <div class="module-row__info">
+            <span class="module-row__icon" th:text="${m.icon}">📦</span>
+            <div>
+              <div class="module-row__label">
+                <span th:text="${m.label}">Modul</span>
+                <span class="text-subtle text-xs" th:if="${!m.implemented}"> · Demnächst</span>
+              </div>
+              <div class="module-row__desc" th:text="${m.description}">Beschreibung</div>
+            </div>
+          </div>
+          <div class="module-row__actions">
+            <button type="button" class="btn btn--outline btn--sm" disabled
+                    title="Modul-Einstellungen folgen in einer späteren Version">Einstellungen</button>
+            <label class="toggle-switch">
+              <input type="checkbox"
+                     th:name="${'module_' + m.key}"
+                     th:checked="${modulesEnabled.get(m)}"
+                     th:disabled="${!m.implemented}"/>
+              <span class="toggle-switch__track"></span>
+            </label>
+          </div>
+        </div>
+        <div class="card__footer">
+          <button type="submit" class="btn btn--primary">Änderungen speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</th:block>
+</body>
+</html>

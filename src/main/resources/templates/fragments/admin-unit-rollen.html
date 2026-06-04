@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<th:block th:fragment="panel">
+  <div class="card">
+    <div class="card__header card__header--toolbar">
+      <span>Rollenverwaltung</span>
+      <button type="button" class="btn btn--primary btn--sm" data-open-modal="modal-unit-role">+ Rolle anlegen</button>
+    </div>
+    <div class="card__body card__body--flush">
+      <p class="hint hint--pad">Dienstgrade und Zusatzfunktionen mit Modul-Berechtigungen (wie FW-Hub).</p>
+      <div class="table-wrapper" th:if="${!#lists.isEmpty(unitRoles)}">
+        <table class="table">
+          <thead>
+          <tr>
+            <th>Name</th>
+            <th>Typ</th>
+            <th>Module</th>
+            <th>Aktionen</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="r : ${unitRoles}">
+            <td><strong th:text="${r.name}">Rolle</strong></td>
+            <td>
+              <span class="badge" th:text="${r.roleType.name() == 'DIENSTGRAD'} ? 'Dienstgrad' : 'Zusatzfunktion'">Typ</span>
+            </td>
+            <td class="text-muted text-sm" th:text="${permissionLabelsByRoleId[r.id]}">—</td>
+            <td>
+              <div class="btn-group">
+                <button type="button" class="btn btn--outline btn--sm" data-open-modal="modal-unit-role"
+                        th:data-role-id="${r.id}"
+                        th:data-role-name="${r.name}"
+                        th:data-role-type="${r.roleType.name()}"
+                        th:data-role-perms="${r.permissionsJson}">Bearbeiten</button>
+                <form method="post" th:action="@{/admin/unit/roles/delete}" class="table-inline-form"
+                      onsubmit="return confirm('Rolle wirklich löschen?');">
+                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                  <input type="hidden" name="unit" th:value="${unitId}"/>
+                  <input type="hidden" name="roleId" th:value="${r.id}"/>
+                  <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="table-empty" th:if="${#lists.isEmpty(unitRoles)}">Noch keine Rollen angelegt.</p>
+    </div>
+  </div>
+
+  <div id="modal-unit-role" class="modal-overlay">
+    <div class="modal" role="dialog">
+      <div class="modal__header">
+        <h3 id="modal-unit-role-title">Rolle anlegen</h3>
+        <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
+      </div>
+      <form id="form-unit-role" method="post" th:action="@{/admin/unit/roles}"
+            th:attr="data-create-action=@{/admin/unit/roles}, data-update-action=@{/admin/unit/roles/update}">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <input type="hidden" name="roleId" id="unit-role-id" value="" disabled/>
+        <div class="modal__body">
+          <div class="form-group">
+            <label for="unit-role-name">Rollenname</label>
+            <input id="unit-role-name" name="name" type="text" required maxlength="128" placeholder="z. B. Truppführer"/>
+          </div>
+          <div class="form-group">
+            <label for="unit-role-type">Typ</label>
+            <select id="unit-role-type" name="roleType">
+              <option value="DIENSTGRAD">Dienstgrad</option>
+              <option value="FUNKTION">Zusatzfunktion</option>
+            </select>
+          </div>
+          <p class="hint">Modul-Berechtigungen</p>
+          <div class="perm-check-grid" id="unit-role-perms">
+            <label class="checkbox-row" th:each="entry : ${rolePermissionLabels}">
+              <input type="checkbox" name="permissions" th:value="${entry.key}"/>
+              <span th:text="${entry.value}">Modul</span>
+            </label>
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button type="submit" class="btn btn--primary">Speichern</button>
+          <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</th:block>
+</body>
+</html>

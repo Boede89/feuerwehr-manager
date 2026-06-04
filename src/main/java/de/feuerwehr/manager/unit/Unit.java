@@ -24,6 +24,15 @@ public class Unit {
     @Column(nullable = false, length = 255)
     private String name;
 
+    @Column(length = 255)
+    private String street;
+
+    @Column(name = "postal_city", length = 255)
+    private String postalCity;
+
+    @Column(name = "logo_base64", columnDefinition = "MEDIUMTEXT")
+    private String logoBase64;
+
     @Column(nullable = false)
     private boolean active = true;
 
