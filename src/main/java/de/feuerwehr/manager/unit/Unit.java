@@ -29,4 +29,8 @@ public class Unit {
 
     @Column(name = "test_data", nullable = false)
     private boolean testData;
+
+    /** Aktivierte Navigations-Module für diese Einheit (JSON). */
+    @Column(name = "modules_json")
+    private String modulesJson;
 }

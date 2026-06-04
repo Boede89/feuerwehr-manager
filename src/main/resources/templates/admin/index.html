@@ -8,10 +8,8 @@
       <p th:if="${adminScope == 'global'}">Einstellungen für alle Einheiten</p>
       <p class="page-unit-label" th:unless="${adminScope == 'global'}">
         Einheit: <strong th:text="${currentUnitName}">—</strong>
-        <span class="hint hint--inline"> (Auswahl oben in der Kopfzeile)</span>
       </p>
     </div>
-    <a class="page-back" th:href="@{/settings(unit=${unitId})}">← Meine Einstellungen</a>
   </div>
 
   <div class="page-alerts">
@@ -26,14 +24,12 @@
        th:href="@{/admin(scope='einheit', tab='schnittstellen', unit=${unitId})}">Einheit</a>
     <a class="tab-btn"
        th:classappend="${adminScope == 'global'} ? ' tab-btn--active' : ''"
-       th:href="@{/admin(scope='global', tab='module')}">Global</a>
+       th:href="@{/admin(scope='global', tab='benutzer')}">Global</a>
   </nav>
 
   <!-- Global (Superadmin) -->
   <th:block th:if="${adminScope == 'global'}">
     <nav class="tab-bar" aria-label="Global">
-      <a class="tab-btn" th:classappend="${adminTab == 'module'} ? ' tab-btn--active' : ''"
-         th:href="@{/admin(scope='global', tab='module')}">Module</a>
       <a class="tab-btn" th:classappend="${adminTab == 'benutzer'} ? ' tab-btn--active' : ''"
          th:href="@{/admin(scope='global', tab='benutzer')}">Benutzer</a>
       <a class="tab-btn" th:classappend="${adminTab == 'einheiten'} ? ' tab-btn--active' : ''"
@@ -42,48 +38,8 @@
          th:href="@{/admin(scope='global', tab='testmodus')}">Testmodus</a>
     </nav>
 
-    <div class="admin-panel" th:if="${adminTab == 'module'}">
-      <div class="card">
-        <div class="card__header">Module</div>
-        <div class="card__body card__body--flush">
-          <p class="hint hint--pad">Aktiviere oder deaktiviere Module in der Navigation. Deaktivierte Module sind für alle Benutzer ausgeblendet.</p>
-          <form method="post" th:action="@{/admin/modules}">
-            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-            <div th:each="m : ${moduleDefs}" class="module-row">
-              <div class="module-row__info">
-                <span class="module-row__icon" th:text="${m.icon}">📦</span>
-                <div>
-                  <div class="module-row__label">
-                    <span th:text="${m.label}">Modul</span>
-                    <span class="text-subtle text-xs" th:if="${!m.implemented}"> · Demnächst</span>
-                  </div>
-                  <div class="module-row__desc" th:text="${m.description}">Beschreibung</div>
-                </div>
-              </div>
-              <label class="toggle-switch">
-                <input type="checkbox"
-                       th:name="${'module_' + m.key}"
-                       th:checked="${modulesEnabled.get(m)}"
-                       th:disabled="${!m.implemented}"/>
-                <span class="toggle-switch__track"></span>
-              </label>
-            </div>
-            <div class="card__footer">
-              <button type="submit" class="btn btn--primary">Änderungen speichern</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-
     <div class="admin-panel" th:if="${adminTab == 'benutzer'}">
-      <div class="card">
-        <div class="card__header">Benutzerverwaltung</div>
-        <div class="card__body">
-          <p class="hint">Konten, Rollen und RFID-Chips für alle Einheiten.</p>
-          <a class="btn btn--primary" th:href="@{/settings/users}">Benutzer verwalten</a>
-        </div>
-      </div>
+      <div th:replace="~{fragments/admin-users-panel :: panel(adminScope='global', unitId=${unitId})}"></div>
     </div>
 
     <div class="admin-panel" th:if="${adminTab == 'einheiten'}">
@@ -130,6 +86,8 @@
 
     <th:block th:unless="${noUnit}">
       <nav class="tab-bar" aria-label="Einheit">
+        <a class="tab-btn" th:classappend="${adminTab == 'module'} ? ' tab-btn--active' : ''"
+           th:href="@{/admin(scope='einheit', tab='module', unit=${unitId})}">Module</a>
         <a class="tab-btn" th:classappend="${adminTab == 'schnittstellen'} ? ' tab-btn--active' : ''"
            th:href="@{/admin(scope='einheit', tab='schnittstellen', unit=${unitId})}">Schnittstellen</a>
         <a class="tab-btn" th:classappend="${adminTab == 'personal'} ? ' tab-btn--active' : ''"
@@ -138,13 +96,47 @@
            th:href="@{/admin(scope='einheit', tab='benutzer', unit=${unitId})}">Benutzer</a>
       </nav>
 
+      <div class="admin-panel" th:if="${adminTab == 'module'}">
+        <div class="card">
+          <div class="card__header">Module</div>
+          <div class="card__body card__body--flush">
+            <p class="hint hint--pad">Module für <strong th:text="${currentUnitName}">Einheit</strong> aktivieren oder deaktivieren.</p>
+            <form method="post" th:action="@{/admin/modules}">
+              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+              <input type="hidden" name="unit" th:value="${unitId}"/>
+              <div th:each="m : ${moduleDefs}" class="module-row">
+                <div class="module-row__info">
+                  <span class="module-row__icon" th:text="${m.icon}">📦</span>
+                  <div>
+                    <div class="module-row__label">
+                      <span th:text="${m.label}">Modul</span>
+                      <span class="text-subtle text-xs" th:if="${!m.implemented}"> · Demnächst</span>
+                    </div>
+                    <div class="module-row__desc" th:text="${m.description}">Beschreibung</div>
+                  </div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox"
+                         th:name="${'module_' + m.key}"
+                         th:checked="${modulesEnabled.get(m)}"
+                         th:disabled="${!m.implemented}"/>
+                  <span class="toggle-switch__track"></span>
+                </label>
+              </div>
+              <div class="card__footer">
+                <button type="submit" class="btn btn--primary">Änderungen speichern</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
       <div class="admin-panel" th:if="${adminTab == 'schnittstellen'}">
         <div class="card">
           <div class="card__header">⚡ DIVERA 24/7</div>
           <div class="card__body">
             <p class="hint">
               Einstellungen für <strong th:text="${currentUnitName}">Einheit</strong>.
-              Access Key und API-URL in Divera unter <em>Administration → Schnittstellen</em> einsehen.
             </p>
             <form method="post" th:action="@{/admin/divera}" class="form-grid">
               <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
@@ -185,13 +177,7 @@
       </div>
 
       <div class="admin-panel" th:if="${adminTab == 'benutzer'}">
-        <div class="card">
-          <div class="card__header">Benutzer dieser Einheit</div>
-          <div class="card__body">
-            <p class="hint">Konten und Rollen nur für <strong th:text="${currentUnitName}">Einheit</strong>.</p>
-            <a class="btn btn--primary" th:href="@{/settings/users(unit=${unitId})}">Benutzer verwalten</a>
-          </div>
-        </div>
+        <div th:replace="~{fragments/admin-users-panel :: panel(adminScope='einheit', unitId=${unitId})}"></div>
       </div>
     </th:block>
   </th:block>

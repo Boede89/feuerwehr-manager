@@ -75,11 +75,23 @@ public class WebUiAdvice {
     }
 
     @ModelAttribute
-    public void addModuleNavigation(Model model) {
+    public void addModuleNavigation(
+            @AuthenticationPrincipal AppUserDetails user,
+            @RequestParam(name = "unit", required = false) Long unitParam,
+            Model model) {
+        Long activeUnitId = null;
+        if (user != null) {
+            activeUnitId = unitService.resolveActiveUnit(unitParam, user).map(Unit::getId).orElse(null);
+        }
+        if (activeUnitId == null) {
+            activeUnitId = (Long) model.getAttribute("unitId");
+        }
         for (AppModule module : AppModule.values()) {
-            boolean enabled = moduleSettingsService.isEnabled(module);
+            boolean enabled = activeUnitId != null && moduleSettingsService.isEnabled(module, activeUnitId);
             String state;
-            if (!enabled) {
+            if (activeUnitId == null) {
+                state = module == AppModule.PERSONAL && module.implemented() ? "link" : "hidden";
+            } else if (!enabled) {
                 state = "hidden";
             } else if (module.implemented()) {
                 state = "link";

@@ -8,8 +8,14 @@ import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitDiveraSettings;
 import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
 import de.feuerwehr.manager.unit.UnitService;
+import de.feuerwehr.manager.user.User;
+import de.feuerwehr.manager.user.UserManagementService;
+import de.feuerwehr.manager.user.UserRole;
+import de.feuerwehr.manager.user.UserRoleLabels;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +39,7 @@ public class AdminPanelController {
     private final UnitDiveraSettingsRepository diveraSettingsRepository;
     private final ModuleSettingsService moduleSettingsService;
     private final TestModeService testModeService;
+    private final UserManagementService userManagementService;
 
     @GetMapping
     public String index(
@@ -40,6 +47,7 @@ public class AdminPanelController {
             @RequestParam(name = "unit", required = false) Long unitId,
             @RequestParam(name = "scope", defaultValue = "einheit") String scope,
             @RequestParam(name = "tab", defaultValue = "schnittstellen") String tab,
+            @RequestParam(name = "createUser", defaultValue = "false") boolean showUserCreate,
             Model model) {
         boolean superAdmin = actor.getRole().isSuperAdmin();
         if (!superAdmin) {
@@ -57,11 +65,14 @@ public class AdminPanelController {
         model.addAttribute("adminScope", scope);
         model.addAttribute("adminTab", tab);
         model.addAttribute("showGlobalScope", superAdmin);
+        model.addAttribute("showUserCreate", showUserCreate);
+        populateUserFormModel(actor, model, null);
 
         if ("global".equals(scope)) {
-            model.addAttribute("modulesEnabled", moduleSettingsService.modulesEnabled());
-            model.addAttribute("moduleDefs", Arrays.asList(AppModule.values()));
             model.addAttribute("testModeEnabled", testModeService.isEnabled());
+            if ("benutzer".equals(tab)) {
+                model.addAttribute("adminUsers", userManagementService.listAccounts(actor));
+            }
             return "admin/index";
         }
 
@@ -83,19 +94,33 @@ public class AdminPanelController {
 
         model.addAttribute("unitId", resolvedId);
         model.addAttribute("currentUnitName", active.getName());
+        populateUserFormModel(actor, model, resolvedId);
 
         if ("schnittstellen".equals(tab)) {
             populateDivera(model, resolvedId);
+        }
+        if ("module".equals(tab)) {
+            model.addAttribute("modulesEnabled", moduleSettingsService.modulesEnabled(resolvedId));
+            model.addAttribute("moduleDefs", Arrays.asList(AppModule.values()));
+        }
+        if ("benutzer".equals(tab)) {
+            model.addAttribute("adminUsers", userManagementService.listAccounts(actor, resolvedId));
         }
 
         return "admin/index";
     }
 
     @PostMapping("/modules")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public String saveModules(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
             @RequestParam Map<String, String> params,
             RedirectAttributes redirectAttributes) {
+        long resolvedUnitId = unitService
+                .resolveActiveUnit(unitId, actor)
+                .map(Unit::getId)
+                .orElseThrow(() -> new IllegalArgumentException("Keine gültige Einheit ausgewählt."));
+
         Map<String, Boolean> updates = new LinkedHashMap<>();
         for (AppModule module : AppModule.values()) {
             if (!module.implemented()) {
@@ -103,10 +128,36 @@ public class AdminPanelController {
             }
             updates.put(module.key(), params.containsKey("module_" + module.key()));
         }
-        moduleSettingsService.saveModules(updates);
+        moduleSettingsService.saveModules(resolvedUnitId, updates);
         redirectAttributes.addFlashAttribute("saved", true);
         redirectAttributes.addFlashAttribute("message", "Module gespeichert.");
-        return "redirect:/admin?scope=global&tab=module";
+        return "redirect:/admin?scope=einheit&tab=module&unit=" + resolvedUnitId;
+    }
+
+    @PostMapping("/users")
+    public String createUser(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "scope") String scope,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam String username,
+            @RequestParam String displayName,
+            @RequestParam String password,
+            @RequestParam(defaultValue = "USER") UserRole role,
+            @RequestParam(required = false) Long unitIdForm,
+            HttpServletRequest request,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Long effectiveUnitId = "global".equals(scope) ? unitIdForm : unitId;
+            User created = userManagementService.createUser(
+                    username, displayName, password, role, effectiveUnitId, actor, request);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute(
+                    "message", "Benutzer „" + created.getUsername() + "“ wurde angelegt.");
+            return redirectAfterUser(scope, unitId, actor);
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectAfterUser(scope, unitId, actor) + "&createUser=true";
+        }
     }
 
     @PostMapping("/divera")
@@ -157,16 +208,34 @@ public class AdminPanelController {
         }
     }
 
+    private void populateUserFormModel(AppUserDetails actor, Model model, Long scopeUnitId) {
+        List<UserRole> roles = UserRole.assignableBy(actor.getRole()).stream().sorted().toList();
+        model.addAttribute("assignableRoles", roles);
+        model.addAttribute("units", unitService.findActiveOrdered(actor));
+        model.addAttribute("userFormUnitId", scopeUnitId);
+        model.addAttribute("roleLabels", UserRoleLabels.class);
+    }
+
+    private static String redirectAfterUser(String scope, Long unitId, AppUserDetails actor) {
+        if ("global".equals(scope)) {
+            return "redirect:/admin?scope=global&tab=benutzer";
+        }
+        if (unitId != null) {
+            return "redirect:/admin?scope=einheit&tab=benutzer&unit=" + unitId;
+        }
+        return "redirect:/admin?scope=einheit&tab=benutzer";
+    }
+
     private static String normalizeGlobalTab(String tab) {
         return switch (tab) {
-            case "module", "benutzer", "einheiten", "testmodus" -> tab;
-            default -> "module";
+            case "benutzer", "einheiten", "testmodus" -> tab;
+            default -> "benutzer";
         };
     }
 
     private static String normalizeUnitTab(String tab) {
         return switch (tab) {
-            case "schnittstellen", "personal", "benutzer" -> tab;
+            case "module", "schnittstellen", "personal", "benutzer" -> tab;
             default -> "schnittstellen";
         };
     }

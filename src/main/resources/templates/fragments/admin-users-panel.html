@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<th:block th:fragment="panel(adminScope, unitId)">
+  <div class="card">
+    <div class="card__header card__header--toolbar">
+      <span>Benutzer</span>
+      <a th:if="${!showUserCreate}"
+         class="btn btn--primary btn--sm"
+         th:href="@{/admin(scope=${adminScope}, tab='benutzer', unit=${unitId}, createUser=true)}">+ Benutzer anlegen</a>
+      <a th:if="${showUserCreate}"
+         class="btn btn--outline btn--sm"
+         th:href="@{/admin(scope=${adminScope}, tab='benutzer', unit=${unitId})}">Abbrechen</a>
+    </div>
+
+    <div class="card__body card__body--flush" th:if="${showUserCreate}">
+      <form method="post" th:action="@{/admin/users}" class="admin-user-form">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="scope" th:value="${adminScope}"/>
+        <input type="hidden" name="unit" th:if="${unitId != null}" th:value="${unitId}"/>
+        <input type="hidden" name="unitIdForm" th:if="${userFormUnitId != null}" th:value="${userFormUnitId}"/>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="adminUsername">Benutzername</label>
+            <input id="adminUsername" name="username" type="text" required minlength="3" maxlength="64"
+                   pattern="[a-zA-Z0-9._-]+" autocomplete="off" placeholder="z. B. m.mustermann"/>
+          </div>
+          <div class="form-group">
+            <label for="adminDisplayName">Anzeigename</label>
+            <input id="adminDisplayName" name="displayName" type="text" required maxlength="255" placeholder="Max Mustermann"/>
+          </div>
+          <div class="form-group">
+            <label for="adminPassword">Initiales Passwort</label>
+            <input id="adminPassword" name="password" type="password" required th:minlength="${minPasswordLength}" autocomplete="new-password"/>
+          </div>
+          <div class="form-group">
+            <label for="adminRole">Rolle</label>
+            <select id="adminRole" name="role">
+              <option th:each="r : ${assignableRoles}" th:value="${r.name()}"
+                      th:text="${T(de.feuerwehr.manager.user.UserRoleLabels).label(r)}">Rolle</option>
+            </select>
+          </div>
+          <div class="form-group form-group--full" th:if="${adminScope == 'global' and isSuperAdmin}">
+            <label for="adminUnitIdForm">Einheit</label>
+            <select id="adminUnitIdForm" name="unitIdForm">
+              <option value="">— keine Stamm-Einheit —</option>
+              <option th:each="u : ${units}" th:value="${u.id}" th:text="${u.name}">Einheit</option>
+            </select>
+            <p class="hint">Superadmins können optional eine Stamm-Einheit haben.</p>
+          </div>
+        </div>
+        <div class="admin-user-form__actions">
+          <button type="submit" class="btn btn--primary">Benutzer speichern</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card__body card__body--flush">
+      <div class="table-wrapper" th:if="${!#lists.isEmpty(adminUsers)}">
+        <table class="table">
+          <thead>
+          <tr>
+            <th>Benutzername</th>
+            <th>Anzeigename</th>
+            <th>Rolle</th>
+            <th>Einheit</th>
+            <th>Status</th>
+            <th>Aktionen</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="u : ${adminUsers}">
+            <td>
+              <span th:text="${u.username}">user</span>
+            </td>
+            <td th:text="${u.displayName}">Name</td>
+            <td>
+              <span class="badge" th:classappend="${u.role.adminLevel} ? ' badge--admin' : ''"
+                    th:text="${T(de.feuerwehr.manager.user.UserRoleLabels).label(u.role)}">Rolle</span>
+            </td>
+            <td th:text="${u.unit != null ? u.unit.name : '—'}">Einheit</td>
+            <td>
+              <span class="badge" th:classappend="${u.active} ? ' active' : ' inactive'"
+                    th:text="${u.active} ? 'Aktiv' : 'Inaktiv'">Status</span>
+            </td>
+            <td>
+              <a class="btn btn--outline btn--sm"
+                 th:href="@{/settings/users/{id}(id=${u.id}, unit=${unitId})}">Bearbeiten</a>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="table-empty" th:if="${#lists.isEmpty(adminUsers)}">Noch keine Benutzer.</p>
+    </div>
+  </div>
+</th:block>
+</body>
+</html>

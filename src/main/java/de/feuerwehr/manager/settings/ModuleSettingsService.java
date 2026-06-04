@@ -2,6 +2,8 @@ package de.feuerwehr.manager.settings;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import de.feuerwehr.manager.unit.Unit;
+import de.feuerwehr.manager.unit.UnitRepository;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -15,11 +17,11 @@ public class ModuleSettingsService {
 
     private static final TypeReference<Map<String, Boolean>> MODULE_MAP_TYPE = new TypeReference<>() {};
 
-    private final ApplicationSettingsRepository settingsRepository;
+    private final UnitRepository unitRepository;
     private final ObjectMapper objectMapper;
 
-    public Map<AppModule, Boolean> modulesEnabled() {
-        Map<String, Boolean> raw = readRaw();
+    public Map<AppModule, Boolean> modulesEnabled(long unitId) {
+        Map<String, Boolean> raw = readRaw(unitId);
         Map<AppModule, Boolean> result = new EnumMap<>(AppModule.class);
         for (AppModule module : AppModule.values()) {
             result.put(module, raw.getOrDefault(module.key(), module == AppModule.PERSONAL));
@@ -27,26 +29,39 @@ public class ModuleSettingsService {
         return result;
     }
 
-    public boolean isEnabled(AppModule module) {
-        return modulesEnabled().getOrDefault(module, false);
+    public boolean isEnabled(AppModule module, long unitId) {
+        return modulesEnabled(unitId).getOrDefault(module, false);
     }
 
     @Transactional
-    public void saveModules(Map<String, Boolean> updates) {
-        Map<String, Boolean> raw = new LinkedHashMap<>(readRaw());
+    public void saveModules(long unitId, Map<String, Boolean> updates) {
+        Unit unit = unitRepository.findById(unitId).orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden"));
+        Map<String, Boolean> raw = new LinkedHashMap<>(readRaw(unitId));
         for (AppModule module : AppModule.values()) {
             if (module.implemented() && updates.containsKey(module.key())) {
                 raw.put(module.key(), Boolean.TRUE.equals(updates.get(module.key())));
             }
         }
-        ApplicationSettings settings = settings();
-        settings.setModulesJson(writeRaw(raw));
-        settingsRepository.save(settings);
+        unit.setModulesJson(writeRaw(raw));
+        unitRepository.save(unit);
     }
 
-    private Map<String, Boolean> readRaw() {
-        ApplicationSettings settings = settings();
-        String json = settings.getModulesJson();
+    @Transactional
+    public void ensureDefaultModules(Unit unit) {
+        if (unit.getModulesJson() == null || unit.getModulesJson().isBlank()) {
+            unit.setModulesJson(writeRaw(defaultRaw()));
+            unitRepository.save(unit);
+        }
+    }
+
+    private Map<String, Boolean> readRaw(long unitId) {
+        return unitRepository
+                .findById(unitId)
+                .map(unit -> parseJson(unit.getModulesJson()))
+                .orElse(defaultRaw());
+    }
+
+    private Map<String, Boolean> parseJson(String json) {
         if (json == null || json.isBlank()) {
             return defaultRaw();
         }
@@ -76,19 +91,5 @@ public class ModuleSettingsService {
         } catch (Exception e) {
             throw new IllegalStateException("Module konnten nicht gespeichert werden");
         }
-    }
-
-    private ApplicationSettings settings() {
-        return settingsRepository
-                .findById(ApplicationSettings.SINGLETON_ID)
-                .orElseGet(this::createSettings);
-    }
-
-    private ApplicationSettings createSettings() {
-        ApplicationSettings settings = new ApplicationSettings();
-        settings.setId(ApplicationSettings.SINGLETON_ID);
-        settings.setTestModeEnabled(false);
-        settings.setModulesJson(writeRaw(defaultRaw()));
-        return settingsRepository.save(settings);
     }
 }

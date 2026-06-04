@@ -9,7 +9,8 @@
 <body>
 <header class="bar">
   <h1 th:text="${user.displayName}">Benutzer</h1>
-  <a class="link" th:href="@{/settings/users}">← Benutzer</a>
+  <a class="link" th:if="${param.unit != null}" th:href="@{/admin(scope='einheit', tab='benutzer', unit=${param.unit[0]})}">← Adminpanel</a>
+  <a class="link" th:unless="${param.unit != null}" th:href="@{/admin(scope='global', tab='benutzer')}">← Adminpanel</a>
 </header>
 <main>
   <div class="ok" th:if="${saved}" th:text="${message} ?: 'Gespeichert.'">Gespeichert.</div>

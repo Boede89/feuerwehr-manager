@@ -2,6 +2,7 @@ package de.feuerwehr.manager.unit;
 
 import de.feuerwehr.manager.personal.PersonRepository;
 import de.feuerwehr.manager.security.AppUserDetails;
+import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.settings.TestModeService;
 import java.util.List;
 import java.util.Objects;
@@ -19,6 +20,7 @@ public class UnitService {
     private final PersonRepository personRepository;
     private final TestModeService testModeService;
     private final UnitSelectionService unitSelectionService;
+    private final ModuleSettingsService moduleSettingsService;
 
     @Transactional(readOnly = true)
     public List<Unit> findAllOrdered() {
@@ -108,6 +110,7 @@ public class UnitService {
         unit.setTestData(testData);
         unit = unitRepository.save(unit);
         ensureDiveraSettings(unit);
+        moduleSettingsService.ensureDefaultModules(unit);
         return unit;
     }
 
