@@ -1272,6 +1272,10 @@ select.field {
   background: var(--bg-card-hover);
 }
 
+.table tbody tr.table-row--selected td {
+  background: var(--bg-card-hover);
+}
+
 .table-empty {
   text-align: center;
   padding: 32px 16px;

@@ -94,7 +94,6 @@ public class AdminUnitViewService {
         }
         final Long selectedVehicleId = resolvedVehicleId;
         model.addAttribute("selectedVehicleId", selectedVehicleId);
-        model.addAttribute("openEquipmentModal", selectedVehicleId != null);
         if (selectedVehicleId != null) {
             model.addAttribute("equipmentCategories", unitAdminService.listEquipmentCategories(selectedVehicleId));
             model.addAttribute("equipmentItems", unitAdminService.listEquipment(selectedVehicleId));

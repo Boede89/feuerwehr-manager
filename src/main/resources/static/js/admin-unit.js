@@ -112,11 +112,10 @@
     });
   });
 
-  (function initEquipmentModal() {
-    var overlay = document.getElementById('modal-vehicle-equipment');
-    if (!overlay) return;
-    if (overlay.getAttribute('data-auto-open') === 'true') {
-      document.body.classList.add('modal-open');
+  (function scrollToEquipmentPanel() {
+    var panel = document.getElementById('vehicle-equipment-panel');
+    if (panel && window.location.search.indexOf('vehicle=') >= 0) {
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   })();
 
