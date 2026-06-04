@@ -17,7 +17,7 @@
 
     document.querySelectorAll('.vehicle-row').forEach(function (row) {
       row.addEventListener('click', function (e) {
-        if (e.target.closest('.table-order-actions, button, form')) return;
+        if (e.target.closest('.row-order, button, form')) return;
         var href = row.getAttribute('data-href');
         if (href) window.location.href = href;
       });

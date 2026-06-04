@@ -1304,28 +1304,104 @@ select.field {
   background: var(--bg-card-hover);
 }
 
-.table-order-cell {
-  width: 4.5rem;
+/* Kompakte Reihenfolge in Aktionsleisten */
+.row-order {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px;
+  margin-right: 6px;
+  vertical-align: middle;
+  background: var(--bg-card-hover);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.row-order .table-inline-form {
+  display: block;
+  margin: 0;
+  line-height: 0;
+}
+
+.row-order__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.65rem;
+  height: 1.35rem;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.row-order__btn:hover:not(:disabled) {
+  background: var(--bg-card);
+  color: var(--text);
+}
+
+.row-order__btn:disabled {
+  opacity: 0.28;
+  cursor: not-allowed;
+}
+
+.btn-group .row-order {
+  align-self: center;
+}
+
+.table-col--actions {
+  width: 3rem;
+  text-align: right;
   white-space: nowrap;
   vertical-align: middle;
 }
 
-.table-order-actions {
-  display: flex;
-  gap: 2px;
+.field--disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.my-area-tabs {
+  margin-bottom: 1.25rem;
+}
+
+.emergency-contact-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: start;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.emergency-contact-row:last-of-type {
+  border-bottom: none;
+}
+
+.emergency-contact-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 8px;
   align-items: center;
 }
 
-.table-order-actions .table-inline-form {
-  display: inline;
-  margin: 0;
+.emergency-contact-form--new {
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
 }
 
-.btn--icon {
-  min-width: 2rem;
-  padding: 0 0.35rem;
-  line-height: 1.6;
-  font-size: 0.95rem;
+@media (max-width: 720px) {
+  .emergency-contact-form,
+  .emergency-contact-form--new {
+    grid-template-columns: 1fr;
+  }
 }
 
 .table tbody tr.vehicle-row,

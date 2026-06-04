@@ -81,24 +81,17 @@
             <table class="table">
               <thead>
               <tr>
-                <th class="table-order-cell">Reihenfolge</th>
                 <th>Fahrzeug</th>
                 <th>Typ</th>
                 <th>Kennzeichen</th>
                 <th>Geräte</th>
                 <th>Status</th>
+                <th class="table-col--actions"> </th>
               </tr>
               </thead>
               <tbody id="vehicle-tbody">
               <tr th:each="v, stat : ${vehicles}" class="vehicle-row"
                   th:attr="data-href=@{/admin(scope='einheit', tab='technik', unit=${unitId}, vehicle=${v.id})}">
-                <th:block th:replace="~{fragments/admin-table-order :: cell(
-                    moveUrl=@{/admin/unit/vehicles/move},
-                    unitId=${unitId},
-                    itemIdParam='vehicleId',
-                    itemId=${v.id},
-                    disableUp=${stat.first},
-                    disableDown=${stat.last})}"></th:block>
                 <td><strong th:text="${v.name}">LF</strong></td>
                 <td class="text-muted text-sm"
                     th:text="${vehicleTypeLabels[v.vehicleType] ?: (v.vehicleType ?: '—')}">—</td>
@@ -108,6 +101,15 @@
                   <span class="vehicle-status"
                         th:classappend="${' vehicle-status--' + T(de.feuerwehr.manager.technik.VehicleServiceStatus).cssModifier(v.serviceStatus)}"
                         th:text="${T(de.feuerwehr.manager.technik.VehicleServiceStatus).labelFor(v.serviceStatus)}">Status</span>
+                </td>
+                <td class="table-col--actions" onclick="event.stopPropagation()">
+                  <th:block th:replace="~{fragments/admin-table-order :: controls(
+                      moveUrl=@{/admin/unit/vehicles/move},
+                      unitId=${unitId},
+                      itemIdParam='vehicleId',
+                      itemId=${v.id},
+                      disableUp=${stat.first},
+                      disableDown=${stat.last})}"></th:block>
                 </td>
               </tr>
               </tbody>

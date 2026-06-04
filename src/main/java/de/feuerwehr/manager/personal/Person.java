@@ -47,8 +47,14 @@ public class Person {
     @Column(length = 255)
     private String email;
 
+    @Column(name = "email_private", length = 255)
+    private String emailPrivate;
+
     @Column(length = 50)
     private String phone;
+
+    @Column(length = 200)
+    private String address;
 
     private LocalDate birthdate;
 

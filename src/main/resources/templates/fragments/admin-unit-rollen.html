@@ -12,7 +12,6 @@
         <table class="table">
           <thead>
           <tr>
-            <th class="table-order-cell">Reihenfolge</th>
             <th>Rollenname</th>
             <th>Typ</th>
             <th>Module</th>
@@ -21,13 +20,6 @@
           </thead>
           <tbody>
           <tr th:each="r, stat : ${unitRoles}">
-            <th:block th:replace="~{fragments/admin-table-order :: cell(
-                moveUrl=@{/admin/unit/roles/move},
-                unitId=${unitId},
-                itemIdParam='roleId',
-                itemId=${r.id},
-                disableUp=${r.systemRole or stat.first or (stat.index > 0 and unitRoles[stat.index - 1].systemRole)},
-                disableDown=${r.systemRole or stat.last})}"></th:block>
             <td>
               <strong th:text="${r.name}">Rolle</strong>
               <span class="badge badge--muted" th:if="${r.systemRole}">Standard</span>
@@ -41,6 +33,13 @@
                 th:text="${permissionLabelsByRoleId.get(r.id)}">—</td>
             <td>
               <div class="btn-group">
+                <th:block th:replace="~{fragments/admin-table-order :: controls(
+                    moveUrl=@{/admin/unit/roles/move},
+                    unitId=${unitId},
+                    itemIdParam='roleId',
+                    itemId=${r.id},
+                    disableUp=${r.systemRole or stat.first or (stat.index > 0 and unitRoles[stat.index - 1].systemRole)},
+                    disableDown=${r.systemRole or stat.last})}"></th:block>
                 <button type="button" class="btn btn--outline btn--sm" data-open-modal="modal-unit-role"
                         th:data-role-id="${r.id}"
                         th:data-role-name="${r.name}"
