@@ -24,6 +24,9 @@ public class ApplicationSettings {
     @Column(name = "test_mode_enabled", nullable = false)
     private boolean testModeEnabled;
 
+    @Column(name = "modules_json")
+    private String modulesJson;
+
     @Column(name = "updated_at", nullable = false, insertable = false, updatable = false)
     private Instant updatedAt;
 }

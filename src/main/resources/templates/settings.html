@@ -5,35 +5,13 @@
   <div class="page-header">
     <div>
       <h2>Einstellungen</h2>
-      <p>Grundkonfiguration für den Betrieb</p>
+      <p>Dein Konto und die Darstellung</p>
     </div>
   </div>
 
   <div th:replace="~{fragments/testmode-banner :: banner}"></div>
   <div class="ok" th:if="${saved}" th:text="${message} ?: 'Gespeichert.'">OK</div>
   <div class="err" th:if="${error}" th:text="${error}">Fehler</div>
-
-  <div class="card card--warning" th:if="${isSuperAdmin}">
-    <div class="testmode-settings-row">
-      <div>
-        <h3 class="card-section-title">Testmodus</h3>
-        <p class="hint" th:if="${testModeEnabled}">
-          Aktiv — Produktivdaten sichtbar; Änderungen nur als Testkopie. Beim Beenden werden alle Teständerungen gelöscht.
-        </p>
-        <p class="hint" th:unless="${testModeEnabled}">
-          Ausprobieren ohne Auswirkung auf Produktivdaten; Teständerungen werden beim Beenden verworfen.
-        </p>
-      </div>
-      <form th:if="${testModeEnabled}" method="post" th:action="@{/settings/test-mode/disable}" class="bar-form">
-        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-        <button type="submit" class="btn btn--outline btn--sm">Testmodus beenden</button>
-      </form>
-      <form th:unless="${testModeEnabled}" method="post" th:action="@{/settings/test-mode/enable}" class="bar-form">
-        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-        <button type="submit" class="btn btn--sm">Testmodus aktivieren</button>
-      </form>
-    </div>
-  </div>
 
   <div class="card card--flush-header">
     <div class="card__header">Darstellung</div>
@@ -46,35 +24,33 @@
     </div>
   </div>
 
-  <div class="list">
-    <h2>Bereiche</h2>
-    <a class="list-row" th:href="@{/profile/password}">
-      <span><strong>Mein Passwort</strong><br/><span class="hint hint--block">Eigenes Passwort ändern</span></span>
-      <span>→</span>
-    </a>
-    <a class="list-row" th:if="${isAdmin}" th:href="@{/settings/users}">
-      <span><strong>Benutzer</strong><br/><span class="hint hint--block">Konten, Rollen, RFID-Chips</span></span>
-      <span>→</span>
-    </a>
-    <a class="list-row" th:if="${hasActiveUnit}" th:href="@{/personal/setup/qualifications(unit=${unitId})}">
-      <span><strong>Qualifikationen</strong><br/><span class="hint hint--block">z. B. GF, TF, Mannschaft</span></span>
-      <span>→</span>
-    </a>
-    <a class="list-row" th:if="${hasActiveUnit}" th:href="@{/personal/setup/courses(unit=${unitId})}">
-      <span><strong>Lehrgänge</strong><br/><span class="hint hint--block">Kurse und Qualifikationen</span></span>
-      <span>→</span>
-    </a>
-    <a class="list-row" th:if="${canManageUnits}" th:href="@{/settings/units}">
-      <span><strong>Einheiten</strong><br/><span class="hint hint--block">Feuerwehren / Standorte (Superadmin)</span></span>
-      <span>→</span>
-    </a>
-    <a class="list-row" th:if="${hasActiveUnit}" th:href="@{/settings/divera(unit=${unitId})}">
-      <span><strong>Divera</strong><br/><span class="hint hint--block">Access Key und API-URL</span></span>
-      <span>→</span>
-    </a>
-    <div class="list-row" th:unless="${hasActiveUnit}">
-      <span><strong>Divera</strong><br/><span class="hint hint--block">Zuerst eine aktive Einheit anlegen.</span></span>
+  <div class="card card--flush-header">
+    <div class="card__header">Konto</div>
+    <div class="card__body">
+      <form method="post" th:action="@{/settings/password}" class="form-grid form-grid--stack">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <div class="form-group">
+          <label for="currentPassword">Aktuelles Passwort</label>
+          <input id="currentPassword" name="currentPassword" type="password" required autocomplete="current-password"/>
+        </div>
+        <div class="form-group">
+          <label for="newPassword">Neues Passwort</label>
+          <input id="newPassword" name="newPassword" type="password" required th:minlength="${minPasswordLength}" autocomplete="new-password"/>
+        </div>
+        <div class="form-group">
+          <label for="newPasswordConfirm">Neues Passwort wiederholen</label>
+          <input id="newPasswordConfirm" name="newPasswordConfirm" type="password" required th:minlength="${minPasswordLength}" autocomplete="new-password"/>
+        </div>
+        <div class="form-group form-group--full">
+          <button type="submit" class="btn btn--primary">Passwort speichern</button>
+        </div>
+      </form>
     </div>
   </div>
+
+  <p class="hint" th:if="${isAdmin}">
+    Verwaltung von Einheit, Modulen und Schnittstellen:
+    <a th:href="@{/admin(unit=${unitId})}">Adminpanel öffnen</a>
+  </p>
 </main>
 </html>

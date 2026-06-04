@@ -4,7 +4,8 @@
 <main>
   <div class="page-header">
     <div><h2>Benutzerverwaltung</h2><p>Konten, Rollen und RFID</p></div>
-    <a class="page-back" th:href="@{/settings(unit=${unitId})}">← Einstellungen</a>
+    <a class="page-back" th:if="${isSuperAdmin}" th:href="@{/admin(scope='global', tab='benutzer')}">← Adminpanel</a>
+    <a class="page-back" th:unless="${isSuperAdmin}" th:href="@{/admin(scope='einheit', tab='benutzer', unit=${unitId})}">← Adminpanel</a>
   </div>
   <div class="ok" th:if="${saved}" th:text="${message} ?: 'Gespeichert.'">Gespeichert.</div>
   <div class="err" th:if="${error}" th:text="${error}">Fehler</div>

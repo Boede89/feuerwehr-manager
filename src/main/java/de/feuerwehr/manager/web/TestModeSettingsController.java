@@ -21,7 +21,7 @@ public class TestModeSettingsController {
         testModeService.enable();
         redirectAttributes.addFlashAttribute("saved", true);
         redirectAttributes.addFlashAttribute("message", "Testmodus ist aktiv. Neue und geänderte Fachdaten gelten nur als Testdaten.");
-        return "redirect:/settings";
+        return "redirect:/admin?scope=global&tab=testmodus";
     }
 
     @PostMapping("/disable")
@@ -29,6 +29,6 @@ public class TestModeSettingsController {
         testModeService.disable();
         redirectAttributes.addFlashAttribute("saved", true);
         redirectAttributes.addFlashAttribute("message", "Testmodus beendet. Alle Teständerungen wurden verworfen.");
-        return "redirect:/settings";
+        return "redirect:/admin?scope=global&tab=testmodus";
     }
 }

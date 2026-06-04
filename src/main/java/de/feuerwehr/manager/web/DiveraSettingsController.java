@@ -9,7 +9,6 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -27,8 +26,7 @@ public class DiveraSettingsController {
     @GetMapping
     public String form(
             @AuthenticationPrincipal AppUserDetails actor,
-            @RequestParam(name = "unit", required = false) Long unitId,
-            Model model) {
+            @RequestParam(name = "unit", required = false) Long unitId) {
         if (unitService.findActiveOrdered(actor).isEmpty()) {
             return "redirect:/settings/units?setup=1";
         }
@@ -36,19 +34,7 @@ public class DiveraSettingsController {
         if (unit.isEmpty()) {
             return "redirect:/settings/units?setup=1";
         }
-        long resolvedId = unit.get().getId();
-        model.addAttribute("units", unitService.findActiveOrdered(actor));
-        model.addAttribute("unitId", resolvedId);
-        Optional<UnitDiveraSettings> opt = diveraSettingsRepository.findByUnitId(resolvedId);
-        if (opt.isPresent()) {
-            UnitDiveraSettings s = opt.get();
-            model.addAttribute("apiBaseUrl", s.getApiBaseUrl());
-            model.addAttribute("accessKeyConfigured", s.getAccessKey() != null && !s.getAccessKey().isBlank());
-        } else {
-            model.addAttribute("apiBaseUrl", "https://app.divera247.com");
-            model.addAttribute("accessKeyConfigured", false);
-        }
-        return "settings-divera";
+        return "redirect:/admin?scope=einheit&tab=schnittstellen&unit=" + unit.get().getId();
     }
 
     @PostMapping
@@ -77,6 +63,6 @@ public class DiveraSettingsController {
 
         diveraSettingsRepository.save(settings);
         redirectAttributes.addFlashAttribute("saved", true);
-        return "redirect:/settings/divera?unit=" + unitId;
+        return "redirect:/admin?scope=einheit&tab=schnittstellen&unit=" + unitId;
     }
 }

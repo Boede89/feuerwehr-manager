@@ -2,6 +2,8 @@ package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.SecurityProperties;
+import de.feuerwehr.manager.settings.AppModule;
+import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
@@ -21,6 +23,7 @@ public class WebUiAdvice {
     private final SecurityProperties securityProperties;
     private final TestModeService testModeService;
     private final UnitService unitService;
+    private final ModuleSettingsService moduleSettingsService;
 
     @ModelAttribute("isSuperAdmin")
     public boolean isSuperAdmin(@AuthenticationPrincipal AppUserDetails user) {
@@ -71,6 +74,22 @@ public class WebUiAdvice {
         });
     }
 
+    @ModelAttribute
+    public void addModuleNavigation(Model model) {
+        for (AppModule module : AppModule.values()) {
+            boolean enabled = moduleSettingsService.isEnabled(module);
+            String state;
+            if (!enabled) {
+                state = "hidden";
+            } else if (module.implemented()) {
+                state = "link";
+            } else {
+                state = "soon";
+            }
+            model.addAttribute("nav" + capitalize(module.key()), state);
+        }
+    }
+
     @ModelAttribute("activeNav")
     public String activeNav(HttpServletRequest request) {
         String path = request.getRequestURI();
@@ -80,6 +99,9 @@ public class WebUiAdvice {
         if (path.startsWith("/my-area") || path.startsWith("/profile")) {
             return "my-area";
         }
+        if (path.startsWith("/admin")) {
+            return "admin";
+        }
         if (path.startsWith("/settings")) {
             return "settings";
         }
@@ -87,6 +109,13 @@ public class WebUiAdvice {
             return "home";
         }
         return "";
+    }
+
+    private static String capitalize(String key) {
+        if (key == null || key.isEmpty()) {
+            return key;
+        }
+        return Character.toUpperCase(key.charAt(0)) + key.substring(1);
     }
 
     private static String buildRequestPath(HttpServletRequest request) {

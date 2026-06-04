@@ -20,7 +20,7 @@ public class ProfileController {
 
     @GetMapping("/password")
     public String passwordForm() {
-        return "profile-password";
+        return "redirect:/settings";
     }
 
     @PostMapping("/password")
@@ -32,16 +32,16 @@ public class ProfileController {
             RedirectAttributes redirectAttributes) {
         if (!newPassword.equals(newPasswordConfirm)) {
             redirectAttributes.addFlashAttribute("error", "Neue Passwörter stimmen nicht überein.");
-            return "redirect:/profile/password";
+            return "redirect:/settings";
         }
         try {
             userManagementService.changeOwnPassword(user.getUserId(), currentPassword, newPassword);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Passwort wurde geändert.");
-            return "redirect:/profile/password";
+            return "redirect:/settings";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
-            return "redirect:/profile/password";
+            return "redirect:/settings";
         }
     }
 }
