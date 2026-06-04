@@ -9,6 +9,7 @@ import de.feuerwehr.manager.technik.VehicleEquipmentCategory;
 import de.feuerwehr.manager.technik.VehicleEquipmentCategoryRepository;
 import de.feuerwehr.manager.technik.VehicleEquipmentRepository;
 import de.feuerwehr.manager.technik.VehicleRepository;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -21,8 +22,8 @@ import org.springframework.util.StringUtils;
 public class UnitAdminService {
 
     private final UnitRepository unitRepository;
-    private final UnitSmtpSettingsRepository smtpSettingsRepository;
-    private final UnitCalendarSettingsRepository calendarSettingsRepository;
+    private final UnitSmtpAccountRepository smtpAccountRepository;
+    private final UnitCalendarAccountRepository calendarAccountRepository;
     private final VehicleRepository vehicleRepository;
     private final RoomRepository roomRepository;
     private final VehicleEquipmentCategoryRepository equipmentCategoryRepository;
@@ -63,19 +64,21 @@ public class UnitAdminService {
     }
 
     @Transactional(readOnly = true)
-    public UnitSmtpSettings getOrCreateSmtp(long unitId) {
-        return smtpSettingsRepository
-                .findById(unitId)
-                .orElseGet(() -> {
-                    UnitSmtpSettings s = new UnitSmtpSettings();
-                    s.setUnit(requireUnit(unitId));
-                    return smtpSettingsRepository.save(s);
-                });
+    public List<UnitSmtpAccount> listSmtpAccounts(long unitId) {
+        return smtpAccountRepository.findByUnitIdOrderBySortOrderAscLabelAsc(unitId);
+    }
+
+    @Transactional(readOnly = true)
+    public UnitSmtpAccount requireSmtpAccount(long unitId, long accountId) {
+        return smtpAccountRepository
+                .findByIdAndUnitId(accountId, unitId)
+                .orElseThrow(() -> new IllegalArgumentException("SMTP-Konto nicht gefunden."));
     }
 
     @Transactional
-    public UnitSmtpSettings saveSmtp(
+    public UnitSmtpAccount createSmtpAccount(
             long unitId,
+            String label,
             String host,
             Integer port,
             String username,
@@ -83,41 +86,131 @@ public class UnitAdminService {
             String fromEmail,
             String fromName,
             String encryption) {
-        UnitSmtpSettings s = getOrCreateSmtp(unitId);
-        s.setSmtpHost(trimToNull(host));
-        s.setSmtpPort(port);
-        s.setSmtpUsername(trimToNull(username));
-        if (StringUtils.hasText(password)) {
-            s.setSmtpPassword(password.trim());
-        }
-        s.setSmtpFromEmail(trimToNull(fromEmail));
-        s.setSmtpFromName(trimToNull(fromName));
-        s.setSmtpEncryption(encryption != null && !encryption.isBlank() ? encryption.trim() : "TLS");
-        return smtpSettingsRepository.save(s);
-    }
-
-    public boolean isSmtpPasswordConfigured(long unitId) {
-        return smtpSettingsRepository
-                .findById(unitId)
-                .map(s -> s.getSmtpPassword() != null && !s.getSmtpPassword().isBlank())
-                .orElse(false);
-    }
-
-    @Transactional(readOnly = true)
-    public UnitCalendarSettings getOrCreateCalendar(long unitId) {
-        return calendarSettingsRepository
-                .findById(unitId)
-                .orElseGet(() -> {
-                    UnitCalendarSettings c = new UnitCalendarSettings();
-                    c.setUnit(requireUnit(unitId));
-                    return calendarSettingsRepository.save(c);
-                });
+        Unit unit = requireUnit(unitId);
+        UnitSmtpAccount a = new UnitSmtpAccount();
+        a.setUnit(unit);
+        a.setLabel(requireLabel(label));
+        applySmtpFields(a, host, port, username, password, fromEmail, fromName, encryption, true);
+        a.setSortOrder(listSmtpAccounts(unitId).size());
+        return smtpAccountRepository.save(a);
     }
 
     @Transactional
-    public UnitCalendarSettings saveCalendar(
-            long unitId, String calendarUrl, String calendarId, String serviceAccountJson, boolean enabled) {
-        UnitCalendarSettings c = getOrCreateCalendar(unitId);
+    public UnitSmtpAccount updateSmtpAccount(
+            long unitId,
+            long accountId,
+            String label,
+            String host,
+            Integer port,
+            String username,
+            String password,
+            String fromEmail,
+            String fromName,
+            String encryption) {
+        UnitSmtpAccount a = requireSmtpAccount(unitId, accountId);
+        a.setLabel(requireLabel(label));
+        applySmtpFields(a, host, port, username, password, fromEmail, fromName, encryption, false);
+        a.setUpdatedAt(Instant.now());
+        return smtpAccountRepository.save(a);
+    }
+
+    @Transactional
+    public void deleteSmtpAccount(long unitId, long accountId) {
+        smtpAccountRepository.delete(requireSmtpAccount(unitId, accountId));
+    }
+
+    public boolean isSmtpPasswordConfigured(UnitSmtpAccount account) {
+        return account != null
+                && account.getSmtpPassword() != null
+                && !account.getSmtpPassword().isBlank();
+    }
+
+    @Transactional(readOnly = true)
+    public List<UnitCalendarAccount> listCalendarAccounts(long unitId) {
+        return calendarAccountRepository.findByUnitIdOrderBySortOrderAscLabelAsc(unitId);
+    }
+
+    @Transactional(readOnly = true)
+    public UnitCalendarAccount requireCalendarAccount(long unitId, long accountId) {
+        return calendarAccountRepository
+                .findByIdAndUnitId(accountId, unitId)
+                .orElseThrow(() -> new IllegalArgumentException("Kalender nicht gefunden."));
+    }
+
+    @Transactional
+    public UnitCalendarAccount createCalendarAccount(
+            long unitId,
+            String label,
+            String calendarUrl,
+            String calendarId,
+            String serviceAccountJson,
+            boolean enabled) {
+        Unit unit = requireUnit(unitId);
+        UnitCalendarAccount c = new UnitCalendarAccount();
+        c.setUnit(unit);
+        c.setLabel(requireLabel(label));
+        applyCalendarFields(c, calendarUrl, calendarId, serviceAccountJson, enabled, true);
+        c.setSortOrder(listCalendarAccounts(unitId).size());
+        return calendarAccountRepository.save(c);
+    }
+
+    @Transactional
+    public UnitCalendarAccount updateCalendarAccount(
+            long unitId,
+            long accountId,
+            String label,
+            String calendarUrl,
+            String calendarId,
+            String serviceAccountJson,
+            boolean enabled) {
+        UnitCalendarAccount c = requireCalendarAccount(unitId, accountId);
+        c.setLabel(requireLabel(label));
+        applyCalendarFields(c, calendarUrl, calendarId, serviceAccountJson, enabled, false);
+        c.setUpdatedAt(java.time.Instant.now());
+        return calendarAccountRepository.save(c);
+    }
+
+    @Transactional
+    public void deleteCalendarAccount(long unitId, long accountId) {
+        calendarAccountRepository.delete(requireCalendarAccount(unitId, accountId));
+    }
+
+    public boolean isCalendarCredentialsConfigured(UnitCalendarAccount account) {
+        return account != null
+                && account.getServiceAccountJson() != null
+                && !account.getServiceAccountJson().isBlank();
+    }
+
+    private static void applySmtpFields(
+            UnitSmtpAccount a,
+            String host,
+            Integer port,
+            String username,
+            String password,
+            String fromEmail,
+            String fromName,
+            String encryption,
+            boolean isCreate) {
+        a.setSmtpHost(trimToNull(host));
+        a.setSmtpPort(port);
+        a.setSmtpUsername(trimToNull(username));
+        if (StringUtils.hasText(password)) {
+            a.setSmtpPassword(password.trim());
+        } else if (isCreate) {
+            a.setSmtpPassword(null);
+        }
+        a.setSmtpFromEmail(trimToNull(fromEmail));
+        a.setSmtpFromName(trimToNull(fromName));
+        a.setSmtpEncryption(encryption != null && !encryption.isBlank() ? encryption.trim() : "TLS");
+    }
+
+    private static void applyCalendarFields(
+            UnitCalendarAccount c,
+            String calendarUrl,
+            String calendarId,
+            String serviceAccountJson,
+            boolean enabled,
+            boolean isCreate) {
         c.setCalendarUrl(trimToNull(calendarUrl));
         c.setCalendarId(trimToNull(calendarId));
         if (serviceAccountJson != null) {
@@ -125,17 +218,18 @@ public class UnitAdminService {
             if (!json.isEmpty()) {
                 c.setServiceAccountJson(json);
             }
+        } else if (isCreate) {
+            c.setServiceAccountJson(null);
         }
         c.setEnabled(enabled);
         c.setProvider("google");
-        return calendarSettingsRepository.save(c);
     }
 
-    public boolean isCalendarCredentialsConfigured(long unitId) {
-        return calendarSettingsRepository
-                .findById(unitId)
-                .map(s -> s.getServiceAccountJson() != null && !s.getServiceAccountJson().isBlank())
-                .orElse(false);
+    private static String requireLabel(String label) {
+        if (label == null || label.isBlank()) {
+            throw new IllegalArgumentException("Bitte eine Bezeichnung eingeben.");
+        }
+        return label.trim();
     }
 
     @Transactional(readOnly = true)

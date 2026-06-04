@@ -91,4 +91,41 @@
       document.getElementById('edit-room-active').checked = btn.getAttribute('data-active') === 'true';
     });
   });
+
+  document.querySelectorAll('[data-open-modal="modal-smtp-edit"]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var set = function (id, val) {
+        var el = document.getElementById(id);
+        if (el) el.value = val != null ? val : '';
+      };
+      set('edit-smtp-id', btn.getAttribute('data-id'));
+      set('edit-smtp-label', btn.getAttribute('data-label'));
+      set('edit-smtp-host', btn.getAttribute('data-host'));
+      set('edit-smtp-port', btn.getAttribute('data-port') || '587');
+      set('edit-smtp-user', btn.getAttribute('data-user'));
+      set('edit-smtp-from', btn.getAttribute('data-from'));
+      set('edit-smtp-from-name', btn.getAttribute('data-from-name'));
+      var enc = document.getElementById('edit-smtp-enc');
+      if (enc) enc.value = btn.getAttribute('data-enc') || 'TLS';
+      var hint = document.getElementById('edit-smtp-pw-hint');
+      if (hint) hint.hidden = btn.getAttribute('data-pw-config') !== 'true';
+    });
+  });
+
+  document.querySelectorAll('[data-open-modal="modal-calendar-edit"]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var set = function (id, val) {
+        var el = document.getElementById(id);
+        if (el) el.value = val != null ? val : '';
+      };
+      set('edit-calendar-id', btn.getAttribute('data-id'));
+      set('edit-calendar-label', btn.getAttribute('data-label'));
+      set('edit-calendar-url', btn.getAttribute('data-url'));
+      set('edit-calendar-cal-id', btn.getAttribute('data-cal-id'));
+      var enabled = document.getElementById('edit-calendar-enabled');
+      if (enabled) enabled.checked = btn.getAttribute('data-enabled') === 'true';
+      var hint = document.getElementById('edit-calendar-json-hint');
+      if (hint) hint.hidden = btn.getAttribute('data-json-config') !== 'true';
+    });
+  });
 })();

@@ -9,7 +9,7 @@ import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.settings.GlobalSettingsService;
 import de.feuerwehr.manager.unit.UnitAdminService;
 import de.feuerwehr.manager.unit.UnitService;
-import de.feuerwehr.manager.unit.UnitSmtpSettings;
+import de.feuerwehr.manager.unit.UnitSmtpAccount;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
 import de.feuerwehr.manager.web.dto.ActionResultDto;
@@ -40,13 +40,28 @@ public class AdminIntegrationsRestController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'UNIT_ADMIN')")
     @ResponseBody
     public ActionResultDto testUnitSmtp(
-            @AuthenticationPrincipal AppUserDetails actor, @RequestParam long unit) {
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam(required = false) Long smtpAccountId) {
         try {
             unitService
                     .resolveActiveUnit(unit, actor)
                     .orElseThrow(() -> new IllegalArgumentException("Keine gültige Einheit."));
             String to = resolveTestEmail(actor);
-            UnitSmtpSettings unitSmtp = unitAdminService.getOrCreateSmtp(unit);
+            UnitSmtpAccount unitSmtp = null;
+            if (smtpAccountId != null && smtpAccountId > 0) {
+                unitSmtp = unitAdminService.requireSmtpAccount(unit, smtpAccountId);
+            } else {
+                var accounts = unitAdminService.listSmtpAccounts(unit);
+                if (accounts.size() == 1) {
+                    unitSmtp = accounts.get(0);
+                } else if (accounts.isEmpty()) {
+                    unitSmtp = null;
+                } else {
+                    return ActionResultDto.failure(
+                            "Bitte in der Tabelle beim gewünschten Konto auf „Test“ klicken.");
+                }
+            }
             Optional<String> err = smtpMailService.sendTestMail(unitSmtp, globalSettingsService.get(), to);
             if (err.isPresent()) {
                 return ActionResultDto.failure(err.get());

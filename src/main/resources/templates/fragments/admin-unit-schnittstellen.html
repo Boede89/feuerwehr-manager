@@ -8,52 +8,47 @@
   <div class="card">
     <div class="card__header card__header--toolbar">
       <span>SMTP (Einheit)</span>
-      <button type="button" class="btn btn--outline btn--sm" id="btn-test-unit-smtp"
-              data-action="smtp-test-unit">Verbindung testen</button>
+      <button type="button" class="btn btn--primary btn--sm" data-open-modal="modal-smtp-new">+ SMTP-Konto</button>
     </div>
-    <div class="card__body">
-      <p class="hint">Optionaler Mailversand nur für diese Einheit. Leer lassen, wenn der globale SMTP-Server genutzt werden soll. Der Test wird an Ihre Login-E-Mail gesendet.</p>
-      <form method="post" th:action="@{/admin/unit/smtp}" class="form-grid">
-        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-        <input type="hidden" name="unit" th:value="${unitId}"/>
-        <div class="form-group">
-          <label for="unitSmtpHost">SMTP-Host</label>
-          <input id="unitSmtpHost" name="smtpHost" type="text" th:value="${unitSmtp.smtpHost}"/>
-        </div>
-        <div class="form-group">
-          <label for="unitSmtpPort">Port</label>
-          <input id="unitSmtpPort" name="smtpPort" type="number" min="1" max="65535"
-                 th:value="${unitSmtp.smtpPort != null ? unitSmtp.smtpPort : 587}"/>
-        </div>
-        <div class="form-group">
-          <label for="unitSmtpUser">Benutzername</label>
-          <input id="unitSmtpUser" name="smtpUsername" type="text" th:value="${unitSmtp.smtpUsername}"/>
-        </div>
-        <div class="form-group">
-          <label for="unitSmtpPw">Passwort</label>
-          <input id="unitSmtpPw" name="smtpPassword" type="password" autocomplete="new-password" placeholder="Leer = unverändert"/>
-          <p class="hint" th:if="${smtpPasswordConfigured}">Passwort ist hinterlegt.</p>
-        </div>
-        <div class="form-group">
-          <label for="unitSmtpFrom">Absender E-Mail</label>
-          <input id="unitSmtpFrom" name="smtpFromEmail" type="email" th:value="${unitSmtp.smtpFromEmail}"/>
-        </div>
-        <div class="form-group">
-          <label for="unitSmtpFromName">Absender Name</label>
-          <input id="unitSmtpFromName" name="smtpFromName" type="text" th:value="${unitSmtp.smtpFromName}"/>
-        </div>
-        <div class="form-group">
-          <label for="unitSmtpEnc">Verschlüsselung</label>
-          <select id="unitSmtpEnc" name="smtpEncryption">
-            <option value="TLS" th:selected="${unitSmtp.smtpEncryption == 'TLS' or unitSmtp.smtpEncryption == null}">TLS</option>
-            <option value="SSL" th:selected="${unitSmtp.smtpEncryption == 'SSL'}">SSL</option>
-            <option value="NONE" th:selected="${unitSmtp.smtpEncryption == 'NONE'}">Keine</option>
-          </select>
-        </div>
-        <div class="form-group form-group--submit">
-          <button type="submit" class="btn btn--primary">SMTP speichern</button>
-        </div>
-      </form>
+    <div class="card__body card__body--flush">
+      <p class="hint" style="padding: 0 1rem 0.75rem;">Mehrere Mail-Konten pro Einheit möglich. Leerer Host = beim Versand wird der globale SMTP-Server genutzt. Test-Mail geht an Ihre Login-E-Mail.</p>
+      <div class="table-wrapper" th:if="${!#lists.isEmpty(smtpAccounts)}">
+        <table class="table">
+          <thead>
+          <tr>
+            <th>Bezeichnung</th>
+            <th>Host</th>
+            <th>Absender</th>
+            <th>Aktionen</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="a : ${smtpAccounts}">
+            <td th:text="${a.label}">Konto</td>
+            <td class="text-muted text-sm" th:text="${a.smtpHost} ?: '—'">—</td>
+            <td class="text-muted text-sm" th:text="${a.smtpFromEmail} ?: '—'">—</td>
+            <td>
+              <div class="btn-group">
+                <button type="button" class="btn btn--outline btn--sm" data-action="smtp-test-unit"
+                        th:attr="data-smtp-id=${a.id}">Test</button>
+                <button type="button" class="btn btn--outline btn--sm" data-open-modal="modal-smtp-edit"
+                        th:attr="data-id=${a.id},data-label=${a.label},data-host=${a.smtpHost},data-port=${a.smtpPort},
+                        data-user=${a.smtpUsername},data-from=${a.smtpFromEmail},data-from-name=${a.smtpFromName},
+                        data-enc=${a.smtpEncryption},data-pw-config=${smtpPasswordConfigured[a.id]}">Bearbeiten</button>
+                <form method="post" th:action="@{/admin/unit/smtp/delete}" class="table-inline-form"
+                      onsubmit="return confirm('SMTP-Konto wirklich löschen?');">
+                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                  <input type="hidden" name="unit" th:value="${unitId}"/>
+                  <input type="hidden" name="smtpAccountId" th:value="${a.id}"/>
+                  <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="table-empty" th:if="${#lists.isEmpty(smtpAccounts)}">Noch kein SMTP-Konto hinterlegt.</p>
     </div>
   </div>
 
@@ -108,41 +103,210 @@
   </div>
 
   <div class="card">
-    <div class="card__header">Kalender (Google)</div>
-    <div class="card__body">
-      <p class="hint">
-        <strong>Lesen (Anzeige/Sync):</strong> iCal-URL — nur Abonnement, keine Schreibrechte.<br/>
-        <strong>Schreiben (Termine anlegen):</strong> Kalender-ID + Service-Account-JSON mit Bearbeitungsrecht auf diesen Kalender
-        (Google Cloud Console → Dienstkonto → Kalender freigeben).
+    <div class="card__header card__header--toolbar">
+      <span>Kalender (Google)</span>
+      <button type="button" class="btn btn--primary btn--sm" data-open-modal="modal-calendar-new">+ Kalender</button>
+    </div>
+    <div class="card__body card__body--flush">
+      <p class="hint" style="padding: 0 1rem 0.75rem;">
+        <strong>Lesen:</strong> iCal-URL. <strong>Schreiben:</strong> Kalender-ID + Service-Account-JSON (Kalender in Google freigeben).
       </p>
-      <form method="post" th:action="@{/admin/unit/calendar}" class="form-grid">
+      <div class="table-wrapper" th:if="${!#lists.isEmpty(calendarAccounts)}">
+        <table class="table">
+          <thead>
+          <tr>
+            <th>Bezeichnung</th>
+            <th>Kalender-ID / URL</th>
+            <th>Status</th>
+            <th>Aktionen</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="c : ${calendarAccounts}">
+            <td th:text="${c.label}">Kalender</td>
+            <td class="text-muted text-sm">
+              <span th:if="${c.calendarId != null and !#strings.isEmpty(c.calendarId)}" th:text="${c.calendarId}">ID</span>
+              <span th:if="${c.calendarId == null or #strings.isEmpty(c.calendarId)}"
+                    th:text="${c.calendarUrl} ?: '—'">—</span>
+            </td>
+            <td>
+              <span class="badge" th:classappend="${c.enabled} ? ' active' : ' inactive'"
+                    th:text="${c.enabled} ? 'Aktiv' : 'Inaktiv'">Status</span>
+            </td>
+            <td>
+              <div class="btn-group">
+                <button type="button" class="btn btn--outline btn--sm" data-open-modal="modal-calendar-edit"
+                        th:attr="data-id=${c.id},data-label=${c.label},data-url=${c.calendarUrl},data-cal-id=${c.calendarId},
+                        data-enabled=${c.enabled},data-json-config=${calendarCredentialsConfigured[c.id]}">Bearbeiten</button>
+                <form method="post" th:action="@{/admin/unit/calendar/delete}" class="table-inline-form"
+                      onsubmit="return confirm('Kalender wirklich löschen?');">
+                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                  <input type="hidden" name="unit" th:value="${unitId}"/>
+                  <input type="hidden" name="calendarAccountId" th:value="${c.id}"/>
+                  <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="table-empty" th:if="${#lists.isEmpty(calendarAccounts)}">Noch kein Kalender hinterlegt.</p>
+    </div>
+  </div>
+
+  <!-- Modal: SMTP anlegen -->
+  <div id="modal-smtp-new" class="modal-overlay">
+    <div class="modal modal--wide" role="dialog">
+      <div class="modal__header"><h3>SMTP-Konto hinzufügen</h3>
+        <button type="button" class="modal__close" data-close-modal>✕</button></div>
+      <form method="post" th:action="@{/admin/unit/smtp}">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="unit" th:value="${unitId}"/>
-        <div class="form-group form-group--full">
-          <label for="calendarUrl">iCal-URL (optional, nur Lesen)</label>
-          <input id="calendarUrl" name="calendarUrl" type="url" maxlength="1024"
-                 th:value="${unitCalendar.calendarUrl}" placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"/>
+        <div class="modal__body form-grid">
+          <div class="form-group form-group--full">
+            <label>Bezeichnung</label>
+            <input name="label" type="text" required maxlength="128" placeholder="z. B. Alarm-Mail"/>
+          </div>
+          <div class="form-group"><label>SMTP-Host</label><input name="smtpHost" type="text"/></div>
+          <div class="form-group"><label>Port</label><input name="smtpPort" type="number" min="1" max="65535" value="587"/></div>
+          <div class="form-group"><label>Benutzername</label><input name="smtpUsername" type="text"/></div>
+          <div class="form-group"><label>Passwort</label><input name="smtpPassword" type="password" autocomplete="new-password"/></div>
+          <div class="form-group"><label>Absender E-Mail</label><input name="smtpFromEmail" type="email"/></div>
+          <div class="form-group"><label>Absender Name</label><input name="smtpFromName" type="text"/></div>
+          <div class="form-group"><label>Verschlüsselung</label>
+            <select name="smtpEncryption">
+              <option value="TLS" selected>TLS</option>
+              <option value="SSL">SSL</option>
+              <option value="NONE">Keine</option>
+            </select>
+          </div>
         </div>
-        <div class="form-group form-group--full">
-          <label for="calendarId">Kalender-ID (für API-Schreibzugriff)</label>
-          <input id="calendarId" name="calendarId" type="text" maxlength="512"
-                 th:value="${unitCalendar.calendarId}" placeholder="abc@group.calendar.google.com"/>
+        <div class="modal__footer">
+          <button type="submit" class="btn btn--primary">Anlegen</button>
+          <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
         </div>
-        <div class="form-group form-group--full">
-          <label for="serviceAccountJson">Service-Account-JSON (Schreibrechte)</label>
-          <textarea id="serviceAccountJson" name="serviceAccountJson" class="field" rows="4"
-                    placeholder='{"type":"service_account",...}'
-                    th:text="${unitCalendar.serviceAccountJson}"></textarea>
-          <p class="hint" th:if="${calendarCredentialsConfigured}">Zugangsdaten sind hinterlegt. Feld leer lassen = unverändert.</p>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: SMTP bearbeiten -->
+  <div id="modal-smtp-edit" class="modal-overlay">
+    <div class="modal modal--wide" role="dialog">
+      <div class="modal__header"><h3>SMTP-Konto bearbeiten</h3>
+        <button type="button" class="modal__close" data-close-modal>✕</button></div>
+      <form method="post" th:action="@{/admin/unit/smtp}">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <input type="hidden" name="smtpAccountId" id="edit-smtp-id"/>
+        <div class="modal__body form-grid">
+          <div class="form-group form-group--full">
+            <label>Bezeichnung</label>
+            <input id="edit-smtp-label" name="label" type="text" required maxlength="128"/>
+          </div>
+          <div class="form-group"><label>SMTP-Host</label><input id="edit-smtp-host" name="smtpHost" type="text"/></div>
+          <div class="form-group"><label>Port</label><input id="edit-smtp-port" name="smtpPort" type="number" min="1" max="65535"/></div>
+          <div class="form-group"><label>Benutzername</label><input id="edit-smtp-user" name="smtpUsername" type="text"/></div>
+          <div class="form-group">
+            <label>Passwort</label>
+            <input name="smtpPassword" type="password" autocomplete="new-password" placeholder="Leer = unverändert"/>
+            <p class="hint" id="edit-smtp-pw-hint" hidden>Passwort ist hinterlegt.</p>
+          </div>
+          <div class="form-group"><label>Absender E-Mail</label><input id="edit-smtp-from" name="smtpFromEmail" type="email"/></div>
+          <div class="form-group"><label>Absender Name</label><input id="edit-smtp-from-name" name="smtpFromName" type="text"/></div>
+          <div class="form-group"><label>Verschlüsselung</label>
+            <select id="edit-smtp-enc" name="smtpEncryption">
+              <option value="TLS">TLS</option>
+              <option value="SSL">SSL</option>
+              <option value="NONE">Keine</option>
+            </select>
+          </div>
         </div>
-        <div class="form-group">
-          <label class="checkbox-row">
-            <input type="checkbox" name="enabled" value="true" th:checked="${unitCalendar.enabled}"/>
-            Kalender aktiv
-          </label>
+        <div class="modal__footer">
+          <button type="submit" class="btn btn--primary">Speichern</button>
+          <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
         </div>
-        <div class="form-group form-group--submit">
-          <button type="submit" class="btn btn--primary">Kalender speichern</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Kalender anlegen -->
+  <div id="modal-calendar-new" class="modal-overlay">
+    <div class="modal modal--wide" role="dialog">
+      <div class="modal__header"><h3>Kalender hinzufügen</h3>
+        <button type="button" class="modal__close" data-close-modal>✕</button></div>
+      <form method="post" th:action="@{/admin/unit/calendar}">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <div class="modal__body form-grid">
+          <div class="form-group form-group--full">
+            <label>Bezeichnung</label>
+            <input name="label" type="text" required maxlength="128" placeholder="z. B. Dienstplan"/>
+          </div>
+          <div class="form-group form-group--full">
+            <label>iCal-URL (optional, nur Lesen)</label>
+            <input name="calendarUrl" type="url" maxlength="1024"
+                   placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"/>
+          </div>
+          <div class="form-group form-group--full">
+            <label>Kalender-ID (für API-Schreibzugriff)</label>
+            <input name="calendarId" type="text" maxlength="512" placeholder="abc@group.calendar.google.com"/>
+          </div>
+          <div class="form-group form-group--full">
+            <label>Service-Account-JSON (Schreibrechte)</label>
+            <textarea name="serviceAccountJson" class="field" rows="4" placeholder='{"type":"service_account",...}'></textarea>
+          </div>
+          <div class="form-group">
+            <label class="checkbox-row">
+              <input type="checkbox" name="enabled" value="true"/> Kalender aktiv
+            </label>
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button type="submit" class="btn btn--primary">Anlegen</button>
+          <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Kalender bearbeiten -->
+  <div id="modal-calendar-edit" class="modal-overlay">
+    <div class="modal modal--wide" role="dialog">
+      <div class="modal__header"><h3>Kalender bearbeiten</h3>
+        <button type="button" class="modal__close" data-close-modal>✕</button></div>
+      <form method="post" th:action="@{/admin/unit/calendar}">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <input type="hidden" name="calendarAccountId" id="edit-calendar-id"/>
+        <div class="modal__body form-grid">
+          <div class="form-group form-group--full">
+            <label>Bezeichnung</label>
+            <input id="edit-calendar-label" name="label" type="text" required maxlength="128"/>
+          </div>
+          <div class="form-group form-group--full">
+            <label>iCal-URL (optional, nur Lesen)</label>
+            <input id="edit-calendar-url" name="calendarUrl" type="url" maxlength="1024"/>
+          </div>
+          <div class="form-group form-group--full">
+            <label>Kalender-ID (für API-Schreibzugriff)</label>
+            <input id="edit-calendar-cal-id" name="calendarId" type="text" maxlength="512"/>
+          </div>
+          <div class="form-group form-group--full">
+            <label>Service-Account-JSON (Schreibrechte)</label>
+            <textarea name="serviceAccountJson" class="field" rows="4"
+                      placeholder="Leer lassen = unverändert"></textarea>
+            <p class="hint" id="edit-calendar-json-hint" hidden>Zugangsdaten sind hinterlegt.</p>
+          </div>
+          <div class="form-group">
+            <label class="checkbox-row">
+              <input type="checkbox" id="edit-calendar-enabled" name="enabled" value="true"/> Kalender aktiv
+            </label>
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button type="submit" class="btn btn--primary">Speichern</button>
+          <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
         </div>
       </form>
     </div>

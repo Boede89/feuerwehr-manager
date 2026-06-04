@@ -131,6 +131,8 @@ public class AdminUnitController {
     public String saveSmtp(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam long unit,
+            @RequestParam(required = false) Long smtpAccountId,
+            @RequestParam String label,
             @RequestParam(required = false) String smtpHost,
             @RequestParam(required = false) Integer smtpPort,
             @RequestParam(required = false) String smtpUsername,
@@ -140,9 +142,44 @@ public class AdminUnitController {
             @RequestParam(required = false) String smtpEncryption,
             RedirectAttributes redirectAttributes) {
         return withUnit(actor, unit, redirectAttributes, "schnittstellen", () -> {
-            unitAdminService.saveSmtp(
-                    unit, smtpHost, smtpPort, smtpUsername, smtpPassword, smtpFromEmail, smtpFromName, smtpEncryption);
-            redirectAttributes.addFlashAttribute("message", "SMTP-Einstellungen gespeichert.");
+            if (smtpAccountId != null && smtpAccountId > 0) {
+                unitAdminService.updateSmtpAccount(
+                        unit,
+                        smtpAccountId,
+                        label,
+                        smtpHost,
+                        smtpPort,
+                        smtpUsername,
+                        smtpPassword,
+                        smtpFromEmail,
+                        smtpFromName,
+                        smtpEncryption);
+                redirectAttributes.addFlashAttribute("message", "SMTP-Konto gespeichert.");
+            } else {
+                unitAdminService.createSmtpAccount(
+                        unit,
+                        label,
+                        smtpHost,
+                        smtpPort,
+                        smtpUsername,
+                        smtpPassword,
+                        smtpFromEmail,
+                        smtpFromName,
+                        smtpEncryption);
+                redirectAttributes.addFlashAttribute("message", "SMTP-Konto angelegt.");
+            }
+        });
+    }
+
+    @PostMapping("/smtp/delete")
+    public String deleteSmtp(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam long smtpAccountId,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(actor, unit, redirectAttributes, "schnittstellen", () -> {
+            unitAdminService.deleteSmtpAccount(unit, smtpAccountId);
+            redirectAttributes.addFlashAttribute("message", "SMTP-Konto gelöscht.");
         });
     }
 
@@ -150,6 +187,8 @@ public class AdminUnitController {
     public String saveCalendar(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam long unit,
+            @RequestParam(required = false) Long calendarAccountId,
+            @RequestParam String label,
             @RequestParam(required = false) String calendarUrl,
             @RequestParam(required = false) String calendarId,
             @RequestParam(required = false) String serviceAccountJson,
@@ -157,8 +196,27 @@ public class AdminUnitController {
             RedirectAttributes redirectAttributes) {
         return withUnit(actor, unit, redirectAttributes, "schnittstellen", () -> {
             boolean on = "true".equalsIgnoreCase(enabled) || "on".equalsIgnoreCase(enabled);
-            unitAdminService.saveCalendar(unit, calendarUrl, calendarId, serviceAccountJson, on);
-            redirectAttributes.addFlashAttribute("message", "Kalender-Einstellungen gespeichert.");
+            if (calendarAccountId != null && calendarAccountId > 0) {
+                unitAdminService.updateCalendarAccount(
+                        unit, calendarAccountId, label, calendarUrl, calendarId, serviceAccountJson, on);
+                redirectAttributes.addFlashAttribute("message", "Kalender gespeichert.");
+            } else {
+                unitAdminService.createCalendarAccount(
+                        unit, label, calendarUrl, calendarId, serviceAccountJson, on);
+                redirectAttributes.addFlashAttribute("message", "Kalender angelegt.");
+            }
+        });
+    }
+
+    @PostMapping("/calendar/delete")
+    public String deleteCalendar(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam long calendarAccountId,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(actor, unit, redirectAttributes, "schnittstellen", () -> {
+            unitAdminService.deleteCalendarAccount(unit, calendarAccountId);
+            redirectAttributes.addFlashAttribute("message", "Kalender gelöscht.");
         });
     }
 

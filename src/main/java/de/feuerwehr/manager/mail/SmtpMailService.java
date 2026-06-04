@@ -1,7 +1,7 @@
 package de.feuerwehr.manager.mail;
 
 import de.feuerwehr.manager.settings.ApplicationSettings;
-import de.feuerwehr.manager.unit.UnitSmtpSettings;
+import de.feuerwehr.manager.unit.UnitSmtpAccount;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.Properties;
@@ -39,8 +39,8 @@ public class SmtpMailService {
         }
     }
 
-    /** Einheits-SMTP, falls Host gesetzt; sonst global. */
-    public Optional<String> sendTestMail(UnitSmtpSettings unitSmtp, ApplicationSettings global, String toEmail) {
+    /** Einheits-SMTP-Konto, falls Host gesetzt; sonst global. */
+    public Optional<String> sendTestMail(UnitSmtpAccount unitSmtp, ApplicationSettings global, String toEmail) {
         if (unitSmtp != null && unitSmtp.getSmtpHost() != null && !unitSmtp.getSmtpHost().isBlank()) {
             if (unitSmtp.getSmtpFromEmail() == null || unitSmtp.getSmtpFromEmail().isBlank()) {
                 return Optional.of("Absender-E-Mail der Einheit fehlt.");

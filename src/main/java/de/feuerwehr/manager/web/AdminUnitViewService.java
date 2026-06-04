@@ -9,15 +9,15 @@ import de.feuerwehr.manager.technik.Vehicle;
 import de.feuerwehr.manager.technik.VehicleEquipment;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitAdminService;
-import de.feuerwehr.manager.unit.UnitCalendarSettings;
+import de.feuerwehr.manager.unit.UnitCalendarAccount;
 import de.feuerwehr.manager.unit.UnitDiveraSettings;
+import de.feuerwehr.manager.unit.UnitSmtpAccount;
 import de.feuerwehr.manager.divera.DiveraIntegrationSupport;
 import de.feuerwehr.manager.settings.GlobalSettingsService;
 import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
 import de.feuerwehr.manager.unit.UnitRole;
 import de.feuerwehr.manager.unit.UnitRolePermission;
 import de.feuerwehr.manager.unit.UnitRoleService;
-import de.feuerwehr.manager.unit.UnitSmtpSettings;
 import de.feuerwehr.manager.unit.UnitRoleType;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -58,12 +58,20 @@ public class AdminUnitViewService {
     }
 
     public void populateSchnittstellen(Model model, long unitId) {
-        UnitSmtpSettings smtp = unitAdminService.getOrCreateSmtp(unitId);
-        UnitCalendarSettings calendar = unitAdminService.getOrCreateCalendar(unitId);
-        model.addAttribute("unitSmtp", smtp);
-        model.addAttribute("unitCalendar", calendar);
-        model.addAttribute("smtpPasswordConfigured", unitAdminService.isSmtpPasswordConfigured(unitId));
-        model.addAttribute("calendarCredentialsConfigured", unitAdminService.isCalendarCredentialsConfigured(unitId));
+        List<UnitSmtpAccount> smtpAccounts = unitAdminService.listSmtpAccounts(unitId);
+        List<UnitCalendarAccount> calendarAccounts = unitAdminService.listCalendarAccounts(unitId);
+        model.addAttribute("smtpAccounts", smtpAccounts);
+        model.addAttribute("calendarAccounts", calendarAccounts);
+        Map<Long, Boolean> smtpPasswordConfigured = new HashMap<>();
+        for (UnitSmtpAccount a : smtpAccounts) {
+            smtpPasswordConfigured.put(a.getId(), unitAdminService.isSmtpPasswordConfigured(a));
+        }
+        model.addAttribute("smtpPasswordConfigured", smtpPasswordConfigured);
+        Map<Long, Boolean> calendarCredentialsConfigured = new HashMap<>();
+        for (UnitCalendarAccount a : calendarAccounts) {
+            calendarCredentialsConfigured.put(a.getId(), unitAdminService.isCalendarCredentialsConfigured(a));
+        }
+        model.addAttribute("calendarCredentialsConfigured", calendarCredentialsConfigured);
         String appBase = globalSettingsService.get().getAppUrl();
         model.addAttribute("appBaseUrl", appBase != null ? appBase : "");
         populateDivera(model, unitId);

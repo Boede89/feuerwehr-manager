@@ -179,21 +179,25 @@
       });
   });
 
-  document.getElementById('btn-test-unit-smtp')?.addEventListener('click', function () {
-    var unitId = getUnitId();
-    if (!unitId) return;
-    var btn = document.getElementById('btn-test-unit-smtp');
-    if (btn) btn.disabled = true;
-    postJson('/admin/rest/unit/smtp/test', { unit: String(unitId) })
-      .then(function (res) {
-        showResult(res.data);
-      })
-      .catch(function () {
-        showResult({ ok: false, message: 'SMTP-Test fehlgeschlagen' });
-      })
-      .finally(function () {
-        if (btn) btn.disabled = false;
-      });
+  document.querySelectorAll('[data-action="smtp-test-unit"]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var unitId = getUnitId();
+      if (!unitId) return;
+      var smtpId = btn.getAttribute('data-smtp-id');
+      var params = { unit: String(unitId) };
+      if (smtpId) params.smtpAccountId = smtpId;
+      btn.disabled = true;
+      postJson('/admin/rest/unit/smtp/test', params)
+        .then(function (res) {
+          showResult(res.data);
+        })
+        .catch(function () {
+          showResult({ ok: false, message: 'SMTP-Test fehlgeschlagen' });
+        })
+        .finally(function () {
+          btn.disabled = false;
+        });
+    });
   });
 
   document.getElementById('btn-test-global-smtp')?.addEventListener('click', function () {
