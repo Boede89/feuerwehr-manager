@@ -642,21 +642,21 @@ input:focus, select:focus, textarea:focus {
   min-height: auto;
 }
 
-/* Hinweis unter Feldern in form-grid: gleiche Höhe aller Spalten (align-items: end) */
+/* form-grid + align-items:end: unter jedem Feld gleicher Platz für Hinweise */
 .form-grid .form-group > .hint {
-  margin: 4px 0 0;
+  margin: 0;
   line-height: 1.45;
   min-height: 1.45em;
   flex-shrink: 0;
 }
 
-.form-grid .form-group:has(input[type="password"]):not(:has(> .hint))::after {
+.form-grid .form-group:not(:has(> .hint)):not(.form-group--submit):not(:has(> button.btn))::after {
   content: '\00a0';
   display: block;
   min-height: 1.45em;
-  margin-top: 4px;
   line-height: 1.45;
   visibility: hidden;
+  flex-shrink: 0;
 }
 
 /* ── Dashboard tiles ───────────────────────────────────────────────────────── */
