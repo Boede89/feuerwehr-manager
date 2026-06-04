@@ -4,17 +4,23 @@
 <main>
   <div class="page-header">
     <div><h2>Benutzerverwaltung</h2><p>Konten, Rollen und RFID</p></div>
-    <a class="page-back" th:if="${isSuperAdmin}" th:href="@{/admin(scope='global', tab='benutzer')}">← Adminpanel</a>
+    <a class="page-back" th:if="${isSuperAdmin and scopeUnitId == null}" th:href="@{/admin(scope='global', tab='benutzer')}">← Adminpanel</a>
+    <a class="page-back" th:if="${isSuperAdmin and scopeUnitId != null}" th:href="@{/admin(scope='einheit', tab='benutzer', unit=${scopeUnitId})}">← Adminpanel</a>
     <a class="page-back" th:unless="${isSuperAdmin}" th:href="@{/admin(scope='einheit', tab='benutzer', unit=${unitId})}">← Adminpanel</a>
   </div>
   <div class="ok" th:if="${saved}" th:text="${message} ?: 'Gespeichert.'">Gespeichert.</div>
   <div class="err" th:if="${error}" th:text="${error}">Fehler</div>
+
+  <p class="hint" th:if="${scopeUnitId != null and currentUnitName != null}">
+    Angezeigt werden nur Benutzer der Einheit <strong th:text="${currentUnitName}">—</strong>.
+  </p>
 
   <div class="card">
     <h3 class="card-section-title">Neuer Benutzer</h3>
     <p class="hint" th:text="'Passwort mindestens ' + ${minPasswordLength} + ' Zeichen. RFID-Chip kann nach dem Anlegen zugewiesen werden.'">Passwort</p>
     <form method="post" th:action="@{/settings/users}">
       <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+      <input type="hidden" name="unitId" th:if="${scopeUnitId != null}" th:value="${scopeUnitId}"/>
       <input type="hidden" name="unitId" th:if="${!isSuperAdmin and !#lists.isEmpty(units)}" th:value="${units[0].id}"/>
       <label for="username">Benutzername</label>
       <input id="username" name="username" type="text" required minlength="3" maxlength="64"
@@ -28,7 +34,7 @@
         <option th:each="r : ${roles}" th:value="${r.name()}"
                 th:text="${T(de.feuerwehr.manager.user.UserRoleLabels).label(r)}">Rolle</option>
       </select>
-      <th:block th:if="${isSuperAdmin}">
+      <th:block th:if="${isSuperAdmin and scopeUnitId == null}">
         <label for="unitId">Einheit</label>
         <select id="unitId" name="unitId">
           <option value="">— keine Stamm-Einheit —</option>

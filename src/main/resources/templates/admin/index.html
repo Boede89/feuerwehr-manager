@@ -1,19 +1,24 @@
 <!DOCTYPE html>
 <html lang="de" xmlns:th="http://www.thymeleaf.org"
       th:replace="~{fragments/layout :: layout('Adminpanel', ~{::main})}">
-<main>
+<main class="admin-page">
   <div class="page-header">
     <div>
       <h2>Adminpanel</h2>
       <p th:if="${adminScope == 'global'}">Einstellungen für alle Einheiten</p>
-      <p th:unless="${adminScope == 'global'}">Einstellungen für die aktive Einheit</p>
+      <p class="page-unit-label" th:unless="${adminScope == 'global'}">
+        Einheit: <strong th:text="${currentUnitName}">—</strong>
+        <span class="hint hint--inline"> (Auswahl oben in der Kopfzeile)</span>
+      </p>
     </div>
     <a class="page-back" th:href="@{/settings(unit=${unitId})}">← Meine Einstellungen</a>
   </div>
 
-  <div th:replace="~{fragments/testmode-banner :: banner}"></div>
-  <div class="ok" th:if="${saved}" th:text="${message} ?: 'Gespeichert.'">OK</div>
-  <div class="err" th:if="${error}" th:text="${error}">Fehler</div>
+  <div class="page-alerts">
+    <div th:replace="~{fragments/testmode-banner :: banner}"></div>
+    <div class="ok" th:if="${saved}" th:text="${message} ?: 'Gespeichert.'">OK</div>
+    <div class="err" th:if="${error}" th:text="${error}">Fehler</div>
+  </div>
 
   <nav class="tab-bar admin-scope-bar" th:if="${showGlobalScope}" aria-label="Bereich">
     <a class="tab-btn"
@@ -138,23 +143,12 @@
           <div class="card__header">⚡ DIVERA 24/7</div>
           <div class="card__body">
             <p class="hint">
-              Personal-Daten aus Divera importieren. Access Key und API-URL in Divera unter
-              <em>Administration → Schnittstellen</em> einsehen.
+              Einstellungen für <strong th:text="${currentUnitName}">Einheit</strong>.
+              Access Key und API-URL in Divera unter <em>Administration → Schnittstellen</em> einsehen.
             </p>
-            <form method="post" th:action="@{/admin/divera}" class="form-grid form-grid--stack">
+            <form method="post" th:action="@{/admin/divera}" class="form-grid">
               <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
               <input type="hidden" name="unit" th:value="${unitId}"/>
-
-              <div class="form-group form-group--full" th:if="${showGlobalScope and units != null and units.size() > 1}">
-                <label for="unitSelect">Einheit</label>
-                <select id="unitSelect" onchange="window.location='/admin?scope=einheit&tab=schnittstellen&unit='+encodeURIComponent(this.value)">
-                  <option th:each="u : ${units}"
-                          th:value="${u.id}"
-                          th:selected="${u.id == unitId}"
-                          th:text="${u.name}">Einheit</option>
-                </select>
-              </div>
-
               <div class="form-group form-group--full">
                 <label for="apiBaseUrl">API-Basis-URL</label>
                 <input id="apiBaseUrl" name="apiBaseUrl" type="url" th:value="${apiBaseUrl}" placeholder="https://app.divera247.com"/>
@@ -194,8 +188,8 @@
         <div class="card">
           <div class="card__header">Benutzer dieser Einheit</div>
           <div class="card__body">
-            <p class="hint">Konten und Rollen für die aktive Einheit.</p>
-            <a class="btn btn--primary" th:href="@{/settings/users}">Benutzer verwalten</a>
+            <p class="hint">Konten und Rollen nur für <strong th:text="${currentUnitName}">Einheit</strong>.</p>
+            <a class="btn btn--primary" th:href="@{/settings/users(unit=${unitId})}">Benutzer verwalten</a>
           </div>
         </div>
       </div>

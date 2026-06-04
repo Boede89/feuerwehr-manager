@@ -36,9 +36,14 @@ public class UserSettingsController {
     private final AccessControlService accessControlService;
 
     @GetMapping
-    public String list(@AuthenticationPrincipal AppUserDetails actor, Model model) {
-        populateUserFormModel(actor, model);
-        model.addAttribute("users", userManagementService.listAccounts(actor));
+    public String list(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitParam,
+            Model model) {
+        Long scopeUnitId = resolveScopeUnitId(actor, unitParam);
+        populateUserFormModel(actor, model, scopeUnitId);
+        model.addAttribute("users", userManagementService.listAccounts(actor, scopeUnitId));
+        model.addAttribute("scopeUnitId", scopeUnitId);
         return "settings-users";
     }
 
@@ -58,10 +63,14 @@ public class UserSettingsController {
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute(
                     "message", "Benutzer „" + created.getUsername() + "“ wurde angelegt.");
-            return "redirect:/settings/users";
+            Long redirectUnit = unitId;
+            if (redirectUnit == null && created.getUnit() != null) {
+                redirectUnit = created.getUnit().getId();
+            }
+            return redirectUsersList(actor, redirectUnit);
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
-            return "redirect:/settings/users";
+            return redirectUsersList(actor, unitId);
         }
     }
 
@@ -187,9 +196,28 @@ public class UserSettingsController {
     }
 
     private void populateUserFormModel(AppUserDetails actor, Model model) {
+        populateUserFormModel(actor, model, null);
+    }
+
+    private void populateUserFormModel(AppUserDetails actor, Model model, Long scopeUnitId) {
         List<UserRole> roles = UserRole.assignableBy(actor.getRole()).stream().sorted().toList();
         model.addAttribute("roles", roles);
         model.addAttribute("units", unitService.findActiveOrdered(actor));
         model.addAttribute("isSuperAdmin", actor.getRole().isSuperAdmin());
+        model.addAttribute("formUnitId", scopeUnitId);
+    }
+
+    private Long resolveScopeUnitId(AppUserDetails actor, Long unitParam) {
+        if (actor == null || !actor.getRole().isSuperAdmin() || unitParam == null) {
+            return null;
+        }
+        return unitService.resolveActiveUnit(unitParam, actor).map(u -> u.getId()).orElse(null);
+    }
+
+    private static String redirectUsersList(AppUserDetails actor, Long unitId) {
+        if (actor != null && actor.getRole().isSuperAdmin() && unitId != null && unitId > 0) {
+            return "redirect:/settings/users?unit=" + unitId;
+        }
+        return "redirect:/settings/users";
     }
 }

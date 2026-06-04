@@ -279,7 +279,17 @@ button, input, select, textarea {
   flex: 1;
 }
 
-/* Legacy-Hülle (falls noch in älteren Fragmenten) */
+/* Seiteninhalt in layout.html (verschachteltes main/page-body) — volle Breite wie FW-Hub #page-content */
+.page-main__inner > main,
+.page-main__inner > .page-body {
+  display: block;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 .page {
   width: 100%;
   max-width: none;
@@ -713,9 +723,12 @@ input:focus, select:focus, textarea:focus {
   line-height: 1.45;
 }
 
-main .ok,
-main .err,
-main .testmode-banner {
+.page-body .ok,
+.page-body .err,
+.page-body .testmode-banner,
+.page-main__inner > main .ok,
+.page-main__inner > main .err,
+.page-main__inner > main .testmode-banner {
   margin-bottom: 16px;
 }
 
@@ -1001,10 +1014,43 @@ header.bar {
 header.bar h1 { margin: 0; font-size: 16px; font-weight: 700; }
 header.bar a.link { color: var(--rot); font-weight: 600; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; }
 
-main:not(.page-main) {
+/* Legacy-Seiten ohne App-Shell (Login, alte Bearbeitungsmasken) */
+body > main:not(.page-main) {
   max-width: 1200px;
   margin: 0 auto;
   padding: 24px;
+}
+
+/* Adminpanel: Reiter direkt unter Kopfzeile (wie FW-Hub) */
+.admin-page .page-header {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+}
+
+.admin-page .page-alerts {
+  margin-bottom: 8px;
+}
+
+.admin-page .page-alerts .testmode-banner,
+.admin-page .page-alerts .ok,
+.admin-page .page-alerts .err {
+  margin-bottom: 8px;
+}
+
+.admin-page .admin-scope-bar {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.admin-page .tab-bar {
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+.admin-page .page-unit-label {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
 }
 
 code {

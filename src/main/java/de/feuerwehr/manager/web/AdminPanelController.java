@@ -75,9 +75,14 @@ public class AdminPanelController {
             return "redirect:/admin?scope=einheit&tab=" + tab;
         }
 
-        long resolvedId = unit.get().getId();
+        Unit active = unit.get();
+        long resolvedId = active.getId();
+        if (unitId == null || !unitId.equals(resolvedId)) {
+            return "redirect:/admin?scope=einheit&tab=" + tab + "&unit=" + resolvedId;
+        }
+
         model.addAttribute("unitId", resolvedId);
-        model.addAttribute("units", unitService.findActiveOrdered(actor));
+        model.addAttribute("currentUnitName", active.getName());
 
         if ("schnittstellen".equals(tab)) {
             populateDivera(model, resolvedId);
@@ -106,13 +111,19 @@ public class AdminPanelController {
 
     @PostMapping("/divera")
     public String saveDivera(
+            @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit") long unitId,
             @RequestParam String apiBaseUrl,
             @RequestParam(required = false) String accessKey,
             RedirectAttributes redirectAttributes) {
 
+        long resolvedUnitId = unitService
+                .resolveActiveUnit(unitId, actor)
+                .map(Unit::getId)
+                .orElseThrow(() -> new IllegalArgumentException("Keine gültige Einheit ausgewählt."));
+
         UnitDiveraSettings settings = diveraSettingsRepository
-                .findByUnitId(unitId)
+                .findByUnitId(resolvedUnitId)
                 .orElseThrow(() -> new IllegalArgumentException("Keine Divera-Einstellungen für diese Einheit."));
 
         String base = apiBaseUrl == null ? "" : apiBaseUrl.trim();
@@ -131,7 +142,7 @@ public class AdminPanelController {
         diveraSettingsRepository.save(settings);
         redirectAttributes.addFlashAttribute("saved", true);
         redirectAttributes.addFlashAttribute("message", "Divera-Einstellungen gespeichert.");
-        return "redirect:/admin?scope=einheit&tab=schnittstellen&unit=" + unitId;
+        return "redirect:/admin?scope=einheit&tab=schnittstellen&unit=" + resolvedUnitId;
     }
 
     private void populateDivera(Model model, long unitId) {

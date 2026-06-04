@@ -29,7 +29,17 @@ public class UserManagementService {
     private final PersonUserLinkService personUserLinkService;
 
     public List<User> listAccounts(AppUserDetails actor) {
+        return listAccounts(actor, null);
+    }
+
+    /**
+     * @param scopeUnitId nur für Superadmin: Konten der gewählten Einheit (Kopfzeilen-Umschalter)
+     */
+    public List<User> listAccounts(AppUserDetails actor, Long scopeUnitId) {
         if (actor != null && actor.getRole().isSuperAdmin()) {
+            if (scopeUnitId != null && scopeUnitId > 0) {
+                return userRepository.findAllByAnonymizedAtIsNullAndUnitIdOrderByUsernameAsc(scopeUnitId);
+            }
             return userRepository.findAllByAnonymizedAtIsNullWithUnitOrderByUsernameAsc();
         }
         if (actor != null && actor.getRole().isUnitAdmin() && actor.getUnitId() != null) {
