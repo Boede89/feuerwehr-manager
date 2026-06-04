@@ -31,13 +31,25 @@ public class GlobalSettingsService {
         settingsRepository.save(s);
     }
 
+    /**
+     * Nur über {@code /admin/global/privacy} — fehlende Parameter (null) werden nicht überschrieben,
+     * damit andere Formulare (z. B. Stammdaten) die Kontaktdaten nicht löschen.
+     */
     @Transactional
     public void savePrivacyContact(String name, String email, String phone, String hoster) {
         ApplicationSettings s = settings();
-        s.setPrivacyContactName(blankToNull(name));
-        s.setPrivacyContactEmail(blankToNull(email));
-        s.setPrivacyContactPhone(blankToNull(phone));
-        s.setPrivacyHoster(blankToNull(hoster));
+        if (name != null) {
+            s.setPrivacyContactName(blankToNull(name));
+        }
+        if (email != null) {
+            s.setPrivacyContactEmail(blankToNull(email));
+        }
+        if (phone != null) {
+            s.setPrivacyContactPhone(blankToNull(phone));
+        }
+        if (hoster != null) {
+            s.setPrivacyHoster(blankToNull(hoster));
+        }
         settingsRepository.save(s);
     }
 

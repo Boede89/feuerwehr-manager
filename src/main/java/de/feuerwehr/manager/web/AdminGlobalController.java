@@ -33,17 +33,11 @@ public class AdminGlobalController {
             @RequestParam(required = false) String ffOrt,
             @RequestParam(required = false) String appUrl,
             @RequestParam(required = false) String feedbackEmail,
-            @RequestParam(required = false) String privacyContactName,
-            @RequestParam(required = false) String privacyContactEmail,
-            @RequestParam(required = false) String privacyContactPhone,
-            @RequestParam(required = false) String privacyHoster,
             RedirectAttributes redirectAttributes) {
         try {
             globalSettingsService.saveStammdaten(ffName, ffStrasse, ffOrt, appUrl, feedbackEmail);
-            globalSettingsService.savePrivacyContact(
-                    privacyContactName, privacyContactEmail, privacyContactPhone, privacyHoster);
             redirectAttributes.addFlashAttribute("saved", true);
-            redirectAttributes.addFlashAttribute("message", "Konfiguration gespeichert.");
+            redirectAttributes.addFlashAttribute("message", "Stammdaten gespeichert.");
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
