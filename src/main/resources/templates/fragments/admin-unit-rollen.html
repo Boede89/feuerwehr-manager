@@ -12,6 +12,7 @@
         <table class="table">
           <thead>
           <tr>
+            <th class="table-order-cell">Reihenfolge</th>
             <th>Rollenname</th>
             <th>Typ</th>
             <th>Module</th>
@@ -19,7 +20,14 @@
           </tr>
           </thead>
           <tbody>
-          <tr th:each="r : ${unitRoles}">
+          <tr th:each="r, stat : ${unitRoles}">
+            <th:block th:replace="~{fragments/admin-table-order :: cell(
+                moveUrl=@{/admin/unit/roles/move},
+                unitId=${unitId},
+                itemIdParam='roleId',
+                itemId=${r.id},
+                disableUp=${r.systemRole or stat.first or (stat.index > 0 and unitRoles[stat.index - 1].systemRole)},
+                disableDown=${r.systemRole or stat.last})}"></th:block>
             <td>
               <strong th:text="${r.name}">Rolle</strong>
               <span class="badge badge--muted" th:if="${r.systemRole}">Standard</span>

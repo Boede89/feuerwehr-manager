@@ -2,6 +2,8 @@ package de.feuerwehr.manager.unit;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -99,7 +101,44 @@ public class UnitRoleService {
         role.setSystemRole(false);
         role.setPermissionsJson(toJson(UnitRolePermission.filterAllowed(permissions)));
         role.setRoleLevel(type == UnitRoleType.FUNKTION ? null : level);
+        role.setSortOrder(nextSortOrder(unitId));
         return unitRoleRepository.save(role);
+    }
+
+    @Transactional
+    public void moveRole(long unitId, long roleId, String direction) {
+        UnitRole role = unitRoleRepository
+                .findByIdAndUnitId(roleId, unitId)
+                .orElseThrow(() -> new IllegalArgumentException("Rolle nicht gefunden."));
+        if (role.isSystemRole()) {
+            throw new IllegalArgumentException("Die Standardrolle kann nicht verschoben werden.");
+        }
+        List<UnitRole> movable = listRoles(unitId).stream()
+                .filter(r -> !r.isSystemRole())
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        int idx = -1;
+        for (int i = 0; i < movable.size(); i++) {
+            if (movable.get(i).getId().equals(roleId)) {
+                idx = i;
+                break;
+            }
+        }
+        if (idx < 0) {
+            throw new IllegalArgumentException("Rolle nicht gefunden.");
+        }
+        int delta = "down".equalsIgnoreCase(direction != null ? direction.trim() : "") ? 1 : -1;
+        int newIdx = idx + delta;
+        if (newIdx < 0 || newIdx >= movable.size()) {
+            return;
+        }
+        Collections.swap(movable, idx, newIdx);
+        for (int i = 0; i < movable.size(); i++) {
+            UnitRole r = unitRoleRepository
+                    .findByIdAndUnitId(movable.get(i).getId(), unitId)
+                    .orElseThrow(() -> new IllegalArgumentException("Rolle nicht gefunden."));
+            r.setSortOrder(i);
+            unitRoleRepository.save(r);
+        }
     }
 
     @Transactional
@@ -169,5 +208,9 @@ public class UnitRoleService {
             throw new IllegalArgumentException(
                     "Der Name „Benutzer“ ist für die Standardrolle reserviert.");
         }
+    }
+
+    private int nextSortOrder(long unitId) {
+        return (int) listRoles(unitId).stream().filter(r -> !r.isSystemRole()).count();
     }
 }

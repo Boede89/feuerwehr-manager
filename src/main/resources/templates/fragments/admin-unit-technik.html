@@ -81,6 +81,7 @@
             <table class="table">
               <thead>
               <tr>
+                <th class="table-order-cell">Reihenfolge</th>
                 <th>Fahrzeug</th>
                 <th>Typ</th>
                 <th>Kennzeichen</th>
@@ -89,8 +90,15 @@
               </tr>
               </thead>
               <tbody id="vehicle-tbody">
-              <tr th:each="v : ${vehicles}" class="vehicle-row"
+              <tr th:each="v, stat : ${vehicles}" class="vehicle-row"
                   th:attr="data-href=@{/admin(scope='einheit', tab='technik', unit=${unitId}, vehicle=${v.id})}">
+                <th:block th:replace="~{fragments/admin-table-order :: cell(
+                    moveUrl=@{/admin/unit/vehicles/move},
+                    unitId=${unitId},
+                    itemIdParam='vehicleId',
+                    itemId=${v.id},
+                    disableUp=${stat.first},
+                    disableDown=${stat.last})}"></th:block>
                 <td><strong th:text="${v.name}">LF</strong></td>
                 <td class="text-muted text-sm"
                     th:text="${vehicleTypeLabels[v.vehicleType] ?: (v.vehicleType ?: '—')}">—</td>

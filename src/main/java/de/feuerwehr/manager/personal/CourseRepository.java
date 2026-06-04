@@ -13,7 +13,7 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
             SELECT c FROM Course c
             LEFT JOIN FETCH c.qualificationType
             WHERE c.unit.id = :unitId AND c.active = TRUE AND c.testData = :testData
-            ORDER BY c.name
+            ORDER BY c.sortOrder ASC, c.name ASC
             """)
     List<Course> findActiveByUnitId(@Param("unitId") long unitId, @Param("testData") boolean testData);
 
@@ -21,9 +21,10 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
             SELECT c FROM Course c
             LEFT JOIN FETCH c.qualificationType
             WHERE c.unit.id = :unitId AND c.testData = :testData
-            ORDER BY c.name
+            ORDER BY c.sortOrder ASC, c.name ASC
             """)
-    List<Course> findByUnitIdAndTestDataOrderByNameAsc(@Param("unitId") long unitId, @Param("testData") boolean testData);
+    List<Course> findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(
+            @Param("unitId") long unitId, @Param("testData") boolean testData);
 
     @Query("SELECT c FROM Course c LEFT JOIN FETCH c.qualificationType WHERE c.productionSourceId = :sourceId")
     Optional<Course> findShadowByProductionSourceId(@Param("sourceId") long sourceId);

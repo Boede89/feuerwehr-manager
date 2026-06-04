@@ -16,7 +16,8 @@
     });
 
     document.querySelectorAll('.vehicle-row').forEach(function (row) {
-      row.addEventListener('click', function () {
+      row.addEventListener('click', function (e) {
+        if (e.target.closest('.table-order-actions, button, form')) return;
         var href = row.getAttribute('data-href');
         if (href) window.location.href = href;
       });

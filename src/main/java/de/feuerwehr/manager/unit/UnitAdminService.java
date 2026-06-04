@@ -13,6 +13,7 @@ import de.feuerwehr.manager.technik.VehicleEquipmentCategoryRepository;
 import de.feuerwehr.manager.technik.VehicleEquipmentRepository;
 import de.feuerwehr.manager.technik.VehicleRepository;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -277,6 +278,34 @@ public class UnitAdminService {
         v.setServiceStatus(status);
         v.setActive(VehicleServiceStatus.isActive(status));
         v.setNotes(trimToNull(form.notes()));
+    }
+
+    @Transactional
+    public void moveVehicle(long unitId, long vehicleId, String direction) {
+        List<Vehicle> items = new ArrayList<>(listVehicles(unitId));
+        int idx = -1;
+        for (int i = 0; i < items.size(); i++) {
+            if (items.get(i).getId().equals(vehicleId)) {
+                idx = i;
+                break;
+            }
+        }
+        if (idx < 0) {
+            throw new IllegalArgumentException("Fahrzeug nicht gefunden.");
+        }
+        int delta = "down".equalsIgnoreCase(direction != null ? direction.trim() : "") ? 1 : -1;
+        int newIdx = idx + delta;
+        if (newIdx < 0 || newIdx >= items.size()) {
+            return;
+        }
+        java.util.Collections.swap(items, idx, newIdx);
+        for (int i = 0; i < items.size(); i++) {
+            Vehicle v = vehicleRepository
+                    .findByIdAndUnitId(items.get(i).getId(), unitId)
+                    .orElseThrow(() -> new IllegalArgumentException("Fahrzeug nicht gefunden."));
+            v.setSortOrder(i);
+            vehicleRepository.save(v);
+        }
     }
 
     @Transactional

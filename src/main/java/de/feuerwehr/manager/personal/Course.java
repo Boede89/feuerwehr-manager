@@ -32,6 +32,9 @@ public class Course {
     @Column(nullable = false, length = 255)
     private String name;
 
+    @Column(name = "sort_order", nullable = false)
+    private int sortOrder;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "qualification_type_id")
     private QualificationType qualificationType;

@@ -1304,6 +1304,30 @@ select.field {
   background: var(--bg-card-hover);
 }
 
+.table-order-cell {
+  width: 4.5rem;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.table-order-actions {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.table-order-actions .table-inline-form {
+  display: inline;
+  margin: 0;
+}
+
+.btn--icon {
+  min-width: 2rem;
+  padding: 0 0.35rem;
+  line-height: 1.6;
+  font-size: 0.95rem;
+}
+
 .table tbody tr.vehicle-row,
 .table tbody tr.room-row {
   cursor: pointer;

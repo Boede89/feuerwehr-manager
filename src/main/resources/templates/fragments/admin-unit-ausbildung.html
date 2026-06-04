@@ -12,6 +12,7 @@
         <table class="table" id="qualification-table">
           <thead>
           <tr>
+            <th scope="col" class="table-order-cell">Reihenfolge</th>
             <th class="table__th-sort" scope="col" data-sort-key="name" tabindex="0" role="columnheader"
                 aria-sort="none">Name</th>
             <th class="table__th-sort" scope="col" data-sort-key="dienstgrad" tabindex="0" role="columnheader"
@@ -21,9 +22,16 @@
           </tr>
           </thead>
           <tbody id="qualification-tbody">
-          <tr th:each="t : ${qualificationTypes}" class="qualification-row"
+          <tr th:each="t, stat : ${qualificationTypes}" class="qualification-row"
               th:attr="data-sort-name=${t.name},
                        data-sort-dienstgrad=${t.dienstgradRole != null ? t.dienstgradRole.name : ''}">
+            <th:block th:replace="~{fragments/admin-table-order :: cell(
+                moveUrl=@{/admin/unit/qualifications/move},
+                unitId=${unitId},
+                itemIdParam='qualificationTypeId',
+                itemId=${t.id},
+                disableUp=${stat.first},
+                disableDown=${stat.last})}"></th:block>
             <td><strong th:text="${t.name}">Qualifikation</strong></td>
             <td class="text-muted text-sm"
                 th:text="${t.dienstgradRole != null ? t.dienstgradRole.name : '—'}">—</td>
@@ -65,6 +73,7 @@
         <table class="table" id="course-table">
           <thead>
           <tr>
+            <th scope="col" class="table-order-cell">Reihenfolge</th>
             <th class="table__th-sort" scope="col" data-sort-key="name" tabindex="0" role="columnheader"
                 aria-sort="none">Name</th>
             <th class="table__th-sort" scope="col" data-sort-key="qualification" tabindex="0" role="columnheader"
@@ -74,9 +83,16 @@
           </tr>
           </thead>
           <tbody id="course-tbody">
-          <tr th:each="c : ${courses}" class="course-row"
+          <tr th:each="c, stat : ${courses}" class="course-row"
               th:attr="data-sort-name=${c.name},
                        data-sort-qualification=${c.qualificationType != null ? c.qualificationType.name : ''}">
+            <th:block th:replace="~{fragments/admin-table-order :: cell(
+                moveUrl=@{/admin/unit/courses/move},
+                unitId=${unitId},
+                itemIdParam='courseId',
+                itemId=${c.id},
+                disableUp=${stat.first},
+                disableDown=${stat.last})}"></th:block>
             <td><strong th:text="${c.name}">Lehrgang</strong></td>
             <td class="text-muted text-sm"
                 th:text="${c.qualificationType != null ? c.qualificationType.name : '—'}">—</td>

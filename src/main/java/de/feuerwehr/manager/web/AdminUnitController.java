@@ -133,6 +133,18 @@ public class AdminUnitController {
         });
     }
 
+    @PostMapping("/roles/move")
+    public String moveRole(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam long roleId,
+            @RequestParam String direction,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(actor, unit, redirectAttributes, "rollen", () -> {
+            unitRoleService.moveRole(unit, roleId, direction);
+        });
+    }
+
     @PostMapping("/smtp")
     public String saveSmtp(
             @AuthenticationPrincipal AppUserDetails actor,
@@ -338,6 +350,18 @@ public class AdminUnitController {
                     redirectAttributes.addFlashAttribute("message", "Fahrzeug gespeichert.");
                 },
                 "vehicle=" + vehicleId);
+    }
+
+    @PostMapping("/vehicles/move")
+    public String moveVehicle(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam long vehicleId,
+            @RequestParam String direction,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(actor, unit, redirectAttributes, "technik", () -> {
+            unitAdminService.moveVehicle(unit, vehicleId, direction);
+        });
     }
 
     @PostMapping("/vehicles/delete")
@@ -659,6 +683,18 @@ public class AdminUnitController {
                 });
     }
 
+    @PostMapping("/qualifications/move")
+    public String moveQualification(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam long qualificationTypeId,
+            @RequestParam String direction,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(actor, unit, redirectAttributes, "ausbildung", () -> {
+            personalService.moveQualificationType(unit, qualificationTypeId, direction);
+        });
+    }
+
     @PostMapping("/qualifications/delete")
     public String deleteQualification(
             @AuthenticationPrincipal AppUserDetails actor,
@@ -713,6 +749,18 @@ public class AdminUnitController {
                     personalService.updateCourse(unit, courseId, name, qualificationTypeId, active);
                     redirectAttributes.addFlashAttribute("message", "Lehrgang gespeichert.");
                 });
+    }
+
+    @PostMapping("/courses/move")
+    public String moveCourse(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam long courseId,
+            @RequestParam String direction,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(actor, unit, redirectAttributes, "ausbildung", () -> {
+            personalService.moveCourse(unit, courseId, direction);
+        });
     }
 
     @PostMapping("/courses/delete")

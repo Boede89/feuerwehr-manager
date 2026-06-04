@@ -13,6 +13,7 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -103,14 +104,18 @@ public class PersonalService {
         if (!testModeService.isEnabled()) {
             return activeOnly
                     ? courseRepository.findActiveByUnitId(unitId, false)
-                    : courseRepository.findByUnitIdAndTestDataOrderByNameAsc(unitId, false);
+                    : courseRepository.findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(unitId, false);
         }
         List<Course> prod = activeOnly
                 ? courseRepository.findActiveByUnitId(unitId, false)
-                : courseRepository.findByUnitIdAndTestDataOrderByNameAsc(unitId, false);
-        List<Course> test = courseRepository.findByUnitIdAndTestDataOrderByNameAsc(unitId, true);
+                : courseRepository.findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(unitId, false);
+        List<Course> test = courseRepository.findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(unitId, true);
         return mergeByProductionSource(
-                prod, test, Course::getProductionSourceId, Course::getId, Comparator.comparing(Course::getName));
+                prod,
+                test,
+                Course::getProductionSourceId,
+                Course::getId,
+                Comparator.comparing(Course::getSortOrder).thenComparing(Course::getName));
     }
 
     public List<PersonCourseCompletion> listCompletions(long personId) {
@@ -379,10 +384,29 @@ public class PersonalService {
         if (qualificationTypeId != null && qualificationTypeId > 0) {
             course.setQualificationType(resolveQualificationForWrite(qualificationTypeId, unit));
         }
+        course.setSortOrder((int) courseRepository
+                .findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(unitId, testModeService.isEnabled())
+                .size());
         course.setActive(true);
         course.setTestData(testModeService.isEnabled());
         course.setProductionSourceId(null);
         return courseRepository.save(course);
+    }
+
+    @Transactional
+    public void moveQualificationType(long unitId, long qualificationTypeId, String direction) {
+        Unit unit = requireUnit(unitId);
+        List<QualificationType> items = new ArrayList<>(listQualificationTypes(unitId, false));
+        reorderList(items, qualificationTypeId, direction);
+        persistQualificationSortOrder(unit, items);
+    }
+
+    @Transactional
+    public void moveCourse(long unitId, long courseId, String direction) {
+        Unit unit = requireUnit(unitId);
+        List<Course> items = new ArrayList<>(listCourses(unitId, false));
+        reorderList(items, courseId, direction);
+        persistCourseSortOrder(unit, items);
     }
 
     @Transactional
@@ -614,6 +638,51 @@ public class PersonalService {
         }
     }
 
+    private static void reorderList(List<?> items, long itemId, String direction) {
+        int idx = indexOfId(items, itemId);
+        if (idx < 0) {
+            throw new IllegalArgumentException("Eintrag nicht gefunden.");
+        }
+        int delta = "down".equalsIgnoreCase(direction != null ? direction.trim() : "") ? 1 : -1;
+        int newIdx = idx + delta;
+        if (newIdx < 0 || newIdx >= items.size()) {
+            return;
+        }
+        Collections.swap(items, idx, newIdx);
+    }
+
+    private static int indexOfId(List<?> items, long itemId) {
+        for (int i = 0; i < items.size(); i++) {
+            Object item = items.get(i);
+            Long id = null;
+            if (item instanceof QualificationType q) {
+                id = q.getId();
+            } else if (item instanceof Course c) {
+                id = c.getId();
+            }
+            if (id != null && id.equals(itemId)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private void persistQualificationSortOrder(Unit unit, List<QualificationType> items) {
+        for (int i = 0; i < items.size(); i++) {
+            QualificationType q = resolveQualificationForWrite(items.get(i).getId(), unit);
+            q.setSortOrder(i);
+            qualificationTypeRepository.save(q);
+        }
+    }
+
+    private void persistCourseSortOrder(Unit unit, List<Course> items) {
+        for (int i = 0; i < items.size(); i++) {
+            Course c = resolveCourseForWrite(items.get(i).getId(), unit);
+            c.setSortOrder(i);
+            courseRepository.save(c);
+        }
+    }
+
     private Course resolveCourseForWrite(long courseId, Unit unit) {
         Course course = courseRepository.findById(courseId).orElseThrow(() -> new IllegalArgumentException("Lehrgang nicht gefunden"));
         if (!testModeService.isEnabled()) {
@@ -641,6 +710,7 @@ public class PersonalService {
         shadow.setActive(prod.isActive());
         shadow.setTestData(true);
         shadow.setProductionSourceId(prod.getId());
+        shadow.setSortOrder(prod.getSortOrder());
         return shadow;
     }
 
