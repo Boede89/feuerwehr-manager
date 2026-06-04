@@ -185,8 +185,9 @@ public class UserSettingsController {
         try {
             User target = userService.findByIdWithUnit(id).orElseThrow();
             accessControlService.requireCanManageUser(actor, target);
+            String auditDetail = target.getUsername() + " · " + target.getDisplayName();
             userService.anonymizeUser(id);
-            auditService.record(AuditEventType.USER_ANONYMIZED, actor.getUserId(), id, request, null);
+            auditService.record(AuditEventType.USER_ANONYMIZED, actor.getUserId(), id, request, auditDetail);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Benutzerkonto wurde gelöscht.");
             return "redirect:/settings/users";

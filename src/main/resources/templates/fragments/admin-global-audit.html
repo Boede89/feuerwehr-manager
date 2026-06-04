@@ -24,8 +24,7 @@
             <td class="text-muted text-sm text-nowrap"
                 th:text="${#temporals.format(row.occurredAt, 'dd.MM.yyyy HH:mm:ss')}">—</td>
             <td th:text="${row.actorLabel}">user</td>
-            <td class="text-nowrap"
-                th:text="${T(de.feuerwehr.manager.dsgvo.AuditEventTypeLabels).label(row.eventType)}">Aktion</td>
+            <td class="text-nowrap" th:text="${row.actionLabel}">Aktion</td>
             <td class="text-muted text-sm" th:text="${row.detail}">—</td>
           </tr>
           </tbody>

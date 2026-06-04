@@ -15,8 +15,10 @@ import de.feuerwehr.manager.user.UserRole;
 import de.feuerwehr.manager.web.dto.AuditLogRow;
 import de.feuerwehr.manager.web.dto.UnitTableRow;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -66,23 +68,26 @@ public class AdminGlobalViewService {
 
     public void populateAuditLog(Model model) {
         List<AuditEvent> events = auditEventRepository.findAllByOrderByOccurredAtDesc(PageRequest.of(0, 500));
-        Map<Long, User> usersById = userRepository.findAllById(events.stream()
-                        .map(AuditEvent::getActorUserId)
-                        .filter(id -> id != null && id > 0)
-                        .distinct()
-                        .toList())
-                .stream()
+        Set<Long> userIds = new HashSet<>();
+        for (AuditEvent event : events) {
+            if (event.getActorUserId() != null && event.getActorUserId() > 0) {
+                userIds.add(event.getActorUserId());
+            }
+            if (event.getSubjectUserId() != null && event.getSubjectUserId() > 0) {
+                userIds.add(event.getSubjectUserId());
+            }
+        }
+        Map<Long, User> usersById = userRepository.findAllById(userIds).stream()
                 .collect(Collectors.toMap(User::getId, u -> u));
 
         List<AuditLogRow> rows = events.stream()
                 .map(e -> new AuditLogRow(
                         e.getOccurredAt(),
                         formatActor(e, usersById),
-                        e.getEventType(),
-                        e.getDetail() != null ? e.getDetail() : ""))
+                        buildActionLabel(e, usersById),
+                        buildDetailColumn(e)))
                 .toList();
         model.addAttribute("auditRows", rows);
-        model.addAttribute("auditEventLabels", AuditEventTypeLabels.class);
     }
 
     public void populateContainerLog(Model model) {
@@ -93,6 +98,37 @@ public class AdminGlobalViewService {
         ApplicationSettings s = globalSettingsService.get();
         model.addAttribute("globalSettings", s);
         model.addAttribute("smtpPasswordConfigured", globalSettingsService.isSmtpPasswordConfigured());
+    }
+
+    private static String buildActionLabel(AuditEvent event, Map<Long, User> usersById) {
+        if (event.getEventType() == AuditEventType.USER_ANONYMIZED) {
+            return AuditEventTypeLabels.actionLabel(event.getEventType(), resolveDeletedUserDetail(event, usersById));
+        }
+        return AuditEventTypeLabels.label(event.getEventType());
+    }
+
+    private static String buildDetailColumn(AuditEvent event) {
+        if (event.getEventType() == AuditEventType.USER_ANONYMIZED) {
+            return "";
+        }
+        return event.getDetail() != null ? event.getDetail() : "";
+    }
+
+    private static String resolveDeletedUserDetail(AuditEvent event, Map<Long, User> usersById) {
+        if (event.getDetail() != null && !event.getDetail().isBlank()) {
+            return event.getDetail().trim();
+        }
+        if (event.getSubjectUserId() == null) {
+            return null;
+        }
+        User subject = usersById.get(event.getSubjectUserId());
+        if (subject == null) {
+            return "Nutzer-ID " + event.getSubjectUserId();
+        }
+        if (subject.getAnonymizedAt() != null) {
+            return "Nutzer-ID " + subject.getId();
+        }
+        return subject.getUsername() + " · " + subject.getDisplayName();
     }
 
     private static String formatActor(AuditEvent event, Map<Long, User> usersById) {

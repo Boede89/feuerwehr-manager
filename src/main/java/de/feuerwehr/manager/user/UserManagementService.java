@@ -274,8 +274,9 @@ public class UserManagementService {
                 throw new IllegalArgumentException("Der letzte aktive Superadmin kann nicht gelöscht werden.");
             }
         }
+        String auditDetail = target.getUsername() + " · " + target.getDisplayName();
         userService.anonymizeUser(userId);
-        auditService.record(AuditEventType.USER_ANONYMIZED, actor.getUserId(), userId, request, null);
+        auditService.record(AuditEventType.USER_ANONYMIZED, actor.getUserId(), userId, request, auditDetail);
     }
 
     @Transactional
