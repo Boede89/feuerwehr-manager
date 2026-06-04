@@ -39,6 +39,10 @@ public class User {
     @Column(name = "login_email", unique = true, length = 255)
     private String loginEmail;
 
+    /** Persönlicher Divera-Zugangsschlüssel (spätere Benutzer-Funktionen). */
+    @Column(name = "divera_api_key", length = 512)
+    private String diveraApiKey;
+
     /** BCrypt-Hash; null möglich für reine RFID-Nutzer (später). */
     @Column(name = "password_hash", length = 255)
     private String passwordHash;

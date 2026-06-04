@@ -241,6 +241,43 @@ public class UserManagementService {
     }
 
     @Transactional
+    public User updateOwnAccount(
+            long userId,
+            String username,
+            String diveraApiKey,
+            boolean clearDiveraApiKey,
+            HttpServletRequest request) {
+        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("Benutzer nicht gefunden"));
+        if (user.getAnonymizedAt() != null) {
+            throw new IllegalArgumentException("Konto wurde gelöscht");
+        }
+        UsernameHelper.validate(username);
+        String trimmedUsername = username.trim();
+        if (!trimmedUsername.equalsIgnoreCase(user.getUsername())
+                && userRepository.existsByUsernameIgnoreCaseAndIdNot(trimmedUsername, userId)) {
+            throw new IllegalArgumentException("Benutzername ist bereits vergeben");
+        }
+        user.setUsername(trimmedUsername);
+        if (clearDiveraApiKey) {
+            user.setDiveraApiKey(null);
+        } else if (diveraApiKey != null && !diveraApiKey.isBlank()) {
+            user.setDiveraApiKey(normalizeDiveraApiKey(diveraApiKey));
+        }
+        User saved = userRepository.save(user);
+        auditService.record(
+                AuditEventType.USER_UPDATED,
+                userId,
+                userId,
+                request,
+                "Eigene Kontoeinstellungen gespeichert");
+        return saved;
+    }
+
+    private static String normalizeDiveraApiKey(String key) {
+        return key.trim().replaceAll("[\\r\\n\\t\\v]+", "");
+    }
+
+    @Transactional
     public UserRfidCard registerRfidCard(
             long userId, String rawCardUid, String label, AppUserDetails actor, HttpServletRequest request) {
         User user = userRepository.findByIdWithUnit(userId).orElseThrow();

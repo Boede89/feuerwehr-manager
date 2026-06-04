@@ -111,6 +111,8 @@ public class UserService {
         User user = userRepository.findById(userId).orElseThrow();
         user.setUsername("deleted-" + userId + "-" + UUID.randomUUID().toString().substring(0, 8));
         user.setDisplayName("Gelöschter Nutzer");
+        user.setLoginEmail(null);
+        user.setDiveraApiKey(null);
         user.setPasswordHash(null);
         user.setActive(false);
         user.setAnonymizedAt(Instant.now());

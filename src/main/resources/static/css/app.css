@@ -1375,6 +1375,19 @@ select.field {
   margin: 0.5rem 0 0;
 }
 
+.settings-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.25rem 0;
+}
+
+.settings-subheading {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text);
+}
+
 .emergency-contacts-hint {
   margin-bottom: 1rem;
 }
