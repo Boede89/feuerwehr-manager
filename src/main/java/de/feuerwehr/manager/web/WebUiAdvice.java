@@ -71,6 +71,24 @@ public class WebUiAdvice {
         });
     }
 
+    @ModelAttribute("activeNav")
+    public String activeNav(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        if (path.startsWith("/personal")) {
+            return "personal";
+        }
+        if (path.startsWith("/my-area") || path.startsWith("/profile")) {
+            return "my-area";
+        }
+        if (path.startsWith("/settings")) {
+            return "settings";
+        }
+        if ("/".equals(path)) {
+            return "home";
+        }
+        return "";
+    }
+
     private static String buildRequestPath(HttpServletRequest request) {
         String path = request.getRequestURI();
         String query = request.getQueryString();

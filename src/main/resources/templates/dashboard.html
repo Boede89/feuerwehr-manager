@@ -1,59 +1,63 @@
 <!DOCTYPE html>
 <html lang="de" xmlns:th="http://www.thymeleaf.org">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-  <title>Feuerwehr-Manager</title>
-  <link rel="stylesheet" th:href="@{/css/app.css}"/>
-</head>
+<head th:replace="~{fragments/head :: head('Startseite')}"></head>
 <body>
-<header class="bar bar-compact">
-  <h1>Feuerwehr-Manager</h1>
-  <div class="bar-actions" th:insert="~{fragments/app-header-actions :: actions}"></div>
-</header>
+<div th:insert="~{fragments/app-shell :: shell-start}"></div>
 
-<main>
+  <div class="page-header">
+    <div>
+      <h2 th:text="${currentUser != null ? 'Willkommen, ' + currentUser.displayName : 'Startseite'}">Willkommen</h2>
+      <p>Feuerwehr-Manager · Einheit: <strong th:text="${currentUnitName}">—</strong></p>
+    </div>
+  </div>
+
   <div th:replace="~{fragments/testmode-banner :: banner}"></div>
-  <p class="hint">
-    <span th:if="${currentUser != null}" th:text="${currentUser.displayName + ' · '}">Nutzer</span>
-    Einheit: <strong th:text="${currentUnitName}">—</strong> · Layout Variante D
-  </p>
 
-  <nav class="tile-grid" aria-label="Module">
-    <span class="tile muted"><span class="icon">🚒</span>Reservierungen</span>
-    <span class="tile muted"><span class="icon">🛡️</span>Atemschutz</span>
-    <a class="tile" th:href="@{/personal(unit=${unitId})}"><span class="icon">👥</span>Personal</a>
-    <a class="tile" th:href="@{/my-area}"><span class="icon">👤</span>Mein Bereich</a>
-    <span class="tile muted"><span class="icon">📋</span>Berichte</span>
-    <span class="tile muted"><span class="icon">📊</span>Auswertung</span>
-    <a class="tile" th:href="@{/settings(unit=${unitId})}"><span class="icon">⚙️</span>Einstellungen</a>
+  <nav class="dashboard-grid" aria-label="Module">
+    <span class="dashboard-card dashboard-card--soon"><span class="icon">🚒</span>Reservierungen</span>
+    <span class="dashboard-card dashboard-card--soon"><span class="icon">🛡️</span>Atemschutz</span>
+    <a class="dashboard-card dashboard-card--active" th:href="@{/personal(unit=${unitId})}">
+      <span class="icon">👥</span>Personal
+    </a>
+    <a class="dashboard-card dashboard-card--active" th:href="@{/my-area}">
+      <span class="icon">👤</span>Mein Bereich
+    </a>
+    <span class="dashboard-card dashboard-card--soon"><span class="icon">📋</span>Berichte</span>
+    <span class="dashboard-card dashboard-card--soon"><span class="icon">📊</span>Auswertung</span>
+    <a class="dashboard-card dashboard-card--active" th:href="@{/settings(unit=${unitId})}">
+      <span class="icon">⚙️</span>Einstellungen
+    </a>
   </nav>
 
-  <section class="list" aria-labelledby="divera-h">
-    <h2 id="divera-h">Divera – aktuelle Einsätze</h2>
-    <div class="list-row" th:if="${!divera.success}">
-      <span th:text="${divera.message}">Fehler</span>
-      <span class="badge inactive">Prüfen</span>
+  <div class="widget-card">
+    <div class="card__header" style="border-left:3px solid var(--einsatz-c, var(--rot)); margin:0; padding:12px 16px;">
+      Divera – aktuelle Einsätze
     </div>
-    <th:block th:if="${divera.success}">
-      <div class="list-row" th:if="${#lists.isEmpty(divera.alarms)}">
-        <span>Keine Alarme geliefert (oder Liste leer).</span>
-        <span class="badge active">OK</span>
+    <div style="padding:0;">
+      <div class="list-row" th:if="${!divera.success}">
+        <span th:text="${divera.message}">Fehler</span>
+        <span class="badge inactive">Prüfen</span>
       </div>
-      <div class="list-row" th:each="a : ${divera.alarms}">
-        <span>
-          <strong th:text="${a.title}">Titel</strong>
-          <span th:if="${a.address != null and !#strings.isEmpty(a.address)}"> · </span>
-          <span th:text="${a.address}">Adresse</span>
-          <span class="hint" th:if="${a.closed}" style="display:inline;margin:0;"> (geschlossen)</span>
-        </span>
-        <span class="badge active" th:text="${a.id}">ID</span>
-      </div>
-    </th:block>
-  </section>
+      <th:block th:if="${divera.success}">
+        <div class="list-row" th:if="${#lists.isEmpty(divera.alarms)}">
+          <span>Keine Alarme geliefert (oder Liste leer).</span>
+          <span class="badge active">OK</span>
+        </div>
+        <div class="list-row" th:each="a : ${divera.alarms}">
+          <span>
+            <strong th:text="${a.title}">Titel</strong>
+            <span th:if="${a.address != null and !#strings.isEmpty(a.address)}"> · </span>
+            <span th:text="${a.address}">Adresse</span>
+            <span class="hint" th:if="${a.closed}" style="display:inline;margin:0;"> (geschlossen)</span>
+          </span>
+          <span class="badge active" th:text="${a.id}">ID</span>
+        </div>
+      </th:block>
+    </div>
+  </div>
 
-  <p class="hint">JSON: <code th:text="'/api/v1/units/' + ${unitId} + '/divera/alarms'">/api/…</code></p>
-</main>
-<script th:src="@{/js/unit-switcher.js}" defer></script>
+  <p class="hint" style="margin-top:16px;">JSON: <code th:text="'/api/v1/units/' + ${unitId} + '/divera/alarms'">/api/…</code></p>
+
+<div th:insert="~{fragments/app-shell :: shell-end}"></div>
 </body>
 </html>

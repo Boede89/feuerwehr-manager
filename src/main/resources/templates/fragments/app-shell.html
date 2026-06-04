@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!-- Start App-Shell (eingebettet in Seiten mit th:insert) -->
+<th:block th:fragment="shell-start">
+<div class="app-shell" style="--accent: #e63022">
+  <header class="app-header">
+    <a class="app-header__brand" th:href="@{/(unit=${unitId})}">
+      <div class="app-header__emblem" aria-hidden="true">🚒</div>
+      <div class="app-header__title">
+        <span class="app-header__name">Feuerwehr-Manager</span>
+        <span class="app-header__sub" th:if="${currentUnitName != null}" th:text="${currentUnitName}">Einheit</span>
+        <span class="app-header__sub" th:unless="${currentUnitName != null}">Feuerwehrverwaltung</span>
+      </div>
+    </a>
+    <div class="app-header__right">
+      <div class="btn-group theme-toggle" role="group" aria-label="Design">
+        <button type="button" class="btn btn--outline btn--sm" data-theme-choice="light" title="Helles Design">☀️</button>
+        <button type="button" class="btn btn--outline btn--sm" data-theme-choice="dark" title="Dunkles Design">🌙</button>
+      </div>
+      <th:block th:replace="~{fragments/app-header-actions :: actions}"></th:block>
+    </div>
+  </header>
+  <nav class="topnav" aria-label="Hauptnavigation">
+    <a class="topnav__item" th:classappend="${activeNav == 'home'} ? ' active' : ''"
+       th:href="@{/(unit=${unitId})}">Startseite</a>
+    <a class="topnav__item" th:classappend="${activeNav == 'personal'} ? ' active' : ''"
+       th:href="@{/personal(unit=${unitId})}">Personal</a>
+    <a class="topnav__item" th:classappend="${activeNav == 'my-area'} ? ' active' : ''"
+       th:href="@{/my-area}">Mein Bereich</a>
+    <div class="topnav__spacer"></div>
+    <a class="topnav__item" th:classappend="${activeNav == 'settings'} ? ' active' : ''"
+       th:href="@{/settings(unit=${unitId})}">Einstellungen</a>
+  </nav>
+  <main class="page-main">
+    <div class="page page--active">
+</th:block>
+
+<th:block th:fragment="shell-end">
+    </div>
+  </main>
+</div>
+<script th:src="@{/js/theme.js}" defer></script>
+<script th:src="@{/js/unit-switcher.js}" defer></script>
+</th:block>
+</body>
+</html>

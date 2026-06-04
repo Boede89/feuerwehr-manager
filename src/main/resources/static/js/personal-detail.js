@@ -47,6 +47,7 @@
         panel.classList.toggle('active', panel.id === 'panel-' + tabId);
       });
       tabButtons.forEach((btn) => {
+        btn.classList.toggle('tab-btn--active', btn.getAttribute('data-tab') === tabId);
         btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
       });
     }

@@ -1,57 +1,40 @@
 <!DOCTYPE html>
 <html lang="de" xmlns:th="http://www.thymeleaf.org">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-  <title>Personal – Feuerwehr-Manager</title>
-  <link rel="stylesheet" th:href="@{/css/app.css}"/>
-</head>
+<head th:replace="~{fragments/head :: head('Personal')}"></head>
 <body>
-<header class="bar bar-compact">
-  <h1>Personal</h1>
-  <div class="bar-actions">
-    <div th:replace="~{fragments/app-header-actions :: actions}"></div>
-    <a class="link" th:href="@{/(unit=${unitId})}">← Dashboard</a>
+<div th:insert="~{fragments/app-shell :: shell-start}"></div>
+
+  <div class="page-header">
+    <div>
+      <h2>Personal</h2>
+      <p>Mitgliederverwaltung · <span th:text="${personCount}">0</span> Personen · <strong th:text="${currentUnitName}">—</strong></p>
+    </div>
+    <a class="btn btn--primary" th:href="@{/personal/new(unit=${unitId})}">+ Neue Person</a>
   </div>
-</header>
-<main>
+
   <div th:replace="~{fragments/testmode-banner :: banner}"></div>
-  <p class="hint">Einheit: <strong th:text="${currentUnitName}">—</strong> · <span id="personCountVisible" th:text="${personCount}">0</span> Personen</p>
   <div class="ok" th:if="${saved}" th:text="${message} ?: 'Gespeichert.'">OK</div>
   <div class="err" th:if="${error}" th:text="${error}">Fehler</div>
 
-  <p style="margin:0 0 0.75rem;">
-    <a class="btn" th:href="@{/personal/new(unit=${unitId})}">Neue Person</a>
-  </p>
-
-  <div class="person-search-wrap">
-    <label for="personSearch" class="sr-only">Personen suchen</label>
-    <input type="search" id="personSearch" class="person-search" placeholder="Suchen nach Name, E-Mail oder Telefon…" autocomplete="off"/>
-  </div>
+  <input type="search" class="person-search" id="personSearch" placeholder="Name suchen…" autocomplete="off"
+         aria-label="Personen suchen"/>
 
   <div class="person-list" id="personList">
-    <p class="hint" id="personSearchEmpty" style="display:none;">Keine Treffer für Ihre Suche.</p>
     <a class="person-list-item" th:each="p : ${persons}"
        th:href="@{/personal/{id}(id=${p.id},unit=${unitId})}"
-       th:attr="data-search=${#strings.toLowerCase(
-         p.firstName + ' ' + p.lastName + ' ' +
-         (p.email != null ? p.email : '') + ' ' +
-         (p.phone != null ? p.phone : '') + ' ' +
-         (p.qualificationType != null ? p.qualificationType.name : '')
-       )}">
+       th:attr="data-search=${p.lastName + ' ' + p.firstName + ' ' + (p.email != null ? p.email : '')}">
       <span class="person-list-avatar"
             th:text="${#strings.substring(p.firstName,0,1) + #strings.substring(p.lastName,0,1)}">AB</span>
       <span class="person-list-body">
         <span class="person-list-name" th:text="${p.firstName + ' ' + p.lastName}">Name</span>
-        <span class="person-list-sub" th:if="${p.email != null}" th:text="${p.email}">E-Mail</span>
-        <span class="person-list-sub" th:if="${p.email == null and p.phone != null}" th:text="${p.phone}">Telefon</span>
+        <span class="person-list-sub" th:text="${p.email != null ? p.email : '—'}">E-Mail</span>
       </span>
       <span class="person-list-chevron" aria-hidden="true">›</span>
     </a>
     <p class="hint" th:if="${#lists.isEmpty(persons)}" id="personListEmpty">Noch keine Personen erfasst.</p>
   </div>
-</main>
+
+<div th:insert="~{fragments/app-shell :: shell-end}"></div>
 <script th:src="@{/js/personal-list.js}"></script>
-<script th:src="@{/js/unit-switcher.js}" defer></script>
 </body>
 </html>
