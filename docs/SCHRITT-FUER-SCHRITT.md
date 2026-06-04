@@ -35,7 +35,30 @@ cd feuerwehr-manager
 
 ---
 
-## Schritt 2: Installation (ein Befehl)
+## Schritt 2: Produktions-Secrets (DSGVO — vor dem ersten Start mit 2FA)
+
+Für den **Produktions-Server** (nicht nur lokal testen):
+
+```bash
+cp .env.example .env
+nano .env   # oder anderer Editor
+```
+
+Mindestens setzen:
+
+| Variable | Zweck |
+|----------|--------|
+| `FEUERWEHR_TOTP_ENCRYPTION_KEY` | **Pflicht:** 2FA-Geheimnisse verschlüsselt in der DB (z. B. `openssl rand -base64 48`) |
+| `FEUERWEHR_BOOTSTRAP_ADMIN_PASSWORD` | Starkes Admin-Passwort statt `changeme` |
+| `FEUERWEHR_AUDIT_SALT` | Zufälliger Wert für gehashte IPs in Audit-Logs |
+
+Die Datei `.env` **nicht** ins Git legen. Docker Compose liest sie automatisch.
+
+**Hinweis:** Den TOTP-Key **nicht** nachträglich ändern, wenn schon Nutzer 2FA eingerichtet haben.
+
+---
+
+## Schritt 3: Installation (ein Befehl)
 
 ```bash
 chmod +x install.sh && ./install.sh
@@ -45,7 +68,7 @@ chmod +x install.sh && ./install.sh
 
 ---
 
-## Schritt 3 (optional): Prüfen, ob alles läuft
+## Schritt 4 (optional): Prüfen, ob alles läuft
 
 ```bash
 docker compose ps
@@ -63,7 +86,7 @@ Beenden der Log-Ansicht: `Strg+C`.
 
 ---
 
-## Schritt 4: Web-Oberfläche öffnen
+## Schritt 5: Web-Oberfläche öffnen
 
 Im Browser (vom gleichen Netz aus, ggf. Firewall-Port **8080** freigeben):
 
@@ -85,7 +108,7 @@ Details: [LOGIN.md](LOGIN.md).
 
 ---
 
-## Schritt 5: Passwort und Benutzer (empfohlen)
+## Schritt 6: Passwort und Benutzer (empfohlen)
 
 1. **Einstellungen** → **Mein Passwort** – `changeme` durch ein sicheres Passwort ersetzen.
 2. Als **Administrator**: **Einstellungen** → **Benutzer** – weitere Konten für Kollegen anlegen.

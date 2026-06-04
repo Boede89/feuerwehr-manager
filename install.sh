@@ -19,6 +19,12 @@ else
   exit 1
 fi
 
+if [[ ! -f .env ]] && [[ -f .env.example ]]; then
+  echo "Hinweis: Für Produktion zuerst .env anlegen: cp .env.example .env"
+  echo "        und FEUERWEHR_TOTP_ENCRYPTION_KEY setzen (DSGVO / 2FA)."
+  echo ""
+fi
+
 echo "Starte MySQL + Feuerwehr-Manager (Build kann einige Minuten dauern)..."
 "${COMPOSE[@]}" up -d --build
 

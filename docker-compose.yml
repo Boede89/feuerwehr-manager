@@ -34,6 +34,8 @@ services:
       FEUERWEHR_BOOTSTRAP_ADMIN_PASSWORD: ${FEUERWEHR_BOOTSTRAP_ADMIN_PASSWORD:-changeme}
       FEUERWEHR_BOOTSTRAP_ADMIN_RESET_PASSWORD: ${FEUERWEHR_BOOTSTRAP_ADMIN_RESET_PASSWORD:-false}
       FEUERWEHR_AUDIT_SALT: ${FEUERWEHR_AUDIT_SALT:-bitte-in-produktion-aendern}
+      # DSGVO: 2FA-Secrets verschlüsselt — in Produktion via .env setzen (siehe .env.example)
+      FEUERWEHR_TOTP_ENCRYPTION_KEY: ${FEUERWEHR_TOTP_ENCRYPTION_KEY:-}
     depends_on:
       mysql:
         condition: service_healthy

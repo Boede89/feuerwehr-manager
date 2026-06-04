@@ -11,6 +11,7 @@ Die Software unterstützt eure **organisatorischen** Pflichten (Dokumentation, V
 | **Einwilligung / Information** | Nach erstem Login: Bestätigung des aktuellen Hinweises (`privacy_consents`) |
 | **Transparenz** | `/privacy/notice` öffentlich lesbar |
 | **Sicherheit** | HTTPS in Produktion, CSRF, Session-Cookie `httpOnly`, Passwörter nie im Klartext |
+| **2FA (TOTP)** | Geheimnisse in der DB **verschlüsselt** (AES-256-GCM), wenn `FEUERWEHR_TOTP_ENCRYPTION_KEY` gesetzt ist — in Produktion **Pflicht** |
 | **Protokollierung** | `audit_events`: Login/Logout/Fehler **ohne** Passwort und **ohne** Chip-ID im Klartext; IP nur als SHA-256 mit Salt |
 | **Speicherfrist Logs** | Standard **90 Tage**, danach automatische Löschung (`feuerwehr.dsgvo.audit-retention-days`) |
 | **Löschung** | `UserService.anonymizeUser()` – Konto pseudonymisiert, RFID-Karten deaktiviert (Workflow in UI folgt) |
@@ -24,10 +25,17 @@ Die Software unterstützt eure **organisatorischen** Pflichten (Dokumentation, V
 ## Konfiguration (Produktion)
 
 ```bash
-export FEUERWEHR_BOOTSTRAP_ADMIN_PASSWORD='…'   # starkes Initialpasswort
-export FEUERWEHR_AUDIT_SALT='…'                   # zufällig, geheim halten
-export FEUERWEHR_AUDIT_RETENTION_DAYS=90
+cp .env.example .env
+# In .env eintragen (nicht committen):
+FEUERWEHR_TOTP_ENCRYPTION_KEY='…'              # Pflicht Produktion — z. B. openssl rand -base64 48
+FEUERWEHR_BOOTSTRAP_ADMIN_PASSWORD='…'         # starkes Initialpasswort
+FEUERWEHR_AUDIT_SALT='…'                       # zufällig, geheim halten
+FEUERWEHR_AUDIT_RETENTION_DAYS=90
+
+docker compose up -d --build
 ```
+
+**Wichtig zu `FEUERWEHR_TOTP_ENCRYPTION_KEY`:** Einmal setzen und **nicht mehr ändern**, sobald Nutzer 2FA aktiviert haben. Ohne Key werden Secrets mit `plain:` gespeichert (nur für Entwicklung).
 
 **HTTPS** vor dem Internet (Reverse Proxy). Session-Cookie `secure: true` hinter TLS (Spring Boot Konfiguration anpassen).
 

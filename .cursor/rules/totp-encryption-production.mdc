@@ -1,0 +1,15 @@
+---
+description: Produktion — TOTP-Verschlüsselungsschlüssel setzen (DSGVO, nicht vergessen)
+alwaysApply: true
+---
+
+# FEUERWEHR_TOTP_ENCRYPTION_KEY (Produktion / DSGVO)
+
+Der Nutzer hat festgelegt: **In Produktion muss** `FEUERWEHR_TOTP_ENCRYPTION_KEY` gesetzt sein (Verschlüsselung der 2FA-TOTP-Secrets in der DB, AES-256-GCM).
+
+- Bei Deploy-, Docker-, Sicherheits- oder 2FA-Themen **aktiv daran erinnern**, falls noch nicht umgesetzt.
+- Setup: `.env.example` → `.env`, Key generieren (`openssl rand -base64 48`), `docker compose up -d --build`.
+- **Key nie ändern**, nachdem Nutzer 2FA eingerichtet haben (sonst Entschlüsselung scheitert).
+- Key **nicht** ins Git committen.
+
+Dokumentation: `docs/DSGVO.md`, `docs/SCHRITT-FUER-SCHRITT.md`.

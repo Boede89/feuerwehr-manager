@@ -57,4 +57,4 @@ Vorher MySQL anlegen und Nutzer/DB wie in `docker-compose.yml` oder `application
 - Passwort min. 4 Zeichen (konfigurierbar); Audit-Log und sichere Kontolöschung im Hintergrund – siehe [docs/LOGIN.md](docs/LOGIN.md).
 - **RFID:** Datenmodell und API vorbereitet (`POST /api/v1/auth/rfid`); Registrierung der Chips in der Verwaltung folgt.
 
-Vor Produktion zusätzlich: HTTPS, starkes Bootstrap-Passwort, `FEUERWEHR_AUDIT_SALT` setzen, API-Token für Android (geplant).
+Vor Produktion zusätzlich: HTTPS, `.env` aus `.env.example` (u. a. **`FEUERWEHR_TOTP_ENCRYPTION_KEY`** für verschlüsselte 2FA-Secrets — DSGVO-Pflicht), starkes Bootstrap-Passwort, `FEUERWEHR_AUDIT_SALT` setzen. Siehe [docs/DSGVO.md](docs/DSGVO.md).
