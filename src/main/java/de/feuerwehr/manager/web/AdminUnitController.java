@@ -12,6 +12,7 @@ import de.feuerwehr.manager.unit.UnitRolePermission;
 import de.feuerwehr.manager.unit.UnitRoleService;
 import de.feuerwehr.manager.unit.UnitRoleType;
 import de.feuerwehr.manager.unit.UnitService;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
