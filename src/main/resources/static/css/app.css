@@ -590,6 +590,24 @@ input:focus, select:focus, textarea:focus {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 16px;
+  align-items: end;
+}
+
+.form-grid .form-group--full {
+  grid-column: 1 / -1;
+}
+
+/* Submit-Buttons ohne Label: unsichtbarer Label-Platzhalter wie bei Eingabefeldern */
+.form-grid .form-group--submit:not(:has(label))::before,
+.form-grid .form-group:has(> button.btn):not(:has(label))::before {
+  content: '\00a0';
+  display: block;
+  margin: 0 0 5px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  visibility: hidden;
+  user-select: none;
 }
 
 .form-group { margin-bottom: 0; }
@@ -1370,11 +1388,22 @@ code {
   align-items: end;
 }
 
+.form-label--align {
+  display: block;
+  margin: 0 0 5px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  visibility: hidden;
+  user-select: none;
+}
+
 .form-group--grow {
   flex: 1;
   min-width: 200px;
 }
 
+.form-group--submit,
 .form-group--actions {
   flex-shrink: 0;
 }

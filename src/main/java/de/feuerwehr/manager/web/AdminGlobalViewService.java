@@ -6,6 +6,8 @@ import de.feuerwehr.manager.dsgvo.AuditEventType;
 import de.feuerwehr.manager.logging.ContainerLogBuffer;
 import de.feuerwehr.manager.settings.ApplicationSettings;
 import de.feuerwehr.manager.settings.GlobalSettingsService;
+import de.feuerwehr.manager.personal.Person;
+import de.feuerwehr.manager.personal.PersonRepository;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
 import de.feuerwehr.manager.user.User;
@@ -34,6 +36,7 @@ public class AdminGlobalViewService {
     private final GlobalSettingsService globalSettingsService;
     private final UnitService unitService;
     private final UserRepository userRepository;
+    private final PersonRepository personRepository;
     private final AuditEventRepository auditEventRepository;
     private final ContainerLogBuffer containerLogBuffer;
 
@@ -82,12 +85,19 @@ public class AdminGlobalViewService {
         Map<Long, User> usersById = userRepository.findAllById(userIds).stream()
                 .collect(Collectors.toMap(User::getId, u -> u));
 
+        Set<Long> deletedSubjectIds = events.stream()
+                .filter(e -> e.getEventType() == AuditEventType.USER_ANONYMIZED)
+                .map(AuditEvent::getSubjectUserId)
+                .filter(id -> id != null && id > 0)
+                .collect(Collectors.toSet());
+        Map<Long, Person> personByUserId = loadPersonsByUserId(deletedSubjectIds);
+
         List<AuditLogRow> rows = events.stream()
                 .map(e -> new AuditLogRow(
                         e.getOccurredAt(),
                         formatActor(e, usersById),
                         buildActionHtml(e),
-                        buildDetailColumn(e, usersById)))
+                        buildDetailColumn(e, usersById, personByUserId)))
                 .toList();
         model.addAttribute("auditRows", rows);
     }
@@ -110,29 +120,57 @@ public class AdminGlobalViewService {
                 + "</span>";
     }
 
-    private static String buildDetailColumn(AuditEvent event, Map<Long, User> usersById) {
+    private static String buildDetailColumn(
+            AuditEvent event, Map<Long, User> usersById, Map<Long, Person> personByUserId) {
         if (event.getEventType() == AuditEventType.USER_ANONYMIZED) {
-            String deleted = resolveDeletedUserDetail(event, usersById);
+            String deleted = resolveDeletedUserDetail(event, usersById, personByUserId);
             return deleted != null ? deleted : "";
         }
         return event.getDetail() != null ? event.getDetail() : "";
     }
 
-    private static String resolveDeletedUserDetail(AuditEvent event, Map<Long, User> usersById) {
+    private Map<Long, Person> loadPersonsByUserId(Set<Long> userIds) {
+        if (userIds.isEmpty()) {
+            return Map.of();
+        }
+        return personRepository.findAllByUserIdIn(userIds).stream()
+                .filter(p -> p.getUser() != null)
+                .collect(Collectors.toMap(p -> p.getUser().getId(), p -> p, (a, b) -> a));
+    }
+
+    private static String resolveDeletedUserDetail(
+            AuditEvent event, Map<Long, User> usersById, Map<Long, Person> personByUserId) {
         if (event.getDetail() != null && !event.getDetail().isBlank()) {
             return event.getDetail().trim();
         }
         if (event.getSubjectUserId() == null) {
             return null;
         }
+        Person person = personByUserId.get(event.getSubjectUserId());
+        if (person != null) {
+            String fromPerson = formatPersonLabel(person);
+            if (!fromPerson.isBlank()) {
+                return fromPerson;
+            }
+        }
         User subject = usersById.get(event.getSubjectUserId());
-        if (subject == null) {
-            return "Nutzer-ID " + event.getSubjectUserId();
+        if (subject != null && subject.getAnonymizedAt() == null) {
+            return subject.getUsername() + " · " + subject.getDisplayName();
         }
-        if (subject.getAnonymizedAt() != null) {
-            return "Nutzer-ID " + subject.getId();
+        return "Nutzer-ID " + event.getSubjectUserId();
+    }
+
+    private static String formatPersonLabel(Person person) {
+        String first = person.getFirstName() != null ? person.getFirstName().trim() : "";
+        String last = person.getLastName() != null ? person.getLastName().trim() : "";
+        String name = (first + " " + last).trim();
+        if (!name.isBlank()) {
+            return name;
         }
-        return subject.getUsername() + " · " + subject.getDisplayName();
+        if (person.getEmail() != null && !person.getEmail().isBlank()) {
+            return person.getEmail().trim();
+        }
+        return "";
     }
 
     private static String formatActor(AuditEvent event, Map<Long, User> usersById) {

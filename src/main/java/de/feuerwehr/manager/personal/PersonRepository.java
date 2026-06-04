@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.personal;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -46,6 +47,14 @@ public interface PersonRepository extends JpaRepository<Person, Long> {
             @Param("userId") long userId, @Param("unitId") long unitId, @Param("testData") boolean testData);
 
     List<Person> findAllByUserIdAndAnonymizedAtIsNull(long userId);
+
+    @Query("""
+            SELECT p FROM Person p
+            JOIN FETCH p.user u
+            WHERE u.id IN :userIds
+            ORDER BY p.id
+            """)
+    List<Person> findAllByUserIdIn(@Param("userIds") Collection<Long> userIds);
 
     @Modifying
     @Query("DELETE FROM Person p WHERE p.testData = true")

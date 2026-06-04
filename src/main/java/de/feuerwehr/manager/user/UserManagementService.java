@@ -275,8 +275,8 @@ public class UserManagementService {
             }
         }
         String auditDetail = target.getUsername() + " · " + target.getDisplayName();
-        userService.anonymizeUser(userId);
         auditService.record(AuditEventType.USER_ANONYMIZED, actor.getUserId(), userId, request, auditDetail);
+        userService.anonymizeUser(userId);
     }
 
     @Transactional
