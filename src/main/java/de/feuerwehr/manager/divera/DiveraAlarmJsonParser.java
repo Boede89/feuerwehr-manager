@@ -102,10 +102,41 @@ public final class DiveraAlarmJsonParser {
                 return data;
             }
         }
+        for (String alarmKey : new String[] {"alarm", "Alarm"}) {
+            if (root.has(alarmKey) && root.path(alarmKey).isObject()) {
+                JsonNode alarmObj = root.path(alarmKey);
+                JsonNode fromItems = firstItemInAlarmItems(alarmObj);
+                if (fromItems != null) {
+                    return fromItems;
+                }
+                if (alarmObj.has("id") || alarmObj.has("title") || alarmObj.has("Title")) {
+                    return alarmObj;
+                }
+            }
+        }
         if (root.has("id") || root.has("title") || root.has("Title")) {
             return root;
         }
         return root;
+    }
+
+    private static JsonNode firstItemInAlarmItems(JsonNode alarmObj) {
+        for (String itemsKey : new String[] {"items", "Items"}) {
+            if (!alarmObj.has(itemsKey)) {
+                continue;
+            }
+            JsonNode items = alarmObj.path(itemsKey);
+            if (items.isArray() && items.size() > 0) {
+                return items.get(0);
+            }
+            if (items.isObject()) {
+                Iterator<JsonNode> it = items.elements();
+                if (it.hasNext()) {
+                    return it.next();
+                }
+            }
+        }
+        return null;
     }
 
     private static JsonNode firstItem(JsonNode items) {

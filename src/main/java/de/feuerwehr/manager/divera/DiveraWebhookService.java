@@ -64,12 +64,15 @@ public class DiveraWebhookService {
         try {
             JsonNode root = objectMapper.readTree(rawBody);
             log.info("[Divera-Webhook] unit={} payload={}", unitId, root.toString());
+            boolean sampleSaved = false;
             if (testModeService.isEnabled()) {
-                diveraAlarmSampleService.captureFromWebhook(unitId, rawBody);
+                sampleSaved = diveraAlarmSampleService.captureFromWebhook(unitId, rawBody);
             }
             String externalId = extractExternalId(root);
-            // Persistenz als Einsatzbericht folgt mit Modul „Berichte“
-            return new WebhookOutcome(WebhookStatus.ACCEPTED, externalId, "Webhook empfangen");
+            String message = sampleSaved
+                    ? "Webhook empfangen — Beispiel-Einsatz im Testmodus gespeichert"
+                    : "Webhook empfangen";
+            return new WebhookOutcome(WebhookStatus.ACCEPTED, externalId, message);
         } catch (Exception e) {
             log.error("[Divera-Webhook] JSON-Fehler unit={}: {}", unitId, e.getMessage());
             return new WebhookOutcome(WebhookStatus.BAD_REQUEST, null, "Ungültiges JSON");

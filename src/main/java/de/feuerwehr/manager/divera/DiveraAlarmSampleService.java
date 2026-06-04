@@ -12,12 +12,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DiveraAlarmSampleService {
 
     private static final DateTimeFormatter CAPTURED_FMT =
@@ -49,22 +51,34 @@ public class DiveraAlarmSampleService {
         }
     }
 
+    /**
+     * Speichert eingehende DIVERA-Webhooks als Beispiel (nur Testmodus, ohne angemeldeten Nutzer).
+     * Läuft serverseitig bei jedem {@code POST /api/webhook/divera}; Anmeldung ist nicht nötig.
+     */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void captureFromWebhook(long unitId, String rawBody) {
+    public boolean captureFromWebhook(long unitId, String rawBody) {
         if (!testModeService.isEnabled() || rawBody == null || rawBody.isBlank()) {
-            return;
+            return false;
         }
         try {
             var root = objectMapper.readTree(rawBody);
             Optional<DiveraAlarmJsonParser.ParsedAlarm> parsed = DiveraAlarmJsonParser.parseFirst(root);
             if (parsed.isEmpty()) {
-                return;
+                log.warn("[Divera-Beispiel] Webhook unit={} — kein Alarm im JSON erkannt", unitId);
+                return false;
             }
             DiveraAlarmJsonParser.ParsedAlarm p = parsed.get();
             String payload = diveraAlarmRawJson.serializeWebhookBody(rawBody);
             upsert(unitId, p.alarmId(), p.title(), p.address(), payload);
-        } catch (Exception ignored) {
-            // ungültiges JSON — kein Beispiel speichern
+            log.info(
+                    "[Divera-Beispiel] Webhook gespeichert unit={} alarmId={} title={}",
+                    unitId,
+                    p.alarmId(),
+                    p.title());
+            return true;
+        } catch (Exception e) {
+            log.warn("[Divera-Beispiel] Webhook unit={} nicht speicherbar: {}", unitId, e.getMessage());
+            return false;
         }
     }
 
