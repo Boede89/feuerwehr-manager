@@ -323,6 +323,44 @@ public class AdminUnitController {
         });
     }
 
+    @PostMapping("/equipment/categories")
+    public String createEquipmentCategory(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam long vehicleId,
+            @RequestParam String name,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(
+                actor,
+                unit,
+                redirectAttributes,
+                "technik",
+                () -> {
+                    unitAdminService.createEquipmentCategory(unit, vehicleId, name);
+                    redirectAttributes.addFlashAttribute("message", "Kategorie angelegt.");
+                },
+                "vehicle=" + vehicleId);
+    }
+
+    @PostMapping("/equipment/categories/delete")
+    public String deleteEquipmentCategory(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam long vehicleId,
+            @RequestParam long categoryId,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(
+                actor,
+                unit,
+                redirectAttributes,
+                "technik",
+                () -> {
+                    unitAdminService.deleteEquipmentCategory(unit, vehicleId, categoryId);
+                    redirectAttributes.addFlashAttribute("message", "Kategorie entfernt.");
+                },
+                "vehicle=" + vehicleId);
+    }
+
     @PostMapping("/equipment")
     public String createEquipment(
             @AuthenticationPrincipal AppUserDetails actor,

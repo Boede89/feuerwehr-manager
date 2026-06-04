@@ -86,16 +86,14 @@ public class AdminUnitViewService {
         List<Vehicle> vehicles = unitAdminService.listVehicles(unitId);
         model.addAttribute("vehicles", vehicles);
         model.addAttribute("rooms", unitAdminService.listRooms(unitId));
-        Long resolvedVehicleId = null;
+        model.addAttribute("equipmentCountByVehicleId", unitAdminService.equipmentCountByVehicleId(unitId));
+        Long selectedVehicleId = null;
         Object param = model.getAttribute("selectedVehicleId");
         if (param instanceof Long id) {
-            resolvedVehicleId = id;
+            selectedVehicleId = id;
         }
-        if (resolvedVehicleId == null && !vehicles.isEmpty()) {
-            resolvedVehicleId = vehicles.get(0).getId();
-        }
-        final Long selectedVehicleId = resolvedVehicleId;
         model.addAttribute("selectedVehicleId", selectedVehicleId);
+        model.addAttribute("openEquipmentModal", selectedVehicleId != null);
         if (selectedVehicleId != null) {
             model.addAttribute("equipmentCategories", unitAdminService.listEquipmentCategories(selectedVehicleId));
             model.addAttribute("equipmentItems", unitAdminService.listEquipment(selectedVehicleId));

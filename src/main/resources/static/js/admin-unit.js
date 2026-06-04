@@ -112,6 +112,14 @@
     });
   });
 
+  (function initEquipmentModal() {
+    var overlay = document.getElementById('modal-vehicle-equipment');
+    if (!overlay) return;
+    if (overlay.getAttribute('data-auto-open') === 'true') {
+      document.body.classList.add('modal-open');
+    }
+  })();
+
   document.querySelectorAll('[data-open-modal="modal-calendar-edit"]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var set = function (id, val) {

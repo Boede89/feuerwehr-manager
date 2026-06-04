@@ -12,6 +12,7 @@ import de.feuerwehr.manager.technik.VehicleRepository;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -312,17 +313,54 @@ public class UnitAdminService {
         return equipmentRepository.findByVehicleIdOrderBySortOrderAscNameAsc(vehicleId);
     }
 
+    @Transactional(readOnly = true)
+    public Map<Long, Long> equipmentCountByVehicleId(long unitId) {
+        Map<Long, Long> counts = new java.util.HashMap<>();
+        for (Vehicle vehicle : listVehicles(unitId)) {
+            counts.put(vehicle.getId(), equipmentRepository.countByVehicleId(vehicle.getId()));
+        }
+        return counts;
+    }
+
+    @Transactional
+    public VehicleEquipmentCategory createEquipmentCategory(long unitId, long vehicleId, String name) {
+        Vehicle vehicle = requireVehicle(unitId, vehicleId);
+        String categoryName = requireName(name);
+        if (equipmentCategoryRepository.existsByVehicleIdAndNameIgnoreCase(vehicleId, categoryName)) {
+            throw new IllegalArgumentException("Diese Kategorie existiert bereits.");
+        }
+        VehicleEquipmentCategory category = new VehicleEquipmentCategory();
+        category.setVehicle(vehicle);
+        category.setName(categoryName);
+        category.setSortOrder(equipmentCategoryRepository.findByVehicleIdOrderBySortOrderAscNameAsc(vehicleId).size());
+        return equipmentCategoryRepository.save(category);
+    }
+
+    @Transactional
+    public void deleteEquipmentCategory(long unitId, long vehicleId, long categoryId) {
+        requireVehicle(unitId, vehicleId);
+        VehicleEquipmentCategory category = equipmentCategoryRepository
+                .findByIdAndVehicleId(categoryId, vehicleId)
+                .orElseThrow(() -> new IllegalArgumentException("Kategorie nicht gefunden."));
+        equipmentCategoryRepository.delete(category);
+    }
+
     @Transactional
     public VehicleEquipment createEquipment(long unitId, long vehicleId, String name, Long categoryId) {
-        Vehicle vehicle = vehicleRepository
-                .findByIdAndUnitId(vehicleId, unitId)
-                .orElseThrow(() -> new IllegalArgumentException("Fahrzeug nicht gefunden."));
+        Vehicle vehicle = requireVehicle(unitId, vehicleId);
+        String equipmentName = requireName(name);
+        if (equipmentRepository.existsByVehicleIdAndNameIgnoreCase(vehicleId, equipmentName)) {
+            throw new IllegalArgumentException("Dieses Gerät ist bereits hinterlegt.");
+        }
         VehicleEquipment eq = new VehicleEquipment();
         eq.setVehicle(vehicle);
-        eq.setName(requireName(name));
+        eq.setName(equipmentName);
         if (categoryId != null && categoryId > 0) {
-            equipmentCategoryRepository.findById(categoryId).ifPresent(eq::setCategory);
+            equipmentCategoryRepository
+                    .findByIdAndVehicleId(categoryId, vehicleId)
+                    .ifPresent(eq::setCategory);
         }
+        eq.setSortOrder((int) equipmentRepository.countByVehicleId(vehicleId));
         return equipmentRepository.save(eq);
     }
 
@@ -335,6 +373,12 @@ public class UnitAdminService {
             throw new IllegalArgumentException("Gerät gehört nicht zu dieser Einheit.");
         }
         equipmentRepository.delete(eq);
+    }
+
+    private Vehicle requireVehicle(long unitId, long vehicleId) {
+        return vehicleRepository
+                .findByIdAndUnitId(vehicleId, unitId)
+                .orElseThrow(() -> new IllegalArgumentException("Fahrzeug nicht gefunden."));
     }
 
     private Unit requireUnit(long unitId) {
