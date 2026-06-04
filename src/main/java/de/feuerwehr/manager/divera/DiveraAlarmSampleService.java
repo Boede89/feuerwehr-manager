@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,7 +26,7 @@ public class DiveraAlarmSampleService {
     private final DiveraAlarmSampleRepository repository;
     private final UnitRepository unitRepository;
     private final TestModeService testModeService;
-    private final DiveraWebhookPayloadBuilder payloadBuilder;
+    private final DiveraAlarmRawJson diveraAlarmRawJson;
     private final ObjectMapper objectMapper;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -33,11 +34,17 @@ public class DiveraAlarmSampleService {
         if (!testModeService.isEnabled() || response == null || !response.success()) {
             return;
         }
+        Map<Long, String> rawById =
+                response.rawJsonByAlarmId() != null ? response.rawJsonByAlarmId() : Map.of();
         for (DiveraAlarmSummary alarm : response.alarms()) {
             if (alarm.testAlarm()) {
                 continue;
             }
-            upsertFromSummary(unitId, alarm);
+            String payload = rawById.get(alarm.id());
+            if (payload == null || payload.isBlank()) {
+                continue;
+            }
+            upsert(unitId, alarm.id(), alarm.title(), alarm.address(), payload);
         }
     }
 
@@ -53,7 +60,7 @@ public class DiveraAlarmSampleService {
                 return;
             }
             DiveraAlarmJsonParser.ParsedAlarm p = parsed.get();
-            String payload = prettifyIfPossible(rawBody.trim());
+            String payload = diveraAlarmRawJson.serializeWebhookBody(rawBody);
             upsert(unitId, p.alarmId(), p.title(), p.address(), payload);
         } catch (Exception ignored) {
             // ungültiges JSON — kein Beispiel speichern
@@ -83,11 +90,6 @@ public class DiveraAlarmSampleService {
         return repository.findByIdAndUnitId(sampleId, unitId).map(DiveraAlarmSample::getWebhookPayload);
     }
 
-    private void upsertFromSummary(long unitId, DiveraAlarmSummary alarm) {
-        String payload = payloadBuilder.buildFromSummary(alarm);
-        upsert(unitId, alarm.id(), alarm.title(), alarm.address(), payload);
-    }
-
     private void upsert(long unitId, long alarmId, String title, String address, String payload) {
         Unit unit = unitRepository.getReferenceById(unitId);
         DiveraAlarmSample entity = repository
@@ -102,15 +104,6 @@ public class DiveraAlarmSampleService {
         entity.setWebhookPayload(payload);
         entity.setCapturedAt(Instant.now());
         repository.save(entity);
-    }
-
-    private String prettifyIfPossible(String raw) {
-        try {
-            var node = objectMapper.readTree(raw);
-            return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(node);
-        } catch (Exception e) {
-            return raw;
-        }
     }
 
     private static String blankToNull(String v) {

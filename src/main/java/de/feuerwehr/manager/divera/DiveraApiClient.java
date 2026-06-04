@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -24,9 +25,11 @@ public class DiveraApiClient {
 
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
+    private final DiveraAlarmRawJson diveraAlarmRawJson;
 
-    public DiveraApiClient(ObjectMapper objectMapper) {
+    public DiveraApiClient(ObjectMapper objectMapper, DiveraAlarmRawJson diveraAlarmRawJson) {
         this.objectMapper = objectMapper;
+        this.diveraAlarmRawJson = diveraAlarmRawJson;
         var rf = new SimpleClientHttpRequestFactory();
         rf.setConnectTimeout(5_000);
         rf.setReadTimeout(15_000);
@@ -55,9 +58,9 @@ public class DiveraApiClient {
                 String msg = textOr(root, "message", "error", "Divera-API: Zugriff verweigert oder ungültiger Access Key");
                 return DiveraAlarmsResponse.fail(msg);
             }
-            List<DiveraAlarmSummary> alarms = parseAlarmItems(root.path("data"));
-            alarms.sort(Comparator.comparingLong(DiveraAlarmSummary::dateEpochSeconds).reversed());
-            return DiveraAlarmsResponse.ok(alarms);
+            ParsedAlarms parsed = parseAlarmItems(root.path("data"));
+            parsed.alarms().sort(Comparator.comparingLong(DiveraAlarmSummary::dateEpochSeconds).reversed());
+            return DiveraAlarmsResponse.ok(parsed.alarms(), parsed.rawJsonByAlarmId());
         } catch (RestClientResponseException e) {
             return DiveraAlarmsResponse.fail("Divera-HTTP " + e.getStatusCode().value());
         } catch (Exception e) {
@@ -73,35 +76,45 @@ public class DiveraApiClient {
                 .toUri();
     }
 
-    private List<DiveraAlarmSummary> parseAlarmItems(JsonNode dataBlock) {
+    private record ParsedAlarms(List<DiveraAlarmSummary> alarms, Map<Long, String> rawJsonByAlarmId) {}
+
+    private ParsedAlarms parseAlarmItems(JsonNode dataBlock) {
         List<DiveraAlarmSummary> alarms = new ArrayList<>();
+        Map<Long, String> rawJsonByAlarmId = new LinkedHashMap<>();
         if (dataBlock == null || dataBlock.isNull()) {
-            return alarms;
+            return new ParsedAlarms(alarms, rawJsonByAlarmId);
         }
         if (dataBlock.isArray()) {
             for (JsonNode item : dataBlock) {
-                parseOneAlarm(item).ifPresent(alarms::add);
+                addParsedItem(item, alarms, rawJsonByAlarmId);
             }
-            return alarms;
+            return new ParsedAlarms(alarms, rawJsonByAlarmId);
         }
         JsonNode items = dataBlock.path("items");
         if (items.isObject()) {
             Iterator<Map.Entry<String, JsonNode>> it = items.fields();
             while (it.hasNext()) {
-                parseOneAlarm(it.next().getValue()).ifPresent(alarms::add);
+                addParsedItem(it.next().getValue(), alarms, rawJsonByAlarmId);
             }
-            return alarms;
+            return new ParsedAlarms(alarms, rawJsonByAlarmId);
         }
         if (items.isArray()) {
             for (JsonNode item : items) {
-                parseOneAlarm(item).ifPresent(alarms::add);
+                addParsedItem(item, alarms, rawJsonByAlarmId);
             }
-            return alarms;
+            return new ParsedAlarms(alarms, rawJsonByAlarmId);
         }
         if (dataBlock.isObject() && dataBlock.has("id")) {
-            parseOneAlarm(dataBlock).ifPresent(alarms::add);
+            addParsedItem(dataBlock, alarms, rawJsonByAlarmId);
         }
-        return alarms;
+        return new ParsedAlarms(alarms, rawJsonByAlarmId);
+    }
+
+    private void addParsedItem(JsonNode item, List<DiveraAlarmSummary> alarms, Map<Long, String> rawJsonByAlarmId) {
+        parseOneAlarm(item).ifPresent(summary -> {
+            alarms.add(summary);
+            rawJsonByAlarmId.put(summary.id(), diveraAlarmRawJson.wrapApiItemAsWebhookPayload(item));
+        });
     }
 
     private static java.util.Optional<DiveraAlarmSummary> parseOneAlarm(JsonNode item) {
