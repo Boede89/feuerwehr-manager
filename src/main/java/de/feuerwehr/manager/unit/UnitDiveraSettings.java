@@ -36,4 +36,8 @@ public class UnitDiveraSettings {
 
     @Column(name = "access_key", nullable = false, length = 2048)
     private String accessKey = "";
+
+    /** Geheimer Token in der Webhook-URL – schützt den öffentlichen Empfangs-Endpunkt. */
+    @Column(name = "webhook_secret", length = 255)
+    private String webhookSecret;
 }

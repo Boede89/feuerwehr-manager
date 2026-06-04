@@ -5,8 +5,6 @@ import de.feuerwehr.manager.settings.AppModule;
 import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
-import de.feuerwehr.manager.unit.UnitDiveraSettings;
-import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.unit.UnitRoleService;
 import de.feuerwehr.manager.unit.UnitService;
@@ -49,7 +47,6 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class AdminPanelController {
 
     private final UnitService unitService;
-    private final UnitDiveraSettingsRepository diveraSettingsRepository;
     private final ModuleSettingsService moduleSettingsService;
     private final TestModeService testModeService;
     private final UserManagementService userManagementService;
@@ -430,53 +427,6 @@ public class AdminPanelController {
         return buildAdminRedirect(scope, tab, unitId);
     }
 
-    @PostMapping("/divera")
-    public String saveDivera(
-            @AuthenticationPrincipal AppUserDetails actor,
-            @RequestParam(name = "unit") long unitId,
-            @RequestParam String apiBaseUrl,
-            @RequestParam(required = false) String accessKey,
-            RedirectAttributes redirectAttributes) {
-
-        long resolvedUnitId = unitService
-                .resolveActiveUnit(unitId, actor)
-                .map(Unit::getId)
-                .orElseThrow(() -> new IllegalArgumentException("Keine gültige Einheit ausgewählt."));
-
-        UnitDiveraSettings settings = diveraSettingsRepository
-                .findByUnitId(resolvedUnitId)
-                .orElseThrow(() -> new IllegalArgumentException("Keine Divera-Einstellungen für diese Einheit."));
-
-        String base = apiBaseUrl == null ? "" : apiBaseUrl.trim();
-        if (base.isEmpty()) {
-            base = "https://app.divera247.com";
-        }
-        while (base.endsWith("/")) {
-            base = base.substring(0, base.length() - 1);
-        }
-        settings.setApiBaseUrl(base);
-
-        if (accessKey != null && !accessKey.isBlank()) {
-            settings.setAccessKey(accessKey.trim().replaceAll("[\\r\\n\\t\\v]+", ""));
-        }
-
-        diveraSettingsRepository.save(settings);
-        redirectAttributes.addFlashAttribute("saved", true);
-        redirectAttributes.addFlashAttribute("message", "Divera-Einstellungen gespeichert.");
-        return "redirect:/admin?scope=einheit&tab=schnittstellen&unit=" + resolvedUnitId;
-    }
-
-    private void populateDivera(Model model, long unitId) {
-        Optional<UnitDiveraSettings> opt = diveraSettingsRepository.findByUnitId(unitId);
-        if (opt.isPresent()) {
-            UnitDiveraSettings s = opt.get();
-            model.addAttribute("apiBaseUrl", s.getApiBaseUrl());
-            model.addAttribute("accessKeyConfigured", s.getAccessKey() != null && !s.getAccessKey().isBlank());
-        } else {
-            model.addAttribute("apiBaseUrl", "https://app.divera247.com");
-            model.addAttribute("accessKeyConfigured", false);
-        }
-    }
 
     private void populateUnitUsersTab(Model model, AppUserDetails actor, long unitId) {
         unitRoleService.ensureSystemRoles(unitId);

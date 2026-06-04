@@ -5,7 +5,6 @@ import de.feuerwehr.manager.settings.GlobalSettingsService;
 import de.feuerwehr.manager.user.User;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
-import java.util.Properties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -39,7 +38,12 @@ public class AccountMailService {
         }
         try {
             ApplicationSettings settings = globalSettingsService.get();
-            JavaMailSenderImpl sender = buildSender(settings);
+            JavaMailSenderImpl sender = SmtpMailService.buildSender(
+                    settings.getSmtpHost(),
+                    settings.getSmtpPort(),
+                    settings.getSmtpUsername(),
+                    settings.getSmtpPassword(),
+                    settings.getSmtpEncryption());
             var message = sender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, false, StandardCharsets.UTF_8.name());
             String fromName = settings.getSmtpFromName() != null ? settings.getSmtpFromName() : "Feuerwehr-Manager";
@@ -58,28 +62,6 @@ public class AccountMailService {
         } catch (Exception e) {
             return Optional.of("E-Mail konnte nicht gesendet werden: " + e.getMessage());
         }
-    }
-
-    private static JavaMailSenderImpl buildSender(ApplicationSettings settings) {
-        JavaMailSenderImpl sender = new JavaMailSenderImpl();
-        sender.setHost(settings.getSmtpHost());
-        sender.setPort(settings.getSmtpPort() != null ? settings.getSmtpPort() : 587);
-        if (settings.getSmtpUsername() != null && !settings.getSmtpUsername().isBlank()) {
-            sender.setUsername(settings.getSmtpUsername());
-        }
-        if (settings.getSmtpPassword() != null && !settings.getSmtpPassword().isBlank()) {
-            sender.setPassword(settings.getSmtpPassword());
-        }
-        Properties props = sender.getJavaMailProperties();
-        props.put("mail.transport.protocol", "smtp");
-        props.put("mail.smtp.auth", settings.getSmtpUsername() != null && !settings.getSmtpUsername().isBlank());
-        String encryption = settings.getSmtpEncryption() != null ? settings.getSmtpEncryption() : "TLS";
-        if ("SSL".equalsIgnoreCase(encryption)) {
-            props.put("mail.smtp.ssl.enable", "true");
-        } else if ("TLS".equalsIgnoreCase(encryption)) {
-            props.put("mail.smtp.starttls.enable", "true");
-        }
-        return sender;
     }
 
     private static String buildWelcomeBody(

@@ -36,6 +36,10 @@ public class UnitCalendarSettings {
     @Column(name = "calendar_id", length = 512)
     private String calendarId;
 
+    /** Google Service-Account-JSON (Schreibrechte auf calendar_id). */
+    @Column(name = "service_account_json", columnDefinition = "MEDIUMTEXT")
+    private String serviceAccountJson;
+
     @Column(nullable = false)
     private boolean enabled;
 }

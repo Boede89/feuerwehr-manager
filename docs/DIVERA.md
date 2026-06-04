@@ -14,7 +14,9 @@ Die Antwort wird wie in der PHP-Funktion `fetch_divera_alarms` ausgewertet: JSON
 | Komponente | Ort |
 |------------|-----|
 | HTTP-Client + Parser | `de.feuerwehr.manager.divera.DiveraApiClient` |
-| Einheit + Zugangsdaten | `Unit`, `UnitDiveraSettings`, Flyway `V1__initial_schema.sql` |
+| Einheit + Zugangsdaten | `Unit`, `UnitDiveraSettings` (+ `webhook_secret`, Flyway `V18`) |
+| Webhook (Push von DIVERA) | `POST /api/webhook/divera?unit={id}&secret=…` |
+| Admin: Test / Import | `POST /admin/rest/unit/divera/test`, `…/import` |
 | JSON für Android/extern | `GET /api/v1/units/{unitId}/divera/alarms` |
 | Optional Polling | `DiveraPollScheduler` bei `feuerwehr.divera.poll-enabled=true` |
 

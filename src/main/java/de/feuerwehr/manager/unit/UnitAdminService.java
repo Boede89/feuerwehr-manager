@@ -115,13 +115,27 @@ public class UnitAdminService {
     }
 
     @Transactional
-    public UnitCalendarSettings saveCalendar(long unitId, String calendarUrl, String calendarId, boolean enabled) {
+    public UnitCalendarSettings saveCalendar(
+            long unitId, String calendarUrl, String calendarId, String serviceAccountJson, boolean enabled) {
         UnitCalendarSettings c = getOrCreateCalendar(unitId);
         c.setCalendarUrl(trimToNull(calendarUrl));
         c.setCalendarId(trimToNull(calendarId));
+        if (serviceAccountJson != null) {
+            String json = serviceAccountJson.trim();
+            if (!json.isEmpty()) {
+                c.setServiceAccountJson(json);
+            }
+        }
         c.setEnabled(enabled);
         c.setProvider("google");
         return calendarSettingsRepository.save(c);
+    }
+
+    public boolean isCalendarCredentialsConfigured(long unitId) {
+        return calendarSettingsRepository
+                .findById(unitId)
+                .map(s -> s.getServiceAccountJson() != null && !s.getServiceAccountJson().isBlank())
+                .orElse(false);
     }
 
     @Transactional(readOnly = true)

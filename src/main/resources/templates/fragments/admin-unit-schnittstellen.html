@@ -2,10 +2,17 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
 <th:block th:fragment="panel">
+  <div id="integrations-meta" hidden
+       th:attr="data-unit-id=${unitId},data-csrf-token=${_csrf.token}"></div>
+
   <div class="card">
-    <div class="card__header">SMTP (Einheit)</div>
+    <div class="card__header card__header--toolbar">
+      <span>SMTP (Einheit)</span>
+      <button type="button" class="btn btn--outline btn--sm" id="btn-test-unit-smtp"
+              data-action="smtp-test-unit">Verbindung testen</button>
+    </div>
     <div class="card__body">
-      <p class="hint">Optionaler Mailversand nur für diese Einheit. Leer lassen, wenn der globale SMTP-Server genutzt werden soll.</p>
+      <p class="hint">Optionaler Mailversand nur für diese Einheit. Leer lassen, wenn der globale SMTP-Server genutzt werden soll. Der Test wird an Ihre Login-E-Mail gesendet.</p>
       <form method="post" th:action="@{/admin/unit/smtp}" class="form-grid">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="unit" th:value="${unitId}"/>
@@ -51,29 +58,43 @@
   </div>
 
   <div class="card">
-    <div class="card__header card__header--toolbar">
-      <span>DIVERA 24/7</span>
-      <form method="post" th:action="@{/admin/unit/divera/test}" class="toolbar-actions__form">
-        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-        <input type="hidden" name="unit" th:value="${unitId}"/>
-        <button type="submit" class="btn btn--outline btn--sm">Verbindung testen</button>
-      </form>
-    </div>
+    <div class="card__header">DIVERA 24/7</div>
     <div class="card__body">
-      <form method="post" th:action="@{/admin/unit/divera}" class="form-grid">
+      <p class="hint">
+        Einsätze können automatisch importiert werden, sobald DIVERA den Webhook auslöst.
+        Trage die Webhook-URL in DIVERA ein: <em>Administration → Schnittstellen → Datenweitergabe</em>.
+      </p>
+      <form method="post" th:action="@{/admin/unit/divera}" class="form-grid" id="form-divera-settings">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="unit" th:value="${unitId}"/>
         <div class="form-group form-group--full">
-          <label for="apiBaseUrl">API-Basis-URL</label>
-          <input id="apiBaseUrl" name="apiBaseUrl" type="url" th:value="${apiBaseUrl}" placeholder="https://app.divera247.com"/>
-        </div>
-        <div class="form-group">
-          <label for="accessKey">Divera Access Key</label>
-          <input id="accessKey" name="accessKey" type="password" autocomplete="off" placeholder="Neuen Key eintragen zum Ändern"/>
+          <label for="accessKey">Divera Access Key (für Poll-Import)</label>
+          <input id="accessKey" name="accessKey" type="password" autocomplete="off"
+                 placeholder="Systemnutzer-Key aus DIVERA"/>
           <p class="hint" th:if="${accessKeyConfigured}">Key ist hinterlegt. Feld leer lassen = unverändert.</p>
         </div>
-        <div class="form-group form-group--submit">
-          <button type="submit" class="btn btn--primary">Divera speichern</button>
+        <div class="form-group form-group--full">
+          <label for="webhookSecret">Webhook-Secret (schützt den Empfangs-Endpunkt)</label>
+          <input id="webhookSecret" name="webhookSecret" type="password" autocomplete="off"
+                 placeholder="Beliebiger geheimer String"/>
+          <p class="hint" th:if="${webhookSecretConfigured}">Secret ist hinterlegt. Feld leer lassen = unverändert.</p>
+        </div>
+        <div class="form-group form-group--full">
+          <label for="diveraWebhookUrl">Webhook-URL (in DIVERA eintragen)</label>
+          <div class="btn-group" style="align-items: stretch; width: 100%;">
+            <input id="diveraWebhookUrl" type="text" class="field" readonly
+                   th:value="${diveraWebhookUrl}" style="flex: 1; min-width: 0;"/>
+            <button type="button" class="btn btn--outline btn--sm" id="btn-copy-divera-url">Kopieren</button>
+          </div>
+        </div>
+        <div class="form-group form-group--full">
+          <div class="btn-group">
+            <button type="button" class="btn btn--outline btn--sm" id="btn-test-divera"
+                    data-action="divera-test">Verbindung testen</button>
+            <button type="button" class="btn btn--outline btn--sm" id="btn-import-divera"
+                    data-action="divera-import">Jetzt importieren</button>
+            <button type="submit" class="btn btn--primary btn--sm">Speichern</button>
+          </div>
         </div>
       </form>
     </div>
@@ -87,20 +108,32 @@
   </div>
 
   <div class="card">
-    <div class="card__header">Kalender (Google o. ä.)</div>
+    <div class="card__header">Kalender (Google)</div>
     <div class="card__body">
-      <p class="hint">iCal- oder Google-Kalender-URL für Termine und Reservierungen der Einheit.</p>
+      <p class="hint">
+        <strong>Lesen (Anzeige/Sync):</strong> iCal-URL — nur Abonnement, keine Schreibrechte.<br/>
+        <strong>Schreiben (Termine anlegen):</strong> Kalender-ID + Service-Account-JSON mit Bearbeitungsrecht auf diesen Kalender
+        (Google Cloud Console → Dienstkonto → Kalender freigeben).
+      </p>
       <form method="post" th:action="@{/admin/unit/calendar}" class="form-grid">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="unit" th:value="${unitId}"/>
         <div class="form-group form-group--full">
-          <label for="calendarUrl">Kalender-URL</label>
+          <label for="calendarUrl">iCal-URL (optional, nur Lesen)</label>
           <input id="calendarUrl" name="calendarUrl" type="url" maxlength="1024"
-                 th:value="${unitCalendar.calendarUrl}" placeholder="https://calendar.google.com/calendar/ical/..."/>
+                 th:value="${unitCalendar.calendarUrl}" placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"/>
         </div>
-        <div class="form-group">
-          <label for="calendarId">Kalender-ID (optional)</label>
-          <input id="calendarId" name="calendarId" type="text" maxlength="512" th:value="${unitCalendar.calendarId}"/>
+        <div class="form-group form-group--full">
+          <label for="calendarId">Kalender-ID (für API-Schreibzugriff)</label>
+          <input id="calendarId" name="calendarId" type="text" maxlength="512"
+                 th:value="${unitCalendar.calendarId}" placeholder="abc@group.calendar.google.com"/>
+        </div>
+        <div class="form-group form-group--full">
+          <label for="serviceAccountJson">Service-Account-JSON (Schreibrechte)</label>
+          <textarea id="serviceAccountJson" name="serviceAccountJson" class="field" rows="4"
+                    placeholder='{"type":"service_account",...}'
+                    th:text="${unitCalendar.serviceAccountJson}"></textarea>
+          <p class="hint" th:if="${calendarCredentialsConfigured}">Zugangsdaten sind hinterlegt. Feld leer lassen = unverändert.</p>
         </div>
         <div class="form-group">
           <label class="checkbox-row">

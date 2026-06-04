@@ -11,6 +11,8 @@ import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitAdminService;
 import de.feuerwehr.manager.unit.UnitCalendarSettings;
 import de.feuerwehr.manager.unit.UnitDiveraSettings;
+import de.feuerwehr.manager.divera.DiveraIntegrationSupport;
+import de.feuerwehr.manager.settings.GlobalSettingsService;
 import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
 import de.feuerwehr.manager.unit.UnitRole;
 import de.feuerwehr.manager.unit.UnitRolePermission;
@@ -33,6 +35,7 @@ public class AdminUnitViewService {
     private final UnitAdminService unitAdminService;
     private final UnitRoleService unitRoleService;
     private final UnitDiveraSettingsRepository diveraSettingsRepository;
+    private final GlobalSettingsService globalSettingsService;
     private final ModuleSettingsService moduleSettingsService;
     private final PersonalService personalService;
 
@@ -60,6 +63,7 @@ public class AdminUnitViewService {
         model.addAttribute("unitSmtp", smtp);
         model.addAttribute("unitCalendar", calendar);
         model.addAttribute("smtpPasswordConfigured", unitAdminService.isSmtpPasswordConfigured(unitId));
+        model.addAttribute("calendarCredentialsConfigured", unitAdminService.isCalendarCredentialsConfigured(unitId));
         populateDivera(model, unitId);
     }
 
@@ -100,14 +104,21 @@ public class AdminUnitViewService {
     }
 
     private void populateDivera(Model model, long unitId) {
+        String appBase = globalSettingsService.get().getAppUrl();
         Optional<UnitDiveraSettings> opt = diveraSettingsRepository.findByUnitId(unitId);
         if (opt.isPresent()) {
             UnitDiveraSettings s = opt.get();
-            model.addAttribute("apiBaseUrl", s.getApiBaseUrl());
             model.addAttribute("accessKeyConfigured", s.getAccessKey() != null && !s.getAccessKey().isBlank());
+            model.addAttribute(
+                    "webhookSecretConfigured",
+                    s.getWebhookSecret() != null && !s.getWebhookSecret().isBlank());
+            model.addAttribute("diveraWebhookUrl", DiveraIntegrationSupport.webhookUrlForSettings(appBase, s));
         } else {
-            model.addAttribute("apiBaseUrl", "https://app.divera247.com");
             model.addAttribute("accessKeyConfigured", false);
+            model.addAttribute("webhookSecretConfigured", false);
+            model.addAttribute(
+                    "diveraWebhookUrl",
+                    DiveraIntegrationSupport.buildWebhookUrl(appBase, unitId, null));
         }
     }
 }

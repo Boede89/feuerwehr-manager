@@ -3,9 +3,13 @@
 <body>
 <th:block th:fragment="panel">
   <div class="card">
-    <div class="card__header">SMTP (global)</div>
+    <div class="card__header card__header--toolbar">
+      <span>SMTP (global)</span>
+      <button type="button" class="btn btn--outline btn--sm" id="btn-test-global-smtp"
+              data-action="smtp-test-global">Verbindung testen</button>
+    </div>
     <div class="card__body">
-      <p class="hint">Zentraler Mailversand für die gesamte Installation. Einheitsbezogene SMTP-Einstellungen folgen später.</p>
+      <p class="hint">Zentraler Mailversand für die gesamte Installation. Der Test wird an Ihre Login-E-Mail gesendet.</p>
       <form method="post" th:action="@{/admin/global/smtp}" class="form-grid">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <div class="form-group">

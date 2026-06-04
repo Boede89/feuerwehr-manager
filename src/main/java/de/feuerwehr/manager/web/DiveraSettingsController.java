@@ -40,25 +40,20 @@ public class DiveraSettingsController {
     @PostMapping
     public String save(
             @RequestParam(name = "unit") long unitId,
-            @RequestParam String apiBaseUrl,
             @RequestParam(required = false) String accessKey,
+            @RequestParam(required = false) String webhookSecret,
             RedirectAttributes redirectAttributes) {
 
         UnitDiveraSettings settings = diveraSettingsRepository
                 .findByUnitId(unitId)
                 .orElseThrow(() -> new IllegalArgumentException("Keine Divera-Einstellungen für diese Einheit."));
 
-        String base = apiBaseUrl == null ? "" : apiBaseUrl.trim();
-        if (base.isEmpty()) {
-            base = "https://app.divera247.com";
-        }
-        while (base.endsWith("/")) {
-            base = base.substring(0, base.length() - 1);
-        }
-        settings.setApiBaseUrl(base);
-
+        settings.setApiBaseUrl("https://app.divera247.com");
         if (accessKey != null && !accessKey.isBlank()) {
             settings.setAccessKey(accessKey.trim().replaceAll("[\\r\\n\\t\\v]+", ""));
+        }
+        if (webhookSecret != null && !webhookSecret.isBlank()) {
+            settings.setWebhookSecret(webhookSecret.trim());
         }
 
         diveraSettingsRepository.save(settings);

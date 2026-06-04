@@ -72,6 +72,8 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/rfid")
                         .permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/webhook/**")
+                        .permitAll()
                         .requestMatchers("/admin/global/**")
                         .hasRole("SUPER_ADMIN")
                         .requestMatchers("/admin/**")

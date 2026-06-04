@@ -1,7 +1,5 @@
 package de.feuerwehr.manager.web;
 
-import de.feuerwehr.manager.divera.DiveraAlarmsResponse;
-import de.feuerwehr.manager.divera.DiveraService;
 import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.unit.Unit;
@@ -35,7 +33,6 @@ public class AdminUnitController {
     private final UnitAdminService unitAdminService;
     private final UnitRoleService unitRoleService;
     private final UnitDiveraSettingsRepository diveraSettingsRepository;
-    private final DiveraService diveraService;
     private final PersonalService personalService;
 
     @PostMapping("/config")
@@ -155,11 +152,12 @@ public class AdminUnitController {
             @RequestParam long unit,
             @RequestParam(required = false) String calendarUrl,
             @RequestParam(required = false) String calendarId,
+            @RequestParam(required = false) String serviceAccountJson,
             @RequestParam(required = false) String enabled,
             RedirectAttributes redirectAttributes) {
         return withUnit(actor, unit, redirectAttributes, "schnittstellen", () -> {
             boolean on = "true".equalsIgnoreCase(enabled) || "on".equalsIgnoreCase(enabled);
-            unitAdminService.saveCalendar(unit, calendarUrl, calendarId, on);
+            unitAdminService.saveCalendar(unit, calendarUrl, calendarId, serviceAccountJson, on);
             redirectAttributes.addFlashAttribute("message", "Kalender-Einstellungen gespeichert.");
         });
     }
@@ -168,39 +166,22 @@ public class AdminUnitController {
     public String saveDivera(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam long unit,
-            @RequestParam String apiBaseUrl,
             @RequestParam(required = false) String accessKey,
+            @RequestParam(required = false) String webhookSecret,
             RedirectAttributes redirectAttributes) {
         return withUnit(actor, unit, redirectAttributes, "schnittstellen", () -> {
             UnitDiveraSettings settings = diveraSettingsRepository
                     .findByUnitId(unit)
                     .orElseThrow(() -> new IllegalArgumentException("Keine Divera-Einstellungen für diese Einheit."));
-            String base = apiBaseUrl == null ? "" : apiBaseUrl.trim();
-            if (base.isEmpty()) {
-                base = "https://app.divera247.com";
-            }
-            while (base.endsWith("/")) {
-                base = base.substring(0, base.length() - 1);
-            }
-            settings.setApiBaseUrl(base);
+            settings.setApiBaseUrl("https://app.divera247.com");
             if (accessKey != null && !accessKey.isBlank()) {
                 settings.setAccessKey(accessKey.trim().replaceAll("[\\r\\n\\t\\v]+", ""));
             }
+            if (webhookSecret != null && !webhookSecret.isBlank()) {
+                settings.setWebhookSecret(webhookSecret.trim());
+            }
             diveraSettingsRepository.save(settings);
             redirectAttributes.addFlashAttribute("message", "Divera-Einstellungen gespeichert.");
-        });
-    }
-
-    @PostMapping("/divera/test")
-    public String testDivera(
-            @AuthenticationPrincipal AppUserDetails actor, @RequestParam long unit, RedirectAttributes redirectAttributes) {
-        return withUnit(actor, unit, redirectAttributes, "schnittstellen", () -> {
-            DiveraAlarmsResponse response = diveraService.getAlarmsForUnit(unit);
-            if (response.success()) {
-                redirectAttributes.addFlashAttribute("message", "Verbindung zu DIVERA erfolgreich.");
-            } else {
-                redirectAttributes.addFlashAttribute("error", response.message());
-            }
         });
     }
 
