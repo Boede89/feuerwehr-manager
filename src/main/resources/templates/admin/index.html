@@ -37,7 +37,7 @@
          th:href="@{/admin(scope='global', tab='testmodus')}">Testmodus</a>
     </nav>
 
-    <div class="tab-panel" th:if="${adminTab == 'module'}">
+    <div class="admin-panel" th:if="${adminTab == 'module'}">
       <div class="card">
         <div class="card__header">Module</div>
         <div class="card__body card__body--flush">
@@ -71,7 +71,7 @@
       </div>
     </div>
 
-    <div class="tab-panel" th:if="${adminTab == 'benutzer'}">
+    <div class="admin-panel" th:if="${adminTab == 'benutzer'}">
       <div class="card">
         <div class="card__header">Benutzerverwaltung</div>
         <div class="card__body">
@@ -81,7 +81,7 @@
       </div>
     </div>
 
-    <div class="tab-panel" th:if="${adminTab == 'einheiten'}">
+    <div class="admin-panel" th:if="${adminTab == 'einheiten'}">
       <div class="card">
         <div class="card__header">Einheiten</div>
         <div class="card__body">
@@ -91,7 +91,7 @@
       </div>
     </div>
 
-    <div class="tab-panel" th:if="${adminTab == 'testmodus'}">
+    <div class="admin-panel" th:if="${adminTab == 'testmodus'}">
       <div class="card card--warning">
         <div class="card__header">Testmodus</div>
         <div class="card__body">
@@ -133,7 +133,7 @@
            th:href="@{/admin(scope='einheit', tab='benutzer', unit=${unitId})}">Benutzer</a>
       </nav>
 
-      <div class="tab-panel" th:if="${adminTab == 'schnittstellen'}">
+      <div class="admin-panel" th:if="${adminTab == 'schnittstellen'}">
         <div class="card">
           <div class="card__header">⚡ DIVERA 24/7</div>
           <div class="card__body">
@@ -173,7 +173,7 @@
         </div>
       </div>
 
-      <div class="tab-panel" th:if="${adminTab == 'personal'}">
+      <div class="admin-panel" th:if="${adminTab == 'personal'}">
         <div class="admin-link-cards">
           <a class="card admin-link-card" th:href="@{/personal/setup/qualifications(unit=${unitId})}">
             <div class="card__header">Qualifikationen</div>
@@ -190,7 +190,7 @@
         </div>
       </div>
 
-      <div class="tab-panel" th:if="${adminTab == 'benutzer'}">
+      <div class="admin-panel" th:if="${adminTab == 'benutzer'}">
         <div class="card">
           <div class="card__header">Benutzer dieser Einheit</div>
           <div class="card__body">

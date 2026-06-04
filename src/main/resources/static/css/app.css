@@ -273,13 +273,17 @@ button, input, select, textarea {
 .page-main__inner {
   padding: var(--layout-gutter);
   width: 100%;
+  max-width: none;
+  margin: 0;
   box-sizing: border-box;
+  flex: 1;
 }
 
+/* Legacy-Hülle (falls noch in älteren Fragmenten) */
 .page {
-  max-width: var(--content-max-width);
-  margin: 0 auto;
   width: 100%;
+  max-width: none;
+  margin: 0;
 }
 
 .page-header {
@@ -363,18 +367,19 @@ button, input, select, textarea {
   background: none;
   border: none;
   padding: 10px 18px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-muted);
   cursor: pointer;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
-  transition: all var(--transition-fast);
+  transition: color var(--transition-fast), border-color var(--transition-fast);
   font-family: inherit;
   text-decoration: none;
   white-space: nowrap;
   display: inline-flex;
   align-items: center;
+  gap: 6px;
 }
 
 .tab-btn:hover,
@@ -388,8 +393,11 @@ button, input, select, textarea {
   border-bottom-color: var(--accent, var(--rot));
 }
 
-.tab-panel { display: none; }
+/* Nur JS-Tabs (z. B. Personendetail): inaktive Panels ausblenden */
+.tab-panel:not(.active) { display: none; }
 .tab-panel.active { display: block; }
+
+.admin-panel { display: block; }
 
 /* ── Cards ─────────────────────────────────────────────────────────────────── */
 .card,
@@ -402,22 +410,17 @@ button, input, select, textarea {
   transition: box-shadow var(--transition-fast);
 }
 
-.card { padding: 24px; }
-
-.card--flush-header {
+.card {
   padding: 0;
 }
 
-.card--flush-header > .card__header {
-  margin: 0;
-}
-
-.card--flush-header .card__body {
+/* Karten ohne Kopfzeile (Formulare, einfache Boxen) */
+.card:not(:has(.card__header)) {
   padding: 24px;
 }
 
 .card__body {
-  padding: 0;
+  padding: 24px;
 }
 
 .card--warning {
@@ -438,14 +441,16 @@ button, input, select, textarea {
 
 .card:hover, .panel-card:hover { box-shadow: var(--schatten-sm); }
 
-.card > .card__header {
+.card__header {
   background: var(--bg-card-hover);
   border-bottom: 1px solid var(--border);
   padding: 12px 24px;
   font-size: 14px;
   font-weight: 600;
   color: var(--text);
-  margin: -24px -24px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 /* ── Buttons ───────────────────────────────────────────────────────────────── */
@@ -1010,40 +1015,7 @@ code {
   font-size: 12px;
 }
 
-/* Tabs (Adminpanel) */
-.tab-bar {
-  display: flex;
-  gap: 2px;
-  margin-bottom: 20px;
-  border-bottom: 1px solid var(--border);
-  flex-wrap: wrap;
-}
-
 .admin-scope-bar { margin-bottom: 12px; }
-
-.tab-btn {
-  background: none;
-  border: none;
-  padding: 10px 18px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-muted);
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  transition: color var(--transition-fast);
-  font-family: inherit;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-}
-
-.tab-btn:hover { color: var(--text); text-decoration: none; }
-
-.tab-btn--active {
-  color: var(--accent, var(--rot));
-  border-bottom-color: var(--accent, var(--rot));
-}
 
 .topnav__item--admin { color: #7c3aed; }
 .topnav__item--admin.active {
@@ -1133,7 +1105,16 @@ code {
   box-shadow: var(--schatten-md);
 }
 
-.form-grid--stack { display: flex; flex-direction: column; gap: 16px; max-width: 560px; }
+.form-grid--stack {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.form-grid--stack .form-group--full {
+  grid-column: 1 / -1;
+}
 
 @media (max-width: 640px) {
   :root { --layout-gutter: 16px; }
