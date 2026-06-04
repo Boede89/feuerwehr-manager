@@ -81,14 +81,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
             """)
     List<User> findAllByAnonymizedAtIsNullAndUnitIdOrderByUsernameAsc(@Param("unitId") long unitId);
 
-    /** Einheits-Benutzerliste (Benutzer + Einheitsadmins der Einheit, ohne Superadmin). */
+    /** Einheits-Benutzerliste inkl. dieser Einheit zugeordneter Superadmins (nur Anzeige für Einheitsadmin). */
     @Query("""
             SELECT u FROM User u
             LEFT JOIN FETCH u.unit
             LEFT JOIN FETCH u.organizationalRole
             WHERE u.anonymizedAt IS NULL
               AND u.unit.id = :unitId
-              AND u.role IN ('USER', 'UNIT_ADMIN')
+              AND u.role IN ('USER', 'UNIT_ADMIN', 'SUPER_ADMIN')
             ORDER BY u.username
             """)
     List<User> findUnitScopedAccountsByUnitId(@Param("unitId") long unitId);
