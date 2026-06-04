@@ -1438,12 +1438,12 @@ select.field {
 .testmode-header-toggle {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   margin: 0;
-  padding: 8px 14px;
+  padding: 4px 10px;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   flex-shrink: 0;
 }
 
@@ -1451,13 +1451,31 @@ select.field {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 2px;
+  gap: 0;
 }
 
 .testmode-header-toggle__label {
-  font-size: var(--fs-sm);
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--text);
+  line-height: 1.2;
+}
+
+.testmode-header-toggle .toggle-switch__track {
+  width: 32px;
+  height: 18px;
+  border-radius: 9px;
+}
+
+.testmode-header-toggle .toggle-switch__track::after {
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+}
+
+.testmode-header-toggle .toggle-switch input:checked + .toggle-switch__track::after {
+  transform: translateX(14px);
 }
 
 .testmode-header-toggle__hint {
