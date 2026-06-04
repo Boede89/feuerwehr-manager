@@ -17,7 +17,7 @@
   </div>
   <span class="app-header__unit-label" th:if="${unitSwitchDisabled and currentUnitName != null}"
         th:text="${currentUnitName}">Einheit</span>
-  <form method="post" th:action="@{/logout}" class="bar-form" style="margin:0;">
+  <form method="post" th:action="@{/logout}" class="bar-form">
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
     <button type="submit" class="app-header__logout">Abmelden</button>
   </form>

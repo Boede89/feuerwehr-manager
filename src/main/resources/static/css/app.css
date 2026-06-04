@@ -1367,6 +1367,23 @@ select.field {
   flex-wrap: wrap;
 }
 
+.field--search-sm {
+  width: 200px;
+}
+
+.form-group--inline-flex {
+  flex: 1;
+  margin: 0;
+}
+
+.summary-clickable {
+  cursor: pointer;
+}
+
+.form-grid--align-start {
+  align-items: start;
+}
+
 .stammdaten-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
