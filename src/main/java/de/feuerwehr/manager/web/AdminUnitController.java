@@ -637,6 +637,42 @@ public class AdminUnitController {
                 "openModal=qualification-new");
     }
 
+    @PostMapping("/qualifications/update")
+    public String updateQualification(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam long qualificationTypeId,
+            @RequestParam String name,
+            @RequestParam(required = false, defaultValue = "false") boolean active,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(
+                actor,
+                unit,
+                redirectAttributes,
+                "ausbildung",
+                () -> {
+                    personalService.updateQualificationType(unit, qualificationTypeId, name, active);
+                    redirectAttributes.addFlashAttribute("message", "Qualifikation gespeichert.");
+                });
+    }
+
+    @PostMapping("/qualifications/delete")
+    public String deleteQualification(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam long qualificationTypeId,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(
+                actor,
+                unit,
+                redirectAttributes,
+                "ausbildung",
+                () -> {
+                    personalService.deleteQualificationType(unit, qualificationTypeId);
+                    redirectAttributes.addFlashAttribute("message", "Qualifikation gelöscht.");
+                });
+    }
+
     @PostMapping("/courses")
     public String createCourse(
             @AuthenticationPrincipal AppUserDetails actor,
@@ -654,6 +690,43 @@ public class AdminUnitController {
                     redirectAttributes.addFlashAttribute("message", "Lehrgang angelegt.");
                 },
                 "openModal=course-new");
+    }
+
+    @PostMapping("/courses/update")
+    public String updateCourse(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam long courseId,
+            @RequestParam String name,
+            @RequestParam(required = false) Long qualificationTypeId,
+            @RequestParam(required = false, defaultValue = "false") boolean active,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(
+                actor,
+                unit,
+                redirectAttributes,
+                "ausbildung",
+                () -> {
+                    personalService.updateCourse(unit, courseId, name, qualificationTypeId, active);
+                    redirectAttributes.addFlashAttribute("message", "Lehrgang gespeichert.");
+                });
+    }
+
+    @PostMapping("/courses/delete")
+    public String deleteCourse(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam long courseId,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(
+                actor,
+                unit,
+                redirectAttributes,
+                "ausbildung",
+                () -> {
+                    personalService.deleteCourse(unit, courseId);
+                    redirectAttributes.addFlashAttribute("message", "Lehrgang gelöscht.");
+                });
     }
 
     private String withUnit(

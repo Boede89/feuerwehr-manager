@@ -78,6 +78,13 @@
   }
 
   onReady(function () {
+    document.querySelectorAll('form[data-confirm]').forEach(function (form) {
+      form.addEventListener('submit', function (e) {
+        var msg = form.getAttribute('data-confirm');
+        if (msg && !window.confirm(msg)) e.preventDefault();
+      });
+    });
+
     initTableSort('qualification-table', 'qualification-tbody', 'qualification-row');
     initTableSort('course-table', 'course-tbody', 'course-row');
 
@@ -94,6 +101,25 @@
         var qual = document.getElementById('courseQualNew');
         if (name) name.value = '';
         if (qual) qual.value = '';
+      });
+    });
+
+    document.querySelectorAll('[data-open-modal="modal-qualification-edit"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.getElementById('edit-qualification-id').value = btn.getAttribute('data-id') || '';
+        document.getElementById('qualNameEdit').value = btn.getAttribute('data-name') || '';
+        document.getElementById('qualActiveEdit').checked = btn.getAttribute('data-active') === 'true';
+      });
+    });
+
+    document.querySelectorAll('[data-open-modal="modal-course-edit"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.getElementById('edit-course-id').value = btn.getAttribute('data-id') || '';
+        document.getElementById('courseNameEdit').value = btn.getAttribute('data-name') || '';
+        document.getElementById('courseActiveEdit').checked = btn.getAttribute('data-active') === 'true';
+        var qualId = btn.getAttribute('data-qualification-id') || '';
+        var sel = document.getElementById('courseQualEdit');
+        if (sel) sel.value = qualId;
       });
     });
 

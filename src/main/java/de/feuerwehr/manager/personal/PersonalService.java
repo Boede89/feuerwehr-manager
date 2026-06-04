@@ -377,6 +377,51 @@ public class PersonalService {
     }
 
     @Transactional
+    public QualificationType updateQualificationType(
+            long unitId, long qualificationTypeId, String name, boolean active) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Name fehlt");
+        }
+        Unit unit = requireUnit(unitId);
+        QualificationType type = resolveQualificationForWrite(qualificationTypeId, unit);
+        type.setName(name.trim());
+        type.setActive(active);
+        return qualificationTypeRepository.save(type);
+    }
+
+    @Transactional
+    public void deleteQualificationType(long unitId, long qualificationTypeId) {
+        Unit unit = requireUnit(unitId);
+        QualificationType type = resolveQualificationForWrite(qualificationTypeId, unit);
+        qualificationTypeRepository.delete(type);
+    }
+
+    @Transactional
+    public Course updateCourse(
+            long unitId, long courseId, String name, Long qualificationTypeId, boolean active) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Name fehlt");
+        }
+        Unit unit = requireUnit(unitId);
+        Course course = resolveCourseForWrite(courseId, unit);
+        course.setName(name.trim());
+        course.setActive(active);
+        if (qualificationTypeId != null && qualificationTypeId > 0) {
+            course.setQualificationType(resolveQualificationForWrite(qualificationTypeId, unit));
+        } else {
+            course.setQualificationType(null);
+        }
+        return courseRepository.save(course);
+    }
+
+    @Transactional
+    public void deleteCourse(long unitId, long courseId) {
+        Unit unit = requireUnit(unitId);
+        Course course = resolveCourseForWrite(courseId, unit);
+        courseRepository.delete(course);
+    }
+
+    @Transactional
     public void anonymizePerson(long personId) {
         Person person = writablePerson(requirePerson(personId));
         person.setFirstName("Gelöscht");
