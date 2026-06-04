@@ -359,10 +359,16 @@ public class AdminUnitController {
             @RequestParam String typeKey,
             @RequestParam String label,
             RedirectAttributes redirectAttributes) {
-        return withUnit(actor, unit, redirectAttributes, "technik", () -> {
-            unitVehicleTypeService.create(unit, typeKey, label);
-            redirectAttributes.addFlashAttribute("message", "Fahrzeugtyp hinzugefügt.");
-        });
+        return withUnit(
+                actor,
+                unit,
+                redirectAttributes,
+                "technik",
+                () -> {
+                    unitVehicleTypeService.create(unit, typeKey, label);
+                    redirectAttributes.addFlashAttribute("message", "Fahrzeugtyp hinzugefügt.");
+                },
+                "openModal=vehicle-types");
     }
 
     @PostMapping("/vehicle-types/delete")
@@ -371,10 +377,16 @@ public class AdminUnitController {
             @RequestParam long unit,
             @RequestParam long typeId,
             RedirectAttributes redirectAttributes) {
-        return withUnit(actor, unit, redirectAttributes, "technik", () -> {
-            unitVehicleTypeService.delete(unit, typeId);
-            redirectAttributes.addFlashAttribute("message", "Fahrzeugtyp gelöscht.");
-        });
+        return withUnit(
+                actor,
+                unit,
+                redirectAttributes,
+                "technik",
+                () -> {
+                    unitVehicleTypeService.delete(unit, typeId);
+                    redirectAttributes.addFlashAttribute("message", "Fahrzeugtyp gelöscht.");
+                },
+                "openModal=vehicle-types");
     }
 
     @PostMapping("/rooms")

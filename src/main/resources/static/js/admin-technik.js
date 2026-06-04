@@ -192,14 +192,17 @@
       document.body.classList.add('modal-open');
     }
 
-    var urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('openModal') === 'equipment-categories') {
-      var categoriesModal = document.getElementById('modal-equipment-categories');
-      if (categoriesModal) {
-        categoriesModal.classList.add('active');
+    function reopenModalIfRequested(openModalKey, modalId, focusElId) {
+      var urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('openModal') !== openModalKey) return;
+      var overlay = document.getElementById(modalId);
+      if (overlay) {
+        overlay.classList.add('active');
         document.body.classList.add('modal-open');
-        var categoryNameInput = document.getElementById('newCategoryName');
-        if (categoryNameInput) categoryNameInput.focus();
+        if (focusElId) {
+          var focusEl = document.getElementById(focusElId);
+          if (focusEl) focusEl.focus();
+        }
       }
       urlParams.delete('openModal');
       var qs = urlParams.toString();
@@ -209,5 +212,8 @@
         window.location.pathname + (qs ? '?' + qs : '') + window.location.hash
       );
     }
+
+    reopenModalIfRequested('equipment-categories', 'modal-equipment-categories', 'newCategoryName');
+    reopenModalIfRequested('vehicle-types', 'modal-vehicle-types', 'newTypeKey');
   });
 })();
