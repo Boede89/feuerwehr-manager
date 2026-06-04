@@ -625,10 +625,16 @@ public class AdminUnitController {
             @RequestParam long unit,
             @RequestParam String name,
             RedirectAttributes redirectAttributes) {
-        return withUnit(actor, unit, redirectAttributes, "ausbildung", () -> {
-            personalService.createQualificationType(unit, name);
-            redirectAttributes.addFlashAttribute("message", "Qualifikation angelegt.");
-        });
+        return withUnit(
+                actor,
+                unit,
+                redirectAttributes,
+                "ausbildung",
+                () -> {
+                    personalService.createQualificationType(unit, name);
+                    redirectAttributes.addFlashAttribute("message", "Qualifikation angelegt.");
+                },
+                "openModal=qualification-new");
     }
 
     @PostMapping("/courses")
@@ -638,10 +644,16 @@ public class AdminUnitController {
             @RequestParam String name,
             @RequestParam(required = false) Long qualificationTypeId,
             RedirectAttributes redirectAttributes) {
-        return withUnit(actor, unit, redirectAttributes, "ausbildung", () -> {
-            personalService.createCourse(unit, name, qualificationTypeId);
-            redirectAttributes.addFlashAttribute("message", "Lehrgang angelegt.");
-        });
+        return withUnit(
+                actor,
+                unit,
+                redirectAttributes,
+                "ausbildung",
+                () -> {
+                    personalService.createCourse(unit, name, qualificationTypeId);
+                    redirectAttributes.addFlashAttribute("message", "Lehrgang angelegt.");
+                },
+                "openModal=course-new");
     }
 
     private String withUnit(
