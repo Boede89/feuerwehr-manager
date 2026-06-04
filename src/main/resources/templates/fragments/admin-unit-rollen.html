@@ -22,12 +22,12 @@
           <tr th:each="r : ${unitRoles}">
             <td><strong th:text="${r.name}">Rolle</strong></td>
             <td>
-              <span th:class="${r.roleType.name() == 'FUNKTION'} ? 'badge-warning' : 'badge-success'"
-                    th:text="${r.roleType.name() == 'DIENSTGRAD'} ? 'Dienstgrad' : 'Zusatzfunktion'">Typ</span>
+              <span class="badge-success" th:if="${r.roleType.name() == 'DIENSTGRAD'}">Dienstgrad</span>
+              <span class="badge-warning" th:if="${r.roleType.name() == 'FUNKTION'}">Zusatzfunktion</span>
             </td>
             <td class="text-sm"
-                th:classappend="${permissionLabelsByRoleId[r.id] == 'keine'} ? ' text-subtle' : ''"
-                th:text="${permissionLabelsByRoleId[r.id]}">—</td>
+                th:classappend="${permissionLabelsByRoleId.get(r.id) == 'keine'} ? ' text-subtle' : ''"
+                th:text="${permissionLabelsByRoleId.get(r.id)}">—</td>
             <td>
               <div class="btn-group">
                 <button type="button" class="btn btn--outline btn--sm" data-open-modal="modal-unit-role"
@@ -78,13 +78,10 @@
           <div class="form-group">
             <label>Module</label>
             <div class="admin-check-list" id="unit-role-perms">
-              <th:block th:each="mod : ${roleModuleDefs}">
-                <label class="check-label" th:each="level : ${mod.levels()}">
-                  <input type="checkbox" name="permissions"
-                         th:value="${mod.key() + '.' + level.suffix()}"/>
-                  <span th:text="${rolePermissionLabels[mod.key() + '.' + level.suffix()]}">Modul</span>
-                </label>
-              </th:block>
+              <label class="check-label" th:each="opt : ${rolePermissionOptions}">
+                <input type="checkbox" name="permissions" th:value="${opt.value}"/>
+                <span th:text="${opt.label}">Modul</span>
+              </label>
             </div>
           </div>
         </div>

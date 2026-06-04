@@ -16,12 +16,7 @@ public final class UnitRolePermission {
             module(AppModule.RESERVIERUNGEN, RolePermissionLevel.READ, RolePermissionLevel.WRITE),
             module(AppModule.ATEMSCHUTZ, RolePermissionLevel.READ, RolePermissionLevel.WRITE),
             module(AppModule.BERICHTE, RolePermissionLevel.READ, RolePermissionLevel.WRITE, RolePermissionLevel.APPROVE),
-            module(AppModule.AUSWERTUNG, RolePermissionLevel.READ, RolePermissionLevel.WRITE),
-            new RoleModuleDefinition(
-                    "technik",
-                    "Technik & Geräte",
-                    false,
-                    List.of(RolePermissionLevel.READ, RolePermissionLevel.WRITE)));
+            module(AppModule.AUSWERTUNG, RolePermissionLevel.READ, RolePermissionLevel.WRITE));
 
     private static final Set<String> ALLOWED = MODULES.stream()
             .flatMap(m -> m.levels().stream().map(l -> l.permissionKey(m.key())))
@@ -37,6 +32,17 @@ public final class UnitRolePermission {
 
     public static Map<String, String> permissionLabels() {
         return LABELS;
+    }
+
+    /** Flache Liste für Thymeleaf (ohne Map-Zugriff mit dynamischen Keys). */
+    public static List<RolePermissionOption> permissionOptions() {
+        return MODULES.stream()
+                .flatMap(m -> m.levels().stream()
+                        .map(l -> {
+                            String key = l.permissionKey(m.key());
+                            return new RolePermissionOption(key, LABELS.get(key));
+                        }))
+                .toList();
     }
 
     public static List<String> filterAllowed(List<String> permissions) {

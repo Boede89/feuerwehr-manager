@@ -44,8 +44,7 @@ public class AdminUnitViewService {
     public void populateRollen(Model model, long unitId) {
         List<UnitRole> roles = unitRoleService.listRoles(unitId);
         model.addAttribute("unitRoles", roles);
-        model.addAttribute("roleModuleDefs", UnitRolePermission.moduleDefinitions());
-        model.addAttribute("rolePermissionLabels", UnitRolePermission.permissionLabels());
+        model.addAttribute("rolePermissionOptions", UnitRolePermission.permissionOptions());
         model.addAttribute("roleTypes", UnitRoleType.values());
         Map<Long, String> permissionLabelsByRoleId = new HashMap<>();
         for (UnitRole role : roles) {
