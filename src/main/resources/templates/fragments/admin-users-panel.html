@@ -44,7 +44,7 @@
                   <option value="">— kein Dienstgrad —</option>
                   <option th:each="dg : ${unitDienstgrade}" th:value="${dg.id}"
                           th:selected="${u.organizationalRole != null and u.organizationalRole.id == dg.id}"
-                          th:text="${dg.name + (dg.systemRole ? ' (Standard)' : '')}">DG</option>
+                          th:text="${dg.name}">DG</option>
                 </select>
               </form>
               <span th:if="${!u.role.adminLevel and canManageUserById != null and !canManageUserById.get(u.id)}"
@@ -56,7 +56,7 @@
                 <button type="button" class="btn btn--outline btn--sm" data-open-functions-modal
                         th:data-user-id="${u.id}"
                         th:data-username="${u.username}">Funktionen</button>
-                <span class="text-muted text-xs" th:if="${!#lists.isEmpty(functionsByUserId.get(u.id))}"
+                <span class="text-muted text-xs user-fn-count" th:if="${!#lists.isEmpty(functionsByUserId.get(u.id))}"
                       th:text="${'(' + #lists.size(functionsByUserId.get(u.id)) + ')'}"></span>
               </th:block>
               <span class="text-muted text-sm" th:if="${!u.role.adminLevel and canManageUserById != null and !canManageUserById.get(u.id)}">
@@ -192,9 +192,7 @@
               <label for="adminDienstgrad">Dienstgrad (optional)</label>
               <select id="adminDienstgrad" name="organizationalRoleId">
                 <option value="">— kein Dienstgrad —</option>
-                <option th:each="dg : ${unitDienstgrade}" th:value="${dg.id}"
-                        th:selected="${dg.systemRole}"
-                        th:text="${dg.name + (dg.systemRole ? ' (Standard)' : '')}">DG</option>
+                <option th:each="dg : ${unitDienstgrade}" th:value="${dg.id}" th:text="${dg.name}">DG</option>
               </select>
             </div>
             <div class="form-group form-group--full" id="adminUnitField" th:if="${showUnitPicker}" data-unit-field>

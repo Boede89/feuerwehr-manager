@@ -2,11 +2,12 @@
   var meta = document.getElementById('functions-modal-meta');
   if (!meta) return;
 
-  var scope = meta.getAttribute('data-scope') || 'einheit';
-  var unit = meta.getAttribute('data-unit') || '';
-  var csrfParam = meta.getAttribute('data-csrf-param');
-  var csrfToken = meta.getAttribute('data-csrf-token');
-  var activeUserId = null;
+  function getCsrfToken() {
+    var fromMeta = meta.getAttribute('data-csrf-token');
+    if (fromMeta) return fromMeta;
+    var match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
+  }
 
   function syncDienstgradVisibility(selectEl) {
     var group = document.getElementById('adminDienstgradGroup');
@@ -24,8 +25,43 @@
     syncDienstgradVisibility(sel);
   });
 
+  function updateAssignedInDom(userId, roleId, assign) {
+    var src = document.getElementById('user-functions-src-' + userId);
+    if (!src) return;
+    if (assign) {
+      var exists = src.querySelector('.user-fn-assigned[data-role-id="' + roleId + '"]');
+      if (!exists) {
+        var span = document.createElement('span');
+        span.className = 'user-fn-assigned';
+        span.setAttribute('data-role-id', roleId);
+        src.appendChild(span);
+      }
+    } else {
+      src.querySelectorAll('.user-fn-assigned').forEach(function (el) {
+        if (el.getAttribute('data-role-id') === String(roleId)) {
+          el.remove();
+        }
+      });
+    }
+    var rowBtn = document.querySelector('[data-open-functions-modal][data-user-id="' + userId + '"]');
+    if (!rowBtn) return;
+    var count = src.querySelectorAll('.user-fn-assigned').length;
+    var sibling = rowBtn.nextElementSibling;
+    if (count > 0) {
+      if (sibling && sibling.classList.contains('user-fn-count')) {
+        sibling.textContent = '(' + count + ')';
+      } else {
+        var badge = document.createElement('span');
+        badge.className = 'text-muted text-xs user-fn-count';
+        badge.textContent = '(' + count + ')';
+        rowBtn.parentNode.insertBefore(badge, rowBtn.nextSibling);
+      }
+    } else if (sibling && sibling.classList.contains('user-fn-count')) {
+      sibling.remove();
+    }
+  }
+
   function openFunctionsModal(userId, username) {
-    activeUserId = userId;
     var modal = document.getElementById('modal-functions');
     var title = document.getElementById('modal-functions-username');
     if (!modal) return;
@@ -53,37 +89,41 @@
   }
 
   function submitFunctionChange(userId, roleId, assign, checkbox) {
-    var form = document.createElement('form');
-    form.method = 'post';
-    form.action = assign
+    var url = assign
       ? '/admin/users/' + userId + '/functions/assign'
       : '/admin/users/' + userId + '/functions/remove';
-    if (csrfParam && csrfToken) {
-      var csrf = document.createElement('input');
-      csrf.type = 'hidden';
-      csrf.name = csrfParam;
-      csrf.value = csrfToken;
-      form.appendChild(csrf);
+    var headers = {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'X-Requested-With': 'XMLHttpRequest',
+    };
+    var csrf = getCsrfToken();
+    if (csrf) {
+      headers['X-XSRF-TOKEN'] = csrf;
     }
-    var scopeInput = document.createElement('input');
-    scopeInput.type = 'hidden';
-    scopeInput.name = 'scope';
-    scopeInput.value = scope;
-    form.appendChild(scopeInput);
-    if (unit) {
-      var unitInput = document.createElement('input');
-      unitInput.type = 'hidden';
-      unitInput.name = 'unit';
-      unitInput.value = unit;
-      form.appendChild(unitInput);
-    }
-    var roleInput = document.createElement('input');
-    roleInput.type = 'hidden';
-    roleInput.name = 'roleId';
-    roleInput.value = roleId;
-    form.appendChild(roleInput);
-    document.body.appendChild(form);
-    form.submit();
+    var body = new URLSearchParams();
+    body.set('roleId', roleId);
+
+    fetch(url, { method: 'POST', headers: headers, body: body, credentials: 'same-origin' })
+      .then(function (res) {
+        if (!res.ok) {
+          return res.json().then(function (data) {
+            throw new Error(data.message || data.error || 'Fehler beim Speichern');
+          });
+        }
+        return res.json();
+      })
+      .then(function (data) {
+        updateAssignedInDom(userId, roleId, assign);
+        if (typeof window.toast === 'function') {
+          window.toast(data.message || (assign ? 'Funktion zugewiesen' : 'Funktion entfernt'));
+        }
+      })
+      .catch(function (err) {
+        checkbox.checked = !assign;
+        if (typeof window.toast === 'function') {
+          window.toast(err.message || 'Fehler', 'error');
+        }
+      });
   }
 
   document.querySelectorAll('[data-open-functions-modal]').forEach(function (btn) {

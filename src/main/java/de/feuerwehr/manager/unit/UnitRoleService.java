@@ -55,7 +55,7 @@ public class UnitRoleService {
 
     public UnitRole requireDienstgradRole(long unitId, long roleId) {
         UnitRole role = requireAssignableRole(unitId, roleId);
-        if (role.getRoleType() != UnitRoleType.DIENSTGRAD) {
+        if (role.getRoleType() != UnitRoleType.DIENSTGRAD || role.isSystemRole()) {
             throw new IllegalArgumentException("Nur Dienstgrade können als Dienstgrad zugewiesen werden.");
         }
         return role;
@@ -73,7 +73,7 @@ public class UnitRoleService {
     public List<UnitRole> listDienstgrade(long unitId) {
         ensureSystemRoles(unitId);
         return listRoles(unitId).stream()
-                .filter(r -> r.getRoleType() == UnitRoleType.DIENSTGRAD)
+                .filter(r -> r.getRoleType() == UnitRoleType.DIENSTGRAD && !r.isSystemRole())
                 .toList();
     }
 

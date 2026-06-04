@@ -8,7 +8,6 @@
       <button type="button" class="btn btn--primary btn--sm" data-open-modal="modal-unit-role">+ Rolle anlegen</button>
     </div>
     <div class="card__body card__body--flush">
-      <p class="hint hint--pad">Dienstgrade und Zusatzfunktionen werden getrennt verwaltet. Die Standardrolle „Benutzer“ ist ein Dienstgrad mit voreingestellten Modul-Rechten für neue Konten.</p>
       <div class="table-wrapper" th:if="${!#lists.isEmpty(unitRoles)}">
         <table class="table">
           <thead>
@@ -30,8 +29,7 @@
               <span class="badge-success" th:if="${!r.systemRole and r.roleType.name() == 'DIENSTGRAD'}">Dienstgrad</span>
               <span class="badge-warning" th:if="${!r.systemRole and r.roleType.name() == 'FUNKTION'}">Zusatzfunktion</span>
             </td>
-            <td class="text-sm"
-                th:classappend="${permissionLabelsByRoleId.get(r.id) == 'keine'} ? ' text-subtle' : ''"
+            <td th:classappend="${permissionLabelsByRoleId.get(r.id) == 'keine'} ? ' text-subtle' : ''"
                 th:text="${permissionLabelsByRoleId.get(r.id)}">—</td>
             <td>
               <div class="btn-group">

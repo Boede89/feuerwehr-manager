@@ -271,41 +271,35 @@ public class AdminPanelController {
     }
 
     @PostMapping("/users/{id}/functions/assign")
-    public String assignFunction(
+    @org.springframework.web.bind.annotation.ResponseBody
+    public org.springframework.http.ResponseEntity<java.util.Map<String, String>> assignFunction(
             @AuthenticationPrincipal AppUserDetails actor,
             @PathVariable long id,
             @RequestParam long roleId,
-            @RequestParam(name = "scope") String scope,
-            @RequestParam(name = "unit", required = false) Long unitId,
-            HttpServletRequest request,
-            RedirectAttributes redirectAttributes) {
+            HttpServletRequest request) {
         try {
             userManagementService.assignFunction(id, roleId, actor, request);
-            redirectAttributes.addFlashAttribute("saved", true);
-            redirectAttributes.addFlashAttribute("message", "Zusatzfunktion zugewiesen.");
+            return org.springframework.http.ResponseEntity.ok(java.util.Map.of("message", "Funktion zugewiesen"));
         } catch (IllegalArgumentException e) {
-            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return org.springframework.http.ResponseEntity.badRequest()
+                    .body(java.util.Map.of("message", e.getMessage()));
         }
-        return redirectAfterUser(scope, unitId, actor);
     }
 
     @PostMapping("/users/{id}/functions/remove")
-    public String removeFunction(
+    @org.springframework.web.bind.annotation.ResponseBody
+    public org.springframework.http.ResponseEntity<java.util.Map<String, String>> removeFunction(
             @AuthenticationPrincipal AppUserDetails actor,
             @PathVariable long id,
             @RequestParam long roleId,
-            @RequestParam(name = "scope") String scope,
-            @RequestParam(name = "unit", required = false) Long unitId,
-            HttpServletRequest request,
-            RedirectAttributes redirectAttributes) {
+            HttpServletRequest request) {
         try {
             userManagementService.removeFunction(id, roleId, actor, request);
-            redirectAttributes.addFlashAttribute("saved", true);
-            redirectAttributes.addFlashAttribute("message", "Zusatzfunktion entfernt.");
+            return org.springframework.http.ResponseEntity.ok(java.util.Map.of("message", "Funktion entfernt"));
         } catch (IllegalArgumentException e) {
-            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return org.springframework.http.ResponseEntity.badRequest()
+                    .body(java.util.Map.of("message", e.getMessage()));
         }
-        return redirectAfterUser(scope, unitId, actor);
     }
 
     @PostMapping("/users/{id}/password")
