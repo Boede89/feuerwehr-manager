@@ -8,7 +8,7 @@ import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.technik.Vehicle;
 import de.feuerwehr.manager.technik.VehicleEquipment;
 import de.feuerwehr.manager.technik.VehicleServiceStatus;
-import de.feuerwehr.manager.technik.VehicleTypes;
+import de.feuerwehr.manager.technik.UnitVehicleTypeService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitAdminService;
 import de.feuerwehr.manager.unit.UnitCalendarAccount;
@@ -40,6 +40,7 @@ public class AdminUnitViewService {
     private final GlobalSettingsService globalSettingsService;
     private final ModuleSettingsService moduleSettingsService;
     private final PersonalService personalService;
+    private final UnitVehicleTypeService unitVehicleTypeService;
 
     public void populateKonfiguration(Model model, Unit unit) {
         model.addAttribute("unit", unit);
@@ -85,9 +86,11 @@ public class AdminUnitViewService {
     }
 
     public void populateTechnik(Model model, long unitId) {
+        unitVehicleTypeService.ensureDefaults(unitId);
         List<Vehicle> vehicles = unitAdminService.listVehicles(unitId);
         model.addAttribute("vehicles", vehicles);
-        model.addAttribute("vehicleTypeLabels", VehicleTypes.labels());
+        model.addAttribute("vehicleTypes", unitVehicleTypeService.list(unitId));
+        model.addAttribute("vehicleTypeLabels", unitVehicleTypeService.labelsMap(unitId));
         model.addAttribute("serviceStatusLabels", VehicleServiceStatus.labels());
         model.addAttribute("equipmentCountByVehicleId", unitAdminService.equipmentCountByVehicleId(unitId));
         Long resolvedVehicleId = null;

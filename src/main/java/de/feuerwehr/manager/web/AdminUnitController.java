@@ -1,6 +1,7 @@
 package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.personal.PersonalService;
+import de.feuerwehr.manager.technik.UnitVehicleTypeService;
 import de.feuerwehr.manager.technik.VehicleFormData;
 import java.math.BigDecimal;
 import de.feuerwehr.manager.security.AppUserDetails;
@@ -36,6 +37,7 @@ public class AdminUnitController {
     private final UnitRoleService unitRoleService;
     private final UnitDiveraSettingsRepository diveraSettingsRepository;
     private final PersonalService personalService;
+    private final UnitVehicleTypeService unitVehicleTypeService;
 
     @PostMapping("/config")
     public String saveConfig(
@@ -345,6 +347,31 @@ public class AdminUnitController {
         return withUnit(actor, unit, redirectAttributes, "technik", () -> {
             unitAdminService.deleteVehicle(unit, vehicleId);
             redirectAttributes.addFlashAttribute("message", "Fahrzeug gelöscht.");
+        });
+    }
+
+    @PostMapping("/vehicle-types")
+    public String createVehicleType(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam String typeKey,
+            @RequestParam String label,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(actor, unit, redirectAttributes, "technik", () -> {
+            unitVehicleTypeService.create(unit, typeKey, label);
+            redirectAttributes.addFlashAttribute("message", "Fahrzeugtyp hinzugefügt.");
+        });
+    }
+
+    @PostMapping("/vehicle-types/delete")
+    public String deleteVehicleType(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam long typeId,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(actor, unit, redirectAttributes, "technik", () -> {
+            unitVehicleTypeService.delete(unit, typeId);
+            redirectAttributes.addFlashAttribute("message", "Fahrzeugtyp gelöscht.");
         });
     }
 

@@ -9,4 +9,6 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
     List<Vehicle> findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(long unitId, boolean testData);
 
     Optional<Vehicle> findByIdAndUnitId(long id, long unitId);
+
+    long countByUnitIdAndVehicleType(long unitId, String vehicleType);
 }

@@ -9,8 +9,8 @@
   <div class="form-group">
     <label>Einsatzmitteltyp</label>
     <select name="vehicleType">
-      <option th:each="entry : ${vehicleTypeLabels}" th:value="${entry.key}" th:text="${entry.value}"
-              th:selected="${entry.key == 'lkw'}"></option>
+      <option th:each="t : ${vehicleTypes}" th:value="${t.typeKey}" th:text="${t.label}"
+              th:selected="${t.typeKey == 'lkw'}"></option>
     </select>
   </div>
   <div class="form-group"><label>Kennzeichen</label><input name="licensePlate" type="text" maxlength="20"/></div>
@@ -21,7 +21,7 @@
   <div class="form-group"><label>Höhe (m)</label><input name="heightM" type="number" step="0.01" min="0"/></div>
   <div class="form-group"><label>Gesamtgewicht (kg)</label><input name="weightKg" type="number" min="0"/></div>
   <div class="form-group">
-    <label>Dienststellung</label>
+    <label>Status</label>
     <select name="serviceStatus">
       <option th:each="entry : ${serviceStatusLabels}" th:value="${entry.key}" th:text="${entry.value}"
               th:selected="${entry.key == 'aktiv'}"></option>
@@ -39,8 +39,8 @@
   <div class="form-group">
     <label>Einsatzmitteltyp</label>
     <select name="vehicleType">
-      <option th:each="entry : ${vehicleTypeLabels}" th:value="${entry.key}" th:text="${entry.value}"
-              th:selected="${selectedVehicle.vehicleType == entry.key}"></option>
+      <option th:each="t : ${vehicleTypes}" th:value="${t.typeKey}" th:text="${t.label}"
+              th:selected="${selectedVehicle.vehicleType == t.typeKey}"></option>
     </select>
   </div>
   <div class="form-group"><label>Kennzeichen</label><input name="licensePlate" type="text" maxlength="20" th:value="${selectedVehicle.licensePlate}"/></div>
@@ -51,7 +51,7 @@
   <div class="form-group"><label>Höhe (m)</label><input name="heightM" type="number" step="0.01" min="0" th:value="${selectedVehicle.heightM}"/></div>
   <div class="form-group"><label>Gesamtgewicht (kg)</label><input name="weightKg" type="number" min="0" th:value="${selectedVehicle.weightKg}"/></div>
   <div class="form-group">
-    <label>Dienststellung</label>
+    <label>Status</label>
     <select name="serviceStatus">
       <option th:each="entry : ${serviceStatusLabels}" th:value="${entry.key}" th:text="${entry.value}"
               th:selected="${selectedVehicle.serviceStatus != null and selectedVehicle.serviceStatus == entry.key}"></option>
@@ -72,6 +72,8 @@
           <div class="btn-group">
             <input type="search" id="vehicle-search" class="field field--sm" placeholder="Suchen…" maxlength="100"
                    style="width:200px"/>
+            <button type="button" class="btn btn--outline btn--sm" data-open-modal="modal-vehicle-types"
+                    title="Fahrzeugtypen verwalten">⚙ Typen</button>
             <button type="button" class="btn btn--primary btn--sm" data-open-modal="modal-vehicle-new">+ Fahrzeug</button>
           </div>
         </div>
@@ -84,7 +86,7 @@
                 <th>Typ</th>
                 <th>Kennzeichen</th>
                 <th>Geräte</th>
-                <th>Dienststellung</th>
+                <th>Status</th>
               </tr>
               </thead>
               <tbody id="vehicle-tbody">
@@ -92,11 +94,12 @@
                   th:attr="data-href=@{/admin(scope='einheit', tab='technik', unit=${unitId}, vehicle=${v.id})}">
                 <td><strong th:text="${v.name}">LF</strong></td>
                 <td class="text-muted text-sm"
-                    th:text="${T(de.feuerwehr.manager.technik.VehicleTypes).labelFor(v.vehicleType)}">—</td>
+                    th:text="${vehicleTypeLabels.containsKey(v.vehicleType) ? vehicleTypeLabels.get(v.vehicleType) : (v.vehicleType ?: '—')}">—</td>
                 <td class="text-muted text-sm" th:text="${v.licensePlate} ?: '—'">—</td>
                 <td class="text-muted text-sm" th:text="${equipmentCountByVehicleId[v.id] ?: 0}">0</td>
                 <td>
-                  <span class="badge"
+                  <span class="vehicle-status"
+                        th:classappend="' vehicle-status--' + ${T(de.feuerwehr.manager.technik.VehicleServiceStatus).cssModifier(v.serviceStatus)}"
                         th:text="${T(de.feuerwehr.manager.technik.VehicleServiceStatus).labelFor(v.serviceStatus)}">Status</span>
                 </td>
               </tr>
@@ -144,7 +147,8 @@
       <a class="btn btn--outline btn--sm"
          th:href="@{/admin(scope='einheit', tab='technik', unit=${unitId})}">← Zurück</a>
       <h2 class="vehicle-detail-title" th:text="${selectedVehicle.name}">Fahrzeug</h2>
-      <span class="badge"
+      <span class="status-badge"
+            th:classappend="' status-badge--' + ${T(de.feuerwehr.manager.technik.VehicleServiceStatus).cssModifier(selectedVehicle.serviceStatus)}"
             th:text="${T(de.feuerwehr.manager.technik.VehicleServiceStatus).labelFor(selectedVehicle.serviceStatus)}">Status</span>
       <div class="btn-group vehicle-detail-header__actions">
         <button type="button" class="btn btn--outline btn--sm" data-open-modal="modal-vehicle-edit">Bearbeiten</button>
@@ -215,9 +219,12 @@
                    th:text="${selectedVehicle.weightKg != null ? selectedVehicle.weightKg + ' kg' : '—'}">—</div>
             </div>
             <div>
-              <div class="field-output__label">Dienststellung</div>
-              <div class="field-output__value"
-                   th:text="${T(de.feuerwehr.manager.technik.VehicleServiceStatus).labelFor(selectedVehicle.serviceStatus)}">—</div>
+              <div class="field-output__label">Status</div>
+              <div class="field-output__value">
+                <span class="status-badge"
+                      th:classappend="' status-badge--' + ${T(de.feuerwehr.manager.technik.VehicleServiceStatus).cssModifier(selectedVehicle.serviceStatus)}"
+                      th:text="${T(de.feuerwehr.manager.technik.VehicleServiceStatus).labelFor(selectedVehicle.serviceStatus)}">—</span>
+              </div>
             </div>
             <div>
               <div class="field-output__label">Beschreibung</div>
@@ -336,6 +343,55 @@
             <p class="hint">Abgeschlossene Checklisten erscheinen später in dieser Übersicht.</p>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-vehicle-types" class="modal-overlay">
+    <div class="modal" role="dialog">
+      <div class="modal__header">
+        <h3>Fahrzeugtypen verwalten</h3>
+        <button type="button" class="modal__close" data-close-modal>✕</button>
+      </div>
+      <div class="modal__body">
+        <div class="table-wrapper" th:if="${!#lists.isEmpty(vehicleTypes)}">
+          <table class="table">
+            <thead>
+            <tr><th>Schlüssel</th><th>Anzeigename</th><th></th></tr>
+            </thead>
+            <tbody>
+            <tr th:each="t : ${vehicleTypes}">
+              <td class="text-muted text-sm" th:text="${t.typeKey}">lkw</td>
+              <td th:text="${t.label}">LKW</td>
+              <td>
+                <form method="post" th:action="@{/admin/unit/vehicle-types/delete}" class="table-inline-form"
+                      onsubmit="return confirm('Fahrzeugtyp wirklich löschen?');">
+                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                  <input type="hidden" name="unit" th:value="${unitId}"/>
+                  <input type="hidden" name="typeId" th:value="${t.id}"/>
+                  <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
+                </form>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+        <form method="post" th:action="@{/admin/unit/vehicle-types}" class="types-add-row mt-md">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <input type="hidden" name="unit" th:value="${unitId}"/>
+          <div class="form-group" style="flex:1;margin:0">
+            <label for="newTypeKey">Schlüssel</label>
+            <input id="newTypeKey" name="typeKey" type="text" required maxlength="50" placeholder="z.B. rtw"/>
+          </div>
+          <div class="form-group" style="flex:1;margin:0">
+            <label for="newTypeLabel">Anzeigename</label>
+            <input id="newTypeLabel" name="label" type="text" required maxlength="100" placeholder="z.B. RTW"/>
+          </div>
+          <button type="submit" class="btn btn--primary btn--sm" title="Typ hinzufügen">+</button>
+        </form>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--outline" data-close-modal>Fertig</button>
       </div>
     </div>
   </div>

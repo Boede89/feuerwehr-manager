@@ -2,6 +2,7 @@ package de.feuerwehr.manager.unit;
 
 import de.feuerwehr.manager.personal.PersonRepository;
 import de.feuerwehr.manager.security.AppUserDetails;
+import de.feuerwehr.manager.technik.UnitVehicleTypeService;
 import de.feuerwehr.manager.user.UserRepository;
 import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.settings.TestModeService;
@@ -23,6 +24,7 @@ public class UnitService {
     private final UnitSelectionService unitSelectionService;
     private final ModuleSettingsService moduleSettingsService;
     private final UserRepository userRepository;
+    private final UnitVehicleTypeService unitVehicleTypeService;
 
     @Transactional(readOnly = true)
     public List<Unit> findAllOrdered() {
@@ -113,6 +115,7 @@ public class UnitService {
         unit = unitRepository.save(unit);
         ensureDiveraSettings(unit);
         moduleSettingsService.ensureDefaultModules(unit);
+        unitVehicleTypeService.ensureDefaults(unit.getId());
         return unit;
     }
 

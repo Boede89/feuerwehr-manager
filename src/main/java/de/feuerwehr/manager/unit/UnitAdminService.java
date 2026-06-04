@@ -6,7 +6,7 @@ import de.feuerwehr.manager.technik.RoomRepository;
 import de.feuerwehr.manager.technik.Vehicle;
 import de.feuerwehr.manager.technik.VehicleFormData;
 import de.feuerwehr.manager.technik.VehicleServiceStatus;
-import de.feuerwehr.manager.technik.VehicleTypes;
+import de.feuerwehr.manager.technik.UnitVehicleTypeService;
 import de.feuerwehr.manager.technik.VehicleEquipment;
 import de.feuerwehr.manager.technik.VehicleEquipmentCategory;
 import de.feuerwehr.manager.technik.VehicleEquipmentCategoryRepository;
@@ -33,6 +33,7 @@ public class UnitAdminService {
     private final VehicleEquipmentCategoryRepository equipmentCategoryRepository;
     private final VehicleEquipmentRepository equipmentRepository;
     private final TestModeService testModeService;
+    private final UnitVehicleTypeService unitVehicleTypeService;
 
     @Transactional
     public Unit saveStammdaten(long unitId, String name, String street, String postalCity) {
@@ -264,7 +265,7 @@ public class UnitAdminService {
     private static void applyVehicleForm(Vehicle v, VehicleFormData form) {
         v.setName(requireName(form.name()));
         v.setDescription(trimToNull(form.description()));
-        v.setVehicleType(VehicleTypes.normalizeKey(form.vehicleType()));
+        v.setVehicleType(unitVehicleTypeService.normalizeKey(v.getUnit().getId(), form.vehicleType()));
         v.setLicensePlate(trimToNull(form.licensePlate()));
         v.setYearBuilt(form.yearBuilt());
         v.setPhone(trimToNull(form.phone()));

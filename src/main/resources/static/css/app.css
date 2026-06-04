@@ -1314,6 +1314,53 @@ select.field {
   margin-left: auto;
 }
 
+.vehicle-status {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.vehicle-status--aktiv {
+  color: var(--gruen);
+}
+
+.vehicle-status--ausser_dienst {
+  color: var(--rot);
+}
+
+.vehicle-status--wartung {
+  color: var(--gelb);
+}
+
+.status-badge {
+  display: inline-block;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+}
+
+.status-badge--aktiv {
+  color: var(--gruen);
+  background: var(--gruen-hell);
+}
+
+.status-badge--ausser_dienst {
+  color: var(--rot);
+  background: var(--rot-hell);
+}
+
+.status-badge--wartung {
+  color: var(--gelb);
+  background: var(--orange-hell);
+}
+
+.types-add-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
 .stammdaten-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));

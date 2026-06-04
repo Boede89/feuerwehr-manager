@@ -3,7 +3,7 @@ package de.feuerwehr.manager.technik;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** Dienststellung / Einsatzbereitschaft (analog FW-Hub). */
+/** Fahrzeug-Status / Einsatzbereitschaft (analog FW-Hub). */
 public final class VehicleServiceStatus {
 
     private static final Map<String, String> LABELS = new LinkedHashMap<>();
@@ -37,5 +37,10 @@ public final class VehicleServiceStatus {
 
     public static boolean isActive(String serviceStatus) {
         return "aktiv".equals(normalize(serviceStatus));
+    }
+
+    /** CSS-Modifikator für Status-Badges (analog FW-Hub). */
+    public static String cssModifier(String serviceStatus) {
+        return normalize(serviceStatus);
     }
 }
