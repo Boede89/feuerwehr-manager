@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.divera;
 
+import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -14,12 +15,14 @@ public class DiveraService {
     private final UnitDiveraSettingsRepository diveraSettingsRepository;
     private final TestDiveraAlarmService testDiveraAlarmService;
     private final DiveraAlarmSampleService diveraAlarmSampleService;
+    private final TestModeService testModeService;
 
     @Transactional(readOnly = true)
     public DiveraAlarmsResponse getAlarmsForUnit(long unitId) {
+        boolean includeClosed = testModeService.isEnabled();
         DiveraAlarmsResponse apiResponse = diveraSettingsRepository
                 .findByUnitId(unitId)
-                .map(cfg -> diveraApiClient.fetchOpenAlarms(cfg.getApiBaseUrl(), cfg.getAccessKey()))
+                .map(cfg -> diveraApiClient.fetchAlarms(cfg.getApiBaseUrl(), cfg.getAccessKey(), includeClosed))
                 .orElse(DiveraAlarmsResponse.fail("Keine Divera-Einstellungen für diese Einheit"));
 
         diveraAlarmSampleService.captureFromApiResponse(unitId, apiResponse);

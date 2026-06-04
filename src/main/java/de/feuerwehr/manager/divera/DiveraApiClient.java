@@ -6,7 +6,9 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
@@ -16,6 +18,9 @@ import org.springframework.web.util.UriComponentsBuilder;
 /**
  * Divera 24/7 REST – entspricht dem bisherigen Abruf {@code GET /api/v2/alarms?accesskey=…}
  * (vgl. {@code fetch_divera_alarms} in der PHP-Anwendung).
+ *
+ * <p>Im Testmodus: {@code GET /api/v2/alarms/list} ohne {@code closed=0}, damit auch geschlossene
+ * Einsätze geliefert werden (vgl. DIVERA OpenAPI).
  */
 @Service
 public class DiveraApiClient {
@@ -31,7 +36,15 @@ public class DiveraApiClient {
         this.restClient = RestClient.builder().requestFactory(rf).build();
     }
 
+    /** Nur nicht geschlossene, nicht archivierte Alarme (Produktivbetrieb). */
     public DiveraAlarmsResponse fetchOpenAlarms(String apiBaseUrl, String accessKey) {
+        return fetchAlarms(apiBaseUrl, accessKey, false);
+    }
+
+    /**
+     * @param includeClosedAlarms {@code true} im Testmodus: auch geschlossene Einsätze über {@code /alarms/list}
+     */
+    public DiveraAlarmsResponse fetchAlarms(String apiBaseUrl, String accessKey, boolean includeClosedAlarms) {
         String key = accessKey == null ? "" : accessKey.trim().replaceAll("[\\r\\n\\t\\v]+", "");
         if (key.isEmpty()) {
             return DiveraAlarmsResponse.fail("Divera Access Key fehlt (in den Einheitseinstellungen hinterlegen)");
@@ -40,11 +53,7 @@ public class DiveraApiClient {
         if (base.isEmpty()) {
             base = "https://app.divera247.com";
         }
-        URI uri = UriComponentsBuilder.fromUriString(base + "/api/v2/alarms")
-                .queryParam("accesskey", key)
-                .encode(StandardCharsets.UTF_8)
-                .build()
-                .toUri();
+        URI uri = includeClosedAlarms ? buildListUri(base, key) : buildActiveUri(base, key);
 
         try {
             String raw = restClient.get().uri(uri).retrieve().body(String.class);
@@ -56,44 +65,7 @@ public class DiveraApiClient {
                 String msg = textOr(root, "message", "error", "Divera-API: Zugriff verweigert oder ungültiger Access Key");
                 return DiveraAlarmsResponse.fail(msg);
             }
-            JsonNode dataBlock = root.path("data");
-            JsonNode items = dataBlock.path("items");
-            if (!items.isArray()) {
-                items = dataBlock;
-            }
-            if (!items.isArray()) {
-                return DiveraAlarmsResponse.ok(List.of());
-            }
-            List<DiveraAlarmSummary> alarms = new ArrayList<>();
-            for (JsonNode item : items) {
-                if (!item.isObject()) {
-                    continue;
-                }
-                long id = item.path("id").asLong(0);
-                if (id <= 0) {
-                    continue;
-                }
-                long dateTs = item.path("date").asLong(0);
-                if (dateTs == 0) {
-                    dateTs = item.path("ts_create").asLong(0);
-                }
-                if (dateTs > 10_000_000_000L) {
-                    dateTs = dateTs / 1000;
-                }
-                long tsCreate = item.path("ts_create").asLong(dateTs);
-                if (tsCreate > 10_000_000_000L) {
-                    tsCreate = tsCreate / 1000;
-                }
-                boolean closed = item.path("closed").asBoolean(false);
-                alarms.add(new DiveraAlarmSummary(
-                        id,
-                        item.path("title").asText(""),
-                        item.path("text").asText(""),
-                        item.path("address").asText(""),
-                        dateTs,
-                        tsCreate,
-                        closed));
-            }
+            List<DiveraAlarmSummary> alarms = parseAlarmItems(root.path("data"));
             alarms.sort(Comparator.comparingLong(DiveraAlarmSummary::dateEpochSeconds).reversed());
             return DiveraAlarmsResponse.ok(alarms);
         } catch (RestClientResponseException e) {
@@ -101,6 +73,95 @@ public class DiveraApiClient {
         } catch (Exception e) {
             return DiveraAlarmsResponse.fail("Divera-API: " + e.getMessage());
         }
+    }
+
+    private static URI buildActiveUri(String base, String key) {
+        return UriComponentsBuilder.fromUriString(base + "/api/v2/alarms")
+                .queryParam("accesskey", key)
+                .encode(StandardCharsets.UTF_8)
+                .build()
+                .toUri();
+    }
+
+    /** Ohne {@code closed=0}: offene und geschlossene, nicht archivierte Alarme. */
+    private static URI buildListUri(String base, String key) {
+        return UriComponentsBuilder.fromUriString(base + "/api/v2/alarms/list")
+                .queryParam("accesskey", key)
+                .encode(StandardCharsets.UTF_8)
+                .build()
+                .toUri();
+    }
+
+    private List<DiveraAlarmSummary> parseAlarmItems(JsonNode dataBlock) {
+        List<DiveraAlarmSummary> alarms = new ArrayList<>();
+        if (dataBlock == null || dataBlock.isNull()) {
+            return alarms;
+        }
+        if (dataBlock.isArray()) {
+            for (JsonNode item : dataBlock) {
+                parseOneAlarm(item).ifPresent(alarms::add);
+            }
+            return alarms;
+        }
+        JsonNode items = dataBlock.path("items");
+        if (items.isObject()) {
+            Iterator<Map.Entry<String, JsonNode>> it = items.fields();
+            while (it.hasNext()) {
+                parseOneAlarm(it.next().getValue()).ifPresent(alarms::add);
+            }
+            return alarms;
+        }
+        if (items.isArray()) {
+            for (JsonNode item : items) {
+                parseOneAlarm(item).ifPresent(alarms::add);
+            }
+            return alarms;
+        }
+        if (dataBlock.isObject() && dataBlock.has("id")) {
+            parseOneAlarm(dataBlock).ifPresent(alarms::add);
+        }
+        return alarms;
+    }
+
+    private static java.util.Optional<DiveraAlarmSummary> parseOneAlarm(JsonNode item) {
+        if (item == null || !item.isObject()) {
+            return java.util.Optional.empty();
+        }
+        long id = item.path("id").asLong(0);
+        if (id <= 0) {
+            return java.util.Optional.empty();
+        }
+        long dateTs = item.path("date").asLong(0);
+        if (dateTs == 0) {
+            dateTs = item.path("ts_create").asLong(0);
+        }
+        if (dateTs > 10_000_000_000L) {
+            dateTs = dateTs / 1000;
+        }
+        long tsCreate = item.path("ts_create").asLong(dateTs);
+        if (tsCreate > 10_000_000_000L) {
+            tsCreate = tsCreate / 1000;
+        }
+        boolean closed = isClosed(item);
+        return java.util.Optional.of(new DiveraAlarmSummary(
+                id,
+                item.path("title").asText(""),
+                item.path("text").asText(""),
+                item.path("address").asText(""),
+                dateTs,
+                tsCreate,
+                closed));
+    }
+
+    private static boolean isClosed(JsonNode item) {
+        JsonNode closedNode = item.path("closed");
+        if (closedNode.isBoolean()) {
+            return closedNode.asBoolean(false);
+        }
+        if (closedNode.isNumber()) {
+            return closedNode.asInt(0) != 0;
+        }
+        return "1".equals(closedNode.asText("").trim()) || "true".equalsIgnoreCase(closedNode.asText(""));
     }
 
     private static String textOr(JsonNode n, String a, String b, String def) {

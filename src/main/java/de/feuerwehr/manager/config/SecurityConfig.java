@@ -3,6 +3,7 @@ package de.feuerwehr.manager.config;
 import de.feuerwehr.manager.dsgvo.DsgvoProperties;
 import de.feuerwehr.manager.security.AppUserDetailsService;
 import de.feuerwehr.manager.security.AuditLogoutSuccessHandler;
+import de.feuerwehr.manager.security.TestModeLogoutHandler;
 import de.feuerwehr.manager.security.RfidAuthenticationProvider;
 import de.feuerwehr.manager.security.SecurityProperties;
 import de.feuerwehr.manager.user.UserService;
@@ -52,7 +53,8 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             AuthenticationManager authenticationManager,
-            AuditLogoutSuccessHandler auditLogoutSuccessHandler)
+            AuditLogoutSuccessHandler auditLogoutSuccessHandler,
+            TestModeLogoutHandler testModeLogoutHandler)
             throws Exception {
         http.authenticationManager(authenticationManager);
         http
@@ -94,7 +96,10 @@ public class SecurityConfig {
                         .permitAll())
                 .logout(logout -> logout
                         .logoutUrl("/logout")
+                        .addLogoutHandler(testModeLogoutHandler)
                         .logoutSuccessHandler(auditLogoutSuccessHandler)
+                        .invalidateHttpSession(true)
+                        .clearAuthentication(true)
                         .deleteCookies("JSESSIONID")
                         .permitAll())
                 .headers(headers -> headers

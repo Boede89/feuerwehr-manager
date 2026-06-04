@@ -2,8 +2,10 @@
 
 ## API (wie bisherige PHP-Anwendung)
 
-- **Abruf aktiver / verfügbarer Alarme:**  
+- **Abruf aktiver Alarme (Produktiv):**  
   `GET {api_base_url}/api/v2/alarms?accesskey={ACCESS_KEY}`
+- **Abruf inkl. geschlossener Einsätze (Testmodus):**  
+  `GET {api_base_url}/api/v2/alarms/list?accesskey={ACCESS_KEY}` (ohne `closed=0`)
 - **Standard-Basis-URL:** `https://app.divera247.com`  
   (anpassbar pro Einheit in `unit_divera_settings.api_base_url`)
 
