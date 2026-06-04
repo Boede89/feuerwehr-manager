@@ -8,8 +8,7 @@
     <a class="page-back" th:if="${isSuperAdmin and scopeUnitId != null}" th:href="@{/admin(scope='einheit', tab='benutzer', unit=${scopeUnitId})}">← Adminpanel</a>
     <a class="page-back" th:unless="${isSuperAdmin}" th:href="@{/admin(scope='einheit', tab='benutzer', unit=${unitId})}">← Adminpanel</a>
   </div>
-  <div class="ok" th:if="${saved}" th:text="${message} ?: 'Gespeichert.'">Gespeichert.</div>
-  <div class="err" th:if="${error}" th:text="${error}">Fehler</div>
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
 
   <p class="hint" th:if="${scopeUnitId != null and currentUnitName != null}">
     Angezeigt werden nur Benutzer der Einheit <strong th:text="${currentUnitName}">—</strong>.

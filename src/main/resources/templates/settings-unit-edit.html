@@ -12,8 +12,7 @@
   <a class="link" th:href="@{/settings/units}">← Zurück</a>
 </header>
 <main>
-  <div class="ok" th:if="${saved}" th:text="${message} ?: 'Gespeichert.'">OK</div>
-  <div class="err" th:if="${error}" th:text="${error}">Fehler</div>
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
   <form method="post" th:action="@{/settings/units/{id}(id=${unit.id})}" class="card">
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
     <label for="name">Name</label>

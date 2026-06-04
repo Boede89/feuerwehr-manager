@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<!-- Kurz-Meldungen werden per flash-toast.js unten rechts als Toast angezeigt -->
+<th:block th:fragment="alerts">
+  <div th:if="${saved}" class="flash-toast-source flash-toast-source--success" th:text="${message} ?: 'Gespeichert.'">OK</div>
+  <div th:if="${error}" class="flash-toast-source flash-toast-source--error" th:text="${error}">Fehler</div>
+</th:block>
+<th:block th:fragment="login-alerts">
+  <div th:if="${infoMessage}" class="flash-toast-source flash-toast-source--success" th:text="${infoMessage}">Info</div>
+  <div th:if="${errorMessage}" class="flash-toast-source flash-toast-source--error" th:text="${errorMessage}">Fehler</div>
+</th:block>
+</body>
+</html>

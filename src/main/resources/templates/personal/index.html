@@ -11,8 +11,7 @@
   </div>
 
   <div th:replace="~{fragments/testmode-banner :: banner}"></div>
-  <div class="ok" th:if="${saved}" th:text="${message} ?: 'Gespeichert.'">OK</div>
-  <div class="err" th:if="${error}" th:text="${error}">Fehler</div>
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
 
   <input type="search" class="person-search" id="personSearch" placeholder="Name suchen…" autocomplete="off"
          aria-label="Personen suchen"/>

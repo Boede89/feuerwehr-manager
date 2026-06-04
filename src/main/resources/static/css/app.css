@@ -1318,6 +1318,10 @@ code {
 .text-xs { font-size: 11px; }
 .text-sm { font-size: 12px; }
 
+.flash-toast-source {
+  display: none !important;
+}
+
 #toast-container {
   position: fixed;
   bottom: 24px;

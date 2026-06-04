@@ -12,7 +12,7 @@
   <a class="link" th:href="@{/settings(unit=${unitId})}">← Einstellungen</a>
 </header>
 <main>
-  <div class="ok" th:if="${saved}">Gespeichert.</div>
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
 
   <form method="post" th:action="@{/settings/divera}" class="card">
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>

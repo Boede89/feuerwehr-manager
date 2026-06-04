@@ -28,8 +28,7 @@
 
   <div class="page-alerts">
     <div th:replace="~{fragments/testmode-banner :: banner}"></div>
-    <div class="ok" th:if="${saved}" th:text="${message} ?: 'Gespeichert.'">OK</div>
-    <div class="err" th:if="${error}" th:text="${error}">Fehler</div>
+    <div th:replace="~{fragments/flash-messages :: alerts}"></div>
   </div>
 
   <nav class="tab-bar admin-scope-bar" th:if="${showGlobalScope}" aria-label="Bereich">
@@ -140,7 +139,6 @@
       </div>
     </th:block>
   </th:block>
-  <script th:src="@{/js/toast.js}" defer></script>
   <script th:src="@{/js/admin-modals.js}" defer></script>
   <script th:src="@{/js/admin-unit.js}" defer></script>
   <script th:src="@{/js/admin-users.js}" defer></script>
