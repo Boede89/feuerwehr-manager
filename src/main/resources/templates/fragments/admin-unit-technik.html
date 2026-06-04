@@ -169,17 +169,21 @@
       </div>
     </div>
 
-    <div class="tab-bar" id="vehicle-detail-tabs" th:attr="data-active-tab=${vehicleSubTab}">
-      <button type="button" class="tab-btn" data-vehicle-tab="uebersicht"
-              th:classappend="${vehicleSubTab == 'uebersicht'} ? ' tab-btn--active' : ''">Übersicht</button>
-      <button type="button" class="tab-btn" data-vehicle-tab="geraete"
-              th:classappend="${vehicleSubTab == 'geraete'} ? ' tab-btn--active' : ''">Geräte</button>
-      <button type="button" class="tab-btn" data-vehicle-tab="checklisten"
-              th:classappend="${vehicleSubTab == 'checklisten'} ? ' tab-btn--active' : ''">Checklisten</button>
-    </div>
+    <nav class="tab-bar vehicle-tab-bar" id="vehicle-detail-tabs" aria-label="Fahrzeug"
+         th:with="vTab=${vehicleSubTab != null ? vehicleSubTab : 'uebersicht'}">
+      <a class="tab-btn" data-vehicle-tab="uebersicht"
+         th:href="@{/admin(scope='einheit', tab='technik', unit=${unitId}, vehicle=${selectedVehicle.id}, vt='uebersicht')}"
+         th:classappend="${vTab == 'uebersicht'} ? ' tab-btn--active' : ''">Übersicht</a>
+      <a class="tab-btn" data-vehicle-tab="geraete"
+         th:href="@{/admin(scope='einheit', tab='technik', unit=${unitId}, vehicle=${selectedVehicle.id}, vt='geraete')}"
+         th:classappend="${vTab == 'geraete'} ? ' tab-btn--active' : ''">Geräte</a>
+      <a class="tab-btn" data-vehicle-tab="checklisten"
+         th:href="@{/admin(scope='einheit', tab='technik', unit=${unitId}, vehicle=${selectedVehicle.id}, vt='checklisten')}"
+         th:classappend="${vTab == 'checklisten'} ? ' tab-btn--active' : ''">Checklisten</a>
+    </nav>
 
     <div id="tab-vehicle-uebersicht" class="vehicle-tab-panel"
-         th:classappend="${vehicleSubTab == 'uebersicht'} ? ' active' : ''">
+         th:classappend="${(vehicleSubTab != null ? vehicleSubTab : 'uebersicht') == 'uebersicht'} ? ' active' : ''">
       <div class="card">
         <div class="card__header">Stammdaten</div>
         <div class="card__body">
@@ -251,7 +255,7 @@
     </div>
 
     <div id="tab-vehicle-geraete" class="vehicle-tab-panel"
-         th:classappend="${vehicleSubTab == 'geraete'} ? ' active' : ''">
+         th:classappend="${(vehicleSubTab != null ? vehicleSubTab : 'uebersicht') == 'geraete'} ? ' active' : ''">
       <div class="card">
         <div class="card__header card__header--toolbar">
           <span>Beladung &amp; Ausrüstung</span>
@@ -333,7 +337,7 @@
     </div>
 
     <div id="tab-vehicle-checklisten" class="vehicle-tab-panel"
-         th:classappend="${vehicleSubTab == 'checklisten'} ? ' active' : ''">
+         th:classappend="${(vehicleSubTab != null ? vehicleSubTab : 'uebersicht') == 'checklisten'} ? ' active' : ''">
       <div class="form-grid--2 form-grid--align-start">
         <div class="card">
           <div class="card__header card__header--toolbar">
