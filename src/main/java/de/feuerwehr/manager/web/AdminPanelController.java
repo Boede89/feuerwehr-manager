@@ -404,10 +404,7 @@ public class AdminPanelController {
     }
 
     private void populateUnitUsersTab(Model model, AppUserDetails actor, long unitId) {
-        List<User> users = userManagementService.listAccounts(actor, unitId).stream()
-                .filter(u -> u.getRole() != UserRole.SUPER_ADMIN)
-                .toList();
-        populateAdminUsersTab(model, users);
+        populateAdminUsersTab(model, userManagementService.listAccounts(actor, unitId));
     }
 
     private void populateAdminUsersTab(Model model, List<User> users) {
