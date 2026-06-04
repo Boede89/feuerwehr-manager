@@ -5,7 +5,14 @@
   <div class="card">
     <div class="card__header card__header--toolbar">
       <span>Audit-Log</span>
-      <a class="btn btn--outline btn--sm" th:href="@{/admin(scope='global', tab='audit')}">Aktualisieren</a>
+      <div class="toolbar-actions">
+        <a class="btn btn--outline btn--sm" th:href="@{/admin(scope='global', tab='audit')}">Aktualisieren</a>
+        <form method="post" th:action="@{/admin/global/audit/clear}" class="toolbar-actions__form"
+              onsubmit="return confirm('Gesamtes Audit-Log unwiderruflich löschen?');">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <button type="submit" class="btn btn--danger btn--sm">Log leeren</button>
+        </form>
+      </div>
     </div>
     <div class="card__body card__body--flush">
       <p class="hint hint--pad">Letzte 500 Ereignisse über alle Einheiten hinweg (ohne Passwörter oder Chip-IDs).</p>
@@ -24,7 +31,7 @@
             <td class="text-muted text-sm text-nowrap"
                 th:text="${#temporals.format(row.occurredAt, 'dd.MM.yyyy HH:mm:ss')}">—</td>
             <td th:text="${row.actorLabel}">user</td>
-            <td class="text-nowrap" th:text="${row.actionLabel}">Aktion</td>
+            <td class="text-nowrap audit-action" th:utext="${row.actionHtml}">Aktion</td>
             <td class="text-muted text-sm" th:text="${row.detail}">—</td>
           </tr>
           </tbody>

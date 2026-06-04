@@ -35,7 +35,7 @@
   <nav class="tab-bar admin-scope-bar" th:if="${showGlobalScope}" aria-label="Bereich">
     <a class="tab-btn"
        th:classappend="${adminScope == 'einheit'} ? ' tab-btn--active' : ''"
-       th:href="@{/admin(scope='einheit', tab='schnittstellen', unit=${unitId})}">Einheit</a>
+       th:href="@{/admin(scope='einheit', tab='module', unit=${unitId})}">Einheit</a>
     <a class="tab-btn"
        th:classappend="${adminScope == 'global'} ? ' tab-btn--active' : ''"
        th:href="@{/admin(scope='global', tab='konfiguration')}">Global</a>

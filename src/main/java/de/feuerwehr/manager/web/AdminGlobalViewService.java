@@ -10,6 +10,7 @@ import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
+import de.feuerwehr.manager.dsgvo.AuditEventTypeIcons;
 import de.feuerwehr.manager.dsgvo.AuditEventTypeLabels;
 import de.feuerwehr.manager.user.UserRole;
 import de.feuerwehr.manager.web.dto.AuditLogRow;
@@ -24,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.ui.Model;
+import org.springframework.web.util.HtmlUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -84,8 +86,8 @@ public class AdminGlobalViewService {
                 .map(e -> new AuditLogRow(
                         e.getOccurredAt(),
                         formatActor(e, usersById),
-                        buildActionLabel(e, usersById),
-                        buildDetailColumn(e)))
+                        buildActionHtml(e),
+                        buildDetailColumn(e, usersById)))
                 .toList();
         model.addAttribute("auditRows", rows);
     }
@@ -100,16 +102,18 @@ public class AdminGlobalViewService {
         model.addAttribute("smtpPasswordConfigured", globalSettingsService.isSmtpPasswordConfigured());
     }
 
-    private static String buildActionLabel(AuditEvent event, Map<Long, User> usersById) {
-        if (event.getEventType() == AuditEventType.USER_ANONYMIZED) {
-            return AuditEventTypeLabels.actionLabel(event.getEventType(), resolveDeletedUserDetail(event, usersById));
-        }
-        return AuditEventTypeLabels.label(event.getEventType());
+    private static String buildActionHtml(AuditEvent event) {
+        String label = AuditEventTypeLabels.label(event.getEventType());
+        return AuditEventTypeIcons.svg(event.getEventType())
+                + "<span class=\"audit-action__label\">"
+                + HtmlUtils.htmlEscape(label)
+                + "</span>";
     }
 
-    private static String buildDetailColumn(AuditEvent event) {
+    private static String buildDetailColumn(AuditEvent event, Map<Long, User> usersById) {
         if (event.getEventType() == AuditEventType.USER_ANONYMIZED) {
-            return "";
+            String deleted = resolveDeletedUserDetail(event, usersById);
+            return deleted != null ? deleted : "";
         }
         return event.getDetail() != null ? event.getDetail() : "";
     }

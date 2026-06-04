@@ -1,6 +1,6 @@
 package de.feuerwehr.manager.web.dto;
 
-import de.feuerwehr.manager.dsgvo.AuditEventType;
 import java.time.Instant;
 
-public record AuditLogRow(Instant occurredAt, String actorLabel, String actionLabel, String detail) {}
+/** actionHtml enthält Icon-SVG und Label (HTML-escaped, für th:utext). */
+public record AuditLogRow(Instant occurredAt, String actorLabel, String actionHtml, String detail) {}

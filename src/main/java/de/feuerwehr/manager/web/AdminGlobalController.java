@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.web;
 
+import de.feuerwehr.manager.dsgvo.AuditService;
 import de.feuerwehr.manager.settings.GlobalSettingsService;
 import de.feuerwehr.manager.unit.UnitService;
 import de.feuerwehr.manager.user.UserRole;
@@ -23,6 +24,7 @@ public class AdminGlobalController {
 
     private final GlobalSettingsService globalSettingsService;
     private final UnitService unitService;
+    private final AuditService auditService;
 
     @PostMapping("/config")
     public String saveConfig(
@@ -154,5 +156,13 @@ public class AdminGlobalController {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
         return "redirect:/admin?scope=global&tab=einheiten";
+    }
+
+    @PostMapping("/audit/clear")
+    public String clearAuditLog(RedirectAttributes redirectAttributes) {
+        auditService.clearAll();
+        redirectAttributes.addFlashAttribute("saved", true);
+        redirectAttributes.addFlashAttribute("message", "Audit-Log wurde geleert.");
+        return "redirect:/admin?scope=global&tab=audit";
     }
 }

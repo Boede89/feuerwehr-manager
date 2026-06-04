@@ -73,7 +73,7 @@ public class AdminPanelController {
         if ("global".equals(scope)) {
             tab = normalizeGlobalTab(tab != null ? tab : "konfiguration");
         } else {
-            tab = normalizeUnitTab(tab != null ? tab : "schnittstellen");
+            tab = normalizeUnitTab(tab != null ? tab : "module");
         }
 
         model.addAttribute("adminScope", scope);
@@ -482,7 +482,7 @@ public class AdminPanelController {
     private static String normalizeUnitTab(String tab) {
         return switch (tab) {
             case "module", "schnittstellen", "personal", "benutzer" -> tab;
-            default -> "schnittstellen";
+            default -> "module";
         };
     }
 }

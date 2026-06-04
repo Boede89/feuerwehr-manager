@@ -24,12 +24,4 @@ public final class AuditEventTypeLabels {
         };
     }
 
-    /** Anzeige in der Aktion-Spalte (inkl. gelöschter Benutzername). */
-    public static String actionLabel(AuditEventType type, String detail) {
-        String base = label(type);
-        if (type == AuditEventType.USER_ANONYMIZED && detail != null && !detail.isBlank()) {
-            return base + ": " + detail.trim();
-        }
-        return base;
-    }
 }

@@ -66,6 +66,11 @@ public class AuditService {
         return trimmed;
     }
 
+    @Transactional
+    public void clearAll() {
+        auditEventRepository.deleteAll();
+    }
+
     @Scheduled(cron = "${feuerwehr.dsgvo.audit-cleanup-cron:0 0 3 * * *}")
     @Transactional
     public void purgeExpiredAuditEvents() {
