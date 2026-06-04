@@ -3,7 +3,7 @@
 <body>
 <th:block th:fragment="panel">
   <div id="integrations-meta" hidden
-       th:attr="data-unit-id=${unitId},data-csrf-token=${_csrf.token}"></div>
+       th:attr="data-unit-id=${unitId},data-csrf-token=${_csrf.token},data-app-base=${appBaseUrl}"></div>
 
   <div class="card">
     <div class="card__header card__header--toolbar">

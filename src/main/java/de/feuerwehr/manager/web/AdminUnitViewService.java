@@ -64,6 +64,8 @@ public class AdminUnitViewService {
         model.addAttribute("unitCalendar", calendar);
         model.addAttribute("smtpPasswordConfigured", unitAdminService.isSmtpPasswordConfigured(unitId));
         model.addAttribute("calendarCredentialsConfigured", unitAdminService.isCalendarCredentialsConfigured(unitId));
+        String appBase = globalSettingsService.get().getAppUrl();
+        model.addAttribute("appBaseUrl", appBase != null ? appBase : "");
         populateDivera(model, unitId);
     }
 

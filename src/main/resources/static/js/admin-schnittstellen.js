@@ -40,14 +40,109 @@
     }
   }
 
-  document.getElementById('btn-copy-divera-url')?.addEventListener('click', function () {
+  function notify(msg, type) {
+    if (typeof window.toast === 'function') {
+      window.toast(msg, type || 'success');
+    } else {
+      window.alert(msg);
+    }
+  }
+
+  function buildWebhookUrl(base, unitId, secret) {
+    var root = base && String(base).trim() ? String(base).replace(/\/+$/, '') : window.location.origin;
+    var url = root + '/api/webhook/divera?unit=' + encodeURIComponent(unitId);
+    if (!secret) {
+      return url + '&secret=<DEIN_SECRET>';
+    }
+    return url + '&secret=' + encodeURIComponent(secret);
+  }
+
+  function resolveWebhookUrlForCopy() {
     var el = document.getElementById('diveraWebhookUrl');
-    if (!el || !el.value) return;
-    navigator.clipboard.writeText(el.value).then(function () {
-      if (typeof window.toast === 'function') {
-        window.toast('Webhook-URL kopiert', 'success');
+    var meta = document.getElementById('integrations-meta');
+    if (!el || !meta) return '';
+    var unitId = meta.getAttribute('data-unit-id');
+    if (!unitId) return el.value.trim();
+    var secretEl = document.getElementById('webhookSecret');
+    var typedSecret = secretEl && secretEl.value.trim();
+    if (typedSecret) {
+      var built = buildWebhookUrl(meta.getAttribute('data-app-base') || '', unitId, typedSecret);
+      el.value = built;
+      return built;
+    }
+    return el.value.trim();
+  }
+
+  function copyText(text) {
+    if (!text) {
+      return Promise.reject(new Error('empty'));
+    }
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise(function (resolve, reject) {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      try {
+        var ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (ok) {
+          resolve();
+        } else {
+          reject(new Error('execCommand failed'));
+        }
+      } catch (err) {
+        document.body.removeChild(ta);
+        reject(err);
       }
     });
+  }
+
+  document.getElementById('btn-copy-divera-url')?.addEventListener('click', function (ev) {
+    ev.preventDefault();
+    var el = document.getElementById('diveraWebhookUrl');
+    var text = resolveWebhookUrlForCopy();
+    if (!text || text.indexOf('<DEIN_SECRET>') >= 0) {
+      notify(
+        'Bitte Webhook-Secret eintragen und speichern (und ggf. App-URL unter Global → Konfiguration).',
+        'warning'
+      );
+      if (el) {
+        el.focus();
+        el.select();
+      }
+      return;
+    }
+    copyText(text)
+      .then(function () {
+        notify('Webhook-URL kopiert', 'success');
+      })
+      .catch(function () {
+        if (el) {
+          el.focus();
+          el.select();
+        }
+        notify('URL markiert — bitte Strg+C (Cmd+C) zum Kopieren verwenden.', 'warning');
+      });
+  });
+
+  document.getElementById('webhookSecret')?.addEventListener('input', function () {
+    var meta = document.getElementById('integrations-meta');
+    var el = document.getElementById('diveraWebhookUrl');
+    if (!meta || !el) return;
+    var unitId = meta.getAttribute('data-unit-id');
+    if (!unitId) return;
+    var secret = this.value.trim();
+    if (secret) {
+      el.value = buildWebhookUrl(meta.getAttribute('data-app-base') || '', unitId, secret);
+    }
   });
 
   document.getElementById('btn-test-divera')?.addEventListener('click', function () {
