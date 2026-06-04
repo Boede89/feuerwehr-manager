@@ -82,6 +82,17 @@ public class DiveraAlarmSampleService {
                 .toList();
     }
 
+    @Transactional
+    public void deleteSample(long unitId, long sampleId) {
+        if (!testModeService.isEnabled()) {
+            throw new IllegalArgumentException("Testmodus ist nicht aktiv");
+        }
+        DiveraAlarmSample sample = repository
+                .findByIdAndUnitId(sampleId, unitId)
+                .orElseThrow(() -> new IllegalArgumentException("Beispiel-Einsatz nicht gefunden"));
+        repository.delete(sample);
+    }
+
     @Transactional(readOnly = true)
     public Optional<String> payloadForUnit(long unitId, long sampleId) {
         if (!testModeService.isEnabled()) {

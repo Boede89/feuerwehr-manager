@@ -46,6 +46,26 @@ public class DiveraService {
         return DiveraAlarmsResponse.ok(open);
     }
 
+    /**
+     * Holt aktuelle DIVERA-Einsätze und speichert sie als Beispiel-Payloads (nur Testmodus).
+     * Wird beim Öffnen des Testalarm-Reiters ausgeführt, damit keine Startseite nötig ist.
+     */
+    @Transactional
+    public void syncAlarmSamplesForUnit(long unitId) {
+        if (!testModeService.isEnabled()) {
+            return;
+        }
+        diveraSettingsRepository
+                .findByUnitId(unitId)
+                .ifPresent(cfg -> {
+                    DiveraAlarmsResponse apiResponse =
+                            diveraApiClient.fetchAlarms(cfg.getApiBaseUrl(), cfg.getAccessKey());
+                    if (apiResponse.success()) {
+                        diveraAlarmSampleService.captureFromApiResponse(unitId, apiResponse);
+                    }
+                });
+    }
+
     /** Nur nicht geschlossene Einsätze (für Dashboard / später Push-Hook). */
     @Transactional(readOnly = true)
     public List<DiveraAlarmSummary> getOpenAlarmsForUnit(long unitId) {

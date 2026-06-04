@@ -21,58 +21,36 @@
     }
   }
 
-  function openModal(overlay) {
-    if (!overlay) return;
-    overlay.classList.add('active');
-    document.body.classList.add('modal-open');
+  function escapeHtml(s) {
+    if (!s) return '';
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
-  function closeModal(overlay) {
-    if (!overlay) return;
-    overlay.classList.remove('active');
-    if (!document.querySelector('.modal-overlay.active')) {
-      document.body.classList.remove('modal-open');
-    }
-  }
-
-  document.querySelectorAll('[data-close-modal]').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      closeModal(btn.closest('.modal-overlay'));
-    });
-  });
-
-  var samplesOverlay = document.getElementById('modal-test-alarm-samples');
-  if (samplesOverlay) {
-    samplesOverlay.addEventListener('click', function (e) {
-      if (e.target === samplesOverlay) {
-        closeModal(samplesOverlay);
-      }
-    });
-  }
-
-  function loadDefaultSample() {
-    if (!textarea) return;
-    var sample = defaultSample;
-    if (sample) {
-      textarea.value = sample.trim();
-      notify('Vordefiniertes Beispiel geladen', 'success');
-      closeModal(samplesOverlay);
-    }
-  }
-
-  function renderSamplesList(items) {
-    var list = document.getElementById('test-alarm-samples-list');
+  function renderSamplesPageList(items) {
+    var list = document.getElementById('test-alarm-samples-page-list');
     var empty = document.getElementById('test-alarm-samples-empty');
     if (!list) return;
     list.innerHTML = '';
     if (!items || items.length === 0) {
-      if (empty) empty.hidden = false;
+      if (empty) {
+        empty.hidden = false;
+        empty.classList.remove('hidden');
+      }
       return;
     }
-    if (empty) empty.hidden = true;
+    if (empty) {
+      empty.hidden = true;
+      empty.classList.add('hidden');
+    }
     items.forEach(function (item) {
       var row = document.createElement('div');
       row.className = 'list-row test-alarm-sample-row';
+      row.setAttribute('data-sample-id', String(item.id));
+
       var label = document.createElement('span');
       var title = item.title || 'Einsatz ' + item.alarmId;
       var addr = item.address ? ' · ' + item.address : '';
@@ -85,32 +63,48 @@
         '<br><span class="hint hint--inline">' +
         escapeHtml(metaLine) +
         '</span>';
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'btn btn--outline btn--sm';
-      btn.textContent = 'Laden';
-      btn.setAttribute('data-sample-id', String(item.id));
-      btn.addEventListener('click', function () {
-        loadSamplePayload(item.id, btn);
-      });
+
+      var actions = document.createElement('span');
+      actions.className = 'btn-group btn-group--inline';
+
+      var loadBtn = document.createElement('button');
+      loadBtn.type = 'button';
+      loadBtn.className = 'btn btn--outline btn--sm btn-test-sample-load';
+      loadBtn.textContent = 'In JSON laden';
+      loadBtn.setAttribute('data-sample-id', String(item.id));
+
+      var deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'btn btn--outline btn--sm btn-test-sample-delete';
+      deleteBtn.textContent = 'Löschen';
+      deleteBtn.setAttribute('data-sample-id', String(item.id));
+
+      actions.appendChild(loadBtn);
+      actions.appendChild(deleteBtn);
       row.appendChild(label);
-      row.appendChild(btn);
+      row.appendChild(actions);
       list.appendChild(row);
     });
   }
 
-  function escapeHtml(s) {
-    if (!s) return '';
-    return String(s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+  var samplesListEl = document.getElementById('test-alarm-samples-page-list');
+  if (samplesListEl) {
+    samplesListEl.addEventListener('click', function (e) {
+      var loadBtn = e.target.closest('.btn-test-sample-load');
+      if (loadBtn) {
+        loadSamplePayload(loadBtn.getAttribute('data-sample-id'), loadBtn);
+        return;
+      }
+      var deleteBtn = e.target.closest('.btn-test-sample-delete');
+      if (deleteBtn) {
+        deleteSample(deleteBtn.getAttribute('data-sample-id'), deleteBtn);
+      }
+    });
   }
 
   function loadSamplePayload(sampleId, triggerBtn) {
     var unitId = meta.getAttribute('data-unit-id');
-    if (!unitId || !textarea) return;
+    if (!unitId || !textarea || !sampleId) return;
     if (triggerBtn) triggerBtn.disabled = true;
     fetch('/test-alarm/samples/' + sampleId + '/payload?unit=' + encodeURIComponent(unitId), {
       headers: { Accept: 'application/json' },
@@ -122,8 +116,8 @@
       .then(function (data) {
         if (data && data.ok && data.payload) {
           textarea.value = data.payload;
-          notify('Beispiel-Einsatz geladen', 'success');
-          closeModal(samplesOverlay);
+          notify('Beispiel in JSON-Feld geladen', 'success');
+          textarea.focus();
         } else {
           notify((data && data.message) || 'Laden fehlgeschlagen', 'error');
         }
@@ -136,20 +130,62 @@
       });
   }
 
-  function openSamplesModal() {
+  function deleteSample(sampleId, triggerBtn) {
+    var unitId = meta.getAttribute('data-unit-id');
+    if (!unitId || !sampleId) return;
+    if (triggerBtn) triggerBtn.disabled = true;
+    var body = new URLSearchParams();
+    body.set('unit', unitId);
+    fetch('/test-alarm/samples/' + sampleId + '/delete', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-XSRF-TOKEN': getCsrfToken(),
+        Accept: 'application/json',
+      },
+      credentials: 'same-origin',
+      body: body.toString(),
+    })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (data) {
+        var ok = data && data.ok;
+        notify(data && data.message ? data.message : 'Fertig', ok ? 'success' : 'error');
+        if (ok) {
+          var row = document.querySelector(
+            '#test-alarm-samples-page-list [data-sample-id="' + sampleId + '"]'
+          );
+          if (row) row.remove();
+          var list = document.getElementById('test-alarm-samples-page-list');
+          if (list && !list.querySelector('.test-alarm-sample-row')) {
+            var empty = document.getElementById('test-alarm-samples-empty');
+            if (empty) {
+              empty.hidden = false;
+              empty.classList.remove('hidden');
+            }
+          }
+        }
+      })
+      .catch(function () {
+        notify('Anfrage fehlgeschlagen', 'error');
+      })
+      .finally(function () {
+        if (triggerBtn) triggerBtn.disabled = false;
+      });
+  }
+
+  function refreshSamplesFromDivera(showToast) {
     var unitId = meta.getAttribute('data-unit-id');
     if (!unitId) {
       notify('Keine Einheit gewählt', 'error');
       return;
     }
     var loading = document.getElementById('test-alarm-samples-loading');
-    var empty = document.getElementById('test-alarm-samples-empty');
-    var list = document.getElementById('test-alarm-samples-list');
-    if (list) list.innerHTML = '';
-    if (empty) empty.hidden = true;
+    var refreshBtn = document.getElementById('btn-test-alarm-refresh-samples');
     if (loading) loading.hidden = false;
-    openModal(samplesOverlay);
-    fetch('/test-alarm/samples?unit=' + encodeURIComponent(unitId), {
+    if (refreshBtn) refreshBtn.disabled = true;
+    fetch('/test-alarm/samples?unit=' + encodeURIComponent(unitId) + '&sync=true', {
       headers: { Accept: 'application/json' },
       credentials: 'same-origin',
     })
@@ -157,16 +193,37 @@
         return r.json();
       })
       .then(function (items) {
-        if (loading) loading.hidden = true;
-        renderSamplesList(Array.isArray(items) ? items : []);
+        renderSamplesPageList(Array.isArray(items) ? items : []);
+        if (showToast) {
+          var n = Array.isArray(items) ? items.length : 0;
+          notify(
+            n === 0 ? 'Keine Einsätze von DIVERA' : n + ' Beispiel-Einsatz/Einsätze gespeichert',
+            n === 0 ? 'warning' : 'success'
+          );
+        }
       })
       .catch(function () {
+        notify('DIVERA-Abruf fehlgeschlagen', 'error');
+      })
+      .finally(function () {
         if (loading) loading.hidden = true;
-        notify('Einsätze konnten nicht geladen werden', 'error');
+        if (refreshBtn) refreshBtn.disabled = false;
       });
   }
 
-  document.getElementById('btn-test-alarm-sample')?.addEventListener('click', openSamplesModal);
+  function loadDefaultSample() {
+    if (!textarea) return;
+    if (defaultSample) {
+      textarea.value = defaultSample.trim();
+      notify('Vordefiniertes Beispiel geladen', 'success');
+      textarea.focus();
+    }
+  }
+
+  document.getElementById('btn-test-alarm-refresh-samples')?.addEventListener('click', function () {
+    refreshSamplesFromDivera(true);
+  });
+
   document.getElementById('btn-test-alarm-default-sample')?.addEventListener('click', loadDefaultSample);
 
   document.getElementById('btn-test-alarm-send')?.addEventListener('click', function () {

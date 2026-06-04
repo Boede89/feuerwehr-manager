@@ -1,6 +1,7 @@
 package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.divera.DiveraAlarmSampleService;
+import de.feuerwehr.manager.divera.DiveraService;
 import de.feuerwehr.manager.divera.DiveraWebhookService;
 import de.feuerwehr.manager.divera.DiveraWebhookService.WebhookOutcome;
 import de.feuerwehr.manager.divera.DiveraWebhookService.WebhookStatus;
@@ -51,6 +52,7 @@ public class TestAlarmController {
     private final DiveraWebhookService diveraWebhookService;
     private final TestDiveraAlarmService testDiveraAlarmService;
     private final DiveraAlarmSampleService diveraAlarmSampleService;
+    private final DiveraService diveraService;
 
     @GetMapping
     public String page(
@@ -66,18 +68,43 @@ public class TestAlarmController {
         model.addAttribute("testAlarmUnitId", unit.getId());
         model.addAttribute("sampleJson", SAMPLE_JSON.trim());
         model.addAttribute("openTestAlarms", testDiveraAlarmService.listOpenForUnit(unit.getId()));
+        diveraService.syncAlarmSamplesForUnit(unit.getId());
+        model.addAttribute("alarmSamples", diveraAlarmSampleService.listForUnit(unit.getId()));
         return "test-alarm";
     }
 
     @GetMapping("/samples")
     @ResponseBody
     public List<DiveraAlarmSampleListItemDto> samples(
-            @AuthenticationPrincipal AppUserDetails actor, @RequestParam long unit) {
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam(name = "sync", defaultValue = "true") boolean sync) {
         requireTestMode();
         unitService
                 .resolveActiveUnit(unit, actor)
                 .orElseThrow(() -> new IllegalArgumentException("Kein Zugriff auf diese Einheit."));
+        if (sync) {
+            diveraService.syncAlarmSamplesForUnit(unit);
+        }
         return diveraAlarmSampleService.listForUnit(unit);
+    }
+
+    @PostMapping("/samples/{id}/delete")
+    @ResponseBody
+    public ActionResultDto deleteSample(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @PathVariable long id) {
+        try {
+            requireTestMode();
+            unitService
+                    .resolveActiveUnit(unit, actor)
+                    .orElseThrow(() -> new IllegalArgumentException("Kein Zugriff auf diese Einheit."));
+            diveraAlarmSampleService.deleteSample(unit, id);
+            return ActionResultDto.success("Beispiel-Einsatz gelöscht.");
+        } catch (IllegalArgumentException e) {
+            return ActionResultDto.failure(e.getMessage());
+        }
     }
 
     @GetMapping("/samples/{id}/payload")

@@ -1779,6 +1779,13 @@ body.modal-open {
   gap: 0.75rem;
 }
 
+.btn-group--inline {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
 .test-alarm-sample-row .btn {
   flex-shrink: 0;
 }
