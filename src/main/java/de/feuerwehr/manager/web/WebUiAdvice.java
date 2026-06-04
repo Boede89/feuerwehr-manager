@@ -8,6 +8,8 @@ import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
+import de.feuerwehr.manager.user.User;
+import de.feuerwehr.manager.user.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -77,6 +79,17 @@ public class WebUiAdvice {
     @ModelAttribute("minPasswordLength")
     public int minPasswordLength() {
         return securityProperties.minPasswordLength();
+    }
+
+    @ModelAttribute("userTheme")
+    public String userTheme(@AuthenticationPrincipal AppUserDetails user) {
+        if (user == null) {
+            return null;
+        }
+        return userRepository.findById(user.getUserId())
+                .map(User::getTheme)
+                .filter(t -> "light".equals(t) || "dark".equals(t))
+                .orElse("light");
     }
 
     @ModelAttribute

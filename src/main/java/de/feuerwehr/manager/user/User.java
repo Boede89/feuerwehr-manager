@@ -49,6 +49,10 @@ public class User {
     @Column(name = "totp_enabled", nullable = false)
     private boolean totpEnabled;
 
+    /** UI-Farbschema: {@code light} oder {@code dark}. */
+    @Column(nullable = false, length = 8)
+    private String theme = "light";
+
     /** BCrypt-Hash; null möglich für reine RFID-Nutzer (später). */
     @Column(name = "password_hash", length = 255)
     private String passwordHash;

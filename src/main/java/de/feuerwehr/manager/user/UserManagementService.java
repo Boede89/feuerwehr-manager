@@ -241,6 +241,20 @@ public class UserManagementService {
     }
 
     @Transactional
+    public void updateOwnTheme(long userId, String theme, HttpServletRequest request) {
+        if (!"light".equals(theme) && !"dark".equals(theme)) {
+            throw new IllegalArgumentException("Ungültiges Design.");
+        }
+        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("Benutzer nicht gefunden"));
+        if (user.getAnonymizedAt() != null) {
+            throw new IllegalArgumentException("Konto wurde gelöscht");
+        }
+        user.setTheme(theme);
+        userRepository.save(user);
+        auditService.record(AuditEventType.USER_UPDATED, userId, userId, request, "Design auf " + theme + " gesetzt");
+    }
+
+    @Transactional
     public User updateOwnAccount(
             long userId,
             String username,

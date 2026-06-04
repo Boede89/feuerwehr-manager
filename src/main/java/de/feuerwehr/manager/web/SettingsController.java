@@ -11,6 +11,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -117,6 +118,19 @@ public class SettingsController {
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return "redirect:/settings?totpDisable=1";
+        }
+    }
+
+    @PostMapping("/theme")
+    public ResponseEntity<Void> updateTheme(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam String theme,
+            HttpServletRequest request) {
+        try {
+            userManagementService.updateOwnTheme(actor.getUserId(), theme, request);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
 

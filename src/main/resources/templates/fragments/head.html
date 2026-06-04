@@ -1,6 +1,10 @@
 <head xmlns:th="http://www.thymeleaf.org" th:fragment="head(pageTitle)">
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <meta th:if="${userTheme != null}" name="user-theme" th:content="${userTheme}"/>
+  <meta th:if="${_csrf != null}" name="csrf-token" th:content="${_csrf.token}"/>
+  <meta th:if="${_csrf != null}" name="csrf-header" th:content="${_csrf.headerName}"/>
+  <meta th:if="${_csrf != null}" name="csrf-param" th:content="${_csrf.parameterName}"/>
   <title th:text="${pageTitle} + ' – Feuerwehr-Manager'">Feuerwehr-Manager</title>
   <script th:src="@{/js/theme-boot.js}"></script>
   <link rel="stylesheet" th:href="@{/css/app.css}"/>

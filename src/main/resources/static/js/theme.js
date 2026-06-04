@@ -23,11 +23,30 @@
     });
   }
 
+  function persistTheme(theme) {
+    var tokenMeta = document.querySelector('meta[name="csrf-token"]');
+    var headerMeta = document.querySelector('meta[name="csrf-header"]');
+    var paramMeta = document.querySelector('meta[name="csrf-param"]');
+    if (!tokenMeta || !headerMeta || !paramMeta) {
+      return;
+    }
+    var headers = {};
+    headers[headerMeta.getAttribute('content')] = tokenMeta.getAttribute('content');
+    headers['Content-Type'] = 'application/x-www-form-urlencoded';
+    var body = encodeURIComponent(paramMeta.getAttribute('content')) + '='
+      + encodeURIComponent(tokenMeta.getAttribute('content'))
+      + '&theme=' + encodeURIComponent(theme);
+    fetch('/settings/theme', { method: 'POST', headers: headers, body: body, credentials: 'same-origin' })
+      .catch(function () { /* still applied locally */ });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     syncToggleButtons(currentTheme());
     document.querySelectorAll('[data-theme-choice]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        applyTheme(btn.getAttribute('data-theme-choice'));
+        var theme = btn.getAttribute('data-theme-choice');
+        applyTheme(theme);
+        persistTheme(theme);
       });
     });
   });
