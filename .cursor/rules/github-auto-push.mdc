@@ -1,0 +1,16 @@
+---
+description: Nach Codeänderungen automatisch committen und auf GitHub pushen
+alwaysApply: true
+---
+
+# GitHub: automatisch pushen
+
+Nach jeder abgeschlossenen Implementierung oder Bugfix in diesem Projekt:
+
+1. **Ohne Rückfrage** alle relevanten Änderungen committen und auf `origin/main` pushen.
+2. Den Nutzer **nicht** fragen, ob er pushen möchte — das ist Standard.
+3. Kurz Commit-Hash und Kurzbeschreibung nennen, wenn etwas gepusht wurde.
+4. Nur **nicht** committen: wenn der Nutzer ausdrücklich „ohne Commit“ sagt oder es keine Änderungen gibt.
+5. Keine Secrets (`.env`, Passwörter) committen.
+
+Repository: `Boede89/feuerwehr-manager`, Branch `main`.
