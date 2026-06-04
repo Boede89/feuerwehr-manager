@@ -81,4 +81,13 @@ public class Vehicle {
 
     @Column(name = "updated_at", nullable = false, insertable = false, updatable = false)
     private Instant updatedAt;
+
+    /** Fallback falls DB-Spalten noch leer (vor Migration V22). */
+    public String getVehicleType() {
+        return vehicleType != null && !vehicleType.isBlank() ? vehicleType : "lkw";
+    }
+
+    public String getServiceStatus() {
+        return serviceStatus != null && !serviceStatus.isBlank() ? serviceStatus : (active ? "aktiv" : "ausser_dienst");
+    }
 }
