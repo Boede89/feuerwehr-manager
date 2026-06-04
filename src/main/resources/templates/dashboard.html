@@ -13,22 +13,6 @@
 
   <div th:replace="~{fragments/testmode-banner :: banner}"></div>
 
-  <nav class="dashboard-grid" aria-label="Module">
-    <span class="dashboard-card dashboard-card--soon"><span class="icon">🚒</span>Reservierungen</span>
-    <span class="dashboard-card dashboard-card--soon"><span class="icon">🛡️</span>Atemschutz</span>
-    <a class="dashboard-card dashboard-card--active" th:href="@{/personal(unit=${unitId})}">
-      <span class="icon">👥</span>Personal
-    </a>
-    <a class="dashboard-card dashboard-card--active" th:href="@{/my-area}">
-      <span class="icon">👤</span>Mein Bereich
-    </a>
-    <span class="dashboard-card dashboard-card--soon"><span class="icon">📋</span>Berichte</span>
-    <span class="dashboard-card dashboard-card--soon"><span class="icon">📊</span>Auswertung</span>
-    <a class="dashboard-card dashboard-card--active" th:href="@{/settings(unit=${unitId})}">
-      <span class="icon">⚙️</span>Einstellungen
-    </a>
-  </nav>
-
   <div class="widget-card">
     <div class="card__header" style="border-left:3px solid var(--einsatz-c, var(--rot)); margin:0; padding:12px 16px;">
       Divera – aktuelle Einsätze

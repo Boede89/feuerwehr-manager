@@ -24,10 +24,14 @@
   <nav class="topnav" aria-label="Hauptnavigation">
     <a class="topnav__item" th:classappend="${activeNav == 'home'} ? ' active' : ''"
        th:href="@{/(unit=${unitId})}">Startseite</a>
+    <span class="topnav__item topnav__item--soon" title="Modul folgt später">Reservierungen</span>
+    <span class="topnav__item topnav__item--soon" title="Modul folgt später">Atemschutz</span>
     <a class="topnav__item" th:classappend="${activeNav == 'personal'} ? ' active' : ''"
        th:href="@{/personal(unit=${unitId})}">Personal</a>
     <a class="topnav__item" th:classappend="${activeNav == 'my-area'} ? ' active' : ''"
        th:href="@{/my-area}">Mein Bereich</a>
+    <span class="topnav__item topnav__item--soon" title="Modul folgt später">Berichte</span>
+    <span class="topnav__item topnav__item--soon" title="Modul folgt später">Auswertung</span>
     <div class="topnav__spacer"></div>
     <a class="topnav__item" th:classappend="${activeNav == 'settings'} ? ' active' : ''"
        th:href="@{/settings(unit=${unitId})}">Einstellungen</a>
