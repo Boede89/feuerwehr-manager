@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<th:block th:fragment="panel">
+  <div class="card">
+    <div class="card__header card__header--toolbar">
+      <span>Container-Log</span>
+      <a class="btn btn--outline btn--sm" th:href="@{/admin(scope='global', tab='container-log')}">Aktualisieren</a>
+    </div>
+    <div class="card__body">
+      <p class="hint">Live-Auszug der Anwendungs-Logs (Ringpuffer im Speicher).</p>
+      <pre class="terminal terminal--container-log" th:if="${!#lists.isEmpty(containerLogLines)}"><th:block th:each="line, iter : ${containerLogLines}"><span th:text="${line}">line</span><br th:unless="${iter.last}"/></th:block></pre>
+      <pre class="terminal terminal--container-log" th:if="${#lists.isEmpty(containerLogLines)}">Noch keine Log-Einträge vorhanden.</pre>
+    </div>
+  </div>
+</th:block>
+</body>
+</html>

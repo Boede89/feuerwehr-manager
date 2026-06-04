@@ -40,13 +40,14 @@ public class AdminPanelController {
     private final ModuleSettingsService moduleSettingsService;
     private final TestModeService testModeService;
     private final UserManagementService userManagementService;
+    private final AdminGlobalViewService adminGlobalViewService;
 
     @GetMapping
     public String index(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
             @RequestParam(name = "scope", defaultValue = "einheit") String scope,
-            @RequestParam(name = "tab", defaultValue = "schnittstellen") String tab,
+            @RequestParam(name = "tab", required = false) String tab,
             @RequestParam(name = "createUser", defaultValue = "false") boolean showUserCreate,
             Model model) {
         boolean superAdmin = actor.getRole().isSuperAdmin();
@@ -57,25 +58,32 @@ public class AdminPanelController {
         }
 
         if ("global".equals(scope)) {
-            tab = normalizeGlobalTab(tab);
+            tab = normalizeGlobalTab(tab != null ? tab : "konfiguration");
         } else {
-            tab = normalizeUnitTab(tab);
+            tab = normalizeUnitTab(tab != null ? tab : "schnittstellen");
         }
 
         model.addAttribute("adminScope", scope);
         model.addAttribute("adminTab", tab);
         model.addAttribute("showGlobalScope", superAdmin);
         model.addAttribute("showUserCreate", showUserCreate);
-        populateUserFormModel(actor, model, null);
-
         model.addAttribute("testModeEnabled", testModeService.isEnabled());
 
         if ("global".equals(scope)) {
-            if ("benutzer".equals(tab)) {
-                model.addAttribute("adminUsers", userManagementService.listAccounts(actor));
+            populateGlobalUserFormModel(model);
+            switch (tab) {
+                case "benutzer" -> model.addAttribute("adminUsers", userManagementService.listAdminLevelAccounts());
+                case "konfiguration" -> adminGlobalViewService.populateKonfiguration(model);
+                case "einheiten" -> adminGlobalViewService.populateEinheiten(model);
+                case "schnittstellen" -> adminGlobalViewService.populateSmtp(model);
+                case "audit" -> adminGlobalViewService.populateAuditLog(model);
+                case "container-log" -> adminGlobalViewService.populateContainerLog(model);
+                default -> {}
             }
             return "admin/index";
         }
+
+        populateUserFormModel(actor, model, null);
 
         if (unitService.findActiveOrdered(actor).isEmpty()) {
             model.addAttribute("noUnit", true);
@@ -148,6 +156,10 @@ public class AdminPanelController {
             HttpServletRequest request,
             RedirectAttributes redirectAttributes) {
         try {
+            if ("global".equals(scope) && role == UserRole.USER) {
+                throw new IllegalArgumentException(
+                        "Im globalen Adminpanel können nur Superadmin- und Einheitsadmin-Konten angelegt werden.");
+            }
             Long effectiveUnitId = "global".equals(scope) ? unitIdForm : unitId;
             User created = userManagementService.createUser(
                     username, displayName, password, role, effectiveUnitId, actor, request);
@@ -230,6 +242,14 @@ public class AdminPanelController {
         }
     }
 
+    private void populateGlobalUserFormModel(Model model) {
+        model.addAttribute("assignableRoles", List.of(UserRole.SUPER_ADMIN, UserRole.UNIT_ADMIN));
+        model.addAttribute("units", unitService.findActiveOrdered());
+        model.addAttribute("userFormUnitId", null);
+        model.addAttribute("roleLabels", UserRoleLabels.class);
+        model.addAttribute("adminUsersGlobalOnly", true);
+    }
+
     private void populateUserFormModel(AppUserDetails actor, Model model, Long scopeUnitId) {
         List<UserRole> roles = UserRole.assignableBy(actor.getRole()).stream().sorted().toList();
         model.addAttribute("assignableRoles", roles);
@@ -258,8 +278,8 @@ public class AdminPanelController {
 
     private static String normalizeGlobalTab(String tab) {
         return switch (tab) {
-            case "benutzer", "einheiten" -> tab;
-            default -> "benutzer";
+            case "konfiguration", "benutzer", "einheiten", "schnittstellen", "audit", "container-log" -> tab;
+            default -> "konfiguration";
         };
     }
 

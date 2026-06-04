@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<th:block th:fragment="panel">
+  <div class="card">
+    <div class="card__header card__header--toolbar">
+      <span>Audit-Log</span>
+      <a class="btn btn--outline btn--sm" th:href="@{/admin(scope='global', tab='audit')}">Aktualisieren</a>
+    </div>
+    <div class="card__body card__body--flush">
+      <p class="hint hint--pad">Letzte 500 Ereignisse über alle Einheiten hinweg (ohne Passwörter oder Chip-IDs).</p>
+      <div class="table-wrapper" th:if="${!#lists.isEmpty(auditRows)}">
+        <table class="table">
+          <thead>
+          <tr>
+            <th>Zeitpunkt</th>
+            <th>Benutzer</th>
+            <th>Aktion</th>
+            <th>Details</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="row : ${auditRows}">
+            <td class="text-muted text-sm text-nowrap"
+                th:text="${#temporals.format(row.occurredAt, 'dd.MM.yyyy HH:mm:ss')}">—</td>
+            <td th:text="${row.actorLabel}">user</td>
+            <td class="text-nowrap"
+                th:text="${T(de.feuerwehr.manager.dsgvo.AuditEventTypeLabels).label(row.eventType)}">Aktion</td>
+            <td class="text-muted text-sm" th:text="${row.detail}">—</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="table-empty" th:if="${#lists.isEmpty(auditRows)}">Noch keine Einträge.</p>
+    </div>
+  </div>
+</th:block>
+</body>
+</html>

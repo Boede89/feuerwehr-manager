@@ -4,7 +4,7 @@
 <th:block th:fragment="panel(adminScope, unitId)">
   <div class="card">
     <div class="card__header card__header--toolbar">
-      <span>Benutzer</span>
+      <span th:text="${adminUsersGlobalOnly} ? 'Administrator-Konten' : 'Benutzer'">Benutzer</span>
       <a th:if="${!showUserCreate}"
          class="btn btn--primary btn--sm"
          th:href="@{/admin(scope=${adminScope}, tab='benutzer', unit=${unitId}, createUser=true)}">+ Benutzer anlegen</a>
@@ -14,6 +14,9 @@
     </div>
 
     <div class="card__body card__body--flush" th:if="${showUserCreate}">
+      <p class="hint hint--pad" th:if="${adminUsersGlobalOnly}">
+        Nur Superadmin- und Einheitsadmin-Konten. Für normale Benutzer die Einheits-Verwaltung nutzen.
+      </p>
       <form method="post" th:action="@{/admin/users}" class="admin-user-form">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="scope" th:value="${adminScope}"/>
@@ -41,13 +44,14 @@
                       th:text="${T(de.feuerwehr.manager.user.UserRoleLabels).label(r)}">Rolle</option>
             </select>
           </div>
-          <div class="form-group form-group--full" th:if="${adminScope == 'global' and isSuperAdmin}">
+          <div class="form-group form-group--full" th:if="${adminScope == 'global'}">
             <label for="adminUnitIdForm">Einheit</label>
             <select id="adminUnitIdForm" name="unitIdForm">
-              <option value="">— keine Stamm-Einheit —</option>
+              <option value="" th:if="${adminUsersGlobalOnly == null or !adminUsersGlobalOnly}">— keine Stamm-Einheit —</option>
               <option th:each="u : ${units}" th:value="${u.id}" th:text="${u.name}">Einheit</option>
             </select>
-            <p class="hint">Superadmins können optional eine Stamm-Einheit haben.</p>
+            <p class="hint" th:if="${adminUsersGlobalOnly}">Für Einheitsadmins Pflicht; für Superadmins optional.</p>
+            <p class="hint" th:unless="${adminUsersGlobalOnly}">Superadmins können optional eine Stamm-Einheit haben.</p>
           </div>
         </div>
         <div class="admin-user-form__actions">
@@ -92,7 +96,8 @@
           </tbody>
         </table>
       </div>
-      <p class="table-empty" th:if="${#lists.isEmpty(adminUsers)}">Noch keine Benutzer.</p>
+      <p class="table-empty" th:if="${#lists.isEmpty(adminUsers)}"
+         th:text="${adminUsersGlobalOnly} ? 'Noch keine Administrator-Konten.' : 'Noch keine Benutzer.'">Leer</p>
     </div>
   </div>
 </th:block>

@@ -72,6 +72,8 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/rfid")
                         .permitAll()
+                        .requestMatchers("/admin/global/**")
+                        .hasRole("SUPER_ADMIN")
                         .requestMatchers("/admin/**")
                         .hasAnyRole("SUPER_ADMIN", "UNIT_ADMIN")
                         .requestMatchers("/settings/users/**", "/settings/divera/**")

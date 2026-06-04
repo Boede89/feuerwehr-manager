@@ -4,8 +4,11 @@
 <body class="auth-page">
   <div class="auth-card">
     <div class="auth-header">
-      <div class="auth-emblem" aria-hidden="true">🚒</div>
-      <h1>Feuerwehr-Manager</h1>
+      <div class="auth-emblem" aria-hidden="true">
+        <img th:if="${customLogoDataUri != null}" th:src="${customLogoDataUri}" alt="" class="auth-logo-img"/>
+        <span th:unless="${customLogoDataUri != null}">🚒</span>
+      </div>
+      <h1 th:text="${brandName}">Feuerwehr-Manager</h1>
       <p>Zugang für berechtigte Einsatzkräfte</p>
     </div>
     <div class="auth-body">

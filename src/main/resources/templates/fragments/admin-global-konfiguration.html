@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<th:block th:fragment="panel">
+  <div class="alert alert--warning" th:if="${privacyIncomplete}">
+    <strong>Datenschutzerklärung unvollständig:</strong>
+    Verantwortliche Person und/oder E-Mail fehlen — bitte unten ausfüllen.
+  </div>
+
+  <div class="card">
+    <div class="card__header">Feuerwehr-Stammdaten</div>
+    <div class="card__body">
+      <form method="post" th:action="@{/admin/global/config}" class="form-grid">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <div class="form-group form-group--full">
+          <label for="ffName">Name der Feuerwehr</label>
+          <input id="ffName" name="ffName" type="text" maxlength="255"
+                 th:value="${globalSettings.ffName}" placeholder="z. B. Freiwillige Feuerwehr Musterstadt"/>
+        </div>
+        <div class="form-group">
+          <label for="ffStrasse">Straße &amp; Hausnummer</label>
+          <input id="ffStrasse" name="ffStrasse" type="text" maxlength="255" th:value="${globalSettings.ffStrasse}"/>
+        </div>
+        <div class="form-group">
+          <label for="ffOrt">PLZ &amp; Ort</label>
+          <input id="ffOrt" name="ffOrt" type="text" maxlength="255" th:value="${globalSettings.ffOrt}"/>
+        </div>
+        <div class="form-group form-group--full">
+          <label for="appUrl">App-URL</label>
+          <input id="appUrl" name="appUrl" type="url" maxlength="512"
+                 th:value="${globalSettings.appUrl}" placeholder="https://feuerwehr.example.de"/>
+          <p class="hint">Basis-URL dieser Installation (z. B. für Links in E-Mails).</p>
+        </div>
+        <div class="form-group form-group--full">
+          <label for="feedbackEmail">Feedback-E-Mail</label>
+          <input id="feedbackEmail" name="feedbackEmail" type="email" maxlength="255"
+                 th:value="${globalSettings.feedbackEmail}" placeholder="feedback@feuerwehr.de"/>
+        </div>
+        <div class="form-group form-group--full">
+          <button type="submit" class="btn btn--primary">Stammdaten speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__header">Wappen / Logo</div>
+    <div class="card__body">
+      <p class="hint">Erscheint in der Kopfzeile und auf der Anmeldeseite. PNG mit transparentem Hintergrund empfohlen, max. 200 KB.</p>
+      <div class="admin-preview-row" th:if="${hasCustomLogo}">
+        <img th:src="${globalSettings.logoBase64}" alt="Wappen-Vorschau" class="admin-logo-preview"/>
+      </div>
+      <form method="post" th:action="@{/admin/global/logo}" enctype="multipart/form-data" class="form-grid">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <div class="form-group form-group--full">
+          <label for="logoFile">Bilddatei (PNG, JPG, WebP)</label>
+          <input id="logoFile" name="logoFile" type="file" accept="image/*" required/>
+        </div>
+        <div class="form-group form-group--full">
+          <button type="submit" class="btn btn--primary">Wappen speichern</button>
+        </div>
+      </form>
+      <form method="post" th:action="@{/admin/global/logo/delete}" class="mt-sm" th:if="${hasCustomLogo}"
+            onsubmit="return confirm('Wappen wirklich entfernen?');">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <button type="submit" class="btn btn--outline">Standard-Emblem wiederherstellen</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__header">Datenschutzerklärung — Kontaktdaten</div>
+    <div class="card__body">
+      <p class="hint">
+        Diese Angaben erscheinen in der öffentlichen
+        <a th:href="@{/privacy/notice}" target="_blank" rel="noopener">Datenschutzerklärung</a> (Art. 13 DSGVO).
+      </p>
+      <form method="post" th:action="@{/admin/global/privacy}" class="form-grid">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <div class="form-group">
+          <label for="privacyContactName">Verantwortliche Person</label>
+          <input id="privacyContactName" name="privacyContactName" type="text" maxlength="255"
+                 th:value="${globalSettings.privacyContactName}"/>
+        </div>
+        <div class="form-group">
+          <label for="privacyContactEmail">E-Mail</label>
+          <input id="privacyContactEmail" name="privacyContactEmail" type="email" maxlength="255"
+                 th:value="${globalSettings.privacyContactEmail}"/>
+        </div>
+        <div class="form-group">
+          <label for="privacyContactPhone">Telefon</label>
+          <input id="privacyContactPhone" name="privacyContactPhone" type="text" maxlength="100"
+                 th:value="${globalSettings.privacyContactPhone}"/>
+        </div>
+        <div class="form-group">
+          <label for="privacyHoster">Hoster / Server-Standort</label>
+          <input id="privacyHoster" name="privacyHoster" type="text" maxlength="255"
+                 th:value="${globalSettings.privacyHoster}" placeholder="Eigener Server"/>
+        </div>
+        <div class="form-group form-group--full">
+          <button type="submit" class="btn btn--primary">Kontaktdaten speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</th:block>
+</body>
+</html>

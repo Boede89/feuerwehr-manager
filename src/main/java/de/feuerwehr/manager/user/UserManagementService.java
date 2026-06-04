@@ -35,6 +35,10 @@ public class UserManagementService {
     /**
      * @param scopeUnitId nur für Superadmin: Konten der gewählten Einheit (Kopfzeilen-Umschalter)
      */
+    public List<User> listAdminLevelAccounts() {
+        return userRepository.findAdminLevelAccountsWithUnit();
+    }
+
     public List<User> listAccounts(AppUserDetails actor, Long scopeUnitId) {
         if (actor != null && actor.getRole().isSuperAdmin()) {
             if (scopeUnitId != null && scopeUnitId > 0) {

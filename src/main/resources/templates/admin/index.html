@@ -38,30 +38,48 @@
        th:href="@{/admin(scope='einheit', tab='schnittstellen', unit=${unitId})}">Einheit</a>
     <a class="tab-btn"
        th:classappend="${adminScope == 'global'} ? ' tab-btn--active' : ''"
-       th:href="@{/admin(scope='global', tab='benutzer')}">Global</a>
+       th:href="@{/admin(scope='global', tab='konfiguration')}">Global</a>
   </nav>
 
   <!-- Global (Superadmin) -->
   <th:block th:if="${adminScope == 'global'}">
     <nav class="tab-bar" aria-label="Global">
+      <a class="tab-btn" th:classappend="${adminTab == 'konfiguration'} ? ' tab-btn--active' : ''"
+         th:href="@{/admin(scope='global', tab='konfiguration')}">Konfiguration</a>
       <a class="tab-btn" th:classappend="${adminTab == 'benutzer'} ? ' tab-btn--active' : ''"
          th:href="@{/admin(scope='global', tab='benutzer')}">Benutzer</a>
       <a class="tab-btn" th:classappend="${adminTab == 'einheiten'} ? ' tab-btn--active' : ''"
          th:href="@{/admin(scope='global', tab='einheiten')}">Einheiten</a>
+      <a class="tab-btn" th:classappend="${adminTab == 'schnittstellen'} ? ' tab-btn--active' : ''"
+         th:href="@{/admin(scope='global', tab='schnittstellen')}">Schnittstellen</a>
+      <a class="tab-btn" th:classappend="${adminTab == 'audit'} ? ' tab-btn--active' : ''"
+         th:href="@{/admin(scope='global', tab='audit')}">Audit-Log</a>
+      <a class="tab-btn" th:classappend="${adminTab == 'container-log'} ? ' tab-btn--active' : ''"
+         th:href="@{/admin(scope='global', tab='container-log')}">Container-Log</a>
     </nav>
+
+    <div class="admin-panel" th:if="${adminTab == 'konfiguration'}">
+      <div th:replace="~{fragments/admin-global-konfiguration :: panel}"></div>
+    </div>
 
     <div class="admin-panel" th:if="${adminTab == 'benutzer'}">
       <div th:replace="~{fragments/admin-users-panel :: panel(adminScope='global', unitId=${unitId})}"></div>
     </div>
 
     <div class="admin-panel" th:if="${adminTab == 'einheiten'}">
-      <div class="card">
-        <div class="card__header">Einheiten</div>
-        <div class="card__body">
-          <p class="hint">Feuerwehren und Standorte anlegen und bearbeiten.</p>
-          <a class="btn btn--primary" th:href="@{/settings/units}">Einheiten verwalten</a>
-        </div>
-      </div>
+      <div th:replace="~{fragments/admin-global-units :: panel}"></div>
+    </div>
+
+    <div class="admin-panel" th:if="${adminTab == 'schnittstellen'}">
+      <div th:replace="~{fragments/admin-global-smtp :: panel}"></div>
+    </div>
+
+    <div class="admin-panel" th:if="${adminTab == 'audit'}">
+      <div th:replace="~{fragments/admin-global-audit :: panel}"></div>
+    </div>
+
+    <div class="admin-panel" th:if="${adminTab == 'container-log'}">
+      <div th:replace="~{fragments/admin-global-container :: panel}"></div>
     </div>
 
   </th:block>
@@ -71,7 +89,7 @@
     <div class="card card--warning" th:if="${noUnit}">
       <div class="card__body">
         <p>Es ist noch keine aktive Einheit vorhanden.</p>
-        <a th:if="${canManageUnits}" class="btn btn--primary" th:href="@{/settings/units}">Einheit anlegen</a>
+        <a th:if="${canManageUnits}" class="btn btn--primary" th:href="@{/admin(scope='global', tab='einheiten')}">Einheit anlegen</a>
       </div>
     </div>
 

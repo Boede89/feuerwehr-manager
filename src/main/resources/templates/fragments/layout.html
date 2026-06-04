@@ -5,9 +5,12 @@
 <div class="app-shell" style="--accent: #e63022">
   <header class="app-header">
     <a class="app-header__brand" th:href="@{/(unit=${unitId})}">
-      <div class="app-header__emblem" aria-hidden="true">🚒</div>
+      <div class="app-header__emblem" aria-hidden="true">
+        <img th:if="${customLogoDataUri != null}" th:src="${customLogoDataUri}" alt="" class="app-header__logo-img"/>
+        <span th:unless="${customLogoDataUri != null}">🚒</span>
+      </div>
       <div class="app-header__title">
-        <span class="app-header__name">Feuerwehr-Manager</span>
+        <span class="app-header__name" th:text="${brandName}">Feuerwehr-Manager</span>
         <span class="app-header__sub" th:if="${currentUnitName != null}" th:text="${currentUnitName}">Einheit</span>
         <span class="app-header__sub" th:unless="${currentUnitName != null}">Feuerwehrverwaltung</span>
       </div>

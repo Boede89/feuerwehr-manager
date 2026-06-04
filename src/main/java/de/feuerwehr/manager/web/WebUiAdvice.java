@@ -3,6 +3,7 @@ package de.feuerwehr.manager.web;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.SecurityProperties;
 import de.feuerwehr.manager.settings.AppModule;
+import de.feuerwehr.manager.settings.GlobalSettingsService;
 import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
@@ -24,6 +25,24 @@ public class WebUiAdvice {
     private final TestModeService testModeService;
     private final UnitService unitService;
     private final ModuleSettingsService moduleSettingsService;
+    private final GlobalSettingsService globalSettingsService;
+
+    @ModelAttribute("brandName")
+    public String brandName() {
+        String name = globalSettingsService.get().getFfName();
+        if (name != null && !name.isBlank()) {
+            return name.trim();
+        }
+        return "Feuerwehr-Manager";
+    }
+
+    @ModelAttribute("customLogoDataUri")
+    public String customLogoDataUri() {
+        if (!globalSettingsService.hasCustomLogo()) {
+            return null;
+        }
+        return globalSettingsService.get().getLogoBase64();
+    }
 
     @ModelAttribute("isSuperAdmin")
     public boolean isSuperAdmin(@AuthenticationPrincipal AppUserDetails user) {

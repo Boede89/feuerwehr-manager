@@ -1,0 +1,18 @@
+ALTER TABLE application_settings
+    ADD COLUMN ff_name VARCHAR(255) NULL,
+    ADD COLUMN ff_strasse VARCHAR(255) NULL,
+    ADD COLUMN ff_ort VARCHAR(255) NULL,
+    ADD COLUMN app_url VARCHAR(512) NULL,
+    ADD COLUMN feedback_email VARCHAR(255) NULL,
+    ADD COLUMN privacy_contact_name VARCHAR(255) NULL,
+    ADD COLUMN privacy_contact_email VARCHAR(255) NULL,
+    ADD COLUMN privacy_contact_phone VARCHAR(100) NULL,
+    ADD COLUMN privacy_hoster VARCHAR(255) NULL,
+    ADD COLUMN logo_base64 MEDIUMTEXT NULL,
+    ADD COLUMN smtp_host VARCHAR(255) NULL,
+    ADD COLUMN smtp_port INT NULL DEFAULT 587,
+    ADD COLUMN smtp_username VARCHAR(255) NULL,
+    ADD COLUMN smtp_password VARCHAR(512) NULL,
+    ADD COLUMN smtp_from_email VARCHAR(255) NULL,
+    ADD COLUMN smtp_from_name VARCHAR(255) NULL,
+    ADD COLUMN smtp_encryption VARCHAR(16) NULL DEFAULT 'TLS';
