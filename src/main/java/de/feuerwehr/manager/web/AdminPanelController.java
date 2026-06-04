@@ -12,7 +12,11 @@ import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserManagementService;
 import de.feuerwehr.manager.user.UserRole;
 import de.feuerwehr.manager.user.UserRoleLabels;
+import de.feuerwehr.manager.web.dto.UserDataExport;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -23,7 +27,11 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -41,6 +49,7 @@ public class AdminPanelController {
     private final TestModeService testModeService;
     private final UserManagementService userManagementService;
     private final AdminGlobalViewService adminGlobalViewService;
+    private final ObjectMapper objectMapper;
 
     @GetMapping
     public String index(
@@ -48,7 +57,6 @@ public class AdminPanelController {
             @RequestParam(name = "unit", required = false) Long unitId,
             @RequestParam(name = "scope", defaultValue = "einheit") String scope,
             @RequestParam(name = "tab", required = false) String tab,
-            @RequestParam(name = "createUser", defaultValue = "false") boolean showUserCreate,
             Model model) {
         boolean superAdmin = actor.getRole().isSuperAdmin();
         if (!superAdmin) {
@@ -66,7 +74,6 @@ public class AdminPanelController {
         model.addAttribute("adminScope", scope);
         model.addAttribute("adminTab", tab);
         model.addAttribute("showGlobalScope", superAdmin);
-        model.addAttribute("showUserCreate", showUserCreate);
         model.addAttribute("testModeEnabled", testModeService.isEnabled());
 
         if ("global".equals(scope)) {
@@ -169,8 +176,39 @@ public class AdminPanelController {
             return redirectAfterUser(scope, unitId, actor);
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
-            return redirectAfterUser(scope, unitId, actor) + "&createUser=true";
+            return redirectAfterUser(scope, unitId, actor);
         }
+    }
+
+    @PostMapping("/users/{id}/password")
+    public String resetUserPassword(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @RequestParam String newPassword,
+            @RequestParam(name = "scope") String scope,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            HttpServletRequest request,
+            RedirectAttributes redirectAttributes) {
+        try {
+            userManagementService.setPasswordByAdmin(id, newPassword, actor, request);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "Passwort wurde zurückgesetzt.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return redirectAfterUser(scope, unitId, actor);
+    }
+
+    @GetMapping("/users/{id}/export")
+    public ResponseEntity<byte[]> exportUser(
+            @AuthenticationPrincipal AppUserDetails actor, @PathVariable long id) throws Exception {
+        UserDataExport data = userManagementService.buildUserExport(id, actor);
+        byte[] json = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(data).getBytes(StandardCharsets.UTF_8);
+        String filename = "daten-export-" + data.username() + "-" + LocalDate.now() + ".json";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(json);
     }
 
     @PostMapping("/test-mode")

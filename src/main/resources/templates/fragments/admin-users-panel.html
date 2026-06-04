@@ -5,25 +5,71 @@
   <div class="card">
     <div class="card__header card__header--toolbar">
       <span th:text="${adminUsersGlobalOnly} ? 'Administrator-Konten' : 'Benutzer'">Benutzer</span>
-      <a th:if="${!showUserCreate}"
-         class="btn btn--primary btn--sm"
-         th:href="@{/admin(scope=${adminScope}, tab='benutzer', unit=${unitId}, createUser=true)}">+ Benutzer anlegen</a>
-      <a th:if="${showUserCreate}"
-         class="btn btn--outline btn--sm"
-         th:href="@{/admin(scope=${adminScope}, tab='benutzer', unit=${unitId})}">Abbrechen</a>
+      <button type="button" class="btn btn--primary btn--sm" data-open-modal="modal-new-user">+ Benutzer anlegen</button>
     </div>
 
-    <div class="card__body card__body--flush" th:if="${showUserCreate}">
-      <p class="hint hint--pad" th:if="${adminUsersGlobalOnly}">
-        Nur Superadmin- und Einheitsadmin-Konten. Für normale Benutzer die Einheits-Verwaltung nutzen.
-      </p>
-      <form method="post" th:action="@{/admin/users}" class="admin-user-form">
+    <div class="card__body card__body--flush">
+      <div class="table-wrapper" th:if="${!#lists.isEmpty(adminUsers)}">
+        <table class="table">
+          <thead>
+          <tr>
+            <th>Benutzername</th>
+            <th>Anzeigename</th>
+            <th>Rolle</th>
+            <th>Einheit</th>
+            <th>Status</th>
+            <th>Aktionen</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="u : ${adminUsers}">
+            <td th:text="${u.username}">user</td>
+            <td th:text="${u.displayName}">Name</td>
+            <td>
+              <span class="badge" th:classappend="${u.role.adminLevel} ? ' badge--admin' : ''"
+                    th:text="${T(de.feuerwehr.manager.user.UserRoleLabels).label(u.role)}">Rolle</span>
+            </td>
+            <td th:text="${u.unit != null ? u.unit.name : '—'}">Einheit</td>
+            <td>
+              <span class="badge" th:classappend="${u.active} ? ' active' : ' inactive'"
+                    th:text="${u.active} ? 'Aktiv' : 'Inaktiv'">Status</span>
+            </td>
+            <td>
+              <div class="btn-group">
+                <a class="btn btn--outline btn--sm"
+                   th:href="@{/settings/users/{id}(id=${u.id}, unit=${unitId})}">Bearbeiten</a>
+                <button type="button" class="btn btn--outline btn--sm"
+                        data-open-modal="modal-reset-pw"
+                        th:data-reset-url="@{/admin/users/{id}/password(id=${u.id})}"
+                        th:data-username="${u.username}">PW Reset</button>
+                <a class="btn btn--outline btn--sm"
+                   th:href="@{/admin/users/{id}/export(id=${u.id})}">Export</a>
+              </div>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="table-empty" th:if="${#lists.isEmpty(adminUsers)}"
+         th:text="${adminUsersGlobalOnly} ? 'Noch keine Administrator-Konten.' : 'Noch keine Benutzer.'">Leer</p>
+    </div>
+  </div>
+
+  <!-- Modal: Neuer Benutzer -->
+  <div id="modal-new-user" class="modal-overlay">
+    <div class="modal" role="dialog" aria-labelledby="modal-new-user-title">
+      <div class="modal__header">
+        <h3 id="modal-new-user-title">Neuen Benutzer anlegen</h3>
+        <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
+      </div>
+      <form method="post" th:action="@{/admin/users}">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="scope" th:value="${adminScope}"/>
         <input type="hidden" name="unit" th:if="${unitId != null}" th:value="${unitId}"/>
-        <input type="hidden" name="unitIdForm" th:if="${userFormUnitId != null}" th:value="${userFormUnitId}"/>
-
-        <div class="form-grid">
+        <div class="modal__body">
+          <p class="hint" th:if="${adminUsersGlobalOnly}">
+            Nur Superadmin- und Einheitsadmin-Konten. Für normale Benutzer die Einheits-Verwaltung nutzen.
+          </p>
           <div class="form-group">
             <label for="adminUsername">Benutzername</label>
             <input id="adminUsername" name="username" type="text" required minlength="3" maxlength="64"
@@ -44,7 +90,7 @@
                       th:text="${T(de.feuerwehr.manager.user.UserRoleLabels).label(r)}">Rolle</option>
             </select>
           </div>
-          <div class="form-group form-group--full" th:if="${adminScope == 'global'}">
+          <div class="form-group" th:if="${adminScope == 'global'}">
             <label for="adminUnitIdForm">Einheit</label>
             <select id="adminUnitIdForm" name="unitIdForm">
               <option value="" th:if="${adminUsersGlobalOnly == null or !adminUsersGlobalOnly}">— keine Stamm-Einheit —</option>
@@ -54,50 +100,37 @@
             <p class="hint" th:unless="${adminUsersGlobalOnly}">Superadmins können optional eine Stamm-Einheit haben.</p>
           </div>
         </div>
-        <div class="admin-user-form__actions">
-          <button type="submit" class="btn btn--primary">Benutzer speichern</button>
+        <div class="modal__footer">
+          <button type="submit" class="btn btn--primary">Anlegen</button>
+          <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
         </div>
       </form>
     </div>
+  </div>
 
-    <div class="card__body card__body--flush">
-      <div class="table-wrapper" th:if="${!#lists.isEmpty(adminUsers)}">
-        <table class="table">
-          <thead>
-          <tr>
-            <th>Benutzername</th>
-            <th>Anzeigename</th>
-            <th>Rolle</th>
-            <th>Einheit</th>
-            <th>Status</th>
-            <th>Aktionen</th>
-          </tr>
-          </thead>
-          <tbody>
-          <tr th:each="u : ${adminUsers}">
-            <td>
-              <span th:text="${u.username}">user</span>
-            </td>
-            <td th:text="${u.displayName}">Name</td>
-            <td>
-              <span class="badge" th:classappend="${u.role.adminLevel} ? ' badge--admin' : ''"
-                    th:text="${T(de.feuerwehr.manager.user.UserRoleLabels).label(u.role)}">Rolle</span>
-            </td>
-            <td th:text="${u.unit != null ? u.unit.name : '—'}">Einheit</td>
-            <td>
-              <span class="badge" th:classappend="${u.active} ? ' active' : ' inactive'"
-                    th:text="${u.active} ? 'Aktiv' : 'Inaktiv'">Status</span>
-            </td>
-            <td>
-              <a class="btn btn--outline btn--sm"
-                 th:href="@{/settings/users/{id}(id=${u.id}, unit=${unitId})}">Bearbeiten</a>
-            </td>
-          </tr>
-          </tbody>
-        </table>
+  <!-- Modal: Passwort zurücksetzen -->
+  <div id="modal-reset-pw" class="modal-overlay">
+    <div class="modal" role="dialog" aria-labelledby="modal-reset-pw-title">
+      <div class="modal__header">
+        <h3 id="modal-reset-pw-title">Passwort zurücksetzen</h3>
+        <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
       </div>
-      <p class="table-empty" th:if="${#lists.isEmpty(adminUsers)}"
-         th:text="${adminUsersGlobalOnly} ? 'Noch keine Administrator-Konten.' : 'Noch keine Benutzer.'">Leer</p>
+      <form id="form-reset-pw" method="post" th:action="@{/admin/users/0/password}">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="scope" th:value="${adminScope}"/>
+        <input type="hidden" name="unit" th:if="${unitId != null}" th:value="${unitId}"/>
+        <div class="modal__body">
+          <p id="reset-pw-username" class="hint">Benutzer: —</p>
+          <div class="form-group">
+            <label for="reset-pw-value">Neues Passwort</label>
+            <input id="reset-pw-value" name="newPassword" type="password" required th:minlength="${minPasswordLength}" autocomplete="new-password"/>
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button type="submit" class="btn btn--primary">Zurücksetzen</button>
+          <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
+        </div>
+      </form>
     </div>
   </div>
 </th:block>

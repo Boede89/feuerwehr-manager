@@ -8,7 +8,9 @@ import de.feuerwehr.manager.security.SecurityProperties;
 import de.feuerwehr.manager.personal.PersonUserLinkService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
+import de.feuerwehr.manager.web.dto.UserDataExport;
 import jakarta.servlet.http.HttpServletRequest;
+import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -249,6 +251,43 @@ public class UserManagementService {
 
     public List<UserRfidCard> listRfidCards(long userId) {
         return rfidCardRepository.findByUserId(userId);
+    }
+
+    @Transactional(readOnly = true)
+    public UserDataExport buildUserExport(long userId, AppUserDetails actor) {
+        User user = userRepository.findByIdWithUnit(userId).orElseThrow();
+        if (user.getAnonymizedAt() != null) {
+            throw new IllegalArgumentException("Konto wurde gelöscht");
+        }
+        accessControlService.requireCanManageUser(actor, user);
+        List<UserDataExport.RfidCardExport> cards = listRfidCards(userId).stream()
+                .map(card -> new UserDataExport.RfidCardExport(
+                        card.getId(),
+                        card.getLabel(),
+                        card.isActive(),
+                        maskCardUid(card.getCardUid())))
+                .toList();
+        return new UserDataExport(
+                user.getId(),
+                user.getUsername(),
+                user.getDisplayName(),
+                user.getLoginEmail(),
+                user.getRole().name(),
+                user.getUnit() != null ? user.getUnit().getName() : null,
+                user.isActive(),
+                user.getCreatedAt(),
+                user.getLastLoginAt(),
+                user.getPrivacyNoticeVersion(),
+                user.getPrivacyNoticeAcceptedAt(),
+                cards,
+                Instant.now());
+    }
+
+    private static String maskCardUid(String uid) {
+        if (uid == null || uid.length() < 4) {
+            return "****";
+        }
+        return "****" + uid.substring(uid.length() - 4);
     }
 
     private void applyUnit(User user, Long unitId, AppUserDetails actor) {
