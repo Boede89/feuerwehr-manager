@@ -28,6 +28,7 @@ public class WebUiAdvice {
     private final UnitService unitService;
     private final ModuleSettingsService moduleSettingsService;
     private final GlobalSettingsService globalSettingsService;
+    private final UserRepository userRepository;
 
     @ModelAttribute("brandName")
     public String brandName() {
