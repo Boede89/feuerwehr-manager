@@ -507,6 +507,20 @@ button, input, select, textarea {
 }
 
 .btn--primary { background: var(--rot); color: #fff; }
+
+.btn--secondary {
+  background: var(--bg-card-hover);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn--secondary:hover:not(:disabled) {
+  background: var(--border);
+  color: var(--text);
+  transform: none;
+  box-shadow: none;
+}
+
 .btn--outline,
 .btn-secondary {
   background: transparent;
@@ -1101,6 +1115,81 @@ input:focus, select:focus, textarea:focus {
 }
 
 .auth-body { padding: 32px 24px; }
+
+.auth-totp-hint {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.auth-totp-hint strong {
+  color: var(--text);
+  display: block;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.totp-code-input {
+  text-align: center;
+  font-size: 20px;
+  letter-spacing: 6px;
+  font-weight: 700;
+}
+
+.totp-status-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 16px;
+  line-height: 1.45;
+}
+
+.totp-muted {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 12px;
+}
+
+.totp-muted--sm {
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.totp-qr-area { margin-top: 16px; }
+
+.totp-qr-wrap {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.totp-qr-box {
+  background: #ffffff;
+  padding: 12px;
+  border-radius: 8px;
+  display: inline-block;
+}
+
+.totp-uri {
+  font-size: 11px;
+  margin-bottom: 16px;
+}
+
+.totp-code-group {
+  max-width: 200px;
+}
+
+.totp-actions { margin-top: 12px; }
+
+.totp-disable-confirm { margin-top: 16px; }
+
+.totp-disable-msg { margin-bottom: 12px; }
+
+.error-msg {
+  color: var(--error, var(--rot));
+  font-size: 13px;
+  margin: 0;
+}
 
 .privacy-text {
   white-space: pre-wrap;

@@ -1,12 +1,18 @@
 package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.security.AppUserDetails;
+import de.feuerwehr.manager.security.TotpSessionKeys;
 import de.feuerwehr.manager.unit.UnitService;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserManagementService;
 import de.feuerwehr.manager.user.UserRepository;
+import de.feuerwehr.manager.user.UserTotpService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -24,11 +30,14 @@ public class SettingsController {
     private final UnitService unitService;
     private final UserManagementService userManagementService;
     private final UserRepository userRepository;
+    private final UserTotpService userTotpService;
 
     @GetMapping
     public String index(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "totpDisable", required = false) Boolean totpDisable,
+            HttpSession session,
             Model model) {
         unitService.resolveActiveUnit(unitId, actor).ifPresent(u -> model.addAttribute("unitId", u.getId()));
         User user = userRepository.findById(actor.getUserId()).orElseThrow();
@@ -37,7 +46,78 @@ public class SettingsController {
         model.addAttribute(
                 "diveraApiKeyConfigured",
                 user.getDiveraApiKey() != null && !user.getDiveraApiKey().isBlank());
+        model.addAttribute("totpEnabled", user.isTotpEnabled());
+        Object setupUri = session.getAttribute(TotpSessionKeys.SETUP_OTPAUTH_URI);
+        model.addAttribute("totpSetupActive", setupUri != null);
+        if (setupUri != null) {
+            model.addAttribute("totpSetupUri", setupUri.toString());
+        }
+        model.addAttribute("totpDisableActive", Boolean.TRUE.equals(totpDisable));
         return "settings";
+    }
+
+    @GetMapping("/totp/qr")
+    public ResponseEntity<byte[]> totpQr(@AuthenticationPrincipal AppUserDetails actor, HttpSession session) {
+        byte[] png = userTotpService.qrImageForSession(session);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .contentType(MediaType.IMAGE_PNG)
+                .body(png);
+    }
+
+    @PostMapping("/totp/setup")
+    public String totpSetup(
+            @AuthenticationPrincipal AppUserDetails actor,
+            HttpSession session,
+            RedirectAttributes redirectAttributes) {
+        try {
+            userTotpService.beginSetup(actor.getUserId(), session);
+            return "redirect:/settings";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return "redirect:/settings";
+        }
+    }
+
+    @PostMapping("/totp/cancel")
+    public String totpCancelSetup(@AuthenticationPrincipal AppUserDetails actor, HttpSession session) {
+        userTotpService.cancelSetup(actor.getUserId(), session);
+        return "redirect:/settings";
+    }
+
+    @PostMapping("/totp/confirm")
+    public String totpConfirm(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam String code,
+            HttpServletRequest request,
+            HttpSession session,
+            RedirectAttributes redirectAttributes) {
+        try {
+            userTotpService.confirmSetup(actor.getUserId(), code, request, session);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "2FA erfolgreich aktiviert.");
+            return "redirect:/settings";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return "redirect:/settings";
+        }
+    }
+
+    @PostMapping("/totp/disable")
+    public String totpDisable(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam String code,
+            HttpServletRequest request,
+            RedirectAttributes redirectAttributes) {
+        try {
+            userTotpService.disable(actor.getUserId(), code, request);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "2FA deaktiviert.");
+            return "redirect:/settings";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return "redirect:/settings?totpDisable=1";
+        }
     }
 
     @PostMapping("/account")

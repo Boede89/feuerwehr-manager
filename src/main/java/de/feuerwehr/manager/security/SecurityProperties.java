@@ -10,7 +10,8 @@ public record SecurityProperties(
         int sessionTimeoutMinutes,
         boolean rfidApiEnabled,
         boolean bootstrapAdminResetPassword,
-        int minPasswordLength
+        int minPasswordLength,
+        String totpEncryptionKey
 ) {
     public SecurityProperties {
         if (minPasswordLength < 4) {

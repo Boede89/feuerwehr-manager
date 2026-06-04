@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('2-Faktor-Anmeldung')}"></head>
+<body class="auth-page">
+  <div class="auth-card">
+    <div class="auth-header">
+      <div class="auth-emblem" aria-hidden="true">
+        <img th:if="${customLogoDataUri != null}" th:src="${customLogoDataUri}" alt="" class="auth-logo-img"/>
+        <span th:unless="${customLogoDataUri != null}">🚒</span>
+      </div>
+      <h1 th:text="${brandName}">Feuerwehr-Manager</h1>
+      <p>Zweiter Anmeldeschritt</p>
+    </div>
+    <div class="auth-body">
+      <div th:replace="~{fragments/flash-messages :: login-alerts}"></div>
+
+      <div class="auth-totp-hint">
+        <strong>2-Faktor-Authentifizierung</strong>
+        Gib den aktuellen Code aus deiner Authenticator-App ein.
+      </div>
+
+      <form th:action="@{/login/totp}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <div class="form-group">
+          <label for="totp-login-code">6-stelliger Code</label>
+          <input type="text" id="totp-login-code" name="code" class="totp-code-input"
+                 maxlength="6" inputmode="numeric" placeholder="000000"
+                 autocomplete="one-time-code" required autofocus/>
+        </div>
+        <button type="submit" class="btn btn--primary btn-block" style="margin-top:20px;">Bestätigen</button>
+      </form>
+    </div>
+  </div>
+  <script th:src="@{/js/toast.js}" defer></script>
+  <script th:src="@{/js/flash-toast.js}" defer></script>
+</body>
+</html>

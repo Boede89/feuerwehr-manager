@@ -6,6 +6,7 @@ import de.feuerwehr.manager.security.AuditLogoutSuccessHandler;
 import de.feuerwehr.manager.security.TestModeLogoutHandler;
 import de.feuerwehr.manager.security.RfidAuthenticationProvider;
 import de.feuerwehr.manager.security.SecurityProperties;
+import de.feuerwehr.manager.security.TotpAuthenticationSuccessHandler;
 import de.feuerwehr.manager.user.UserService;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -54,7 +55,8 @@ public class SecurityConfig {
             HttpSecurity http,
             AuthenticationManager authenticationManager,
             AuditLogoutSuccessHandler auditLogoutSuccessHandler,
-            TestModeLogoutHandler testModeLogoutHandler)
+            TestModeLogoutHandler testModeLogoutHandler,
+            TotpAuthenticationSuccessHandler totpAuthenticationSuccessHandler)
             throws Exception {
         http.authenticationManager(authenticationManager);
         http
@@ -66,6 +68,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/login",
+                                "/login/totp",
                                 "/privacy/**",
                                 "/css/**",
                                 "/js/**",
@@ -91,7 +94,7 @@ public class SecurityConfig {
                 .formLogin(form -> form
                         .loginPage("/login")
                         .loginProcessingUrl("/login")
-                        .defaultSuccessUrl("/", true)
+                        .successHandler(totpAuthenticationSuccessHandler)
                         .failureUrl("/login?error")
                         .permitAll())
                 .logout(logout -> logout

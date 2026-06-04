@@ -113,6 +113,8 @@ public class UserService {
         user.setDisplayName("Gelöschter Nutzer");
         user.setLoginEmail(null);
         user.setDiveraApiKey(null);
+        user.setTotpSecret(null);
+        user.setTotpEnabled(false);
         user.setPasswordHash(null);
         user.setActive(false);
         user.setAnonymizedAt(Instant.now());

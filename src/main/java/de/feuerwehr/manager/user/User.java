@@ -43,6 +43,12 @@ public class User {
     @Column(name = "divera_api_key", length = 512)
     private String diveraApiKey;
 
+    @Column(name = "totp_secret", length = 512)
+    private String totpSecret;
+
+    @Column(name = "totp_enabled", nullable = false)
+    private boolean totpEnabled;
+
     /** BCrypt-Hash; null möglich für reine RFID-Nutzer (später). */
     @Column(name = "password_hash", length = 255)
     private String passwordHash;
