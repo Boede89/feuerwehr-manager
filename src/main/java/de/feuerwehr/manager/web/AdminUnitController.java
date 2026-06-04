@@ -58,7 +58,7 @@ public class AdminUnitController {
             @RequestParam long unit,
             @RequestParam("logoFile") MultipartFile logoFile,
             RedirectAttributes redirectAttributes) {
-        return withUnit(actor, unit, redirectAttributes, "konfiguration", () -> {
+        try {
             if (logoFile.isEmpty()) {
                 throw new IllegalArgumentException("Bitte eine Bilddatei auswählen.");
             }
@@ -66,9 +66,18 @@ public class AdminUnitController {
             if (contentType == null || !contentType.startsWith("image/")) {
                 throw new IllegalArgumentException("Nur Bilddateien (PNG, JPG, WebP) sind erlaubt.");
             }
-            unitAdminService.saveLogo(unit, contentType, logoFile.getBytes());
-            redirectAttributes.addFlashAttribute("message", "Wappen wurde gespeichert.");
-        });
+            byte[] imageBytes = logoFile.getBytes();
+            return withUnit(actor, unit, redirectAttributes, "konfiguration", () -> {
+                unitAdminService.saveLogo(unit, contentType, imageBytes);
+                redirectAttributes.addFlashAttribute("message", "Wappen wurde gespeichert.");
+            });
+        } catch (IOException e) {
+            redirectAttributes.addFlashAttribute("error", "Wappen konnte nicht gelesen werden.");
+            return "redirect:/admin?scope=einheit&tab=konfiguration&unit=" + unit;
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return "redirect:/admin?scope=einheit&tab=konfiguration&unit=" + unit;
+        }
     }
 
     @PostMapping("/logo/delete")
