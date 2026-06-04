@@ -13,11 +13,11 @@
 
   <div th:replace="~{fragments/testmode-banner :: banner}"></div>
 
-  <div class="widget-card">
-    <div class="card__header" style="border-left:3px solid var(--einsatz-c, var(--rot)); margin:0; padding:12px 16px;">
-      Divera – aktuelle Einsätze
+  <div class="widget-card widget-card--einsatz">
+    <div class="widget-card__header">
+      <h3>Divera – aktuelle Einsätze</h3>
     </div>
-    <div style="padding:0;">
+    <div class="widget-card__body">
       <div class="list-row" th:if="${!divera.success}">
         <span th:text="${divera.message}">Fehler</span>
         <span class="badge inactive">Prüfen</span>

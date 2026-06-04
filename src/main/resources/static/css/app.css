@@ -368,12 +368,13 @@ button, input, select, textarea {
 
 .card:hover, .panel-card:hover { box-shadow: var(--schatten-sm); }
 
-.card__header {
+.card > .card__header {
   background: var(--bg-card-hover);
   border-bottom: 1px solid var(--border);
   padding: 12px 24px;
   font-size: 14px;
   font-weight: 600;
+  color: var(--text);
   margin: -24px -24px 24px;
 }
 
@@ -569,11 +570,38 @@ input:focus, select:focus, textarea:focus {
   margin-top: 24px;
 }
 
+.widget-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  border-left: 3px solid var(--einsatz-c, var(--rot));
+  background: var(--bg-card-hover);
+}
+
+.widget-card__header h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.widget-card__body {
+  padding: 0;
+  color: var(--text);
+}
+
+.widget-card--einsatz .widget-card__header {
+  border-left-color: var(--einsatz-c, var(--rot));
+}
+
 .list h2 {
   margin: 0;
   padding: 12px 16px;
   font-size: 14px;
   font-weight: 600;
+  color: var(--text);
   border-bottom: 1px solid var(--border);
   background: var(--bg-card-hover);
 }
