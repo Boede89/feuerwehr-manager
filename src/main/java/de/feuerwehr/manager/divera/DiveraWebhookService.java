@@ -2,6 +2,7 @@ package de.feuerwehr.manager.divera;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.UnitDiveraSettings;
 import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
 import java.util.Optional;
@@ -16,6 +17,8 @@ public class DiveraWebhookService {
 
     private final UnitDiveraSettingsRepository diveraSettingsRepository;
     private final TestDiveraAlarmService testDiveraAlarmService;
+    private final DiveraAlarmSampleService diveraAlarmSampleService;
+    private final TestModeService testModeService;
     private final ObjectMapper objectMapper;
 
     public enum WebhookStatus {
@@ -61,6 +64,9 @@ public class DiveraWebhookService {
         try {
             JsonNode root = objectMapper.readTree(rawBody);
             log.info("[Divera-Webhook] unit={} payload={}", unitId, root.toString());
+            if (testModeService.isEnabled()) {
+                diveraAlarmSampleService.captureFromWebhook(unitId, rawBody);
+            }
             String externalId = extractExternalId(root);
             // Persistenz als Einsatzbericht folgt mit Modul „Berichte“
             return new WebhookOutcome(WebhookStatus.ACCEPTED, externalId, "Webhook empfangen");

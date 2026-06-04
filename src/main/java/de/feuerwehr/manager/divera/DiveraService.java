@@ -13,6 +13,7 @@ public class DiveraService {
     private final DiveraApiClient diveraApiClient;
     private final UnitDiveraSettingsRepository diveraSettingsRepository;
     private final TestDiveraAlarmService testDiveraAlarmService;
+    private final DiveraAlarmSampleService diveraAlarmSampleService;
 
     @Transactional(readOnly = true)
     public DiveraAlarmsResponse getAlarmsForUnit(long unitId) {
@@ -20,6 +21,8 @@ public class DiveraService {
                 .findByUnitId(unitId)
                 .map(cfg -> diveraApiClient.fetchOpenAlarms(cfg.getApiBaseUrl(), cfg.getAccessKey()))
                 .orElse(DiveraAlarmsResponse.fail("Keine Divera-Einstellungen für diese Einheit"));
+
+        diveraAlarmSampleService.captureFromApiResponse(unitId, apiResponse);
 
         List<DiveraAlarmSummary> testAlarms = testDiveraAlarmService.listOpenSummariesForUnit(unitId);
         if (testAlarms.isEmpty()) {

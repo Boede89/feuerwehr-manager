@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.web;
 
+import de.feuerwehr.manager.divera.DiveraAlarmSampleService;
 import de.feuerwehr.manager.divera.DiveraWebhookService;
 import de.feuerwehr.manager.divera.DiveraWebhookService.WebhookOutcome;
 import de.feuerwehr.manager.divera.DiveraWebhookService.WebhookStatus;
@@ -9,12 +10,16 @@ import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
 import de.feuerwehr.manager.web.dto.ActionResultDto;
+import de.feuerwehr.manager.web.dto.DiveraAlarmSampleListItemDto;
+import de.feuerwehr.manager.web.dto.DiveraAlarmSamplePayloadDto;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -45,6 +50,7 @@ public class TestAlarmController {
     private final UnitService unitService;
     private final DiveraWebhookService diveraWebhookService;
     private final TestDiveraAlarmService testDiveraAlarmService;
+    private final DiveraAlarmSampleService diveraAlarmSampleService;
 
     @GetMapping
     public String page(
@@ -61,6 +67,37 @@ public class TestAlarmController {
         model.addAttribute("sampleJson", SAMPLE_JSON.trim());
         model.addAttribute("openTestAlarms", testDiveraAlarmService.listOpenForUnit(unit.getId()));
         return "test-alarm";
+    }
+
+    @GetMapping("/samples")
+    @ResponseBody
+    public List<DiveraAlarmSampleListItemDto> samples(
+            @AuthenticationPrincipal AppUserDetails actor, @RequestParam long unit) {
+        requireTestMode();
+        unitService
+                .resolveActiveUnit(unit, actor)
+                .orElseThrow(() -> new IllegalArgumentException("Kein Zugriff auf diese Einheit."));
+        return diveraAlarmSampleService.listForUnit(unit);
+    }
+
+    @GetMapping("/samples/{id}/payload")
+    @ResponseBody
+    public DiveraAlarmSamplePayloadDto samplePayload(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @PathVariable long id) {
+        try {
+            requireTestMode();
+            unitService
+                    .resolveActiveUnit(unit, actor)
+                    .orElseThrow(() -> new IllegalArgumentException("Kein Zugriff auf diese Einheit."));
+            return diveraAlarmSampleService
+                    .payloadForUnit(unit, id)
+                    .map(DiveraAlarmSamplePayloadDto::success)
+                    .orElseGet(() -> DiveraAlarmSamplePayloadDto.failure("Beispiel nicht gefunden"));
+        } catch (IllegalArgumentException e) {
+            return DiveraAlarmSamplePayloadDto.failure(e.getMessage());
+        }
     }
 
     @PostMapping("/close")

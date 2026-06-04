@@ -1774,6 +1774,15 @@ body.modal-open {
   margin-top: 8px;
 }
 
+.test-alarm-sample-row {
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.test-alarm-sample-row .btn {
+  flex-shrink: 0;
+}
+
 .badge--muted {
   opacity: 0.75;
   margin-left: 6px;

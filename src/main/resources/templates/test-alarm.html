@@ -26,6 +26,10 @@
         Die Verarbeitung entspricht dem echten Endpunkt
         <code>/api/webhook/divera</code>, ohne Secret-Prüfung im Testmodus.
       </p>
+      <p class="hint">
+        Im Testmodus werden echte Einsätze von DIVERA (API-Abruf oder Webhook) automatisch als Beispiele gespeichert
+        und können unter <strong>Beispiel laden</strong> ausgewählt werden.
+      </p>
       <div class="form-group form-group--full">
         <label for="testAlarmJson">JSON-Daten</label>
         <textarea id="testAlarmJson" class="field test-alarm-json" rows="16"
@@ -57,6 +61,29 @@
                 th:attr="data-alarm-id=${a.id}">
           Alarm beenden
         </button>
+      </div>
+    </div>
+  </div>
+  <div id="modal-test-alarm-samples" class="modal-overlay">
+    <div class="modal modal--lg" role="dialog" aria-labelledby="modal-test-alarm-samples-title">
+      <div class="modal__header">
+        <h3 id="modal-test-alarm-samples-title">Beispiel-Einsatz laden</h3>
+        <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal__body">
+        <p class="hint" id="test-alarm-samples-loading" hidden>Lade gespeicherte Einsätze …</p>
+        <p class="hint" id="test-alarm-samples-empty" hidden>
+          Noch keine gespeicherten Einsätze. Rufen Sie die Startseite auf, nutzen Sie „Jetzt importieren“ in den Schnittstellen
+          oder warten Sie auf einen DIVERA-Webhook — dann erscheinen echte Einsätze hier.
+        </p>
+        <div id="test-alarm-samples-list"></div>
+        <p class="modal-divider">oder</p>
+        <button type="button" class="btn btn--outline btn--sm" id="btn-test-alarm-default-sample">
+          Vordefiniertes Beispiel laden
+        </button>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--outline" data-close-modal>Schließen</button>
       </div>
     </div>
   </div>
