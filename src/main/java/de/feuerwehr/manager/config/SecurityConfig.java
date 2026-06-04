@@ -69,6 +69,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/login",
                                 "/login/totp",
+                                "/datenschutz",
                                 "/privacy/**",
                                 "/css/**",
                                 "/js/**",

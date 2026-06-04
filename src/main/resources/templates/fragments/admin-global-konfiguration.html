@@ -73,7 +73,7 @@
     <div class="card__body">
       <p class="hint">
         Diese Angaben erscheinen in der öffentlichen
-        <a th:href="@{/privacy/notice}" target="_blank" rel="noopener">Datenschutzerklärung</a> (Art. 13 DSGVO).
+        <a th:href="@{/datenschutz}" target="_blank" rel="noopener">Datenschutzerklärung</a> (Art. 13 DSGVO).
       </p>
       <form method="post" th:action="@{/admin/global/privacy}" class="form-grid">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
