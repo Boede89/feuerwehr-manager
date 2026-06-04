@@ -265,10 +265,16 @@ public class AdminUnitController {
             @RequestParam(required = false) String description,
             @RequestParam(required = false) String active,
             RedirectAttributes redirectAttributes) {
-        return withUnit(actor, unit, redirectAttributes, "technik", () -> {
-            unitAdminService.updateVehicle(unit, vehicleId, name, description, "true".equalsIgnoreCase(active));
-            redirectAttributes.addFlashAttribute("message", "Fahrzeug gespeichert.");
-        });
+        return withUnit(
+                actor,
+                unit,
+                redirectAttributes,
+                "technik",
+                () -> {
+                    unitAdminService.updateVehicle(unit, vehicleId, name, description, "true".equalsIgnoreCase(active));
+                    redirectAttributes.addFlashAttribute("message", "Fahrzeug gespeichert.");
+                },
+                "vehicle=" + vehicleId);
     }
 
     @PostMapping("/vehicles/delete")
@@ -339,7 +345,7 @@ public class AdminUnitController {
                     unitAdminService.createEquipmentCategory(unit, vehicleId, name);
                     redirectAttributes.addFlashAttribute("message", "Kategorie angelegt.");
                 },
-                "vehicle=" + vehicleId);
+                "vehicle=" + vehicleId + "&vt=geraete");
     }
 
     @PostMapping("/equipment/categories/delete")
@@ -358,7 +364,28 @@ public class AdminUnitController {
                     unitAdminService.deleteEquipmentCategory(unit, vehicleId, categoryId);
                     redirectAttributes.addFlashAttribute("message", "Kategorie entfernt.");
                 },
-                "vehicle=" + vehicleId);
+                "vehicle=" + vehicleId + "&vt=geraete");
+    }
+
+    @PostMapping("/equipment/update")
+    public String updateEquipment(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam long vehicleId,
+            @RequestParam long equipmentId,
+            @RequestParam String name,
+            @RequestParam(required = false) Long categoryId,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(
+                actor,
+                unit,
+                redirectAttributes,
+                "technik",
+                () -> {
+                    unitAdminService.updateEquipment(unit, vehicleId, equipmentId, name, categoryId);
+                    redirectAttributes.addFlashAttribute("message", "Gerät gespeichert.");
+                },
+                "vehicle=" + vehicleId + "&vt=geraete");
     }
 
     @PostMapping("/equipment")
@@ -378,7 +405,7 @@ public class AdminUnitController {
                     unitAdminService.createEquipment(unit, vehicleId, name, categoryId);
                     redirectAttributes.addFlashAttribute("message", "Gerät registriert.");
                 },
-                "vehicle=" + vehicleId);
+                "vehicle=" + vehicleId + "&vt=geraete");
     }
 
     @PostMapping("/equipment/delete")
@@ -397,7 +424,7 @@ public class AdminUnitController {
                     unitAdminService.deleteEquipment(unit, equipmentId);
                     redirectAttributes.addFlashAttribute("message", "Gerät entfernt.");
                 },
-                "vehicle=" + vehicleId);
+                "vehicle=" + vehicleId + "&vt=geraete");
     }
 
     @PostMapping("/qualifications")

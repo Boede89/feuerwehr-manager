@@ -112,13 +112,6 @@
     });
   });
 
-  (function scrollToEquipmentPanel() {
-    var panel = document.getElementById('vehicle-equipment-panel');
-    if (panel && window.location.search.indexOf('vehicle=') >= 0) {
-      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  })();
-
   document.querySelectorAll('[data-open-modal="modal-calendar-edit"]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var set = function (id, val) {

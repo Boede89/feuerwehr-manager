@@ -65,6 +65,7 @@ public class AdminPanelController {
             @RequestParam(name = "scope", defaultValue = "einheit") String scope,
             @RequestParam(name = "tab", required = false) String tab,
             @RequestParam(name = "vehicle", required = false) Long selectedVehicleId,
+            @RequestParam(name = "vt", required = false) String vehicleSubTab,
             Model model) {
         boolean superAdmin = actor.getRole().isSuperAdmin();
         if (!superAdmin) {
@@ -131,6 +132,9 @@ public class AdminPanelController {
                 if (selectedVehicleId != null) {
                     model.addAttribute("selectedVehicleId", selectedVehicleId);
                 }
+                model.addAttribute(
+                        "vehicleSubTab",
+                        vehicleSubTab != null && "geraete".equalsIgnoreCase(vehicleSubTab) ? "geraete" : "uebersicht");
                 adminUnitViewService.populateTechnik(model, resolvedId);
             }
             case "ausbildung" -> adminUnitViewService.populateAusbildung(model, resolvedId);

@@ -95,12 +95,15 @@ public class AdminUnitViewService {
         final Long selectedVehicleId = resolvedVehicleId;
         model.addAttribute("selectedVehicleId", selectedVehicleId);
         if (selectedVehicleId != null) {
-            model.addAttribute("equipmentCategories", unitAdminService.listEquipmentCategories(selectedVehicleId));
-            model.addAttribute("equipmentItems", unitAdminService.listEquipment(selectedVehicleId));
             vehicles.stream()
                     .filter(v -> v.getId().equals(selectedVehicleId))
                     .findFirst()
-                    .ifPresent(v -> model.addAttribute("selectedVehicleName", v.getName()));
+                    .ifPresent(v -> {
+                        model.addAttribute("selectedVehicle", v);
+                        model.addAttribute("selectedVehicleName", v.getName());
+                    });
+            model.addAttribute("equipmentCategories", unitAdminService.listEquipmentCategories(selectedVehicleId));
+            model.addAttribute("equipmentItems", unitAdminService.listEquipment(selectedVehicleId));
         }
     }
 

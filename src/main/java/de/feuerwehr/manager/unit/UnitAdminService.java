@@ -365,6 +365,27 @@ public class UnitAdminService {
     }
 
     @Transactional
+    public VehicleEquipment updateEquipment(
+            long unitId, long vehicleId, long equipmentId, String name, Long categoryId) {
+        requireVehicle(unitId, vehicleId);
+        VehicleEquipment eq = equipmentRepository
+                .findById(equipmentId)
+                .orElseThrow(() -> new IllegalArgumentException("Gerät nicht gefunden."));
+        if (!eq.getVehicle().getId().equals(vehicleId)) {
+            throw new IllegalArgumentException("Gerät gehört nicht zu diesem Fahrzeug.");
+        }
+        eq.setName(requireName(name));
+        if (categoryId != null && categoryId > 0) {
+            equipmentCategoryRepository
+                    .findByIdAndVehicleId(categoryId, vehicleId)
+                    .ifPresentOrElse(eq::setCategory, () -> eq.setCategory(null));
+        } else {
+            eq.setCategory(null);
+        }
+        return equipmentRepository.save(eq);
+    }
+
+    @Transactional
     public void deleteEquipment(long unitId, long equipmentId) {
         VehicleEquipment eq = equipmentRepository
                 .findById(equipmentId)
