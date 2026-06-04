@@ -191,5 +191,23 @@
       detailModal.classList.add('active');
       document.body.classList.add('modal-open');
     }
+
+    var urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('openModal') === 'equipment-categories') {
+      var categoriesModal = document.getElementById('modal-equipment-categories');
+      if (categoriesModal) {
+        categoriesModal.classList.add('active');
+        document.body.classList.add('modal-open');
+        var categoryNameInput = document.getElementById('newCategoryName');
+        if (categoryNameInput) categoryNameInput.focus();
+      }
+      urlParams.delete('openModal');
+      var qs = urlParams.toString();
+      window.history.replaceState(
+        null,
+        '',
+        window.location.pathname + (qs ? '?' + qs : '') + window.location.hash
+      );
+    }
   });
 })();

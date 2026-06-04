@@ -433,7 +433,7 @@ public class AdminUnitController {
                     unitAdminService.createEquipmentCategory(unit, vehicleId, name);
                     redirectAttributes.addFlashAttribute("message", "Kategorie angelegt.");
                 },
-                "vehicle=" + vehicleId + "&vt=geraete");
+                "vehicle=" + vehicleId + "&vt=geraete&openModal=equipment-categories");
     }
 
     @PostMapping("/equipment/categories/delete")
@@ -452,7 +452,7 @@ public class AdminUnitController {
                     unitAdminService.deleteEquipmentCategory(unit, vehicleId, categoryId);
                     redirectAttributes.addFlashAttribute("message", "Kategorie entfernt.");
                 },
-                "vehicle=" + vehicleId + "&vt=geraete");
+                "vehicle=" + vehicleId + "&vt=geraete&openModal=equipment-categories");
     }
 
     @PostMapping("/equipment/update")
