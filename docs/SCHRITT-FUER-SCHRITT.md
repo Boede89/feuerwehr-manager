@@ -109,6 +109,28 @@ Hinweise auf der Seite:
 
 ---
 
+## Schritt 6b: Testmodus + Webhook (24/7 in Proxmox)
+
+Wenn die Anwendung **dauerhaft läuft** (Docker/Proxmox) und der **Testmodus** aktiv ist:
+
+1. **Webhook in DIVERA** auf die URL aus den Admin-Schnittstellen eintragen (inkl. Secret), z. B.  
+   `https://<Ihre-Domain>/api/webhook/divera?unit=1&secret=…`
+2. Jeder eingehende DIVERA-Webhook wird **automatisch in der Datenbank** gespeichert (`divera_alarm_samples`) — **ohne** dass jemand die Webseite öffnet.
+3. Kommt zuerst ein Webhook beim **Einsatzstart** und später einer beim **Beenden**, wird das **gleiche Beispiel aktualisiert** (vollständiges JSON inkl. `closed: true`).
+4. Die Beispiele sind später unter **Testalarm** sichtbar (auch wenn der Einsatz längst beendet ist). Dort können Sie mit **Einsatz starten** einen Test auf der Startseite simulieren.
+
+**Wichtig:** Der Testmodus muss während des Einsatzes **an** bleiben. Beim Beenden des Testmodus oder Abmelden werden alle Test-Beispiele gelöscht.
+
+**Logs prüfen** (optional):
+
+```bash
+docker compose logs -f app | findstr /i "Divera-Beispiel"
+```
+
+Erwartung bei erfolgreichem Webhook: `Webhook gespeichert unit=… alarmId=… closed=…`
+
+---
+
 ## Schritt 7: Prüfen, ob Divera-Daten ankommen
 
 1. Zurück über **„Zurück zum Dashboard“** oder erneut `http://<IP>:8080/?unit=1`

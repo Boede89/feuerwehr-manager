@@ -5,7 +5,7 @@
 - **Abruf:**  
   `GET {api_base_url}/api/v2/alarms?accesskey={ACCESS_KEY}` (nicht archivierte Alarme)
 - **Anzeige:** Im Produktivbetrieb werden geschlossene Einsätze ausgeblendet; im Testmodus alle gelieferten Alarme angezeigt.
-- **Testmodus-Beispiele:** Beim API-Abruf und bei jedem eingehenden **Webhook** (`POST /api/webhook/divera`) wird das vollständige JSON gespeichert — auch wenn niemand eingeloggt ist. Beim erneuten Webhook (z. B. Einsatz geschlossen) wird das Beispiel aktualisiert. Anzeige auf der Testalarm-Seite nach dem nächsten Besuch oder „Von DIVERA aktualisieren“.
+- **Testmodus-Beispiele:** Beim API-Abruf und bei jedem eingehenden **Webhook** (`POST /api/webhook/divera`) wird das vollständige JSON in MySQL gespeichert — **24/7**, ohne geöffnete Webseite. Jeder weitere Webhook zum gleichen Einsatz (z. B. **beendet**) **aktualisiert** den Datensatz. Später geplant: Modul **Einsatzberichte** (nutzt dann diese gespeicherten Daten).
 - **Standard-Basis-URL:** `https://app.divera247.com`  
   (anpassbar pro Einheit in `unit_divera_settings.api_base_url`)
 

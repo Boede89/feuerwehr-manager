@@ -71,9 +71,10 @@ public class DiveraAlarmSampleService {
             String payload = diveraAlarmRawJson.serializeWebhookBody(rawBody);
             upsert(unitId, p.alarmId(), p.title(), p.address(), payload);
             log.info(
-                    "[Divera-Beispiel] Webhook gespeichert unit={} alarmId={} title={}",
+                    "[Divera-Beispiel] Webhook gespeichert unit={} alarmId={} closed={} title={}",
                     unitId,
                     p.alarmId(),
+                    p.closed(),
                     p.title());
             return true;
         } catch (Exception e) {
@@ -129,14 +130,15 @@ public class DiveraAlarmSampleService {
         DiveraAlarmSample entity = repository
                 .findByUnitIdAndAlarmId(unitId, alarmId)
                 .orElseGet(DiveraAlarmSample::new);
+        Instant now = Instant.now();
         if (entity.getId() == null) {
             entity.setUnit(unit);
             entity.setAlarmId(alarmId);
+            entity.setCapturedAt(now);
         }
         entity.setTitle(title != null && !title.isBlank() ? title.trim() : "Einsatz " + alarmId);
         entity.setAddress(blankToNull(address));
         entity.setWebhookPayload(payload);
-        entity.setCapturedAt(Instant.now());
         repository.save(entity);
     }
 
