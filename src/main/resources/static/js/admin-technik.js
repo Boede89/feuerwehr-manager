@@ -32,6 +32,78 @@
       });
     }
 
+    var equipmentSearch = document.getElementById('equipment-search');
+    var equipmentTbody = document.getElementById('equipment-tbody');
+
+    function filterEquipmentRows() {
+      if (!equipmentTbody || !equipmentSearch) return;
+      var q = equipmentSearch.value.trim().toLowerCase();
+      equipmentTbody.querySelectorAll('.equipment-row').forEach(function (tr) {
+        if (!q) {
+          tr.style.display = '';
+          return;
+        }
+        var name = (tr.getAttribute('data-sort-name') || '').toLowerCase();
+        var cat = (tr.getAttribute('data-sort-category') || '').toLowerCase();
+        tr.style.display = name.indexOf(q) !== -1 || cat.indexOf(q) !== -1 ? '' : 'none';
+      });
+    }
+
+    if (equipmentSearch) {
+      equipmentSearch.addEventListener('input', filterEquipmentRows);
+    }
+
+    function initEquipmentTableSort() {
+      var table = document.getElementById('equipment-table');
+      if (!table || !equipmentTbody) return;
+      var headers = table.querySelectorAll('th[data-sort-key]');
+      var sortState = { key: null, dir: 1 };
+
+      function applySort(key) {
+        if (sortState.key === key) {
+          sortState.dir *= -1;
+        } else {
+          sortState.key = key;
+          sortState.dir = 1;
+        }
+        var rows = Array.prototype.slice.call(equipmentTbody.querySelectorAll('.equipment-row'));
+        rows.sort(function (a, b) {
+          var av = (a.getAttribute('data-sort-' + key) || '').toLowerCase();
+          var bv = (b.getAttribute('data-sort-' + key) || '').toLowerCase();
+          if (av < bv) return -1 * sortState.dir;
+          if (av > bv) return 1 * sortState.dir;
+          return 0;
+        });
+        rows.forEach(function (r) {
+          equipmentTbody.appendChild(r);
+        });
+        headers.forEach(function (h) {
+          var active = h.getAttribute('data-sort-key') === key;
+          h.classList.remove('table__th-sort--asc', 'table__th-sort--desc');
+          h.setAttribute('aria-sort', active ? (sortState.dir === 1 ? 'ascending' : 'descending') : 'none');
+          if (active) {
+            h.classList.add(sortState.dir === 1 ? 'table__th-sort--asc' : 'table__th-sort--desc');
+          }
+        });
+        filterEquipmentRows();
+      }
+
+      headers.forEach(function (th) {
+        function activate() {
+          applySort(th.getAttribute('data-sort-key'));
+        }
+        th.addEventListener('click', activate);
+        th.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            activate();
+          }
+        });
+      });
+    }
+
+    initEquipmentTableSort();
+
     /* Optional: Tabs ohne Seitenreload (Links funktionieren auch ohne JS) */
     var tabBar = document.getElementById('vehicle-detail-tabs');
     if (tabBar) {

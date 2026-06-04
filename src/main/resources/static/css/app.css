@@ -1943,6 +1943,33 @@ body.modal-open {
 .list-row__meta { font-size: var(--fs-xs); color: var(--text-muted); margin-top: 2px; }
 .list-row__actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; }
 
+.table__th-sort {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.table__th-sort:hover {
+  color: var(--rot);
+}
+
+.table__th-sort::after {
+  content: ' ⇅';
+  font-size: 0.75em;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.table__th-sort--asc::after {
+  content: ' ▲';
+  color: var(--rot);
+}
+
+.table__th-sort--desc::after {
+  content: ' ▼';
+  color: var(--rot);
+}
+
 #tab-vehicle-checklisten .list-row:hover { background: var(--bg-card-hover); }
 
 .text-success { color: var(--gruen); }

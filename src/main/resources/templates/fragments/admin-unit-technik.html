@@ -260,6 +260,8 @@
         <div class="card__header card__header--toolbar">
           <span>Beladung &amp; Ausrüstung</span>
           <div class="btn-group">
+            <input type="search" id="equipment-search" class="field field--sm field--search-sm"
+                   placeholder="Suchen…" maxlength="100" aria-label="Geräte durchsuchen"/>
             <button type="button" class="btn btn--outline btn--sm" data-open-modal="modal-equipment-categories"
                     title="Gerätekategorien verwalten">⚙ Kategorien</button>
             <button type="button" class="btn btn--primary btn--sm" data-open-modal="modal-equipment-new">+ Gerät</button>
@@ -267,16 +269,20 @@
         </div>
         <div class="card__body card__body--flush">
           <div class="table-wrapper" th:if="${equipmentRows != null and !#lists.isEmpty(equipmentRows)}">
-            <table class="table">
+            <table class="table" id="equipment-table">
               <thead>
               <tr>
-                <th>Bezeichnung</th>
-                <th>Kategorie</th>
-                <th>Aktionen</th>
+                <th class="table__th-sort" scope="col" data-sort-key="name" tabindex="0" role="columnheader"
+                    aria-sort="none">Bezeichnung</th>
+                <th class="table__th-sort" scope="col" data-sort-key="category" tabindex="0" role="columnheader"
+                    aria-sort="none">Kategorie</th>
+                <th scope="col">Aktionen</th>
               </tr>
               </thead>
-              <tbody>
-              <tr th:each="row : ${equipmentRows}" class="data-row">
+              <tbody id="equipment-tbody">
+              <tr th:each="row : ${equipmentRows}" class="data-row equipment-row"
+                  th:attr="data-sort-name=${row.name()},
+                           data-sort-category=${row.categoryName() != null ? row.categoryName() : ''}">
                 <td class="fw-semibold" th:text="${row.name()}">Gerät</td>
                 <td class="text-muted text-sm" th:text="${row.categoryName() != null ? row.categoryName() : '—'}">—</td>
                 <td>
