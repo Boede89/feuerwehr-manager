@@ -68,8 +68,9 @@ public class AdminPanelController {
         model.addAttribute("showUserCreate", showUserCreate);
         populateUserFormModel(actor, model, null);
 
+        model.addAttribute("testModeEnabled", testModeService.isEnabled());
+
         if ("global".equals(scope)) {
-            model.addAttribute("testModeEnabled", testModeService.isEnabled());
             if ("benutzer".equals(tab)) {
                 model.addAttribute("adminUsers", userManagementService.listAccounts(actor));
             }
@@ -160,6 +161,27 @@ public class AdminPanelController {
         }
     }
 
+    @PostMapping("/test-mode")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public String setTestMode(
+            @RequestParam(name = "enabled", defaultValue = "false") boolean enabled,
+            @RequestParam(name = "scope", defaultValue = "einheit") String scope,
+            @RequestParam(name = "tab", defaultValue = "benutzer") String tab,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            RedirectAttributes redirectAttributes) {
+        if (enabled) {
+            testModeService.enable();
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute(
+                    "message", "Testmodus ist aktiv. Neue und geänderte Fachdaten gelten nur als Testdaten.");
+        } else {
+            testModeService.disable();
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "Testmodus beendet. Alle Teständerungen wurden verworfen.");
+        }
+        return buildAdminRedirect(scope, tab, unitId);
+    }
+
     @PostMapping("/divera")
     public String saveDivera(
             @AuthenticationPrincipal AppUserDetails actor,
@@ -226,9 +248,17 @@ public class AdminPanelController {
         return "redirect:/admin?scope=einheit&tab=benutzer";
     }
 
+    private static String buildAdminRedirect(String scope, String tab, Long unitId) {
+        StringBuilder url = new StringBuilder("redirect:/admin?scope=").append(scope).append("&tab=").append(tab);
+        if (unitId != null && "einheit".equals(scope)) {
+            url.append("&unit=").append(unitId);
+        }
+        return url.toString();
+    }
+
     private static String normalizeGlobalTab(String tab) {
         return switch (tab) {
-            case "benutzer", "einheiten", "testmodus" -> tab;
+            case "benutzer", "einheiten" -> tab;
             default -> "benutzer";
         };
     }

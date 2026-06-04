@@ -2,7 +2,7 @@
 <html lang="de" xmlns:th="http://www.thymeleaf.org"
       th:replace="~{fragments/layout :: layout('Adminpanel', ~{::main})}">
 <main class="admin-page">
-  <div class="page-header">
+  <div class="page-header page-header--toolbar">
     <div>
       <h2>Adminpanel</h2>
       <p th:if="${adminScope == 'global'}">Einstellungen für alle Einheiten</p>
@@ -10,6 +10,20 @@
         Einheit: <strong th:text="${currentUnitName}">—</strong>
       </p>
     </div>
+    <form th:if="${isSuperAdmin}" method="post" th:action="@{/admin/test-mode}" class="testmode-header-toggle">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+      <input type="hidden" name="scope" th:value="${adminScope}"/>
+      <input type="hidden" name="tab" th:value="${adminTab}"/>
+      <input type="hidden" name="unit" th:if="${unitId != null}" th:value="${unitId}"/>
+      <div class="testmode-header-toggle__text">
+        <span class="testmode-header-toggle__label">Testmodus</span>
+        <span class="testmode-header-toggle__hint">Änderungen nur als Testkopie</span>
+      </div>
+      <label class="toggle-switch" title="Testmodus ein- oder ausschalten">
+        <input type="checkbox" name="enabled" value="true" th:checked="${testModeEnabled}" onchange="this.form.submit()"/>
+        <span class="toggle-switch__track"></span>
+      </label>
+    </form>
   </div>
 
   <div class="page-alerts">
@@ -34,8 +48,6 @@
          th:href="@{/admin(scope='global', tab='benutzer')}">Benutzer</a>
       <a class="tab-btn" th:classappend="${adminTab == 'einheiten'} ? ' tab-btn--active' : ''"
          th:href="@{/admin(scope='global', tab='einheiten')}">Einheiten</a>
-      <a class="tab-btn" th:classappend="${adminTab == 'testmodus'} ? ' tab-btn--active' : ''"
-         th:href="@{/admin(scope='global', tab='testmodus')}">Testmodus</a>
     </nav>
 
     <div class="admin-panel" th:if="${adminTab == 'benutzer'}">
@@ -52,27 +64,6 @@
       </div>
     </div>
 
-    <div class="admin-panel" th:if="${adminTab == 'testmodus'}">
-      <div class="card card--warning">
-        <div class="card__header">Testmodus</div>
-        <div class="card__body">
-          <p class="hint" th:if="${testModeEnabled}">
-            Aktiv — Produktivdaten bleiben sichtbar; Änderungen gelten nur als Testkopie. Beim Beenden werden alle Teständerungen gelöscht.
-          </p>
-          <p class="hint" th:unless="${testModeEnabled}">
-            Ausprobieren ohne Auswirkung auf Produktivdaten; Teständerungen werden beim Beenden verworfen.
-          </p>
-          <form th:if="${testModeEnabled}" method="post" th:action="@{/settings/test-mode/disable}" class="bar-form">
-            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-            <button type="submit" class="btn btn--outline">Testmodus beenden</button>
-          </form>
-          <form th:unless="${testModeEnabled}" method="post" th:action="@{/settings/test-mode/enable}" class="bar-form">
-            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-            <button type="submit" class="btn btn--primary">Testmodus aktivieren</button>
-          </form>
-        </div>
-      </div>
-    </div>
   </th:block>
 
   <!-- Einheit -->

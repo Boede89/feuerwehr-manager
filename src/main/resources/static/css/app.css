@@ -1129,6 +1129,41 @@ body > main:not(.page-main) {
   color: var(--text-muted);
 }
 
+.page-header--toolbar {
+  align-items: center;
+}
+
+.testmode-header-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 8px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  flex-shrink: 0;
+}
+
+.testmode-header-toggle__text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.testmode-header-toggle__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.testmode-header-toggle__hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 code {
   background: var(--bg-code);
   color: #f8fafc;
