@@ -6,6 +6,7 @@ import de.feuerwehr.manager.unit.UnitService;
 import de.feuerwehr.manager.user.UserRole;
 import java.util.Base64;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -148,6 +149,10 @@ public class AdminGlobalController {
             redirectAttributes.addFlashAttribute("message", "Einheit wurde gelöscht.");
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
+        } catch (DataIntegrityViolationException e) {
+            redirectAttributes.addFlashAttribute(
+                    "error",
+                    "Einheit kann nicht gelöscht werden: Es bestehen noch Abhängigkeiten in der Datenbank.");
         }
         return "redirect:/admin?scope=global&tab=einheiten";
     }

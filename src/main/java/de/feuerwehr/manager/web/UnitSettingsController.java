@@ -3,6 +3,7 @@ package de.feuerwehr.manager.web;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -79,6 +80,11 @@ public class UnitSettingsController {
             return "redirect:/settings/units";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return "redirect:/settings/units/" + id;
+        } catch (DataIntegrityViolationException e) {
+            redirectAttributes.addFlashAttribute(
+                    "error",
+                    "Einheit kann nicht gelöscht werden: Es bestehen noch Abhängigkeiten in der Datenbank.");
             return "redirect:/settings/units/" + id;
         }
     }

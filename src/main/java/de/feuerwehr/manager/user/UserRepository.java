@@ -3,6 +3,7 @@ package de.feuerwehr.manager.user;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -113,4 +114,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
             ORDER BY u.username
             """)
     List<User> findUnitAdminsByUnitId(@Param("unitId") long unitId);
+
+    @Modifying
+    @Query("UPDATE User u SET u.organizationalRole = null WHERE u.organizationalRole IS NOT NULL AND u.organizationalRole.unit.id = :unitId")
+    void clearOrganizationalRolesByUnitId(@Param("unitId") long unitId);
+
+    @Modifying
+    @Query("UPDATE User u SET u.unit = null WHERE u.unit.id = :unitId")
+    void clearUnitAssignmentByUnitId(@Param("unitId") long unitId);
 }

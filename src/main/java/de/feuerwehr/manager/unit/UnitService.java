@@ -2,6 +2,7 @@ package de.feuerwehr.manager.unit;
 
 import de.feuerwehr.manager.personal.PersonRepository;
 import de.feuerwehr.manager.security.AppUserDetails;
+import de.feuerwehr.manager.user.UserRepository;
 import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.settings.TestModeService;
 import java.util.List;
@@ -21,6 +22,7 @@ public class UnitService {
     private final TestModeService testModeService;
     private final UnitSelectionService unitSelectionService;
     private final ModuleSettingsService moduleSettingsService;
+    private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
     public List<Unit> findAllOrdered() {
@@ -142,6 +144,8 @@ public class UnitService {
                             + personCount
                             + " Personen erfasst. Zuerst Personen löschen oder Einheit deaktivieren.");
         }
+        userRepository.clearOrganizationalRolesByUnitId(id);
+        userRepository.clearUnitAssignmentByUnitId(id);
         unitRepository.delete(unit);
         unitSelectionService.getRemembered().filter(remembered -> remembered.equals(id)).ifPresent(ignored -> unitSelectionService.clear());
     }
