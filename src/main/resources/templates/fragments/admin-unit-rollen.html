@@ -8,7 +8,7 @@
       <button type="button" class="btn btn--primary btn--sm" data-open-modal="modal-unit-role">+ Rolle anlegen</button>
     </div>
     <div class="card__body card__body--flush">
-      <p class="hint hint--pad">Die Standardrolle „Benutzer“ definiert die Modul-Rechte für normale Konten. Dienstgrade und Zusatzfunktionen können Benutzern zusätzlich zugewiesen werden.</p>
+      <p class="hint hint--pad">Dienstgrade und Zusatzfunktionen werden getrennt verwaltet. Die Standardrolle „Benutzer“ ist ein Dienstgrad mit voreingestellten Modul-Rechten für neue Konten.</p>
       <div class="table-wrapper" th:if="${!#lists.isEmpty(unitRoles)}">
         <table class="table">
           <thead>

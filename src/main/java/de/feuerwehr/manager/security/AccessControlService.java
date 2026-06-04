@@ -24,13 +24,13 @@ public class AccessControlService {
         if (actor == null || target == null) {
             return false;
         }
+        if (target.getRole() == UserRole.SUPER_ADMIN) {
+            return actor.getRole().isSuperAdmin();
+        }
         if (actor.getRole().isSuperAdmin()) {
             return true;
         }
         if (!actor.getRole().isUnitAdmin()) {
-            return false;
-        }
-        if (target.getRole() == UserRole.SUPER_ADMIN || target.getRole().isAssignableOnlyBySuperAdmin()) {
             return false;
         }
         Long actorUnit = actor.getUnitId();
@@ -42,9 +42,6 @@ public class AccessControlService {
         if (!canManageUser(actor, target)) {
             if (target != null && target.getRole() == UserRole.SUPER_ADMIN) {
                 throw new IllegalArgumentException("Superadmin-Konten können nur vom Superadmin verwaltet werden.");
-            }
-            if (target != null && target.getRole().isAssignableOnlyBySuperAdmin()) {
-                throw new IllegalArgumentException("Keine Berechtigung zur Verwaltung dieses Kontos");
             }
             throw new IllegalArgumentException("Kein Zugriff auf diesen Benutzer");
         }

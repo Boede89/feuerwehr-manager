@@ -1270,6 +1270,20 @@ code {
   gap: 6px;
 }
 
+.fn-check-label {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.fn-check-label strong {
+  font-weight: 600;
+}
+
 .badge-success {
   display: inline-block;
   padding: 2px 8px;

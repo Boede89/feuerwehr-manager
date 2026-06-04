@@ -38,7 +38,7 @@ public enum UserRole {
             return EnumSet.allOf(UserRole.class);
         }
         if (actorRole == UNIT_ADMIN) {
-            return EnumSet.of(USER);
+            return EnumSet.of(USER, UNIT_ADMIN);
         }
         return EnumSet.noneOf(UserRole.class);
     }

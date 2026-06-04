@@ -10,6 +10,9 @@ import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
 import de.feuerwehr.manager.unit.UnitRole;
 import de.feuerwehr.manager.unit.UnitRoleService;
+import de.feuerwehr.manager.unit.UserUnitFunction;
+import de.feuerwehr.manager.unit.UserUnitFunctionId;
+import de.feuerwehr.manager.unit.UserUnitFunctionRepository;
 import de.feuerwehr.manager.web.dto.UserDataExport;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
@@ -33,6 +36,7 @@ public class UserManagementService {
     private final PersonUserLinkService personUserLinkService;
     private final UserService userService;
     private final UnitRoleService unitRoleService;
+    private final UserUnitFunctionRepository userUnitFunctionRepository;
 
     public List<User> listAccounts(AppUserDetails actor) {
         return listAccounts(actor, null);
@@ -53,7 +57,7 @@ public class UserManagementService {
             return userRepository.findAllByAnonymizedAtIsNullWithUnitOrderByUsernameAsc();
         }
         if (actor != null && actor.getRole().isUnitAdmin() && actor.getUnitId() != null) {
-            return userRepository.findUnitMemberAccountsByUnitId(actor.getUnitId());
+            return userRepository.findUnitScopedAccountsByUnitId(actor.getUnitId());
         }
         return List.of();
     }
@@ -90,7 +94,7 @@ public class UserManagementService {
         user.setActive(true);
         user.setPasswordHash(passwordEncoder.encode(plainPassword));
         applyUnit(user, unitId, actor);
-        applyOrganizationalRole(user, organizationalRoleId);
+        applyDienstgrad(user, organizationalRoleId);
         User saved = userRepository.findByIdWithUnit(userRepository.save(user).getId()).orElseThrow();
         if (rfidCardUid != null && !rfidCardUid.isBlank()) {
             registerRfidCard(saved.getId(), rfidCardUid, rfidLabel, actor, request);
@@ -196,7 +200,8 @@ public class UserManagementService {
         user.setRole(role);
         user.setActive(active);
         applyUnit(user, unitId, actor);
-        applyOrganizationalRole(user, organizationalRoleId);
+        clearFunctionsIfPrivileged(user);
+        applyDienstgrad(user, organizationalRoleId);
         User saved = userRepository.findByIdWithUnit(userRepository.save(user).getId()).orElseThrow();
         personUserLinkService.ensurePersonForUser(saved);
         auditService.record(
@@ -341,25 +346,91 @@ public class UserManagementService {
         return "****" + uid.substring(uid.length() - 4);
     }
 
-    private void applyOrganizationalRole(User user, Long organizationalRoleId) {
+    @Transactional(readOnly = true)
+    public List<UnitRole> listUserFunctions(long userId) {
+        return userUnitFunctionRepository.findByUserIdWithRoleOrderByRoleNameAsc(userId).stream()
+                .map(UserUnitFunction::getRole)
+                .toList();
+    }
+
+    @Transactional
+    public void assignDienstgrad(
+            long userId, Long dienstgradRoleId, AppUserDetails actor, HttpServletRequest request) {
+        User user = userRepository.findByIdWithUnit(userId).orElseThrow();
+        accessControlService.requireCanManageUser(actor, user);
+        if (user.getRole() != UserRole.USER) {
+            throw new IllegalArgumentException("Dienstgrade sind nur für Benutzer mit Systemrolle „Benutzer“ verfügbar.");
+        }
+        applyDienstgrad(user, dienstgradRoleId);
+        userRepository.save(user);
+        auditService.record(
+                AuditEventType.USER_UPDATED,
+                actor.getUserId(),
+                userId,
+                request,
+                "Dienstgrad zugewiesen");
+    }
+
+    @Transactional
+    public void assignFunction(long userId, long roleId, AppUserDetails actor, HttpServletRequest request) {
+        User user = userRepository.findByIdWithUnit(userId).orElseThrow();
+        accessControlService.requireCanManageUser(actor, user);
+        if (user.getRole() != UserRole.USER) {
+            throw new IllegalArgumentException("Zusatzfunktionen sind nur für normale Benutzer verfügbar.");
+        }
+        if (user.getUnit() == null) {
+            throw new IllegalArgumentException("Benutzer ohne Einheit.");
+        }
+        UnitRole funktion = unitRoleService.requireFunktionRole(user.getUnit().getId(), roleId);
+        if (userUnitFunctionRepository.existsByUserIdAndRoleId(userId, roleId)) {
+            return;
+        }
+        UserUnitFunction link = new UserUnitFunction();
+        link.setId(new UserUnitFunctionId(user.getId(), funktion.getId()));
+        link.setUser(user);
+        link.setRole(funktion);
+        userUnitFunctionRepository.save(link);
+        auditService.record(
+                AuditEventType.USER_UPDATED,
+                actor.getUserId(),
+                userId,
+                request,
+                "Zusatzfunktion zugewiesen: " + funktion.getName());
+    }
+
+    @Transactional
+    public void removeFunction(long userId, long roleId, AppUserDetails actor, HttpServletRequest request) {
+        User user = userRepository.findByIdWithUnit(userId).orElseThrow();
+        accessControlService.requireCanManageUser(actor, user);
+        userUnitFunctionRepository.deleteByUserIdAndRoleId(userId, roleId);
+        auditService.record(
+                AuditEventType.USER_UPDATED,
+                actor.getUserId(),
+                userId,
+                request,
+                "Zusatzfunktion entfernt");
+    }
+
+    private void clearFunctionsIfPrivileged(User user) {
+        if (user.getRole() != UserRole.USER) {
+            user.setOrganizationalRole(null);
+            userUnitFunctionRepository.deleteByUserId(user.getId());
+        }
+    }
+
+    private void applyDienstgrad(User user, Long dienstgradRoleId) {
         if (user.getRole() != UserRole.USER) {
             user.setOrganizationalRole(null);
             return;
         }
         if (user.getUnit() == null) {
-            throw new IllegalArgumentException("Benutzer ohne Einheit kann keine Einheitsrolle erhalten.");
+            throw new IllegalArgumentException("Benutzer ohne Einheit kann keinen Dienstgrad erhalten.");
         }
-        long unitId = user.getUnit().getId();
-        UnitRole role;
-        if (organizationalRoleId != null && organizationalRoleId > 0) {
-            role = unitRoleService.requireAssignableRole(unitId, organizationalRoleId);
-        } else {
-            unitRoleService.ensureSystemRoles(unitId);
-            role = unitRoleService.listRoles(unitId).stream()
-                    .filter(UnitRole::isSystemRole)
-                    .findFirst()
-                    .orElseThrow(() -> new IllegalArgumentException("Standardrolle „Benutzer“ fehlt."));
+        if (dienstgradRoleId == null || dienstgradRoleId <= 0) {
+            user.setOrganizationalRole(null);
+            return;
         }
+        UnitRole role = unitRoleService.requireDienstgradRole(user.getUnit().getId(), dienstgradRoleId);
         user.setOrganizationalRole(role);
     }
 

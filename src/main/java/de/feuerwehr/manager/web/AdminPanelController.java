@@ -190,15 +190,7 @@ public class AdminPanelController {
                 throw new IllegalArgumentException(
                         "Im globalen Adminpanel können nur Superadmin- und Einheitsadmin-Konten angelegt werden.");
             }
-            if ("einheit".equals(scope) && actor.getRole().isUnitAdmin()) {
-                role = UserRole.USER;
-            }
             Long effectiveUnitId = resolveEffectiveUnitId(scope, unitId, unitIdForm, role, actor);
-            if ("einheit".equals(scope)
-                    && role == UserRole.USER
-                    && (organizationalRoleId == null || organizationalRoleId <= 0)) {
-                throw new IllegalArgumentException("Bitte eine Einheitsrolle wählen.");
-            }
             User created = userManagementService.createUser(
                     username,
                     displayName,
@@ -239,9 +231,6 @@ public class AdminPanelController {
             RedirectAttributes redirectAttributes) {
         try {
             boolean isActive = "true".equalsIgnoreCase(active);
-            if ("einheit".equals(scope) && actor.getRole().isUnitAdmin()) {
-                role = UserRole.USER;
-            }
             Long effectiveUnitId = resolveEffectiveUnitId(scope, unitId, unitIdForm, role, actor);
             userManagementService.updateUser(
                     id,
@@ -256,6 +245,63 @@ public class AdminPanelController {
                     request);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Benutzer wurde gespeichert.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return redirectAfterUser(scope, unitId, actor);
+    }
+
+    @PostMapping("/users/{id}/dienstgrad")
+    public String assignDienstgrad(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @RequestParam(name = "scope") String scope,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "dienstgradRoleId", required = false) Long dienstgradRoleId,
+            HttpServletRequest request,
+            RedirectAttributes redirectAttributes) {
+        try {
+            userManagementService.assignDienstgrad(id, dienstgradRoleId, actor, request);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "Dienstgrad gespeichert.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return redirectAfterUser(scope, unitId, actor);
+    }
+
+    @PostMapping("/users/{id}/functions/assign")
+    public String assignFunction(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @RequestParam long roleId,
+            @RequestParam(name = "scope") String scope,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            HttpServletRequest request,
+            RedirectAttributes redirectAttributes) {
+        try {
+            userManagementService.assignFunction(id, roleId, actor, request);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "Zusatzfunktion zugewiesen.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return redirectAfterUser(scope, unitId, actor);
+    }
+
+    @PostMapping("/users/{id}/functions/remove")
+    public String removeFunction(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @RequestParam long roleId,
+            @RequestParam(name = "scope") String scope,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            HttpServletRequest request,
+            RedirectAttributes redirectAttributes) {
+        try {
+            userManagementService.removeFunction(id, roleId, actor, request);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "Zusatzfunktion entfernt.");
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
@@ -432,10 +478,23 @@ public class AdminPanelController {
 
     private void populateUnitUsersTab(Model model, AppUserDetails actor, long unitId) {
         unitRoleService.ensureSystemRoles(unitId);
-        populateAdminUsersTab(model, userManagementService.listAccounts(actor, unitId), actor);
-        model.addAttribute("unitAssignableRoles", unitRoleService.listRoles(unitId));
-        model.addAttribute("showOrganizationalRole", true);
-        model.addAttribute("unitUserManagement", true);
+        List<User> users = userManagementService.listAccounts(actor, unitId);
+        populateAdminUsersTab(model, users, actor);
+        model.addAttribute("unitDienstgrade", unitRoleService.listDienstgrade(unitId));
+        model.addAttribute("unitFunktionen", unitRoleService.listFunktionen(unitId));
+        model.addAttribute("showUnitUserRoles", true);
+        Map<Long, List<de.feuerwehr.manager.unit.UnitRole>> functionsByUserId = new LinkedHashMap<>();
+        for (User user : users) {
+            if (user.getRole() == UserRole.USER) {
+                functionsByUserId.put(user.getId(), userManagementService.listUserFunctions(user.getId()));
+            }
+        }
+        model.addAttribute("functionsByUserId", functionsByUserId);
+        Map<Long, String> functionPermissionLabels = new LinkedHashMap<>();
+        for (de.feuerwehr.manager.unit.UnitRole fn : unitRoleService.listFunktionen(unitId)) {
+            functionPermissionLabels.put(fn.getId(), unitRoleService.formatPermissionsLabel(fn));
+        }
+        model.addAttribute("functionPermissionLabels", functionPermissionLabels);
     }
 
     private void populateAdminUsersTab(Model model, List<User> users, AppUserDetails actor) {
@@ -500,9 +559,8 @@ public class AdminPanelController {
         model.addAttribute("showUnitPicker", actor.getRole().isSuperAdmin());
         if (scopeUnitId != null) {
             unitRoleService.ensureSystemRoles(scopeUnitId);
-            model.addAttribute("unitAssignableRoles", unitRoleService.listRoles(scopeUnitId));
-            model.addAttribute("showOrganizationalRole", true);
-            model.addAttribute("unitUserManagement", actor.getRole().isUnitAdmin());
+            model.addAttribute("unitDienstgrade", unitRoleService.listDienstgrade(scopeUnitId));
+            model.addAttribute("showUnitUserRoles", true);
         }
     }
 

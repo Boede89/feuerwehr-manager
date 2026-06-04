@@ -48,10 +48,40 @@ public class UnitRoleService {
 
     @Transactional(readOnly = true)
     public UnitRole requireAssignableRole(long unitId, long roleId) {
-        UnitRole role = unitRoleRepository
+        return unitRoleRepository
                 .findByIdAndUnitId(roleId, unitId)
-                .orElseThrow(() -> new IllegalArgumentException("Einheitsrolle nicht gefunden."));
+                .orElseThrow(() -> new IllegalArgumentException("Rolle nicht gefunden."));
+    }
+
+    public UnitRole requireDienstgradRole(long unitId, long roleId) {
+        UnitRole role = requireAssignableRole(unitId, roleId);
+        if (role.getRoleType() != UnitRoleType.DIENSTGRAD) {
+            throw new IllegalArgumentException("Nur Dienstgrade können als Dienstgrad zugewiesen werden.");
+        }
         return role;
+    }
+
+    public UnitRole requireFunktionRole(long unitId, long roleId) {
+        UnitRole role = requireAssignableRole(unitId, roleId);
+        if (role.getRoleType() != UnitRoleType.FUNKTION) {
+            throw new IllegalArgumentException("Nur Zusatzfunktionen können so zugewiesen werden.");
+        }
+        return role;
+    }
+
+    @Transactional(readOnly = true)
+    public List<UnitRole> listDienstgrade(long unitId) {
+        ensureSystemRoles(unitId);
+        return listRoles(unitId).stream()
+                .filter(r -> r.getRoleType() == UnitRoleType.DIENSTGRAD)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<UnitRole> listFunktionen(long unitId) {
+        return listRoles(unitId).stream()
+                .filter(r -> r.getRoleType() == UnitRoleType.FUNKTION)
+                .toList();
     }
 
     @Transactional
