@@ -262,7 +262,7 @@ public class UnitAdminService {
         return vehicleRepository.save(v);
     }
 
-    private static void applyVehicleForm(Vehicle v, VehicleFormData form) {
+    private void applyVehicleForm(Vehicle v, VehicleFormData form) {
         v.setName(requireName(form.name()));
         v.setDescription(trimToNull(form.description()));
         v.setVehicleType(unitVehicleTypeService.normalizeKey(v.getUnit().getId(), form.vehicleType()));
