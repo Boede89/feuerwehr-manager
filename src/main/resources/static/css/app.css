@@ -1371,35 +1371,25 @@ select.field {
   margin-bottom: 1.25rem;
 }
 
-.emergency-contact-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
-  align-items: start;
-  margin-bottom: 10px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--border);
+.emergency-contacts-hint {
+  margin-bottom: 1rem;
 }
 
-.emergency-contact-row:last-of-type {
-  border-bottom: none;
-}
-
-.emergency-contact-form {
+#emergency-contacts-list .ec-row {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr auto;
   gap: 8px;
   align-items: center;
+  margin-bottom: 8px;
 }
 
-.emergency-contact-form--new {
-  padding-top: 8px;
-  border-top: 1px dashed var(--border);
+#emergency-contacts-list .ec-actions {
+  flex-shrink: 0;
+  flex-wrap: nowrap;
 }
 
 @media (max-width: 720px) {
-  .emergency-contact-form,
-  .emergency-contact-form--new {
+  #emergency-contacts-list .ec-row {
     grid-template-columns: 1fr;
   }
 }

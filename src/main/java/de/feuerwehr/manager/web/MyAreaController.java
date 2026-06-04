@@ -2,7 +2,11 @@ package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.personal.MyAreaService;
 import de.feuerwehr.manager.security.AppUserDetails;
+import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -25,25 +29,40 @@ public class MyAreaController {
             Model model,
             @RequestParam(required = false, defaultValue = "profile") String tab) {
         MyAreaService.MyAreaView view = myAreaService.loadView(actor.getUserId(), actor.getUnitId());
+        String activeTab = normalizeTab(tab);
+        if (view.person() == null && ("qualifications".equals(activeTab) || "lehrgaenge".equals(activeTab))) {
+            return "redirect:/my-area?tab=profile";
+        }
         model.addAttribute("displayName", actor.getDisplayName());
         model.addAttribute("username", actor.getUsername());
-        model.addAttribute("myAreaTab", normalizeTab(tab));
+        model.addAttribute("myAreaTab", activeTab);
         model.addAttribute("person", view.person());
         model.addAttribute("emergencyContacts", view.emergencyContacts());
         model.addAttribute("completions", view.completions());
         model.addAttribute("hasLinkedPerson", view.person() != null);
+        model.addAttribute("loginEmail", view.user().getLoginEmail());
         return "my-area";
+    }
+
+    @GetMapping("/export")
+    public ResponseEntity<byte[]> exportData(@AuthenticationPrincipal AppUserDetails actor) {
+        byte[] body = myAreaService.exportUserData(actor.getUserId(), actor.getUnitId());
+        String filename = "daten-export-" + LocalDate.now() + ".json";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body);
     }
 
     @PostMapping("/contact")
     public String saveContact(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(required = false) String phone,
-            @RequestParam(required = false) String emailPrivate,
+            @RequestParam(required = false) String loginEmail,
             @RequestParam(required = false) String address,
             RedirectAttributes redirectAttributes) {
         try {
-            myAreaService.updateContact(actor.getUserId(), actor.getUnitId(), phone, emailPrivate, address);
+            myAreaService.updateContact(actor.getUserId(), actor.getUnitId(), phone, loginEmail, address);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Kontaktdaten gespeichert.");
         } catch (IllegalArgumentException e) {

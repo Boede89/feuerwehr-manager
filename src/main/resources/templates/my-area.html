@@ -15,22 +15,13 @@
     <a class="tab-btn" th:classappend="${myAreaTab == 'profile'} ? ' tab-btn--active' : ''"
        th:href="@{/my-area(tab='profile')}">Mein Profil</a>
     <a class="tab-btn" th:classappend="${myAreaTab == 'qualifications'} ? ' tab-btn--active' : ''"
-       th:href="@{/my-area(tab='qualifications')}">Qualifikationen</a>
+       th:href="@{/my-area(tab='qualifications')}" th:if="${hasLinkedPerson}">Qualifikationen</a>
     <a class="tab-btn" th:classappend="${myAreaTab == 'lehrgaenge'} ? ' tab-btn--active' : ''"
-       th:href="@{/my-area(tab='lehrgaenge')}">Lehrgänge</a>
-  </div>
-
-  <div th:if="${!hasLinkedPerson}" class="card card--narrow">
-    <div class="card__body">
-      <p class="hint" style="margin:0;">
-        Ihrem Benutzerkonto ist noch keine Person in der Einheit zugeordnet.
-        Bitte wenden Sie sich an die Verwaltung.
-      </p>
-    </div>
+       th:href="@{/my-area(tab='lehrgaenge')}" th:if="${hasLinkedPerson}">Lehrgänge</a>
   </div>
 
   <!-- Tab: Profil -->
-  <div th:if="${myAreaTab == 'profile' and hasLinkedPerson}" class="my-area-tab-panel">
+  <div th:if="${myAreaTab == 'profile'}" class="my-area-tab-panel">
     <div class="card card--narrow">
       <div class="card__header">Benutzerkonto</div>
       <div class="card__body">
@@ -50,43 +41,23 @@
     </div>
 
     <div class="card card--narrow mt-md">
-      <div class="card__header">Stammdaten (nur Anzeige)</div>
-      <div class="card__body">
-        <div class="form-grid form-grid--2">
-          <div class="form-group">
-            <label>Vorname</label>
-            <input type="text" th:value="${person.firstName}" disabled class="field--disabled"/>
-          </div>
-          <div class="form-group">
-            <label>Nachname</label>
-            <input type="text" th:value="${person.lastName}" disabled class="field--disabled"/>
-          </div>
-          <div class="form-group form-group--full" th:if="${person.email != null}">
-            <label>E-Mail (dienstlich)</label>
-            <input type="email" th:value="${person.email}" disabled class="field--disabled"/>
-          </div>
-        </div>
-        <p class="hint">Name und dienstliche E-Mail pflegt die Verwaltung im Personal-Modul.</p>
-      </div>
-    </div>
-
-    <div class="card card--narrow mt-md">
       <div class="card__header">Kontaktdaten</div>
       <div class="card__body">
         <form method="post" th:action="@{/my-area/contact}">
           <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
           <div class="form-grid form-grid--2">
-            <div class="form-group">
+            <div class="form-group" th:if="${hasLinkedPerson}">
               <label for="my-phone">Telefon</label>
               <input id="my-phone" name="phone" type="tel" maxlength="50" th:value="${person.phone}"
                      placeholder="z. B. 0170 1234567"/>
             </div>
-            <div class="form-group">
-              <label for="my-email-private">Private E-Mail</label>
-              <input id="my-email-private" name="emailPrivate" type="email" maxlength="255"
-                     th:value="${person.emailPrivate}" placeholder="max@beispiel.de"/>
+            <div class="form-group" th:classappend="${!hasLinkedPerson} ? ' form-group--full' : ''">
+              <label for="my-login-email">E-Mail-Adresse</label>
+              <input id="my-login-email" name="loginEmail" type="email" maxlength="255"
+                     th:value="${loginEmail}" placeholder="max@beispiel.de"/>
+              <p class="hint">Wird für die Anmeldung und Benachrichtigungen verwendet.</p>
             </div>
-            <div class="form-group form-group--full">
+            <div class="form-group form-group--full" th:if="${hasLinkedPerson}">
               <label for="my-address">Adresse (optional)</label>
               <input id="my-address" name="address" type="text" maxlength="200" th:value="${person.address}"
                      placeholder="Musterstraße 1, 12345 Musterstadt"/>
@@ -99,42 +70,77 @@
       </div>
     </div>
 
-    <div class="card card--narrow mt-md">
+    <div class="card card--narrow mt-md" th:if="${hasLinkedPerson}">
       <div class="card__header">Notfallkontakte</div>
       <div class="card__body">
-        <p class="hint">Werden im Einsatzfall benötigt — werden nur von Führungskräften eingesehen.</p>
-
-        <div th:if="${#lists.isEmpty(emergencyContacts)}" class="hint">Noch keine Notfallkontakte hinterlegt.</div>
-
-        <div th:each="c : ${emergencyContacts}" class="emergency-contact-row">
-          <form method="post" th:action="@{/my-area/emergency-contacts/update}" class="emergency-contact-form">
-            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-            <input type="hidden" name="contactId" th:value="${c.id}"/>
-            <input type="text" name="name" th:value="${c.name}" placeholder="Name" maxlength="100" required/>
-            <input type="tel" name="phone" th:value="${c.phone}" placeholder="Telefon" maxlength="50" required/>
-            <input type="text" name="relationship" th:value="${c.relationship}" placeholder="Beziehung (optional)"
+        <p class="hint emergency-contacts-hint">
+          Werden im Einsatzfall benötigt — werden nur von Führungskräften eingesehen.
+        </p>
+        <div id="emergency-contacts-list">
+          <p class="hint emergency-contacts-empty" th:if="${#lists.isEmpty(emergencyContacts)}"
+             id="emergency-contacts-empty-msg">Noch keine Notfallkontakte hinterlegt.</p>
+          <div th:each="c : ${emergencyContacts}" class="ec-row" th:attr="data-id=${c.id}">
+            <input type="text" class="ec-name field" th:value="${c.name}" placeholder="Name" maxlength="100"/>
+            <input type="tel" class="ec-phone field" th:value="${c.phone}" placeholder="Telefon" maxlength="50"/>
+            <input type="text" class="ec-rel field" th:value="${c.relationship}" placeholder="Beziehung (optional)"
                    maxlength="100"/>
-            <div class="btn-group">
-              <button type="submit" class="btn btn--primary btn--sm">Speichern</button>
+            <div class="btn-group ec-actions">
+              <form method="post" th:action="@{/my-area/emergency-contacts/update}" class="ec-save-form table-inline-form">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <input type="hidden" name="contactId" th:value="${c.id}" class="ec-contact-id"/>
+                <input type="hidden" name="name" class="ec-hidden-name"/>
+                <input type="hidden" name="phone" class="ec-hidden-phone"/>
+                <input type="hidden" name="relationship" class="ec-hidden-relationship"/>
+                <button type="submit" class="btn btn--primary btn--sm ec-save">Speichern</button>
+              </form>
+              <form method="post" th:action="@{/my-area/emergency-contacts/delete}" class="table-inline-form"
+                    data-confirm="Notfallkontakt wirklich löschen?">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <input type="hidden" name="contactId" th:value="${c.id}"/>
+                <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
+              </form>
             </div>
-          </form>
-          <form method="post" th:action="@{/my-area/emergency-contacts/delete}" class="table-inline-form"
-                data-confirm="Notfallkontakt wirklich löschen?">
-            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-            <input type="hidden" name="contactId" th:value="${c.id}"/>
-            <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
-          </form>
-        </div>
-
-        <form method="post" th:action="@{/my-area/emergency-contacts}" class="emergency-contact-form emergency-contact-form--new mt-md">
-          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-          <input type="text" name="name" placeholder="Name" maxlength="100" required/>
-          <input type="tel" name="phone" placeholder="Telefon" maxlength="50" required/>
-          <input type="text" name="relationship" placeholder="Beziehung (optional)" maxlength="100"/>
-          <div class="btn-group">
-            <button type="submit" class="btn btn--outline btn--sm">+ Neuer Notfallkontakt</button>
           </div>
-        </form>
+        </div>
+        <div class="btn-group mt-md">
+          <button type="button" class="btn btn--outline btn--sm" id="btn-add-emergency">+ Neuer Notfallkontakt</button>
+        </div>
+        <template id="ec-row-template">
+          <div class="ec-row ec-row--new" data-id="new">
+            <input type="text" class="ec-name field" value="" placeholder="Name" maxlength="100"/>
+            <input type="tel" class="ec-phone field" value="" placeholder="Telefon" maxlength="50"/>
+            <input type="text" class="ec-rel field" value="" placeholder="Beziehung (optional)" maxlength="100"/>
+            <div class="btn-group ec-actions">
+              <form method="post" th:action="@{/my-area/emergency-contacts}" class="ec-create-form table-inline-form">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <input type="hidden" name="name" class="ec-hidden-name"/>
+                <input type="hidden" name="phone" class="ec-hidden-phone"/>
+                <input type="hidden" name="relationship" class="ec-hidden-relationship"/>
+                <button type="submit" class="btn btn--primary btn--sm">Speichern</button>
+              </form>
+              <button type="button" class="btn btn--danger btn--sm ec-cancel-new">Entfernen</button>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <div class="card card--narrow mt-md">
+      <div class="card__header">Datenschutz (Art. 15 DSGVO)</div>
+      <div class="card__body">
+        <p class="hint">
+          Sie haben das Recht, alle über Sie gespeicherten Daten als Kopie zu erhalten.
+        </p>
+        <a class="btn btn--outline" th:href="@{/my-area/export}">Meine Daten exportieren (JSON)</a>
+      </div>
+    </div>
+
+    <div th:if="${!hasLinkedPerson}" class="card card--narrow mt-md">
+      <div class="card__body">
+        <p class="hint" style="margin:0;">
+          Für Telefon, Adresse und Notfallkontakte muss Ihrem Benutzerkonto eine Person in der Einheit zugeordnet sein.
+          Bitte wenden Sie sich an die Verwaltung.
+        </p>
       </div>
     </div>
   </div>
