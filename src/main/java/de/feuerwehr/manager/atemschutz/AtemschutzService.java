@@ -1,9 +1,9 @@
 package de.feuerwehr.manager.atemschutz;
 
 import de.feuerwehr.manager.personal.Person;
+import de.feuerwehr.manager.personal.PersonCourseCompletionRepository;
 import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.security.AppUserDetails;
-import de.feuerwehr.manager.settings.GlobalSettingsService;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
@@ -12,9 +12,11 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,32 +29,55 @@ public class AtemschutzService {
     private final PersonalService personalService;
     private final AtemschutzCarrierRepository carrierRepository;
     private final AtemschutzFitnessRecordRepository fitnessRecordRepository;
+    private final PersonCourseCompletionRepository completionRepository;
+    private final AtemschutzSettingsService atemschutzSettingsService;
     private final TestModeService testModeService;
-    private final GlobalSettingsService globalSettingsService;
 
     @Transactional(readOnly = true)
-    public int warnDays() {
-        return globalSettingsService.get().getQualificationWarnDays();
+    public int warnDays(long unitId) {
+        return atemschutzSettingsService.warnDays(unitId);
     }
 
-    @Transactional(readOnly = true)
-    public List<CarrierOverview> listCarrierOverviews(long unitId, boolean includeHealthDetails) {
+    @Transactional
+    public CarrierListResult listCarrierOverviews(long unitId, boolean includeHealthDetails, String filter) {
+        syncCarriersFromAgt(unitId);
         boolean testData = testModeService.isEnabled();
         List<AtemschutzCarrier> carriers = carrierRepository.findByUnitId(unitId, testData);
         if (carriers.isEmpty()) {
-            return List.of();
+            return new CarrierListResult(List.of(), new CarrierListStats(0, 0, 0), atemschutzSettingsService.agtCourseName(unitId));
         }
         List<Long> carrierIds = carriers.stream().map(AtemschutzCarrier::getId).toList();
-        Map<Long, AtemschutzFitnessRecord> latestG26 = latestRecordsByCarrier(carrierIds, AtemschutzFitnessType.G26_UNTERSUCHUNG, testData);
-        int warnDays = warnDays();
+        int warnDays = warnDays(unitId);
         LocalDate today = LocalDate.now();
-        List<CarrierOverview> result = new ArrayList<>();
+        Map<Long, AtemschutzFitnessRecord> latestG26 =
+                latestRecordsByCarrier(carrierIds, AtemschutzFitnessType.G26_UNTERSUCHUNG, testData);
+        Map<Long, AtemschutzFitnessRecord> latestUebung =
+                latestRecordsByCarrier(carrierIds, AtemschutzFitnessType.UEBUNG, testData);
+        Map<Long, AtemschutzFitnessRecord> latestStrecke =
+                latestRecordsByCarrier(carrierIds, AtemschutzFitnessType.STRECKEN, testData);
+        List<CarrierOverview> all = new ArrayList<>();
         for (AtemschutzCarrier carrier : carriers) {
-            AtemschutzFitnessRecord g26 = latestG26.get(carrier.getId());
-            FitnessStatusView g26View = toFitnessView(g26, warnDays, today, includeHealthDetails);
-            result.add(new CarrierOverview(carrier, g26View));
+            Map<AtemschutzFitnessType, FitnessStatusView> summaries = new EnumMap<>(AtemschutzFitnessType.class);
+            summaries.put(
+                    AtemschutzFitnessType.G26_UNTERSUCHUNG,
+                    toFitnessView(latestG26.get(carrier.getId()), warnDays, today, includeHealthDetails));
+            summaries.put(
+                    AtemschutzFitnessType.UEBUNG,
+                    toFitnessView(latestUebung.get(carrier.getId()), warnDays, today, includeHealthDetails));
+            summaries.put(
+                    AtemschutzFitnessType.STRECKEN,
+                    toFitnessView(latestStrecke.get(carrier.getId()), warnDays, today, includeHealthDetails));
+            boolean overallTauglich = isOverallTauglich(summaries, carrier.getStatus());
+            all.add(new CarrierOverview(
+                    carrier,
+                    summaries.get(AtemschutzFitnessType.G26_UNTERSUCHUNG),
+                    summaries,
+                    overallTauglich));
         }
-        return result;
+        int tauglich = (int) all.stream().filter(CarrierOverview::overallTauglich).count();
+        CarrierListStats stats = new CarrierListStats(all.size(), tauglich, all.size() - tauglich);
+        List<CarrierOverview> filtered = applyFilter(all, filter);
+        return new CarrierListResult(filtered, stats, atemschutzSettingsService.agtCourseName(unitId));
     }
 
     @Transactional(readOnly = true)
@@ -67,7 +92,7 @@ public class AtemschutzService {
         AtemschutzCarrier carrier = requireCarrier(carrierId);
         boolean testData = testModeService.isEnabled();
         List<AtemschutzFitnessRecord> records = fitnessRecordRepository.findByCarrierId(carrierId, testData);
-        int warnDays = warnDays();
+        int warnDays = warnDays(carrier.getUnit().getId());
         LocalDate today = LocalDate.now();
         Map<AtemschutzFitnessType, FitnessStatusView> summaries = new EnumMap<>(AtemschutzFitnessType.class);
         for (AtemschutzFitnessType type : AtemschutzFitnessType.values()) {
@@ -84,35 +109,36 @@ public class AtemschutzService {
         return new CarrierDetailView(carrier, summaries, recordViews);
     }
 
-    @Transactional(readOnly = true)
-    public List<Person> listAssignablePersons(long unitId) {
-        boolean testData = testModeService.isEnabled();
-        List<Long> assigned = carrierRepository.findPersonIdsByUnitId(unitId, testData);
-        return personalService.listPersons(unitId).stream()
-                .filter(p -> !assigned.contains(p.getId()))
-                .toList();
-    }
-
     @Transactional
-    public AtemschutzCarrier registerCarrier(long unitId, long personId, AtemschutzCarrierStatus status, String notes) {
-        Person person = personalService.requirePerson(personId);
-        if (!person.getUnit().getId().equals(unitId)) {
-            throw new IllegalArgumentException("Person gehört nicht zur Einheit.");
-        }
-        if (carrierRepository.existsByPersonId(personId)) {
-            throw new IllegalArgumentException("Person ist bereits als Geräteträger erfasst.");
-        }
+    public void syncCarriersFromAgt(long unitId) {
+        boolean testData = testModeService.isEnabled();
+        String courseName = atemschutzSettingsService.agtCourseName(unitId);
+        List<Person> agtPersons =
+                completionRepository.findPersonsWithCompletedCourse(unitId, testData, courseName);
+        Set<Long> agtPersonIds = agtPersons.stream().map(Person::getId).collect(Collectors.toCollection(HashSet::new));
         Unit unit = unitRepository
                 .findVisibleById(unitId, testModeService.isEnabled())
                 .orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden"));
+        for (Person person : agtPersons) {
+            ensureCarrierForPerson(unit, person);
+        }
+        for (AtemschutzCarrier carrier : carrierRepository.findByUnitId(unitId, testData)) {
+            if (!agtPersonIds.contains(carrier.getPerson().getId())) {
+                carrierRepository.delete(carrier);
+            }
+        }
+    }
+
+    private void ensureCarrierForPerson(Unit unit, Person person) {
+        if (carrierRepository.existsByPersonId(person.getId())) {
+            return;
+        }
         AtemschutzCarrier carrier = new AtemschutzCarrier();
         carrier.setUnit(unit);
         carrier.setPerson(person);
-        carrier.setStatus(status != null ? status : AtemschutzCarrierStatus.ACTIVE);
-        carrier.setNotes(blankToNull(notes));
+        carrier.setStatus(AtemschutzCarrierStatus.ACTIVE);
         carrier.setTestData(testModeService.isEnabled());
-        carrier.setProductionSourceId(null);
-        return carrierRepository.save(carrier);
+        carrierRepository.save(carrier);
     }
 
     @Transactional
@@ -216,7 +242,7 @@ public class AtemschutzService {
     }
 
     private FitnessRecordView toRecordView(AtemschutzFitnessRecord record, boolean includeHealthDetails) {
-        int warnDays = warnDays();
+        int warnDays = warnDays(record.getCarrier().getUnit().getId());
         AtemschutzFitnessLevel level = computeLevel(record.getValidUntil(), warnDays, LocalDate.now());
         if (!includeHealthDetails && record.getRecordType().healthData()) {
             return new FitnessRecordView(
@@ -254,7 +280,43 @@ public class AtemschutzService {
         return value.trim();
     }
 
-    public record CarrierOverview(AtemschutzCarrier carrier, FitnessStatusView g26) {}
+    public static boolean isOverallTauglich(
+            Map<AtemschutzFitnessType, FitnessStatusView> summaries, AtemschutzCarrierStatus status) {
+        if (status != AtemschutzCarrierStatus.ACTIVE) {
+            return false;
+        }
+        for (AtemschutzFitnessType type : AtemschutzFitnessType.values()) {
+            FitnessStatusView view = summaries.get(type);
+            if (view == null || view.level() != AtemschutzFitnessLevel.OK) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static List<CarrierOverview> applyFilter(List<CarrierOverview> carriers, String filter) {
+        if (filter == null || filter.isBlank() || "all".equalsIgnoreCase(filter)) {
+            return carriers;
+        }
+        if ("tauglich".equalsIgnoreCase(filter)) {
+            return carriers.stream().filter(CarrierOverview::overallTauglich).toList();
+        }
+        if ("nicht_tauglich".equalsIgnoreCase(filter) || "nichttauglich".equalsIgnoreCase(filter)) {
+            return carriers.stream().filter(row -> !row.overallTauglich()).toList();
+        }
+        return carriers;
+    }
+
+    public record CarrierListResult(
+            List<CarrierOverview> carriers, CarrierListStats stats, String agtCourseName) {}
+
+    public record CarrierListStats(int total, int tauglich, int nichtTauglich) {}
+
+    public record CarrierOverview(
+            AtemschutzCarrier carrier,
+            FitnessStatusView g26,
+            Map<AtemschutzFitnessType, FitnessStatusView> summaries,
+            boolean overallTauglich) {}
 
     public record CarrierDetailView(
             AtemschutzCarrier carrier,

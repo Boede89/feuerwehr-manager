@@ -38,13 +38,9 @@
           <button type="submit" class="btn btn--primary">Speichern</button>
         </div>
       </form>
-      <form method="post" th:if="${isAdmin}" class="mt-md"
-            th:action="@{/atemschutz/carriers/{id}/delete(id=${carrier.id})}"
-            data-confirm="Geräteträger wirklich entfernen? Alle Nachweise werden gelöscht.">
-        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-        <input type="hidden" name="unit" th:value="${unitId}"/>
-        <button type="submit" class="btn btn--outline btn--danger btn--sm">Geräteträger entfernen</button>
-      </form>
+      <p class="hint" style="margin-top:0.75rem;">
+        Die Zuordnung als Geräteträger erfolgt automatisch über den abgeschlossenen AGT-Lehrgang im Personal.
+      </p>
     </div>
   </div>
 

@@ -2703,6 +2703,49 @@ span.required { color: var(--error); }
   margin-bottom: 0.35rem;
 }
 
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1rem 0 1.25rem;
+}
+@media (max-width: 720px) {
+  .kpi-grid { grid-template-columns: 1fr; }
+}
+.kpi-card {
+  display: block;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 12px);
+  background: var(--card, #fff);
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.kpi-card:hover {
+  box-shadow: 0 0.35rem 1rem rgba(0, 0, 0, 0.08);
+  text-decoration: none;
+}
+.kpi-card--active {
+  border-color: var(--accent, #3b82f6);
+  box-shadow: 0 0 0 1px var(--accent, #3b82f6);
+}
+.kpi-card__label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+.kpi-card__value {
+  display: block;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.kpi-card__value--success { color: var(--gruen, #16a34a); }
+.kpi-card__value--danger { color: var(--error, #dc2626); }
+.card--nested { border-style: dashed; }
+
 /* Topnav Personal-Dropdown (FW-Hub) */
 .topnav__item-group { display: flex; align-items: stretch; }
 .topnav__item--has-dd { border-top-right-radius: 0; border-bottom-right-radius: 0; padding-right: 0.35rem; }

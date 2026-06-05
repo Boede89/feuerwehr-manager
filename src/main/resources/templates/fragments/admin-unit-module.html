@@ -21,8 +21,12 @@
             </div>
           </div>
           <div class="module-row__actions">
-            <button type="button" class="btn btn--outline btn--sm" disabled
-                    title="Modul-Einstellungen folgen in einer späteren Version">Einstellungen</button>
+            <a th:if="${m.key == 'atemschutz' and m.implemented and modulesEnabled.get(m)}"
+               class="btn btn--outline btn--sm"
+               th:href="@{/settings/atemschutz(unit=${unitId})}">Einstellungen</a>
+            <button type="button" class="btn btn--outline btn--sm"
+                    th:unless="${m.key == 'atemschutz' and m.implemented and modulesEnabled.get(m)}"
+                    disabled title="Modul-Einstellungen folgen in einer späteren Version">Einstellungen</button>
             <label class="toggle-switch">
               <input type="checkbox"
                      th:name="${'module_' + m.key}"

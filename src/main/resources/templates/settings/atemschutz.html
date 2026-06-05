@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('Atemschutz-Einstellungen', ~{::main})}">
+<main>
+  <div class="page-header">
+    <div>
+      <h2>Atemschutz-Einstellungen</h2>
+      <p th:text="${currentUnitName}">Einheit</p>
+    </div>
+    <a class="btn btn--outline btn--sm" th:href="@{/admin(scope='einheit', tab='module', unit=${unitId})}">← Module</a>
+  </div>
+
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
+
+  <nav class="tab-bar" aria-label="Atemschutz-Einstellungen">
+    <a class="tab-btn" th:classappend="${activeTab == 'warnschwelle'} ? ' tab-btn--active' : ''"
+       th:href="@{/settings/atemschutz(unit=${unitId}, tab='warnschwelle')}">Warnschwelle</a>
+    <a class="tab-btn" th:classappend="${activeTab == 'email'} ? ' tab-btn--active' : ''"
+       th:href="@{/settings/atemschutz(unit=${unitId}, tab='email')}">E-Mail-Vorlagen</a>
+    <a class="tab-btn" th:classappend="${activeTab == 'benachrichtigungen'} ? ' tab-btn--active' : ''"
+       th:href="@{/settings/atemschutz(unit=${unitId}, tab='benachrichtigungen')}">Benachrichtigungen</a>
+    <a class="tab-btn" th:classappend="${activeTab == 'cc'} ? ' tab-btn--active' : ''"
+       th:href="@{/settings/atemschutz(unit=${unitId}, tab='cc')}">E-Mail CC</a>
+  </nav>
+
+  <div class="card card--narrow mt-md" th:if="${activeTab == 'warnschwelle'}">
+    <div class="card__header">Warnschwelle &amp; Lehrgang</div>
+    <div class="card__body">
+      <form method="post" th:action="@{/settings/atemschutz/warnschwelle}" class="form-grid form-grid--2">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <div class="form-group">
+          <label for="warnDays">Warnschwelle (Tage bis Ablauf)</label>
+          <input id="warnDays" name="warnDays" type="number" min="0" max="365" required th:value="${settings.warnDays}"/>
+          <p class="hint">Gelb markiert, wenn ein Nachweis innerhalb dieser Tage abläuft.</p>
+        </div>
+        <div class="form-group">
+          <label for="agtCourseName">Lehrgang für Geräteträger</label>
+          <input id="agtCourseName" name="agtCourseName" type="text" maxlength="64" required
+                 th:value="${settings.agtCourseName}"/>
+          <p class="hint">Name des Lehrgangs im Personal (z. B. AGT). Abgeschlossen = automatisch Geräteträger.</p>
+        </div>
+        <div class="form-group form-group--full">
+          <button type="submit" class="btn btn--primary">Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card mt-md" th:if="${activeTab == 'email'}">
+    <div class="card__header">E-Mail-Vorlagen</div>
+    <div class="card__body">
+      <p class="hint">Platzhalter: <code>{first_name}</code>, <code>{last_name}</code>, <code>{expiry_date}</code></p>
+      <form method="post" th:action="@{/settings/atemschutz/email-templates}">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <div th:each="tpl : ${emailTemplates}" class="card card--nested mt-md">
+          <div class="card__header" th:text="${tpl.templateName}">Vorlage</div>
+          <div class="card__body form-grid">
+            <div class="form-group form-group--full">
+              <label th:attr="for=${'subject-' + tpl.templateKey}">Betreff</label>
+              <input th:id="${'subject-' + tpl.templateKey}" th:name="${'subject_' + tpl.templateKey}"
+                     type="text" maxlength="255" required th:value="${tpl.subject}"/>
+            </div>
+            <div class="form-group form-group--full">
+              <label th:attr="for=${'body-' + tpl.templateKey}">Text</label>
+              <textarea th:id="${'body-' + tpl.templateKey}" th:name="${'body_' + tpl.templateKey}"
+                        rows="8" required th:text="${tpl.body}"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="btn-group mt-md">
+          <button type="submit" class="btn btn--primary">Vorlagen speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card card--narrow mt-md" th:if="${activeTab == 'benachrichtigungen'}">
+    <div class="card__header">Benachrichtigungen bei neuen Anträgen</div>
+    <div class="card__body">
+      <p class="hint">Welche Benutzer bei neuen Atemschutz-Vorgängen informiert werden (E-Mail-Versand folgt).</p>
+      <form method="post" th:action="@{/settings/atemschutz/notifications}">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <div class="form-group form-group--full" th:if="${!#lists.isEmpty(unitUsers)}">
+          <div th:each="u : ${unitUsers}" class="checkbox-row">
+            <label class="checkbox-row">
+              <input type="checkbox" name="notificationUserIds" th:value="${u.id}"
+                     th:checked="${notificationUserIds.contains(u.id)}"/>
+              <span th:text="${u.displayName + ' (' + u.username + ')'}">User</span>
+            </label>
+          </div>
+        </div>
+        <p class="hint" th:if="${#lists.isEmpty(unitUsers)}">Keine Benutzer in dieser Einheit.</p>
+        <button type="submit" class="btn btn--primary mt-md">Speichern</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card card--narrow mt-md" th:if="${activeTab == 'cc'}">
+    <div class="card__header">CC bei Erinnerungs- und Aufforderungs-Mails</div>
+    <div class="card__body">
+      <form method="post" th:action="@{/settings/atemschutz/cc}">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <div class="form-group form-group--full" th:if="${!#lists.isEmpty(unitUsers)}">
+          <div th:each="u : ${unitUsers}" class="checkbox-row">
+            <label class="checkbox-row">
+              <input type="checkbox" name="ccUserIds" th:value="${u.id}"
+                     th:checked="${ccUserIds.contains(u.id)}"/>
+              <span th:text="${u.displayName + ' (' + u.username + ')'}">User</span>
+            </label>
+          </div>
+        </div>
+        <p class="hint" th:if="${#lists.isEmpty(unitUsers)}">Keine Benutzer in dieser Einheit.</p>
+        <button type="submit" class="btn btn--primary mt-md">Speichern</button>
+      </form>
+    </div>
+  </div>
+</main>
+</html>

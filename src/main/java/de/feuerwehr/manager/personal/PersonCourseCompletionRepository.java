@@ -22,4 +22,20 @@ public interface PersonCourseCompletionRepository extends JpaRepository<PersonCo
     List<Long> findPersonIdsByCourseId(@Param("courseId") long courseId);
 
     void deleteByPersonId(long personId);
+
+    @Query("""
+            SELECT DISTINCT cc.person FROM PersonCourseCompletion cc
+            JOIN cc.person p
+            JOIN cc.course c
+            WHERE p.unit.id = :unitId
+              AND p.anonymizedAt IS NULL
+              AND p.testData = :testData
+              AND LOWER(TRIM(c.name)) = LOWER(TRIM(:courseName))
+              AND (cc.completedOn IS NOT NULL OR cc.completionYear IS NOT NULL)
+            ORDER BY p.lastName, p.firstName
+            """)
+    List<de.feuerwehr.manager.personal.Person> findPersonsWithCompletedCourse(
+            @Param("unitId") long unitId,
+            @Param("testData") boolean testData,
+            @Param("courseName") String courseName);
 }
