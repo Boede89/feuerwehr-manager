@@ -84,11 +84,6 @@ public class WebUiAdvice {
         return securityProperties.minPasswordLength();
     }
 
-    @ModelAttribute("smtpConfigured")
-    public boolean smtpConfigured() {
-        return accountMailService.canSendMail();
-    }
-
     @ModelAttribute("userTheme")
     public String userTheme(@AuthenticationPrincipal AppUserDetails user) {
         if (user == null) {
@@ -116,6 +111,7 @@ public class WebUiAdvice {
         unitService.resolveActiveUnit(unitParam, user).ifPresent(u -> {
             model.addAttribute("unitId", u.getId());
             model.addAttribute("currentUnitName", u.getName());
+            model.addAttribute("smtpConfigured", accountMailService.canSendMailForUnit(u.getId()));
         });
     }
 

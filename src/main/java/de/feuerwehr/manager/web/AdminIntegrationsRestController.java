@@ -62,7 +62,7 @@ public class AdminIntegrationsRestController {
                             "Bitte in der Tabelle beim gewünschten Konto auf „Test“ klicken.");
                 }
             }
-            Optional<String> err = smtpMailService.sendTestMail(unitSmtp, globalSettingsService.get(), to);
+            Optional<String> err = smtpMailService.sendTestMail(unitSmtp, to);
             if (err.isPresent()) {
                 return ActionResultDto.failure(err.get());
             }

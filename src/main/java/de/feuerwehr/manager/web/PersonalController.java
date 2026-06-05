@@ -12,6 +12,7 @@ import de.feuerwehr.manager.personal.PersonalMemberService;
 import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.personal.PersonGroup;
 import de.feuerwehr.manager.personal.PersonalService.CourseCompletionInput;
+import de.feuerwehr.manager.mail.AccountMailService;
 import de.feuerwehr.manager.personal.PersonalService.PersonCreateResult;
 import de.feuerwehr.manager.personal.PersonalService.PersonDetailView;
 import de.feuerwehr.manager.personal.PersonalService.StammdatenUpdateResult;
@@ -55,6 +56,7 @@ public class PersonalController {
     private final PersonalMemberService personalMemberService;
     private final PersonalGroupService personalGroupService;
     private final AccessControlService accessControlService;
+    private final AccountMailService accountMailService;
 
     @GetMapping
     public String index(
@@ -682,6 +684,7 @@ public class PersonalController {
         model.addAttribute("isNewPerson", true);
         model.addAttribute("person", person);
         model.addAttribute("activeTab", activeTab);
+        model.addAttribute("smtpConfigured", accountMailService.canSendMailForUnit(unit.getId()));
     }
 
     private String memberAction(
@@ -716,6 +719,7 @@ public class PersonalController {
         model.addAttribute("attendanceDisplay", personalMemberService.displayAttendanceStats(personId));
         model.addAttribute("attendanceRecords", personalMemberService.listAttendance(personId));
         model.addAttribute("attendanceServiceTypes", AttendanceServiceType.values());
+        model.addAttribute("smtpConfigured", accountMailService.canSendMailForUnit(person.getUnit().getId()));
         populatePersonDetailData(model, person.getUnit().getId(), detail);
     }
 

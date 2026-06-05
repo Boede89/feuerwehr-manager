@@ -187,7 +187,7 @@ public class PersonalService {
         String createdUsername = null;
         if (allowLogin) {
             requireEmailForLogin(email);
-            InitialPasswordPlan plan = planInitialPassword(passwordDelivery, manualPassword);
+            InitialPasswordPlan plan = planInitialPassword(unitId, passwordDelivery, manualPassword);
             String username = userManagementService.allocateUniqueUsername(firstName, lastName);
             User user = userManagementService.createUserForPerson(
                     username,
@@ -199,7 +199,7 @@ public class PersonalService {
                     request);
             linkedUserId = user.getId();
             createdUsername = username;
-            InitialPasswordDelivery delivery = deliverInitialPassword(plan, user);
+            InitialPasswordDelivery delivery = deliverInitialPassword(plan, user, unitId);
             displayPassword = delivery.displayPassword();
             mailNotice = delivery.mailNotice();
         }
@@ -257,20 +257,21 @@ public class PersonalService {
             String loginEmail = resolveLoginEmail(person);
             requireEmailForLogin(loginEmail);
             if (person.getUser() == null) {
-                InitialPasswordPlan plan = planInitialPassword(passwordDelivery, manualPassword);
+                long unitId = person.getUnit().getId();
+                InitialPasswordPlan plan = planInitialPassword(unitId, passwordDelivery, manualPassword);
                 String username =
                         userManagementService.allocateUniqueUsername(person.getFirstName(), person.getLastName());
                 User user = userManagementService.createUserForPerson(
                         username,
                         person.displayName(),
                         plan.password(),
-                        person.getUnit().getId(),
+                        unitId,
                         loginEmail,
                         actor.getUserId(),
                         request);
                 person.setUser(user);
                 createdUsername = username;
-                InitialPasswordDelivery delivery = deliverInitialPassword(plan, user);
+                InitialPasswordDelivery delivery = deliverInitialPassword(plan, user, unitId);
                 displayPassword = delivery.displayPassword();
                 mailNotice = delivery.mailNotice();
             } else {
@@ -768,11 +769,11 @@ public class PersonalService {
         }
     }
 
-    private InitialPasswordPlan planInitialPassword(String passwordDelivery, String manualPassword) {
+    private InitialPasswordPlan planInitialPassword(long unitId, String passwordDelivery, String manualPassword) {
         if ("email".equals(passwordDelivery)) {
-            if (!accountMailService.canSendMail()) {
+            if (!accountMailService.canSendMailForUnit(unitId)) {
                 throw new IllegalArgumentException(
-                        "SMTP ist nicht konfiguriert (Admin → Global → Schnittstellen). Bitte Passwort selbst vergeben.");
+                        "SMTP der Einheit ist nicht konfiguriert (Admin → Einheit → Schnittstellen). Bitte Passwort selbst vergeben.");
             }
             return new InitialPasswordPlan(generateNumericLoginPassword(), true);
         }
@@ -780,12 +781,12 @@ public class PersonalService {
         return new InitialPasswordPlan(manualPassword, false);
     }
 
-    private InitialPasswordDelivery deliverInitialPassword(InitialPasswordPlan plan, User user) {
+    private InitialPasswordDelivery deliverInitialPassword(InitialPasswordPlan plan, User user, long unitId) {
         if (!plan.sendByEmail()) {
             return new InitialPasswordDelivery(plan.password(), null);
         }
         Optional<String> mailError =
-                accountMailService.sendPasswordNotification(user, plan.password(), false);
+                accountMailService.sendPasswordNotification(user, unitId, plan.password(), false);
         if (mailError.isPresent()) {
             return new InitialPasswordDelivery(plan.password(), mailError.get());
         }

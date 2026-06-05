@@ -91,8 +91,8 @@ public class AdminPanelController {
         if ("global".equals(scope)) {
             populateGlobalUserFormModel(model);
             switch (tab) {
-                case "benutzer" ->
-                        populateAdminUsersTab(model, userManagementService.listAdminLevelAccounts(), actor);
+                case "benutzer" -> populateAdminUsersTab(
+                        model, userManagementService.listAdminLevelAccounts(), actor, null);
                 case "konfiguration" -> adminGlobalViewService.populateKonfiguration(model);
                 case "einheiten" -> adminGlobalViewService.populateEinheiten(model);
                 case "schnittstellen" -> adminGlobalViewService.populateSmtp(model);
@@ -214,7 +214,7 @@ public class AdminPanelController {
                     actor,
                     request);
             String message = "Benutzer „" + created.getUsername() + "“ wurde angelegt.";
-            message = appendMailNotice(message, created, password, sendPasswordEmail, false);
+            message = appendMailNotice(message, created, password, sendPasswordEmail, false, effectiveUnitId);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", message);
             return redirectAfterUser(scope, unitId, actor);
@@ -330,7 +330,8 @@ public class AdminPanelController {
             userManagementService.setPasswordByAdmin(id, newPassword, actor, request);
             User user = userService.findByIdWithUnit(id).orElseThrow();
             String message = "Passwort wurde zurückgesetzt.";
-            message = appendMailNotice(message, user, newPassword, sendPasswordEmail, true);
+            Long mailUnitId = user.getUnit() != null ? user.getUnit().getId() : unitId;
+            message = appendMailNotice(message, user, newPassword, sendPasswordEmail, true, mailUnitId);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", message);
         } catch (IllegalArgumentException e) {
@@ -461,7 +462,7 @@ public class AdminPanelController {
     private void populateUnitUsersTab(Model model, AppUserDetails actor, long unitId) {
         unitRoleService.ensureSystemRoles(unitId);
         List<User> users = userManagementService.listAccounts(actor, unitId);
-        populateAdminUsersTab(model, users, actor);
+        populateAdminUsersTab(model, users, actor, unitId);
         model.addAttribute("unitDienstgrade", unitRoleService.listDienstgrade(unitId));
         model.addAttribute("unitFunktionen", unitRoleService.listFunktionen(unitId));
         model.addAttribute("showUnitUserRoles", true);
@@ -479,7 +480,7 @@ public class AdminPanelController {
         model.addAttribute("functionPermissionLabels", functionPermissionLabels);
     }
 
-    private void populateAdminUsersTab(Model model, List<User> users, AppUserDetails actor) {
+    private void populateAdminUsersTab(Model model, List<User> users, AppUserDetails actor, Long unitId) {
         model.addAttribute("adminUsers", users);
         Map<Long, List<UserRfidCard>> rfidMap = new LinkedHashMap<>();
         Map<Long, Boolean> canManage = new LinkedHashMap<>();
@@ -489,15 +490,25 @@ public class AdminPanelController {
         }
         model.addAttribute("rfidCardsByUserId", rfidMap);
         model.addAttribute("canManageUserById", canManage);
-        model.addAttribute("smtpConfigured", accountMailService.canSendMail());
+        boolean smtpConfigured = unitId != null && accountMailService.canSendMailForUnit(unitId);
+        model.addAttribute("smtpConfigured", smtpConfigured);
     }
 
     private String appendMailNotice(
-            String baseMessage, User user, String plainPassword, boolean sendMail, boolean passwordReset) {
+            String baseMessage,
+            User user,
+            String plainPassword,
+            boolean sendMail,
+            boolean passwordReset,
+            Long unitId) {
         if (!sendMail) {
             return baseMessage;
         }
-        Optional<String> mailError = accountMailService.sendPasswordNotification(user, plainPassword, passwordReset);
+        if (unitId == null) {
+            return baseMessage + " Keine Einheit zugeordnet — E-Mail-Versand nicht möglich.";
+        }
+        Optional<String> mailError =
+                accountMailService.sendPasswordNotification(user, unitId, plainPassword, passwordReset);
         if (mailError.isEmpty()) {
             return baseMessage + " Passwort wurde per E-Mail versendet.";
         }

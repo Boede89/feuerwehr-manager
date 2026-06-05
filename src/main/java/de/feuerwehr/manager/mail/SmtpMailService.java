@@ -39,27 +39,26 @@ public class SmtpMailService {
         }
     }
 
-    /** Einheits-SMTP-Konto, falls Host gesetzt; sonst global. */
-    public Optional<String> sendTestMail(UnitSmtpAccount unitSmtp, ApplicationSettings global, String toEmail) {
-        if (unitSmtp != null && unitSmtp.getSmtpHost() != null && !unitSmtp.getSmtpHost().isBlank()) {
-            if (unitSmtp.getSmtpFromEmail() == null || unitSmtp.getSmtpFromEmail().isBlank()) {
-                return Optional.of("Absender-E-Mail der Einheit fehlt.");
-            }
-            try {
-                JavaMailSenderImpl sender = buildSender(
-                        unitSmtp.getSmtpHost(),
-                        unitSmtp.getSmtpPort(),
-                        unitSmtp.getSmtpUsername(),
-                        unitSmtp.getSmtpPassword(),
-                        unitSmtp.getSmtpEncryption());
-                sendTestMessage(
-                        sender, unitSmtp.getSmtpFromEmail(), unitSmtp.getSmtpFromName(), toEmail.trim());
-                return Optional.empty();
-            } catch (Exception e) {
-                return Optional.of("E-Mail-Versand fehlgeschlagen: " + e.getMessage());
-            }
+    /** Einheits-SMTP-Konto testen (kein Fallback auf global). */
+    public Optional<String> sendTestMail(UnitSmtpAccount unitSmtp, String toEmail) {
+        if (unitSmtp == null || unitSmtp.getSmtpHost() == null || unitSmtp.getSmtpHost().isBlank()) {
+            return Optional.of("Kein SMTP-Konto der Einheit konfiguriert.");
         }
-        return sendTestMail(global, toEmail);
+        if (unitSmtp.getSmtpFromEmail() == null || unitSmtp.getSmtpFromEmail().isBlank()) {
+            return Optional.of("Absender-E-Mail der Einheit fehlt.");
+        }
+        try {
+            JavaMailSenderImpl sender = buildSender(
+                    unitSmtp.getSmtpHost(),
+                    unitSmtp.getSmtpPort(),
+                    unitSmtp.getSmtpUsername(),
+                    unitSmtp.getSmtpPassword(),
+                    unitSmtp.getSmtpEncryption());
+            sendTestMessage(sender, unitSmtp.getSmtpFromEmail(), unitSmtp.getSmtpFromName(), toEmail.trim());
+            return Optional.empty();
+        } catch (Exception e) {
+            return Optional.of("E-Mail-Versand fehlgeschlagen: " + e.getMessage());
+        }
     }
 
     static JavaMailSenderImpl buildSender(
