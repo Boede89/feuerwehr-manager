@@ -1621,6 +1621,40 @@ select.field {
   margin: 0.5rem 0 0;
 }
 
+.my-qualification-body {
+  padding: 0.875rem 1rem;
+}
+
+.my-qualification-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--radius-md);
+  background: var(--personal-hell);
+  border: 1px solid rgba(22, 163, 74, 0.28);
+  box-shadow: 0 1px 2px rgba(22, 163, 74, 0.08);
+}
+
+.my-qualification-badge__icon {
+  font-size: 1.125rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.my-qualification-badge__label {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--personal-c);
+  letter-spacing: 0.01em;
+  line-height: 1.3;
+}
+
+.my-qualification-empty {
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+
 .settings-divider {
   border: none;
   border-top: 1px solid var(--border);

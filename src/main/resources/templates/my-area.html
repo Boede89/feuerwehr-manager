@@ -171,11 +171,12 @@
   <div th:if="${myAreaTab == 'lehrgaenge' and hasLinkedPerson}" class="my-area-tab-panel">
     <div class="card card--narrow">
       <div class="card__header">Meine Qualifikation</div>
-      <div class="card__body">
-        <p th:if="${person.qualificationType != null}">
-          <strong th:text="${person.qualificationType.name}">Qualifikation</strong>
-        </p>
-        <p class="hint" th:if="${person.qualificationType == null}" style="margin:0;">
+      <div class="card__body my-qualification-body">
+        <div th:if="${person.qualificationType != null}" class="my-qualification-badge" role="status">
+          <span class="my-qualification-badge__icon" aria-hidden="true">🎖</span>
+          <span class="my-qualification-badge__label" th:text="${person.qualificationType.name}">Qualifikation</span>
+        </div>
+        <p class="my-qualification-empty hint" th:if="${person.qualificationType == null}">
           Noch keine Qualifikation hinterlegt. Der Wehrleiter kann diese im Personal-Modul eintragen.
         </p>
       </div>
