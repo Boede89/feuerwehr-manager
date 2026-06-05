@@ -17,10 +17,10 @@
   <div th:replace="~{fragments/testmode-banner :: banner}"></div>
   <div th:replace="~{fragments/flash-messages :: alerts}"></div>
 
-  <div class="card card--narrow" th:if="${canWrite}">
+  <div class="card" th:if="${canWrite}">
     <div class="card__header">Stammdaten</div>
     <div class="card__body">
-      <form method="post" th:action="@{/atemschutz/carriers/{id}(id=${carrier.id})}" class="form-grid form-grid--2">
+      <form method="post" th:action="@{/atemschutz/carriers/{id}(id=${carrier.id})}" class="atemschutz-stammdaten-form">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="unit" th:value="${unitId}"/>
         <div class="form-group">
@@ -30,15 +30,15 @@
                     th:selected="${carrier.status == s}">Aktiv</option>
           </select>
         </div>
-        <div class="form-group form-group--full">
+        <div class="form-group">
           <label for="carrier-notes-edit">Notiz</label>
           <input id="carrier-notes-edit" name="notes" type="text" maxlength="512" th:value="${carrier.notes}"/>
         </div>
-        <div class="btn-group form-group--full">
+        <div class="form-group form-group--actions">
           <button type="submit" class="btn btn--primary">Speichern</button>
         </div>
       </form>
-      <p class="hint" style="margin-top:0.75rem;">
+      <p class="hint atemschutz-stammdaten-hint">
         Die Zuordnung als Geräteträger erfolgt automatisch über den abgeschlossenen AGT-Lehrgang im Personal.
       </p>
     </div>
@@ -77,8 +77,9 @@
         <tr>
           <th>Typ</th>
           <th>Status</th>
+          <th>Datum</th>
           <th>Gültig bis</th>
-          <th th:if="${canViewHealthData}">Arzt / Befund</th>
+          <th>Erfasst von</th>
           <th th:if="${canWrite}"></th>
         </tr>
         </thead>
@@ -89,13 +90,9 @@
             <span class="fitness-badge" th:classappend="${' ' + rec.level.cssClass()}"
                   th:text="${rec.level.label()}">OK</span>
           </td>
-          <td th:text="${#temporals.format(rec.validUntil, 'dd.MM.yyyy')}">01.01.2026</td>
-          <td th:if="${canViewHealthData}">
-            <span th:if="${rec.physician != null}" th:text="${rec.physician}">Arzt</span>
-            <span th:if="${rec.physician == null and rec.resultNotes == null}">—</span>
-            <span class="text-muted text-xs" th:if="${rec.resultNotes != null}"
-                  th:text="${rec.resultNotes}">Befund</span>
-          </td>
+          <td th:text="${rec.validFrom != null ? #temporals.format(rec.validFrom, 'dd.MM.yyyy') : '—'}">01.01.2026</td>
+          <td th:text="${#temporals.format(rec.validUntil, 'dd.MM.yyyy')}">01.01.2027</td>
+          <td th:text="${rec.createdByDisplay != null ? rec.createdByDisplay : '—'}">—</td>
           <td th:if="${canWrite}">
             <form method="post" th:action="@{/atemschutz/carriers/{cid}/records/{rid}/delete(cid=${carrier.id},rid=${rec.id})}"
                   data-confirm="Nachweis wirklich löschen?">
@@ -113,7 +110,8 @@
     </div>
   </div>
 
-  <div id="modal-add-record" class="modal-overlay" th:if="${canWrite}">
+  <div id="modal-add-record" class="modal-overlay" th:if="${canWrite}"
+       th:attr="data-birthdate=${person.birthdate != null ? #temporals.format(person.birthdate, 'yyyy-MM-dd') : ''}">
     <div class="modal" role="dialog">
       <div class="modal__header">
         <h3>Nachweis hinzufügen</h3>
@@ -131,24 +129,15 @@
               </select>
             </div>
             <div class="form-group">
-              <label for="record-valid-from">Datum / gültig ab</label>
-              <input id="record-valid-from" name="validFrom" type="date"/>
+              <label for="record-valid-from">Datum <span class="required">*</span></label>
+              <input id="record-valid-from" name="validFrom" type="date" required/>
             </div>
             <div class="form-group">
               <label for="record-valid-until">Gültig bis</label>
-              <input id="record-valid-until" name="validUntil" type="date" required/>
+              <input id="record-valid-until" type="date" readonly tabindex="-1"
+                     aria-readonly="true" title="Wird automatisch aus Typ und Datum berechnet"/>
+              <p class="hint">Strecke/Übung/Einsatz: +1 Jahr · G26: +3 Jahre (unter 50 J.) bzw. +1 Jahr</p>
             </div>
-            <div class="form-group form-group--full" th:if="${canViewHealthData}">
-              <label for="record-physician">Arzt / Stelle</label>
-              <input id="record-physician" name="physician" type="text" maxlength="255"/>
-            </div>
-            <div class="form-group form-group--full" th:if="${canViewHealthData}">
-              <label for="record-notes">Befund / Notiz <span class="text-muted text-xs">(Gesundheitsdaten)</span></label>
-              <textarea id="record-notes" name="resultNotes" rows="3" maxlength="1024"></textarea>
-            </div>
-            <p class="hint form-group--full" th:if="${!canViewHealthData}">
-              Befund und Arztangaben können nur von Admins oder der betreffenden Person erfasst werden.
-            </p>
           </div>
         </div>
         <div class="modal__footer">

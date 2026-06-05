@@ -147,20 +147,14 @@ public class AtemschutzController {
             @PathVariable long id,
             @RequestParam long unit,
             @RequestParam AtemschutzFitnessType recordType,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validFrom,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validUntil,
-            @RequestParam(required = false) String physician,
-            @RequestParam(required = false) String resultNotes,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validFrom,
             RedirectAttributes redirectAttributes) {
         try {
             requireModuleEnabled(unit);
             requireAtemschutzWrite(actor, unit);
             AtemschutzCarrier carrier = atemschutzService.requireCarrier(id);
             accessControlService.requireUnitAccess(actor, carrier.getUnit().getId());
-            if (recordType.healthData() && !atemschutzService.canViewHealthData(actor, carrier.getPerson())) {
-                throw new IllegalArgumentException("Keine Berechtigung für Gesundheitsdaten.");
-            }
-            atemschutzService.addFitnessRecord(id, recordType, validFrom, validUntil, physician, resultNotes);
+            atemschutzService.addFitnessRecord(id, recordType, validFrom, actor.getUserId());
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Nachweis gespeichert.");
         } catch (IllegalArgumentException e) {

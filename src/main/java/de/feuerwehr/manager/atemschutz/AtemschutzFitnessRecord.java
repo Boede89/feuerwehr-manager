@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import de.feuerwehr.manager.user.User;
 import java.time.Instant;
 import java.time.LocalDate;
 import lombok.Getter;
@@ -50,6 +51,10 @@ public class AtemschutzFitnessRecord {
 
     @Column(name = "test_data", nullable = false)
     private boolean testData;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by_user_id")
+    private User createdBy;
 
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;

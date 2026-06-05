@@ -11,6 +11,7 @@ public interface AtemschutzFitnessRecordRepository extends JpaRepository<Atemsch
     @Query("""
             SELECT r FROM AtemschutzFitnessRecord r
             JOIN FETCH r.carrier
+            LEFT JOIN FETCH r.createdBy
             WHERE r.carrier.id = :carrierId AND r.testData = :testData
             ORDER BY r.validUntil DESC, r.id DESC
             """)

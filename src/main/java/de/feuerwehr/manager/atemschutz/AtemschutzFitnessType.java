@@ -8,7 +8,7 @@ public enum AtemschutzFitnessType {
     public String label() {
         return switch (this) {
             case G26_UNTERSUCHUNG -> "G26-Untersuchung";
-            case UEBUNG -> "Übungsnachweis";
+            case UEBUNG -> "Übung/Einsatz";
             case STRECKEN -> "Strecke";
         };
     }

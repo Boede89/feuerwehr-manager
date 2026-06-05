@@ -2704,6 +2704,27 @@ span.required { color: var(--error); }
   margin-bottom: 0.35rem;
 }
 
+.atemschutz-stammdaten-form {
+  display: grid;
+  grid-template-columns: minmax(10rem, 12rem) minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: end;
+}
+.atemschutz-stammdaten-form .form-group--actions {
+  padding-bottom: 1px;
+}
+.atemschutz-stammdaten-hint {
+  margin: 0.65rem 0 0;
+}
+@media (max-width: 720px) {
+  .atemschutz-stammdaten-form {
+    grid-template-columns: 1fr;
+  }
+  .atemschutz-stammdaten-form .form-group--actions .btn {
+    width: 100%;
+  }
+}
+
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

@@ -7,7 +7,10 @@ import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
+import de.feuerwehr.manager.user.User;
+import de.feuerwehr.manager.user.UserRepository;
 import java.time.LocalDate;
+import java.time.Period;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
@@ -31,6 +34,7 @@ public class AtemschutzService {
     private final AtemschutzFitnessRecordRepository fitnessRecordRepository;
     private final PersonCourseCompletionRepository completionRepository;
     private final AtemschutzSettingsService atemschutzSettingsService;
+    private final UserRepository userRepository;
     private final TestModeService testModeService;
 
     @Transactional(readOnly = true)
@@ -171,23 +175,45 @@ public class AtemschutzService {
 
     @Transactional
     public AtemschutzFitnessRecord addFitnessRecord(
-            long carrierId,
-            AtemschutzFitnessType type,
-            LocalDate validFrom,
-            LocalDate validUntil,
-            String physician,
-            String resultNotes) {
+            long carrierId, AtemschutzFitnessType type, LocalDate validFrom, long createdByUserId) {
         AtemschutzCarrier carrier = requireCarrier(carrierId);
-        validateFitnessRecord(type, validUntil);
+        if (validFrom == null) {
+            throw new IllegalArgumentException("Datum ist erforderlich.");
+        }
+        if (type == null) {
+            throw new IllegalArgumentException("Nachweis-Typ fehlt.");
+        }
+        LocalDate validUntil = computeValidUntil(type, validFrom, carrier.getPerson().getBirthdate());
+        User createdBy = userRepository
+                .findById(createdByUserId)
+                .orElseThrow(() -> new IllegalArgumentException("Benutzer nicht gefunden."));
         AtemschutzFitnessRecord record = new AtemschutzFitnessRecord();
         record.setCarrier(carrier);
         record.setRecordType(type);
         record.setValidFrom(validFrom);
         record.setValidUntil(validUntil);
-        record.setPhysician(blankToNull(physician));
-        record.setResultNotes(blankToNull(resultNotes));
+        record.setCreatedBy(createdBy);
         record.setTestData(testModeService.isEnabled());
         return fitnessRecordRepository.save(record);
+    }
+
+    public static LocalDate computeValidUntil(
+            AtemschutzFitnessType type, LocalDate validFrom, LocalDate birthdate) {
+        if (validFrom == null) {
+            throw new IllegalArgumentException("Datum ist erforderlich.");
+        }
+        int years =
+                switch (type) {
+                    case STRECKEN, UEBUNG -> 1;
+                    case G26_UNTERSUCHUNG -> {
+                        if (birthdate == null) {
+                            yield 1;
+                        }
+                        int age = Period.between(birthdate, validFrom).getYears();
+                        yield age < 50 ? 3 : 1;
+                    }
+                };
+        return validFrom.plusYears(years);
     }
 
     @Transactional
@@ -256,6 +282,7 @@ public class AtemschutzService {
     private FitnessRecordView toRecordView(AtemschutzFitnessRecord record, boolean includeHealthDetails) {
         int warnDays = warnDays(record.getCarrier().getUnit().getId());
         AtemschutzFitnessLevel level = computeLevel(record.getValidUntil(), warnDays, LocalDate.now());
+        String createdByDisplay = formatCreatedBy(record);
         if (!includeHealthDetails && record.getRecordType().healthData()) {
             return new FitnessRecordView(
                     record.getId(),
@@ -264,7 +291,8 @@ public class AtemschutzService {
                     record.getValidFrom(),
                     record.getValidUntil(),
                     null,
-                    null);
+                    null,
+                    createdByDisplay);
         }
         return new FitnessRecordView(
                 record.getId(),
@@ -273,16 +301,19 @@ public class AtemschutzService {
                 record.getValidFrom(),
                 record.getValidUntil(),
                 record.getPhysician(),
-                record.getResultNotes());
+                record.getResultNotes(),
+                createdByDisplay);
     }
 
-    private static void validateFitnessRecord(AtemschutzFitnessType type, LocalDate validUntil) {
-        if (type == null) {
-            throw new IllegalArgumentException("Nachweis-Typ fehlt.");
+    private static String formatCreatedBy(AtemschutzFitnessRecord record) {
+        if (record.getCreatedBy() == null) {
+            return null;
         }
-        if (validUntil == null) {
-            throw new IllegalArgumentException("Gültig bis ist erforderlich.");
+        String name = record.getCreatedBy().getDisplayName();
+        if (name != null && !name.isBlank()) {
+            return name.trim();
         }
+        return record.getCreatedBy().getUsername();
     }
 
     private static String blankToNull(String value) {
@@ -352,5 +383,6 @@ public class AtemschutzService {
             LocalDate validFrom,
             LocalDate validUntil,
             String physician,
-            String resultNotes) {}
+            String resultNotes,
+            String createdByDisplay) {}
 }
