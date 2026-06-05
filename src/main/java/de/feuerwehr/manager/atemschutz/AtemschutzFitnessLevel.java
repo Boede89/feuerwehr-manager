@@ -24,12 +24,13 @@ public enum AtemschutzFitnessLevel {
         };
     }
 
-    public String validityDateCssClass() {
+    /** CSS-Klassen wie Benutzer-Status im Adminpanel (badge active / inactive / badge-warning). */
+    public String validityBadgeClass() {
         return switch (this) {
-            case OK -> "validity-date--ok";
-            case WARN -> "validity-date--warn";
-            case OVERDUE -> "validity-date--overdue";
-            case MISSING -> "validity-date--missing";
+            case OK -> "badge active";
+            case WARN -> "badge-warning";
+            case OVERDUE -> "badge inactive";
+            case MISSING -> "";
         };
     }
 }

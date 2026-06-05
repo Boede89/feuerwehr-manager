@@ -7,9 +7,9 @@
   <span class="fitness-badge fitness-badge--missing" th:if="${view == null}">Fehlt</span>
 </th:block>
 <th:block th:fragment="validityDate(view)">
-  <span class="validity-date validity-date--missing" th:if="${view == null or view.validUntil == null}">—</span>
-  <span class="validity-date" th:if="${view != null and view.validUntil != null}"
-        th:classappend="${' ' + view.level.validityDateCssClass()}"
+  <span class="text-muted" th:if="${view == null or view.validUntil == null}">—</span>
+  <span th:if="${view != null and view.validUntil != null}"
+        th:class="${view.level.validityBadgeClass()}"
         th:text="${#temporals.format(view.validUntil, 'dd.MM.yyyy')}">01.01.2026</span>
 </th:block>
 </html>
