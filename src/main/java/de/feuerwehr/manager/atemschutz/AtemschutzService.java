@@ -83,8 +83,11 @@ public class AtemschutzService {
                     summaries,
                     overallTauglich));
         }
-        int tauglich = (int) all.stream().filter(CarrierOverview::overallTauglich).count();
-        CarrierListStats stats = new CarrierListStats(all.size(), tauglich, all.size() - tauglich);
+        List<CarrierOverview> activeCarriers =
+                all.stream().filter(row -> row.carrier().getStatus() == AtemschutzCarrierStatus.ACTIVE).toList();
+        int tauglich = (int) activeCarriers.stream().filter(CarrierOverview::overallTauglich).count();
+        CarrierListStats stats =
+                new CarrierListStats(activeCarriers.size(), tauglich, activeCarriers.size() - tauglich);
         List<CarrierOverview> filtered = applyFilter(all, filter);
         return new CarrierListResult(
                 filtered,
@@ -344,10 +347,16 @@ public class AtemschutzService {
             return carriers;
         }
         if ("tauglich".equalsIgnoreCase(filter)) {
-            return carriers.stream().filter(CarrierOverview::overallTauglich).toList();
+            return carriers.stream()
+                    .filter(row -> row.carrier().getStatus() == AtemschutzCarrierStatus.ACTIVE)
+                    .filter(CarrierOverview::overallTauglich)
+                    .toList();
         }
         if ("nicht_tauglich".equalsIgnoreCase(filter) || "nichttauglich".equalsIgnoreCase(filter)) {
-            return carriers.stream().filter(row -> !row.overallTauglich()).toList();
+            return carriers.stream()
+                    .filter(row -> row.carrier().getStatus() == AtemschutzCarrierStatus.ACTIVE)
+                    .filter(row -> !row.overallTauglich())
+                    .toList();
         }
         return carriers;
     }
