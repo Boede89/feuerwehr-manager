@@ -1,7 +1,6 @@
 package de.feuerwehr.manager.transfer;
 
 import java.sql.ResultSet;
-import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Types;
@@ -10,6 +9,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowCallbackHandler;
 
 final class SqlBackupCodec {
 
@@ -17,7 +17,7 @@ final class SqlBackupCodec {
 
     static void appendQueryInserts(
             JdbcTemplate jdbcTemplate, String table, String selectSql, Object[] params, StringBuilder out) {
-        jdbcTemplate.query(selectSql, rs -> appendRowInsert(table, rs, out), params);
+        jdbcTemplate.query(selectSql, (RowCallbackHandler) rs -> appendRowInsert(table, rs, out), params);
     }
 
     static void appendRowInsert(String table, ResultSet rs, StringBuilder out) throws SQLException {
@@ -51,27 +51,30 @@ final class SqlBackupCodec {
     }
 
     static void appendReplaceFromQuery(JdbcTemplate jdbcTemplate, String table, String selectSql, Object[] params, StringBuilder out) {
-        jdbcTemplate.query(selectSql, rs -> {
-            ResultSetMetaData meta = rs.getMetaData();
-            int columnCount = meta.getColumnCount();
-            StringBuilder columns = new StringBuilder();
-            StringBuilder values = new StringBuilder();
-            for (int i = 1; i <= columnCount; i++) {
-                if (i > 1) {
-                    columns.append(", ");
-                    values.append(", ");
-                }
-                columns.append('`').append(meta.getColumnName(i)).append('`');
-                values.append(formatSqlValue(rs, i, meta.getColumnType(i)));
-            }
-            out.append("REPLACE INTO `")
-                    .append(table)
-                    .append("` (")
-                    .append(columns)
-                    .append(") VALUES (")
-                    .append(values)
-                    .append(");\n");
-        }, params);
+        jdbcTemplate.query(
+                selectSql,
+                (RowCallbackHandler) rs -> {
+                    ResultSetMetaData meta = rs.getMetaData();
+                    int columnCount = meta.getColumnCount();
+                    StringBuilder columns = new StringBuilder();
+                    StringBuilder values = new StringBuilder();
+                    for (int i = 1; i <= columnCount; i++) {
+                        if (i > 1) {
+                            columns.append(", ");
+                            values.append(", ");
+                        }
+                        columns.append('`').append(meta.getColumnName(i)).append('`');
+                        values.append(formatSqlValue(rs, i, meta.getColumnType(i)));
+                    }
+                    out.append("REPLACE INTO `")
+                            .append(table)
+                            .append("` (")
+                            .append(columns)
+                            .append(") VALUES (")
+                            .append(values)
+                            .append(");\n");
+                },
+                params);
     }
 
     static void executeScript(JdbcTemplate jdbcTemplate, String sql, Consumer<String> onUnsupported) {

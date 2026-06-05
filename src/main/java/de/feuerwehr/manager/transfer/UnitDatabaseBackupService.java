@@ -4,7 +4,6 @@ import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.sql.ResultSetMetaData;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -223,30 +222,7 @@ public class UnitDatabaseBackupService {
     }
 
     private void exportTable(String table, String selectSql, Object[] params, StringBuilder out) {
-        jdbcTemplate.query(
-                selectSql,
-                rs -> {
-                    ResultSetMetaData meta = rs.getMetaData();
-                    int columnCount = meta.getColumnCount();
-                    StringBuilder columns = new StringBuilder();
-                    StringBuilder values = new StringBuilder();
-                    for (int i = 1; i <= columnCount; i++) {
-                        if (i > 1) {
-                            columns.append(", ");
-                            values.append(", ");
-                        }
-                        columns.append('`').append(meta.getColumnName(i)).append('`');
-                        values.append(SqlBackupCodec.formatSqlValue(rs, i, meta.getColumnType(i)));
-                    }
-                    out.append("INSERT INTO `")
-                            .append(table)
-                            .append("` (")
-                            .append(columns)
-                            .append(") VALUES (")
-                            .append(values)
-                            .append(");\n");
-                },
-                params);
+        SqlBackupCodec.appendQueryInserts(jdbcTemplate, table, selectSql, params, out);
     }
 
     private void exportPersonChild(String table, StringBuilder out, long unitId) {
