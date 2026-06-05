@@ -1450,22 +1450,61 @@ body > main:not(.page-main) {
 .toolbar-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 10px;
+  gap: 10px;
+  min-height: 36px;
+  padding: 0 12px;
+  margin: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: var(--bg-card);
+  background: var(--bg);
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  user-select: none;
+}
+
+.toolbar-toggle:hover {
+  border-color: var(--text-subtle);
+}
+
+.toolbar-toggle:has(input:focus-visible) {
+  border-color: var(--rot);
+  box-shadow: 0 0 0 3px var(--rot-focus);
 }
 
 .toolbar-toggle__label {
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
   white-space: nowrap;
-  user-select: none;
+  line-height: 1;
+}
+
+.toggle-switch--toolbar .toggle-switch__track {
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+}
+
+.toggle-switch--toolbar .toggle-switch__track::after {
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
 }
 
 .toggle-switch--toolbar input:checked + .toggle-switch__track {
   background: var(--gruen);
+}
+
+.toggle-switch--toolbar input:checked + .toggle-switch__track::after {
+  transform: translateX(16px);
+}
+
+.atemschutz-search-field {
+  width: 200px;
+  margin: 0;
+  min-height: 36px;
+  box-sizing: border-box;
 }
 
 .toolbar-actions__form {

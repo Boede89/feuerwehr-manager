@@ -3,6 +3,10 @@
   var search = document.getElementById('atemschutz-search');
   var showPaused = document.getElementById('atemschutz-show-paused');
   var visibleCount = document.getElementById('atemschutz-visible-count');
+  var kpiTotal = document.getElementById('kpi-value-total');
+  var kpiTauglich = document.getElementById('kpi-value-tauglich');
+  var kpiUebung = document.getElementById('kpi-value-uebung');
+  var kpiNicht = document.getElementById('kpi-value-nicht');
   if (!table) return;
 
   table.querySelectorAll('.carrier-row').forEach(function (row) {
@@ -22,13 +26,45 @@
     });
   });
 
+  function includePaused() {
+    return showPaused && showPaused.checked;
+  }
+
+  function rowCounts(includePausedRows) {
+    var counts = { total: 0, tauglich: 0, uebung: 0, nicht: 0 };
+    table.querySelectorAll('.carrier-row').forEach(function (row) {
+      var status = row.getAttribute('data-status') || 'ACTIVE';
+      if (!includePausedRows && status === 'PAUSED') {
+        return;
+      }
+      counts.total++;
+      var tauglichkeit = row.getAttribute('data-tauglichkeit') || 'NICHT_TAUGLICH';
+      if (tauglichkeit === 'TAUGLICH') {
+        counts.tauglich++;
+      } else if (tauglichkeit === 'UEBUNG_ABGELAUFEN') {
+        counts.uebung++;
+      } else {
+        counts.nicht++;
+      }
+    });
+    return counts;
+  }
+
+  function updateKpis() {
+    var counts = rowCounts(includePaused());
+    if (kpiTotal) kpiTotal.textContent = String(counts.total);
+    if (kpiTauglich) kpiTauglich.textContent = String(counts.tauglich);
+    if (kpiUebung) kpiUebung.textContent = String(counts.uebung);
+    if (kpiNicht) kpiNicht.textContent = String(counts.nicht);
+  }
+
   function applyFilters() {
     var q = search ? search.value.trim().toLowerCase() : '';
-    var includePaused = showPaused && showPaused.checked;
+    var includePausedRows = includePaused();
     var count = 0;
     table.querySelectorAll('.carrier-row').forEach(function (row) {
       var status = row.getAttribute('data-status') || 'ACTIVE';
-      var statusVisible = includePaused || status !== 'PAUSED';
+      var statusVisible = includePausedRows || status !== 'PAUSED';
       var text = (row.getAttribute('data-search') || '').toLowerCase();
       var searchVisible = !q || text.indexOf(q) !== -1;
       var visible = statusVisible && searchVisible;
@@ -38,6 +74,7 @@
     if (visibleCount) {
       visibleCount.textContent = String(count);
     }
+    updateKpis();
   }
 
   if (search) {

@@ -24,22 +24,22 @@
     <a class="kpi-card" th:classappend="${activeFilter == 'all'} ? ' kpi-card--active' : ''"
        th:href="@{/atemschutz(unit=${unitId}, filter='all')}">
       <span class="kpi-card__label">Gesamt</span>
-      <span class="kpi-card__value" th:text="${stats.total()}">0</span>
+      <span class="kpi-card__value" id="kpi-value-total" th:text="${stats.total()}">0</span>
     </a>
     <a class="kpi-card kpi-card--success" th:classappend="${activeFilter == 'tauglich'} ? ' kpi-card--active' : ''"
        th:href="@{/atemschutz(unit=${unitId}, filter='tauglich')}">
       <span class="kpi-card__label">Tauglich</span>
-      <span class="kpi-card__value kpi-card__value--success" th:text="${stats.tauglich()}">0</span>
+      <span class="kpi-card__value kpi-card__value--success" id="kpi-value-tauglich" th:text="${stats.tauglich()}">0</span>
     </a>
     <a class="kpi-card kpi-card--warning" th:classappend="${activeFilter == 'uebung_abgelaufen'} ? ' kpi-card--active' : ''"
        th:href="@{/atemschutz(unit=${unitId}, filter='uebung_abgelaufen')}">
       <span class="kpi-card__label">Übung abgelaufen</span>
-      <span class="kpi-card__value kpi-card__value--warning" th:text="${stats.uebungAbgelaufen()}">0</span>
+      <span class="kpi-card__value kpi-card__value--warning" id="kpi-value-uebung" th:text="${stats.uebungAbgelaufen()}">0</span>
     </a>
     <a class="kpi-card kpi-card--danger" th:classappend="${activeFilter == 'nicht_tauglich'} ? ' kpi-card--active' : ''"
        th:href="@{/atemschutz(unit=${unitId}, filter='nicht_tauglich')}">
       <span class="kpi-card__label">Nicht tauglich</span>
-      <span class="kpi-card__value kpi-card__value--danger" th:text="${stats.nichtTauglich()}">0</span>
+      <span class="kpi-card__value kpi-card__value--danger" id="kpi-value-nicht" th:text="${stats.nichtTauglich()}">0</span>
     </a>
   </div>
 
@@ -47,13 +47,13 @@
     <div class="card__header card__header--toolbar">
       <span>Geräteträger (<span id="atemschutz-visible-count" th:text="${carrierCount}">0</span>)</span>
       <div class="toolbar-actions">
-        <div class="toolbar-toggle">
+        <label class="toolbar-toggle" for="atemschutz-show-paused" title="Pausierte Geräteträger anzeigen">
           <span class="toolbar-toggle__label">Pausierte</span>
-          <label class="toggle-switch toggle-switch--toolbar" title="Pausierte Geräteträger anzeigen">
+          <span class="toggle-switch toggle-switch--toolbar">
             <input type="checkbox" id="atemschutz-show-paused" aria-label="Pausierte Geräteträger anzeigen"/>
             <span class="toggle-switch__track"></span>
-          </label>
-        </div>
+          </span>
+        </label>
         <input type="search" class="field atemschutz-search-field" id="atemschutz-search"
                placeholder="Suchen…" maxlength="100" autocomplete="off" aria-label="Geräteträger suchen"/>
       </div>
@@ -74,6 +74,7 @@
         <tr th:each="row : ${carriers}" class="carrier-row" role="link" tabindex="0"
             th:attr="data-search=${row.carrier.person.lastName + ' ' + row.carrier.person.firstName},
                      data-status=${row.carrier.status.name()},
+                     data-tauglichkeit=${row.tauglichkeit.name()},
                      data-href=@{/atemschutz/carriers/{id}(id=${row.carrier.id},unit=${unitId})}">
           <td>
             <strong th:text="${row.carrier.person.displayName()}">Name</strong>
