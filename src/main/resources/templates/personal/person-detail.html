@@ -67,6 +67,7 @@
   <!-- Bestehende Person: FW-Hub Tabs -->
   <th:block th:unless="${isNewPerson}">
     <div th:replace="~{fragments/personal-member-tabs :: memberTabs}"></div>
+    <script th:src="@{/js/personal-member.js}" defer></script>
   </th:block>
 
 </main>

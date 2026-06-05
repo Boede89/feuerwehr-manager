@@ -311,6 +311,63 @@ public class PersonalService {
     }
 
     @Transactional
+    public Person updateQualificationType(long personId, Long qualificationTypeId) {
+        Person person = writablePerson(requirePerson(personId));
+        if (qualificationTypeId != null && qualificationTypeId > 0) {
+            person.setQualificationType(resolveQualificationForWrite(qualificationTypeId, person.getUnit()));
+        } else {
+            person.setQualificationType(null);
+        }
+        personRepository.save(person);
+        Person saved = requirePerson(personId);
+        syncUserDienstgradFromPersonQualification(saved);
+        return saved;
+    }
+
+    @Transactional
+    public void addCourseCompletion(long personId, long courseId, Integer completionYear) {
+        validateCompletionYear(completionYear);
+        Person person = writablePerson(requirePerson(personId));
+        long writableId = person.getId();
+        if (completionRepository.existsByPersonIdAndCourseId(writableId, courseId)) {
+            throw new IllegalArgumentException("Dieser Lehrgang ist bereits hinterlegt.");
+        }
+        PersonCourseCompletion completion = new PersonCourseCompletion();
+        completion.setPerson(person);
+        completion.setCourse(resolveCourseForWrite(courseId, person.getUnit()));
+        completion.setCompletionYear(completionYear);
+        completionRepository.save(completion);
+    }
+
+    @Transactional
+    public void updateCourseCompletion(long personId, long completionId, long courseId, Integer completionYear) {
+        validateCompletionYear(completionYear);
+        Person person = writablePerson(requirePerson(personId));
+        long writableId = person.getId();
+        PersonCourseCompletion completion = completionRepository
+                .findById(completionId)
+                .filter(row -> row.getPerson().getId().equals(writableId))
+                .orElseThrow(() -> new IllegalArgumentException("Lehrgangseintrag nicht gefunden."));
+        if (!completion.getCourse().getId().equals(courseId)
+                && completionRepository.existsByPersonIdAndCourseId(writableId, courseId)) {
+            throw new IllegalArgumentException("Dieser Lehrgang ist bereits hinterlegt.");
+        }
+        completion.setCourse(resolveCourseForWrite(courseId, person.getUnit()));
+        completion.setCompletionYear(completionYear);
+        completionRepository.save(completion);
+    }
+
+    @Transactional
+    public void deleteCourseCompletion(long personId, long completionId) {
+        writablePerson(requirePerson(personId));
+        PersonCourseCompletion completion = completionRepository
+                .findById(completionId)
+                .filter(row -> row.getPerson().getId().equals(personId))
+                .orElseThrow(() -> new IllegalArgumentException("Lehrgangseintrag nicht gefunden."));
+        completionRepository.delete(completion);
+    }
+
+    @Transactional
     public Person updateDivera(long personId, String diveraUcrId, List<String> ricCodes) {
         Person person = writablePerson(requirePerson(personId));
         person.setDiveraUcrId(blankToNull(diveraUcrId));
@@ -737,6 +794,15 @@ public class PersonalService {
     private static void validateName(String firstName, String lastName) {
         if (firstName == null || firstName.isBlank() || lastName == null || lastName.isBlank()) {
             throw new IllegalArgumentException("Vor- und Nachname sind Pflicht");
+        }
+    }
+
+    private static void validateCompletionYear(Integer completionYear) {
+        if (completionYear == null) {
+            throw new IllegalArgumentException("Bitte das Abschlussjahr angeben.");
+        }
+        if (completionYear < 1950 || completionYear > 2100) {
+            throw new IllegalArgumentException("Bitte ein gültiges Jahr zwischen 1950 und 2100 angeben.");
         }
     }
 

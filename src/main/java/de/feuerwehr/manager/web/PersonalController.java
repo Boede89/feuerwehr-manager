@@ -1,6 +1,8 @@
 package de.feuerwehr.manager.web;
 
+import de.feuerwehr.manager.personal.AttendanceServiceType;
 import de.feuerwehr.manager.personal.AttendanceStatus;
+import de.feuerwehr.manager.personal.Course;
 import de.feuerwehr.manager.personal.EquipmentType;
 import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.personal.PersonCourseCompletion;
@@ -171,8 +173,6 @@ public class PersonalController {
         String tab = normalizeTab(section);
         try {
             switch (tab) {
-                case "lehrgaenge" -> personalService.updateLehrgaenge(
-                        id, qualificationTypeId, parseCourseCompletions(courseIds, request));
                 case "divera" -> personalService.updateDivera(id, diveraUcrId, ricCodes);
                 default -> {
                     StammdatenUpdateResult result = personalService.updateStammdaten(
@@ -226,17 +226,64 @@ public class PersonalController {
                 id, birthdate, personnelNumber, entryDate, exitDate, notes));
     }
 
+    @PostMapping("/{id}/qualification-type")
+    public String updateQualificationType(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @RequestParam long unit,
+            @RequestParam(required = false) Long qualificationTypeId,
+            RedirectAttributes redirectAttributes) {
+        return memberAction(actor, id, unit, "lehrgaenge", redirectAttributes, () ->
+                personalMemberService.updateQualificationType(id, qualificationTypeId));
+    }
+
+    @PostMapping("/{id}/course-completions")
+    public String createCourseCompletion(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @RequestParam long unit,
+            @RequestParam long courseId,
+            @RequestParam Integer completionYear,
+            RedirectAttributes redirectAttributes) {
+        return memberAction(actor, id, unit, "lehrgaenge", redirectAttributes, () ->
+                personalMemberService.addCourseCompletion(id, courseId, completionYear));
+    }
+
+    @PostMapping("/{id}/course-completions/{cid}")
+    public String updateCourseCompletion(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @PathVariable long cid,
+            @RequestParam long unit,
+            @RequestParam long courseId,
+            @RequestParam Integer completionYear,
+            RedirectAttributes redirectAttributes) {
+        return memberAction(actor, id, unit, "lehrgaenge", redirectAttributes, () ->
+                personalMemberService.updateCourseCompletion(id, cid, courseId, completionYear));
+    }
+
+    @PostMapping("/{id}/course-completions/{cid}/delete")
+    public String deleteCourseCompletion(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @PathVariable long cid,
+            @RequestParam long unit,
+            RedirectAttributes redirectAttributes) {
+        return memberAction(actor, id, unit, "lehrgaenge", redirectAttributes, () ->
+                personalMemberService.deleteCourseCompletion(id, cid));
+    }
+
     @PostMapping("/{id}/contact-data")
     public String updateContactData(
             @AuthenticationPrincipal AppUserDetails actor,
             @PathVariable long id,
             @RequestParam long unit,
             @RequestParam(required = false) String phone,
-            @RequestParam(required = false) String emailPrivate,
+            @RequestParam(required = false) String email,
             @RequestParam(required = false) String address,
             RedirectAttributes redirectAttributes) {
         return memberAction(actor, id, unit, "stammdaten", redirectAttributes, () -> personalMemberService.updateContactData(
-                id, phone, emailPrivate, address, actor.getUserId(), actor.getDisplayName()));
+                id, phone, email, address, actor.getUserId(), actor.getDisplayName()));
     }
 
     @PostMapping("/{id}/qualifications")
@@ -369,11 +416,31 @@ public class PersonalController {
             @PathVariable long id,
             @RequestParam long unit,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate serviceDate,
+            @RequestParam AttendanceServiceType serviceType,
+            @RequestParam(required = false) String serviceLabel,
             @RequestParam(required = false) AttendanceStatus status,
             @RequestParam(required = false) String notes,
             RedirectAttributes redirectAttributes) {
         return memberAction(actor, id, unit, "anwesenheit", redirectAttributes, () ->
-                personalMemberService.createAttendance(id, serviceDate, status, notes, actor.getUserId()));
+                personalMemberService.createAttendance(
+                        id, serviceDate, serviceType, serviceLabel, status, notes, actor.getUserId()));
+    }
+
+    @PostMapping("/{id}/attendance/{aid}")
+    public String updateAttendance(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @PathVariable long aid,
+            @RequestParam long unit,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate serviceDate,
+            @RequestParam AttendanceServiceType serviceType,
+            @RequestParam(required = false) String serviceLabel,
+            @RequestParam(required = false) AttendanceStatus status,
+            @RequestParam(required = false) String notes,
+            RedirectAttributes redirectAttributes) {
+        return memberAction(actor, id, unit, "anwesenheit", redirectAttributes, () ->
+                personalMemberService.updateAttendance(
+                        id, aid, serviceDate, serviceType, serviceLabel, status, notes));
     }
 
     @PostMapping("/{id}/attendance/{aid}/delete")
@@ -500,7 +567,10 @@ public class PersonalController {
         model.addAttribute("personInitials", personInitials(person));
         model.addAttribute("activeTab", activeTab);
         model.addAttribute("emergencyContacts", personalMemberService.listEmergencyContacts(personId));
+        model.addAttribute("personEmail", personalMemberService.resolvePersonEmail(person));
         model.addAttribute("attendanceDisplay", personalMemberService.displayAttendanceStats(personId));
+        model.addAttribute("attendanceRecords", personalMemberService.listAttendance(personId));
+        model.addAttribute("attendanceServiceTypes", AttendanceServiceType.values());
         populatePersonDetailData(model, person.getUnit().getId(), detail);
     }
 
@@ -511,20 +581,21 @@ public class PersonalController {
         if (detail == null) {
             model.addAttribute("completions", List.of());
             model.addAttribute("completedCourseIds", Set.of());
-            model.addAttribute("completionYears", Map.of());
+            model.addAttribute("availableCourses", List.of());
             model.addAttribute("diveraRics", List.of());
             return;
         }
         List<PersonCourseCompletion> completions = detail.completions();
         model.addAttribute("completions", completions);
+        Set<Long> completedCourseIds =
+                completions.stream().map(c -> c.getCourse().getId()).collect(Collectors.toCollection(HashSet::new));
+        model.addAttribute("completedCourseIds", completedCourseIds);
+        List<Course> unitCourses = personalService.listCourses(unitId, true);
         model.addAttribute(
-                "completedCourseIds",
-                completions.stream().map(c -> c.getCourse().getId()).collect(Collectors.toCollection(HashSet::new)));
-        Map<Long, Integer> completionYears = new HashMap<>();
-        for (PersonCourseCompletion c : completions) {
-            completionYears.put(c.getCourse().getId(), c.getCompletionYear());
-        }
-        model.addAttribute("completionYears", completionYears);
+                "availableCourses",
+                unitCourses.stream()
+                        .filter(course -> !completedCourseIds.contains(course.getId()))
+                        .toList());
         model.addAttribute("diveraRics", detail.diveraRics());
     }
 

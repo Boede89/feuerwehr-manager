@@ -202,10 +202,19 @@ public class PersonalMemberService {
 
     @Transactional
     public PersonAttendance createAttendance(
-            long personId, LocalDate serviceDate, AttendanceStatus status, String notes, long actorUserId) {
+            long personId,
+            LocalDate serviceDate,
+            AttendanceServiceType serviceType,
+            String serviceLabel,
+            AttendanceStatus status,
+            String notes,
+            long actorUserId) {
         Person person = requireWritablePerson(personId);
         if (serviceDate == null) {
             throw new IllegalArgumentException("Bitte ein Datum angeben.");
+        }
+        if (serviceType == null) {
+            throw new IllegalArgumentException("Bitte einen Typ wählen.");
         }
         if (status == null) {
             status = AttendanceStatus.PRESENT;
@@ -213,10 +222,43 @@ public class PersonalMemberService {
         PersonAttendance row = new PersonAttendance();
         row.setPerson(person);
         row.setServiceDate(serviceDate);
+        row.setServiceType(serviceType);
+        row.setServiceLabel(blankToNull(serviceLabel));
         row.setStatus(status);
         row.setNotes(blankToNull(notes));
         userRepository.findById(actorUserId).ifPresent(row::setCreatedBy);
         return attendanceRepository.save(row);
+    }
+
+    @Transactional
+    public void updateAttendance(
+            long personId,
+            long attendanceId,
+            LocalDate serviceDate,
+            AttendanceServiceType serviceType,
+            String serviceLabel,
+            AttendanceStatus status,
+            String notes) {
+        requireWritablePerson(personId);
+        PersonAttendance row = attendanceRepository
+                .findById(attendanceId)
+                .filter(entry -> entry.getPerson().getId().equals(personId))
+                .orElseThrow(() -> new IllegalArgumentException("Eintrag nicht gefunden."));
+        if (serviceDate == null) {
+            throw new IllegalArgumentException("Bitte ein Datum angeben.");
+        }
+        if (serviceType == null) {
+            throw new IllegalArgumentException("Bitte einen Typ wählen.");
+        }
+        if (status == null) {
+            status = AttendanceStatus.PRESENT;
+        }
+        row.setServiceDate(serviceDate);
+        row.setServiceType(serviceType);
+        row.setServiceLabel(blankToNull(serviceLabel));
+        row.setStatus(status);
+        row.setNotes(blankToNull(notes));
+        attendanceRepository.save(row);
     }
 
     @Transactional
@@ -233,8 +275,19 @@ public class PersonalMemberService {
      */
     @Transactional(readOnly = true)
     public AttendanceDisplayStats displayAttendanceStats(long personId) {
-        requireWritablePerson(personId);
-        return AttendanceDisplayStats.placeholder();
+        List<PersonAttendance> rows = listAttendance(personId);
+        int total = rows.size();
+        int uebungsdienste = (int) rows.stream()
+                .filter(row -> row.getServiceType() == AttendanceServiceType.UEBUNGSDIENST)
+                .count();
+        int einsaetze = (int) rows.stream()
+                .filter(row -> row.getServiceType() == AttendanceServiceType.EINSATZ)
+                .count();
+        int abwesend = (int) rows.stream()
+                .filter(row -> row.getStatus() == AttendanceStatus.ABSENT)
+                .count();
+        String quoteLabel = total > 0 ? Math.round(((total - abwesend) * 100f) / total) + " %" : "–";
+        return new AttendanceDisplayStats(total, uebungsdienste, einsaetze, abwesend, quoteLabel);
     }
 
     @Transactional(readOnly = true)
@@ -253,8 +306,10 @@ public class PersonalMemberService {
         Person person = requireWritablePerson(personId);
         List<PersonAttendance> rows = listAttendance(personId);
         StringBuilder sb = new StringBuilder();
-        sb.append("Datum;Status;Notiz\n");
+        sb.append("Bezeichnung;Typ;Datum;Status;Notiz\n");
         for (PersonAttendance row : rows) {
+            sb.append(csvEscape(row.getServiceLabel())).append(';');
+            sb.append(row.getServiceType().label()).append(';');
             sb.append(row.getServiceDate()).append(';');
             sb.append(row.getStatus().label()).append(';');
             sb.append(csvEscape(row.getNotes())).append('\n');
@@ -282,15 +337,42 @@ public class PersonalMemberService {
         personRepository.save(person);
     }
 
+    @Transactional(readOnly = true)
+    public String resolvePersonEmail(Person person) {
+        if (person.getUser() != null
+                && person.getUser().getLoginEmail() != null
+                && !person.getUser().getLoginEmail().isBlank()) {
+            return person.getUser().getLoginEmail();
+        }
+        if (person.getEmail() != null && !person.getEmail().isBlank()) {
+            return person.getEmail();
+        }
+        return person.getEmailPrivate();
+    }
+
     @Transactional
     public void updateContactData(
-            long personId, String phone, String emailPrivate, String address, long actorUserId, String actorName) {
+            long personId, String phone, String email, String address, long actorUserId, String actorName) {
         Person person = requireWritablePerson(personId);
+        String normalized = normalizeEmail(email);
         person.setPhone(blankToNull(phone));
-        person.setEmailPrivate(blankToNull(emailPrivate));
+        person.setEmail(normalized);
+        person.setEmailPrivate(null);
         person.setAddress(blankToNull(address));
         userRepository.findById(actorUserId).ifPresent(person::setProfileUpdatedBy);
         person.setProfileUpdatedByName(actorName);
+        if (person.getUser() != null) {
+            long linkedUserId = person.getUser().getId();
+            if (normalized != null
+                    && userRepository
+                            .findByLoginEmailIgnoreCaseExcludingId(normalized, linkedUserId)
+                            .isPresent()) {
+                throw new IllegalArgumentException("Diese E-Mail-Adresse wird bereits verwendet.");
+            }
+            User user = person.getUser();
+            user.setLoginEmail(normalized);
+            userRepository.save(user);
+        }
         personRepository.save(person);
     }
 
@@ -298,6 +380,26 @@ public class PersonalMemberService {
     public List<PersonEmergencyContact> listEmergencyContacts(long personId) {
         Person person = requireWritablePerson(personId);
         return emergencyContactRepository.findByPersonIdOrderBySortOrderAscNameAsc(person.getId());
+    }
+
+    @Transactional
+    public void updateQualificationType(long personId, Long qualificationTypeId) {
+        personalService.updateQualificationType(personId, qualificationTypeId);
+    }
+
+    @Transactional
+    public void addCourseCompletion(long personId, long courseId, Integer completionYear) {
+        personalService.addCourseCompletion(personId, courseId, completionYear);
+    }
+
+    @Transactional
+    public void updateCourseCompletion(long personId, long completionId, long courseId, Integer completionYear) {
+        personalService.updateCourseCompletion(personId, completionId, courseId, completionYear);
+    }
+
+    @Transactional
+    public void deleteCourseCompletion(long personId, long completionId) {
+        personalService.deleteCourseCompletion(personId, completionId);
     }
 
     private Person requireWritablePerson(long personId) {
@@ -315,6 +417,13 @@ public class PersonalMemberService {
             return null;
         }
         return value.trim();
+    }
+
+    private static String normalizeEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return null;
+        }
+        return email.trim().toLowerCase();
     }
 
     private static String normalizeHonorStatus(String status) {
@@ -339,10 +448,5 @@ public class PersonalMemberService {
 
     /** Kennzahlen für Reiter Anwesenheit (Gesamt, Übungsdienste, Einsätze, Abwesend, Quote). */
     public record AttendanceDisplayStats(
-            int total, int uebungsdienste, int einsaetze, int abwesend, String quoteLabel) {
-
-        public static AttendanceDisplayStats placeholder() {
-            return new AttendanceDisplayStats(0, 0, 0, 0, "–");
-        }
-    }
+            int total, int uebungsdienste, int einsaetze, int abwesend, String quoteLabel) {}
 }

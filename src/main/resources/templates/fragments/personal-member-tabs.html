@@ -62,8 +62,8 @@
             <input type="text" id="cd-phone" name="phone" maxlength="30" th:value="${person.phone}" placeholder="z.B. 0170 1234567"/>
           </div>
           <div class="form-group">
-            <label for="cd-email">Private E-Mail</label>
-            <input type="email" id="cd-email" name="emailPrivate" maxlength="100" th:value="${person.emailPrivate}" placeholder="max@beispiel.de"/>
+            <label for="cd-email">E-Mail-Adresse</label>
+            <input type="email" id="cd-email" name="email" maxlength="255" th:value="${personEmail}" placeholder="max@beispiel.de"/>
           </div>
           <div class="form-group form-group--full">
             <label for="cd-address">Adresse</label>
@@ -101,15 +101,13 @@
   <!-- Tab: Qualifikationen / Lehrgänge -->
   <div th:if="${activeTab == 'lehrgaenge'}" class="personal-tab-panel">
     <div class="card card--narrow">
-      <div class="card__header">Qualifikation &amp; Lehrgänge</div>
+      <div class="card__header">Aktuelle Qualifikation</div>
       <div class="card__body">
-        <form method="post" th:action="@{/personal/{id}(id=${person.id})}">
+        <form method="post" th:action="@{/personal/{id}/qualification-type(id=${person.id})}" class="form-grid">
           <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
           <input type="hidden" name="unit" th:value="${unitId}"/>
-          <input type="hidden" name="section" value="lehrgaenge"/>
-
-          <div class="form-group">
-            <label for="qualificationTypeId">Aktuelle Qualifikation</label>
+          <div class="form-group form-group--full">
+            <label for="qualificationTypeId">Qualifikation</label>
             <select id="qualificationTypeId" name="qualificationTypeId">
               <option value="">— keine —</option>
               <option th:each="q : ${qualificationTypes}" th:value="${q.id}"
@@ -118,23 +116,95 @@
             </select>
             <p class="hint">Qualifikationstypen werden im Adminpanel unter Ausbildung gepflegt.</p>
           </div>
+          <div class="form-group form-group--full">
+            <button type="submit" class="btn btn--primary">Qualifikation speichern</button>
+          </div>
+        </form>
+      </div>
+    </div>
 
-          <h3 class="text-sm" style="margin:1.25rem 0 0.5rem;font-weight:600;">Abgeschlossene Lehrgänge</h3>
-          <div class="course-pick-list" th:if="${!#lists.isEmpty(unitCourses)}">
-            <div class="course-pick-row" th:each="course : ${unitCourses}">
-              <input type="checkbox" name="courseIds" th:id="'course-' + ${course.id}" th:value="${course.id}"
-                     th:checked="${completedCourseIds.contains(course.id)}"/>
-              <label class="pick-name" th:for="'course-' + ${course.id}" th:text="${course.name}">Lehrgang</label>
-              <input type="number" th:name="'completionYear_' + ${course.id}" min="1950" max="2100"
-                     placeholder="Jahr" th:value="${completionYears[course.id]}"/>
+    <div class="card card--narrow mt-md">
+      <div class="card__header card__header--toolbar">
+        <span th:text="|Abgeschlossene Lehrgänge (${#lists.size(completions)})|">Abgeschlossene Lehrgänge</span>
+        <button type="button" class="btn btn--primary btn--sm" data-open-modal="modal-course-completion"
+                th:disabled="${#lists.isEmpty(availableCourses)}"
+                th:title="${#lists.isEmpty(availableCourses) ? (#lists.isEmpty(unitCourses) ? 'Zuerst Lehrgänge im Adminpanel anlegen' : 'Alle Lehrgänge bereits hinterlegt') : 'Lehrgang hinzufügen'}">
+          + Lehrgang
+        </button>
+      </div>
+      <div class="card__body card__body--flush">
+        <div class="table-wrapper" th:if="${!#lists.isEmpty(completions)}">
+          <table class="table">
+            <thead>
+            <tr>
+              <th>Lehrgang</th>
+              <th>Qualifikation</th>
+              <th>Jahr</th>
+              <th>Aktionen</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="cc : ${completions}"
+                th:attr="data-id=${cc.id},
+                         data-course-id=${cc.course.id},
+                         data-year=${cc.completionYear != null ? cc.completionYear : ''}">
+              <td><strong th:text="${cc.course.name}">Lehrgang</strong></td>
+              <td class="text-muted text-sm"
+                  th:text="${cc.course.qualificationType != null ? cc.course.qualificationType.name : '—'}">—</td>
+              <td class="text-muted text-sm"
+                  th:text="${cc.completionYear != null ? cc.completionYear : (cc.completedOn != null ? #temporals.format(cc.completedOn, 'yyyy') : '—')}">—</td>
+              <td>
+                <div class="btn-group">
+                  <button type="button" class="btn btn--outline btn--sm" data-edit-course-completion>Bearb.</button>
+                  <form method="post" th:action="@{/personal/{id}/course-completions/{cid}/delete(id=${person.id}, cid=${cc.id})}"
+                        class="table-inline-form" data-confirm="Lehrgangseintrag wirklich entfernen?">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <input type="hidden" name="unit" th:value="${unitId}"/>
+                    <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-empty" th:if="${#lists.isEmpty(completions)}">
+          Noch keine abgeschlossenen Lehrgänge. Klicken Sie auf <strong>+ Lehrgang</strong>.
+        </p>
+        <p class="hint" style="padding:0 1rem 1rem;margin:0;" th:if="${#lists.isEmpty(unitCourses)}">
+          Noch keine Lehrgänge in der Einheit hinterlegt. Lehrgänge können im Adminpanel unter Ausbildung angelegt werden.
+        </p>
+      </div>
+    </div>
+
+    <div id="modal-course-completion" class="modal-overlay">
+      <div class="modal" role="dialog" aria-labelledby="modal-course-completion-title">
+        <div class="modal__header">
+          <h3 id="modal-course-completion-title">Lehrgang hinzufügen</h3>
+          <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
+        </div>
+        <form method="post" th:action="@{/personal/{id}/course-completions(id=${person.id})}" id="form-course-completion">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <input type="hidden" name="unit" th:value="${unitId}"/>
+          <div class="modal__body">
+            <div class="form-group">
+              <label for="cc-course">Lehrgang <span class="required">*</span></label>
+              <select id="cc-course" name="courseId" required>
+                <option value="">— Lehrgang wählen —</option>
+                <option th:each="course : ${unitCourses}" th:value="${course.id}"
+                        th:text="${course.name}"
+                        th:attr="data-available=${!completedCourseIds.contains(course.id)}">Lehrgang</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="cc-year">Abschlussjahr <span class="required">*</span></label>
+              <input id="cc-year" name="completionYear" type="number" min="1950" max="2100" required
+                     placeholder="z. B. 2024"/>
             </div>
           </div>
-          <p class="hint" th:if="${#lists.isEmpty(unitCourses)}">
-            Noch keine Lehrgänge in der Einheit hinterlegt. Lehrgänge können im Adminpanel unter Ausbildung angelegt werden.
-          </p>
-
-          <div class="btn-group mt-md">
+          <div class="modal__footer">
             <button type="submit" class="btn btn--primary">Speichern</button>
+            <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
           </div>
         </form>
       </div>
@@ -170,11 +240,106 @@
             <div class="att-stat__label">Quote</div>
           </div>
         </div>
+      </div>
+    </div>
 
-        <p class="hint att-stats-hint">
-          Die Auswertung wird zu einem späteren Zeitpunkt aus Übungsdiensten und Einsätzen berechnet.
-          Aktuell werden nur Platzhalterwerte angezeigt.
+    <div class="card mt-md">
+      <div class="card__header card__header--toolbar attendance-toolbar">
+        <span th:text="|Teilnahmen (${#lists.size(attendanceRecords)})|">Teilnahmen</span>
+        <div class="attendance-toolbar__controls">
+          <input type="search" class="field attendance-search-field" id="attendance-search"
+                 placeholder="Suchen…" maxlength="100" autocomplete="off" aria-label="Teilnahmen suchen"/>
+          <select class="field attendance-type-filter" id="attendance-type-filter" aria-label="Nach Typ filtern">
+            <option value="">Alle Typen</option>
+            <option th:each="t : ${attendanceServiceTypes}" th:value="${t.name()}" th:text="${t.label()}">Typ</option>
+          </select>
+          <button type="button" class="btn btn--primary btn--sm" data-open-modal="modal-attendance">+ Eintrag</button>
+        </div>
+      </div>
+      <div class="card__body card__body--flush">
+        <div class="table-wrapper" th:if="${!#lists.isEmpty(attendanceRecords)}">
+          <table class="table" id="attendance-table">
+            <thead>
+            <tr>
+              <th class="table__th-sort" scope="col" data-sort-key="label" tabindex="0" role="columnheader"
+                  aria-sort="none">Bezeichnung</th>
+              <th class="table__th-sort" scope="col" data-sort-key="type" tabindex="0" role="columnheader"
+                  aria-sort="none">Typ</th>
+              <th class="table__th-sort table__th-sort--desc" scope="col" data-sort-key="date" tabindex="0"
+                  role="columnheader" aria-sort="descending">Datum</th>
+              <th scope="col">Aktionen</th>
+            </tr>
+            </thead>
+            <tbody id="attendance-tbody">
+            <tr th:each="row : ${attendanceRecords}" class="attendance-row"
+                th:attr="data-id=${row.id},
+                         data-sort-label=${row.serviceLabel != null ? row.serviceLabel : ''},
+                         data-sort-type=${row.serviceType.label()},
+                         data-sort-date=${row.serviceDate},
+                         data-type=${row.serviceType.name()},
+                         data-search=${(row.serviceLabel != null ? row.serviceLabel : '') + ' ' + row.serviceType.label() + ' ' + #temporals.format(row.serviceDate, 'dd.MM.yyyy')},
+                         data-service-type=${row.serviceType.name()},
+                         data-service-label=${row.serviceLabel != null ? row.serviceLabel : ''},
+                         data-service-date=${row.serviceDate}">
+              <td><strong th:text="${row.serviceLabel != null and !#strings.isEmpty(row.serviceLabel) ? row.serviceLabel : '—'}">FwdV7</strong></td>
+              <td>
+                <span class="badge"
+                      th:classappend="${row.serviceType.name() == 'EINSATZ' ? ' badge--danger' : (row.serviceType.name() == 'UEBUNGSDIENST' ? ' badge--info' : '')}"
+                      th:text="${row.serviceType.label()}">Typ</span>
+              </td>
+              <td class="text-muted text-sm" th:text="${#temporals.format(row.serviceDate, 'dd.MM.yyyy')}">01.01.2025</td>
+              <td>
+                <div class="btn-group">
+                  <button type="button" class="btn btn--outline btn--sm" data-edit-attendance>Bearb.</button>
+                  <form method="post" th:action="@{/personal/{id}/attendance/{aid}/delete(id=${person.id}, aid=${row.id})}"
+                        class="table-inline-form" data-confirm="Eintrag wirklich entfernen?">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <input type="hidden" name="unit" th:value="${unitId}"/>
+                    <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-empty" th:if="${#lists.isEmpty(attendanceRecords)}">
+          Noch keine Teilnahmen erfasst. Klicken Sie auf <strong>+ Eintrag</strong> oder warten Sie auf die automatische Übernahme aus Diensten und Einsätzen.
         </p>
+      </div>
+    </div>
+
+    <div id="modal-attendance" class="modal-overlay">
+      <div class="modal" role="dialog" aria-labelledby="modal-attendance-title">
+        <div class="modal__header">
+          <h3 id="modal-attendance-title">Teilnahme hinzufügen</h3>
+          <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
+        </div>
+        <form method="post" th:action="@{/personal/{id}/attendance(id=${person.id})}" id="form-attendance">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <input type="hidden" name="unit" th:value="${unitId}"/>
+          <div class="modal__body">
+            <div class="form-group">
+              <label for="att-label">Bezeichnung</label>
+              <input id="att-label" name="serviceLabel" type="text" maxlength="64"
+                     placeholder="z. B. FwdV7"/>
+            </div>
+            <div class="form-group">
+              <label for="att-type">Typ <span class="required">*</span></label>
+              <select id="att-type" name="serviceType" required>
+                <option th:each="t : ${attendanceServiceTypes}" th:value="${t.name()}" th:text="${t.label()}">Typ</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="att-date">Datum <span class="required">*</span></label>
+              <input id="att-date" name="serviceDate" type="date" required/>
+            </div>
+          </div>
+          <div class="modal__footer">
+            <button type="submit" class="btn btn--primary">Speichern</button>
+            <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>

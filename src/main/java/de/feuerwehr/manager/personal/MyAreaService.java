@@ -42,13 +42,32 @@ public class MyAreaService {
 
     @Transactional
     public void updateContact(long userId, Long unitId, String phone, String loginEmail, String address) {
+        String normalized = normalizeLoginEmail(loginEmail);
         updateLoginEmail(userId, loginEmail);
         Person person = resolveLinkedPerson(userId, unitId).orElse(null);
         if (person != null) {
             person.setPhone(blankToNull(phone));
+            person.setEmail(normalized);
+            person.setEmailPrivate(null);
             person.setAddress(blankToNull(address));
             personRepository.save(person);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public String resolveContactEmail(long userId, Long unitId) {
+        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("Benutzer nicht gefunden."));
+        if (user.getLoginEmail() != null && !user.getLoginEmail().isBlank()) {
+            return user.getLoginEmail();
+        }
+        return resolveLinkedPerson(userId, unitId)
+                .map(p -> {
+                    if (p.getEmail() != null && !p.getEmail().isBlank()) {
+                        return p.getEmail();
+                    }
+                    return p.getEmailPrivate();
+                })
+                .orElse(null);
     }
 
     @Transactional

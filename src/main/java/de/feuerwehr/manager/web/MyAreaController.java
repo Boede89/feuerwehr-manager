@@ -44,7 +44,7 @@ public class MyAreaController {
         model.addAttribute("emergencyContacts", view.emergencyContacts());
         model.addAttribute("completions", view.completions());
         model.addAttribute("hasLinkedPerson", view.person() != null);
-        model.addAttribute("loginEmail", view.user().getLoginEmail());
+        model.addAttribute("loginEmail", myAreaService.resolveContactEmail(actor.getUserId(), actor.getUnitId()));
         model.addAttribute("privacyContactName", global.getPrivacyContactName());
         model.addAttribute("privacyContactEmail", global.getPrivacyContactEmail());
         model.addAttribute("privacyContactPhone", global.getPrivacyContactPhone());

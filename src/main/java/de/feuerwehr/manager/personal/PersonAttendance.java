@@ -36,6 +36,13 @@ public class PersonAttendance {
     @Column(name = "service_date", nullable = false)
     private LocalDate serviceDate;
 
+    @Column(name = "service_label", length = 64)
+    private String serviceLabel;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "service_type", nullable = false, length = 32)
+    private AttendanceServiceType serviceType = AttendanceServiceType.UEBUNGSDIENST;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private AttendanceStatus status = AttendanceStatus.PRESENT;

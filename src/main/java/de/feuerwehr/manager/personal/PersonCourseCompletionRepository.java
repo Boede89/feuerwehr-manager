@@ -16,5 +16,7 @@ public interface PersonCourseCompletionRepository extends JpaRepository<PersonCo
             """)
     List<PersonCourseCompletion> findByPersonId(@Param("personId") long personId);
 
+    boolean existsByPersonIdAndCourseId(long personId, long courseId);
+
     void deleteByPersonId(long personId);
 }
