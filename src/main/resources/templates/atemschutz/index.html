@@ -45,8 +45,15 @@
 
   <div class="card">
     <div class="card__header card__header--toolbar">
-      <span th:text="'Geräteträger (' + ${carrierCount} + ')'">Geräteträger</span>
+      <span>Geräteträger (<span id="atemschutz-visible-count" th:text="${carrierCount}">0</span>)</span>
       <div class="toolbar-actions">
+        <div class="toolbar-toggle">
+          <span class="toolbar-toggle__label">Pausierte</span>
+          <label class="toggle-switch toggle-switch--toolbar" title="Pausierte Geräteträger anzeigen">
+            <input type="checkbox" id="atemschutz-show-paused" aria-label="Pausierte Geräteträger anzeigen"/>
+            <span class="toggle-switch__track"></span>
+          </label>
+        </div>
         <input type="search" class="field atemschutz-search-field" id="atemschutz-search"
                placeholder="Suchen…" maxlength="100" autocomplete="off" aria-label="Geräteträger suchen"/>
       </div>
@@ -66,6 +73,7 @@
         <tbody>
         <tr th:each="row : ${carriers}" class="carrier-row" role="link" tabindex="0"
             th:attr="data-search=${row.carrier.person.lastName + ' ' + row.carrier.person.firstName},
+                     data-status=${row.carrier.status.name()},
                      data-href=@{/atemschutz/carriers/{id}(id=${row.carrier.id},unit=${unitId})}">
           <td>
             <strong th:text="${row.carrier.person.displayName()}">Name</strong>

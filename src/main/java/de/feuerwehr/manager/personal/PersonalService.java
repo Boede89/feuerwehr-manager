@@ -191,7 +191,7 @@ public class PersonalService {
             String username = userManagementService.allocateUniqueUsername(firstName, lastName);
             User user = userManagementService.createUserForPerson(
                     username,
-                    (firstName + " " + lastName).trim(),
+                    Person.formatDisplayName(firstName, lastName),
                     plan.password(),
                     unitId,
                     email,
@@ -320,7 +320,7 @@ public class PersonalService {
                 String username = userManagementService.allocateUniqueUsername(firstName, lastName);
                 User user = userManagementService.createUserForPerson(
                         username,
-                        (firstName + " " + lastName).trim(),
+                        Person.formatDisplayName(firstName, lastName),
                         password,
                         person.getUnit().getId(),
                         email,

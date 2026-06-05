@@ -104,6 +104,12 @@ public class Person {
     private Instant updatedAt;
 
     public String displayName() {
-        return (firstName + " " + lastName).trim();
+        return formatDisplayName(firstName, lastName);
+    }
+
+    public static String formatDisplayName(String firstName, String lastName) {
+        String first = firstName != null ? firstName.trim() : "";
+        String last = lastName != null ? lastName.trim() : "";
+        return (last + " " + first).trim();
     }
 }

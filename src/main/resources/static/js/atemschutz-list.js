@@ -1,6 +1,8 @@
 (function () {
   var table = document.getElementById('atemschutz-table');
   var search = document.getElementById('atemschutz-search');
+  var showPaused = document.getElementById('atemschutz-show-paused');
+  var visibleCount = document.getElementById('atemschutz-visible-count');
   if (!table) return;
 
   table.querySelectorAll('.carrier-row').forEach(function (row) {
@@ -20,13 +22,30 @@
     });
   });
 
-  if (search) {
-    search.addEventListener('input', function () {
-      var q = search.value.trim().toLowerCase();
-      table.querySelectorAll('.carrier-row').forEach(function (row) {
-        var text = (row.getAttribute('data-search') || '').toLowerCase();
-        row.style.display = !q || text.indexOf(q) !== -1 ? '' : 'none';
-      });
+  function applyFilters() {
+    var q = search ? search.value.trim().toLowerCase() : '';
+    var includePaused = showPaused && showPaused.checked;
+    var count = 0;
+    table.querySelectorAll('.carrier-row').forEach(function (row) {
+      var status = row.getAttribute('data-status') || 'ACTIVE';
+      var statusVisible = includePaused || status !== 'PAUSED';
+      var text = (row.getAttribute('data-search') || '').toLowerCase();
+      var searchVisible = !q || text.indexOf(q) !== -1;
+      var visible = statusVisible && searchVisible;
+      row.style.display = visible ? '' : 'none';
+      if (visible) count++;
     });
+    if (visibleCount) {
+      visibleCount.textContent = String(count);
+    }
   }
+
+  if (search) {
+    search.addEventListener('input', applyFilters);
+  }
+  if (showPaused) {
+    showPaused.addEventListener('change', applyFilters);
+  }
+
+  applyFilters();
 })();

@@ -161,9 +161,7 @@ public class AdminGlobalViewService {
     }
 
     private static String formatPersonLabel(Person person) {
-        String first = person.getFirstName() != null ? person.getFirstName().trim() : "";
-        String last = person.getLastName() != null ? person.getLastName().trim() : "";
-        String name = (first + " " + last).trim();
+        String name = person.displayName();
         if (!name.isBlank()) {
             return name;
         }

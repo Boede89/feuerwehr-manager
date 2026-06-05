@@ -1447,6 +1447,27 @@ body > main:not(.page-main) {
   flex-wrap: wrap;
 }
 
+.toolbar-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+}
+
+.toolbar-toggle__label {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.toggle-switch--toolbar input:checked + .toggle-switch__track {
+  background: var(--gruen);
+}
+
 .toolbar-actions__form {
   margin: 0;
   display: inline;
