@@ -17,8 +17,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @ControllerAdvice
 @RequiredArgsConstructor
@@ -175,6 +178,19 @@ public class WebUiAdvice {
             return key;
         }
         return Character.toUpperCase(key.charAt(0)) + key.substring(1);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public String handleMaxUploadSize(
+            MaxUploadSizeExceededException ex, HttpServletRequest request, RedirectAttributes redirectAttributes) {
+        redirectAttributes.addFlashAttribute(
+                "error",
+                "Die Import-Datei ist zu groß (max. 128 MB). Bitte eine kleinere SQL-Datei verwenden oder den Export aus der alten App auf Personal/Atemschutz beschränken.");
+        String unit = request.getParameter("unit");
+        if (unit != null && !unit.isBlank()) {
+            return "redirect:/admin?scope=einheit&tab=import-export&unit=" + unit;
+        }
+        return "redirect:/admin?scope=einheit&tab=import-export";
     }
 
     private static String buildRequestPath(HttpServletRequest request) {
