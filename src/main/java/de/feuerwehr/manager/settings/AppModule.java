@@ -4,7 +4,7 @@ package de.feuerwehr.manager.settings;
 public enum AppModule {
     PERSONAL("personal", "Personal", "Mitgliederverwaltung", "👥", true),
     RESERVIERUNGEN("reservierungen", "Reservierungen", "Fahrzeug- und Gerätereservierungen", "🚒", false),
-    ATEMSCHUTZ("atemschutz", "Atemschutz", "Tauglichkeiten und Nachweise", "🛡️", false),
+    ATEMSCHUTZ("atemschutz", "Atemschutz", "Tauglichkeiten und Nachweise", "🛡️", true),
     BERICHTE("berichte", "Berichte", "Einsatz- und Dienstberichte", "📋", false),
     AUSWERTUNG("auswertung", "Auswertung", "Statistiken und Auswertungen", "📊", false);
 

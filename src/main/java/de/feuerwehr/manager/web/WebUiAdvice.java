@@ -149,6 +149,9 @@ public class WebUiAdvice {
         if (path.startsWith("/personal")) {
             return "personal";
         }
+        if (path.startsWith("/atemschutz")) {
+            return "atemschutz";
+        }
         if (path.startsWith("/my-area") || path.startsWith("/profile")) {
             return "my-area";
         }

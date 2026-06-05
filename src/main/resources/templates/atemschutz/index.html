@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('Atemschutz', ~{::main})}">
+<main>
+  <div class="page-header">
+    <div>
+      <h2>Atemschutz</h2>
+      <p>Geräteträger und Tauglichkeiten · <strong th:text="${currentUnitName}">—</strong></p>
+    </div>
+  </div>
+
+  <div th:replace="~{fragments/testmode-banner :: banner}"></div>
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
+
+  <p class="hint" th:text="'G26-Warnung ab ' + ${warnDays} + ' Tagen vor Ablauf.'">Warnung</p>
+
+  <div class="card">
+    <div class="card__header card__header--toolbar">
+      <span th:text="'Geräteträger (' + ${carrierCount} + ')'">Geräteträger</span>
+      <div class="toolbar-actions">
+        <input type="search" class="field atemschutz-search-field" id="atemschutz-search"
+               placeholder="Suchen…" maxlength="100" autocomplete="off" aria-label="Geräteträger suchen"/>
+        <button type="button" class="btn btn--primary btn--sm" th:if="${canWrite}"
+                data-open-modal="modal-add-carrier">+ Geräteträger</button>
+      </div>
+    </div>
+    <div class="card__body card__body--flush" th:if="${!#lists.isEmpty(carriers)}">
+      <table class="data-table" id="atemschutz-table">
+        <thead>
+        <tr>
+          <th>Name</th>
+          <th>Status</th>
+          <th>G26</th>
+          <th>Gültig bis</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="row : ${carriers}" class="carrier-row" role="link" tabindex="0"
+            th:attr="data-search=${row.carrier.person.lastName + ' ' + row.carrier.person.firstName},
+                     data-href=@{/atemschutz/carriers/{id}(id=${row.carrier.id},unit=${unitId})}">
+          <td>
+            <strong th:text="${row.carrier.person.displayName()}">Name</strong>
+          </td>
+          <td>
+            <span class="text-muted text-sm" th:text="${row.carrier.status.label()}">Aktiv</span>
+          </td>
+          <td>
+            <div th:replace="~{fragments/atemschutz-fitness-badge :: badge(${row.g26})}"></div>
+          </td>
+          <td th:text="${row.g26.validUntil != null ? #temporals.format(row.g26.validUntil, 'dd.MM.yyyy') : '–'}">–</td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card__body" th:if="${#lists.isEmpty(carriers)}">
+      <p class="hint" style="margin:0;">
+        Noch keine Geräteträger erfasst.
+        <span th:if="${canWrite}">Klicken Sie auf <strong>+ Geräteträger</strong>.</span>
+      </p>
+    </div>
+  </div>
+
+  <div id="modal-add-carrier" class="modal-overlay" th:if="${canWrite}">
+    <div class="modal" role="dialog">
+      <div class="modal__header">
+        <h3>Geräteträger hinzufügen</h3>
+        <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
+      </div>
+      <form method="post" th:action="@{/atemschutz/carriers}">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <div class="modal__body">
+          <div class="form-group">
+            <label for="carrier-person">Person</label>
+            <select id="carrier-person" name="personId" required>
+              <option value="">— Bitte wählen —</option>
+              <option th:each="p : ${assignablePersons}" th:value="${p.id}"
+                      th:text="${p.displayName()}">Person</option>
+            </select>
+            <p class="hint" th:if="${#lists.isEmpty(assignablePersons)}">
+              Alle Personen der Einheit sind bereits erfasst oder es gibt keine Personen.
+            </p>
+          </div>
+          <div class="form-group">
+            <label for="carrier-status">Status</label>
+            <select id="carrier-status" name="status">
+              <option th:each="s : ${T(de.feuerwehr.manager.atemschutz.AtemschutzCarrierStatus).values()}"
+                      th:value="${s.name()}" th:text="${s.label()}"
+                      th:selected="${s.name() == 'ACTIVE'}">Aktiv</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="carrier-notes">Notiz</label>
+            <input id="carrier-notes" name="notes" type="text" maxlength="512"/>
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button type="submit" class="btn btn--primary" th:disabled="${#lists.isEmpty(assignablePersons)}">Anlegen</button>
+          <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script th:src="@{/js/atemschutz-list.js}" defer></script>
+  <script th:src="@{/js/atemschutz-modals.js}" defer></script>
+</main>
+</html>
