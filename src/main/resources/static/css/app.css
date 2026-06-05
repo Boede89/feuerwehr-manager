@@ -2570,7 +2570,7 @@ span.required { color: var(--error); }
 .member-detail-title { font-size: 1.25rem; font-weight: 700; margin: 0; }
 .card--narrow { max-width: 600px; }
 .p-empty { padding: 1rem; }
-.personal-search-field { width: 200px; margin-left: auto; }
+.personal-search-field { width: 200px; margin: 0; }
 .personal-module-tabs { margin-bottom: var(--space-md, 1rem); }
 .modal--wide { max-width: 640px; }
 .member-picker {

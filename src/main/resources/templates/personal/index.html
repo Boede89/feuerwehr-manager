@@ -7,10 +7,6 @@
       <h2>Personal</h2>
       <p>Mitgliederverwaltung · <strong th:text="${currentUnitName}">—</strong></p>
     </div>
-    <a class="btn btn--primary" th:if="${personalTab == 'mitglieder'}"
-       th:href="@{/personal/new(unit=${unitId})}">+ Neue Person</a>
-    <button type="button" class="btn btn--primary" th:if="${personalTab == 'gruppen'}"
-            data-open-modal="modal-group-form">+ Gruppe</button>
   </div>
 
   <div th:replace="~{fragments/testmode-banner :: banner}"></div>
@@ -26,10 +22,13 @@
   <!-- Tab: Mitglieder -->
   <div th:if="${personalTab == 'mitglieder'}" class="personal-module-panel">
     <div class="card">
-      <div class="card__header">
+      <div class="card__header card__header--toolbar">
         <span th:text="'Alle Mitglieder (' + ${personCount} + ')'">Alle Mitglieder</span>
-        <input type="search" class="field personal-search-field" id="personal-search"
-               placeholder="Suchen…" maxlength="100" autocomplete="off" aria-label="Mitglieder suchen"/>
+        <div class="toolbar-actions">
+          <input type="search" class="field personal-search-field" id="personal-search"
+                 placeholder="Suchen…" maxlength="100" autocomplete="off" aria-label="Mitglieder suchen"/>
+          <a class="btn btn--primary btn--sm" th:href="@{/personal/new(unit=${unitId})}">+ Neue Person</a>
+        </div>
       </div>
       <div class="card__body card__body--flush" th:if="${!#lists.isEmpty(persons)}">
         <table class="data-table" id="personal-members-table">
@@ -62,7 +61,7 @@
         </table>
       </div>
       <div class="card__body" th:if="${#lists.isEmpty(persons)}">
-        <p class="hint" style="margin:0;">Noch keine Mitglieder erfasst.</p>
+        <p class="hint" style="margin:0;">Noch keine Mitglieder erfasst. Klicken Sie auf <strong>+ Neue Person</strong>.</p>
       </div>
     </div>
     <script th:src="@{/js/personal-list.js}"></script>
@@ -71,8 +70,9 @@
   <!-- Tab: Gruppen -->
   <div th:if="${personalTab == 'gruppen'}" class="personal-module-panel">
     <div class="card">
-      <div class="card__header">
+      <div class="card__header card__header--toolbar">
         <span th:text="'Gruppen (' + ${groupCount} + ')'">Gruppen</span>
+        <button type="button" class="btn btn--primary btn--sm" data-open-modal="modal-group-form">+ Gruppe</button>
       </div>
       <div class="card__body card__body--flush" th:if="${!#lists.isEmpty(groups)}">
         <table class="data-table" id="personal-groups-table">
@@ -107,7 +107,7 @@
         </table>
       </div>
       <div class="card__body" th:if="${#lists.isEmpty(groups)}">
-        <p class="hint" style="margin:0;">Noch keine Gruppen angelegt.</p>
+        <p class="hint" style="margin:0;">Noch keine Gruppen angelegt. Klicken Sie auf <strong>+ Gruppe</strong>.</p>
       </div>
     </div>
 
