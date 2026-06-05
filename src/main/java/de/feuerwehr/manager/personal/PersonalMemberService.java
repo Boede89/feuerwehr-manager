@@ -389,11 +389,6 @@ public class PersonalMemberService {
     }
 
     @Transactional
-    public void updateQualificationType(long personId, Long qualificationTypeId) {
-        personalService.updateQualificationType(personId, qualificationTypeId);
-    }
-
-    @Transactional
     public void addCourseCompletion(long personId, long courseId, Integer completionYear) {
         personalService.addCourseCompletion(personId, courseId, completionYear);
     }

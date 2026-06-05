@@ -18,5 +18,8 @@ public interface PersonCourseCompletionRepository extends JpaRepository<PersonCo
 
     boolean existsByPersonIdAndCourseId(long personId, long courseId);
 
+    @Query("SELECT DISTINCT c.person.id FROM PersonCourseCompletion c WHERE c.course.id = :courseId")
+    List<Long> findPersonIdsByCourseId(@Param("courseId") long courseId);
+
     void deleteByPersonId(long personId);
 }

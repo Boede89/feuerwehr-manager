@@ -329,31 +329,50 @@ public class PersonalService {
 
     @Transactional
     public Person updateLehrgaenge(long personId, Long qualificationTypeId, List<CourseCompletionInput> inputs) {
+        saveCourseCompletions(personId, inputs);
+        return requirePerson(personId);
+    }
+
+    /**
+     * Ermittelt die Personen-Qualifikation aus abgeschlossenen Lehrgängen.
+     * Bei mehreren Qualifikationen gilt die mit der höchsten Priorität (niedrigste sort_order in Admin).
+     */
+    @Transactional
+    public Person syncPersonQualificationFromCompletions(long personId) {
         Person person = writablePerson(requirePerson(personId));
-        if (qualificationTypeId != null && qualificationTypeId > 0) {
-            person.setQualificationType(resolveQualificationForWrite(qualificationTypeId, person.getUnit()));
-        } else {
-            person.setQualificationType(null);
+        List<PersonCourseCompletion> completions = completionRepository.findByPersonId(person.getId());
+        QualificationType best = null;
+        int bestSortOrder = Integer.MAX_VALUE;
+        long bestId = Long.MAX_VALUE;
+        for (PersonCourseCompletion completion : completions) {
+            Course course = completion.getCourse();
+            if (course == null) {
+                continue;
+            }
+            QualificationType qualification = course.getQualificationType();
+            if (qualification == null || !qualification.isActive()) {
+                continue;
+            }
+            int sortOrder = qualification.getSortOrder();
+            long qualificationId = qualification.getId();
+            if (sortOrder < bestSortOrder || (sortOrder == bestSortOrder && qualificationId < bestId)) {
+                bestSortOrder = sortOrder;
+                bestId = qualificationId;
+                best = qualification;
+            }
         }
+        person.setQualificationType(best);
         personRepository.save(person);
-        saveCourseCompletions(person.getId(), inputs);
-        Person saved = requirePerson(personId);
+        Person saved = requirePerson(person.getId());
         syncUserDienstgradFromPersonQualification(saved);
         return saved;
     }
 
     @Transactional
-    public Person updateQualificationType(long personId, Long qualificationTypeId) {
-        Person person = writablePerson(requirePerson(personId));
-        if (qualificationTypeId != null && qualificationTypeId > 0) {
-            person.setQualificationType(resolveQualificationForWrite(qualificationTypeId, person.getUnit()));
-        } else {
-            person.setQualificationType(null);
+    public void recalcAllPersonQualificationsInUnit(long unitId) {
+        for (Person person : listPersons(unitId)) {
+            syncPersonQualificationFromCompletions(person.getId());
         }
-        personRepository.save(person);
-        Person saved = requirePerson(personId);
-        syncUserDienstgradFromPersonQualification(saved);
-        return saved;
     }
 
     @Transactional
@@ -369,6 +388,7 @@ public class PersonalService {
         completion.setCourse(resolveCourseForWrite(courseId, person.getUnit()));
         completion.setCompletionYear(completionYear);
         completionRepository.save(completion);
+        syncPersonQualificationFromCompletions(writableId);
     }
 
     @Transactional
@@ -387,6 +407,7 @@ public class PersonalService {
         completion.setCourse(resolveCourseForWrite(courseId, person.getUnit()));
         completion.setCompletionYear(completionYear);
         completionRepository.save(completion);
+        syncPersonQualificationFromCompletions(writableId);
     }
 
     @Transactional
@@ -397,6 +418,7 @@ public class PersonalService {
                 .filter(row -> row.getPerson().getId().equals(personId))
                 .orElseThrow(() -> new IllegalArgumentException("Lehrgangseintrag nicht gefunden."));
         completionRepository.delete(completion);
+        syncPersonQualificationFromCompletions(personId);
     }
 
     @Transactional
@@ -425,21 +447,21 @@ public class PersonalService {
         Person person = writablePerson(requirePerson(personId));
         long writableId = person.getId();
         completionRepository.deleteByPersonId(writableId);
-        if (inputs == null || inputs.isEmpty()) {
-            return;
-        }
-        for (CourseCompletionInput input : inputs) {
-            if (input.courseId() == null || input.courseId() <= 0) {
-                continue;
+        if (inputs != null) {
+            for (CourseCompletionInput input : inputs) {
+                if (input.courseId() == null || input.courseId() <= 0) {
+                    continue;
+                }
+                Course course = resolveCourseForWrite(input.courseId(), person.getUnit());
+                PersonCourseCompletion completion = new PersonCourseCompletion();
+                completion.setPerson(person);
+                completion.setCourse(course);
+                completion.setCompletionYear(input.completionYear());
+                completion.setCompletedOn(input.completedOn());
+                completionRepository.save(completion);
             }
-            Course course = resolveCourseForWrite(input.courseId(), person.getUnit());
-            PersonCourseCompletion completion = new PersonCourseCompletion();
-            completion.setPerson(person);
-            completion.setCourse(course);
-            completion.setCompletionYear(input.completionYear());
-            completion.setCompletedOn(input.completedOn());
-            completionRepository.save(completion);
         }
+        syncPersonQualificationFromCompletions(writableId);
     }
 
     @Transactional
@@ -488,6 +510,7 @@ public class PersonalService {
         List<QualificationType> items = new ArrayList<>(listQualificationTypes(unitId, false));
         reorderList(items, qualificationTypeId, direction);
         persistQualificationSortOrder(unit, items);
+        recalcAllPersonQualificationsInUnit(unitId);
     }
 
     @Transactional
@@ -510,7 +533,7 @@ public class PersonalService {
         type.setActive(active);
         applyDienstgradRoleOnQualification(type, unit, dienstgradRoleId);
         QualificationType saved = qualificationTypeRepository.save(type);
-        syncUsersDienstgradForQualification(saved);
+        recalcAllPersonQualificationsInUnit(unitId);
         return saved;
     }
 
@@ -519,6 +542,7 @@ public class PersonalService {
         Unit unit = requireUnit(unitId);
         QualificationType type = resolveQualificationForWrite(qualificationTypeId, unit);
         qualificationTypeRepository.delete(type);
+        recalcAllPersonQualificationsInUnit(unitId);
     }
 
     @Transactional
@@ -536,14 +560,22 @@ public class PersonalService {
         } else {
             course.setQualificationType(null);
         }
-        return courseRepository.save(course);
+        Course saved = courseRepository.save(course);
+        for (Long personId : completionRepository.findPersonIdsByCourseId(saved.getId())) {
+            syncPersonQualificationFromCompletions(personId);
+        }
+        return saved;
     }
 
     @Transactional
     public void deleteCourse(long unitId, long courseId) {
         Unit unit = requireUnit(unitId);
         Course course = resolveCourseForWrite(courseId, unit);
+        List<Long> personIds = completionRepository.findPersonIdsByCourseId(course.getId());
         courseRepository.delete(course);
+        for (Long personId : personIds) {
+            syncPersonQualificationFromCompletions(personId);
+        }
     }
 
     @Transactional

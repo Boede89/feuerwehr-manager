@@ -266,17 +266,6 @@ public class PersonalController {
                 id, birthdate, personnelNumber, entryDate, exitDate, notes));
     }
 
-    @PostMapping("/{id}/qualification-type")
-    public String updateQualificationType(
-            @AuthenticationPrincipal AppUserDetails actor,
-            @PathVariable long id,
-            @RequestParam long unit,
-            @RequestParam(required = false) Long qualificationTypeId,
-            RedirectAttributes redirectAttributes) {
-        return memberAction(actor, id, unit, "lehrgaenge", redirectAttributes, () ->
-                personalMemberService.updateQualificationType(id, qualificationTypeId));
-    }
-
     @PostMapping("/{id}/course-completions")
     public String createCourseCompletion(
             @AuthenticationPrincipal AppUserDetails actor,

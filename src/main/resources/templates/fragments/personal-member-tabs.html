@@ -133,24 +133,17 @@
   <div th:if="${activeTab == 'lehrgaenge'}" class="personal-tab-panel">
     <div class="card card--narrow">
       <div class="card__header">Aktuelle Qualifikation</div>
-      <div class="card__body">
-        <form method="post" th:action="@{/personal/{id}/qualification-type(id=${person.id})}" class="form-grid">
-          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-          <input type="hidden" name="unit" th:value="${unitId}"/>
-          <div class="form-group form-group--full">
-            <label for="qualificationTypeId">Qualifikation</label>
-            <select id="qualificationTypeId" name="qualificationTypeId">
-              <option value="">— keine —</option>
-              <option th:each="q : ${qualificationTypes}" th:value="${q.id}"
-                      th:selected="${person.qualificationType != null ? person.qualificationType.id == q.id : false}"
-                      th:text="${q.name}">Quali</option>
-            </select>
-            <p class="hint">Qualifikationstypen werden im Adminpanel unter Ausbildung gepflegt.</p>
-          </div>
-          <div class="form-group form-group--full">
-            <button type="submit" class="btn btn--primary">Qualifikation speichern</button>
-          </div>
-        </form>
+      <div class="card__body my-qualification-body">
+        <div th:if="${person.qualificationType != null}" class="my-qualification-badge" role="status">
+          <span class="my-qualification-badge__icon" aria-hidden="true">🎖</span>
+          <span class="my-qualification-badge__label" th:text="${person.qualificationType.name}">Qualifikation</span>
+        </div>
+        <p class="my-qualification-empty hint" th:if="${person.qualificationType == null}">
+          Noch keine Qualifikation. Sie wird automatisch aus abgeschlossenen Lehrgängen ermittelt.
+        </p>
+        <p class="hint" style="margin:0.75rem 0 0;" th:if="${person.qualificationType != null}">
+          Ermittelt aus Lehrgängen — Priorität im Adminpanel unter Ausbildung → Qualifikationen.
+        </p>
       </div>
     </div>
 

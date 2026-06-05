@@ -8,10 +8,16 @@
       <button type="button" class="btn btn--primary btn--sm" data-open-modal="modal-qualification-new">+ Qualifikation</button>
     </div>
     <div class="card__body card__body--flush">
+      <p class="hint admin-qual-priority-hint">
+        Die <strong>Priorität</strong> legt fest, welche Qualifikation gilt, wenn eine Person mehrere
+        absolvierte Lehrgänge mit unterschiedlichen Qualifikationen hat (oben = höchste Priorität).
+        Die Personen-Qualifikation wird daraus automatisch berechnet.
+      </p>
       <div class="table-wrapper" th:if="${qualificationTypes != null and !#lists.isEmpty(qualificationTypes)}">
         <table class="table" id="qualification-table">
           <thead>
           <tr>
+            <th scope="col">Priorität</th>
             <th class="table__th-sort" scope="col" data-sort-key="name" tabindex="0" role="columnheader"
                 aria-sort="none">Name</th>
             <th class="table__th-sort" scope="col" data-sort-key="dienstgrad" tabindex="0" role="columnheader"
@@ -24,6 +30,18 @@
           <tr th:each="t, stat : ${qualificationTypes}" class="qualification-row"
               th:attr="data-sort-name=${t.name},
                        data-sort-dienstgrad=${t.dienstgradRole != null ? t.dienstgradRole.name : ''}">
+            <td>
+              <div class="priority-cell">
+                <span class="priority-cell__rank" th:text="${stat.count}">1</span>
+                <th:block th:replace="~{fragments/admin-table-order :: controls(
+                    moveUrl=@{/admin/unit/qualifications/move},
+                    unitId=${unitId},
+                    itemIdParam='qualificationTypeId',
+                    itemId=${t.id},
+                    disableUp=${stat.first},
+                    disableDown=${stat.last})}"></th:block>
+              </div>
+            </td>
             <td><strong th:text="${t.name}">Qualifikation</strong></td>
             <td class="text-muted text-sm"
                 th:text="${t.dienstgradRole != null ? t.dienstgradRole.name : '—'}">—</td>
@@ -33,13 +51,6 @@
             </td>
             <td>
               <div class="btn-group">
-                <th:block th:replace="~{fragments/admin-table-order :: controls(
-                    moveUrl=@{/admin/unit/qualifications/move},
-                    unitId=${unitId},
-                    itemIdParam='qualificationTypeId',
-                    itemId=${t.id},
-                    disableUp=${stat.first},
-                    disableDown=${stat.last})}"></th:block>
                 <button type="button" class="btn btn--outline btn--sm" data-open-modal="modal-qualification-edit"
                         th:data-id="${t.id}" th:data-name="${t.name}" th:data-active="${t.active}"
                         th:attr="data-dienstgrad-role-id=${t.dienstgradRole != null ? t.dienstgradRole.id : ''}">Bearb.</button>
