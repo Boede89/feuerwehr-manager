@@ -2,6 +2,8 @@ package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.personal.MyAreaService;
 import de.feuerwehr.manager.security.AppUserDetails;
+import de.feuerwehr.manager.settings.ApplicationSettings;
+import de.feuerwehr.manager.settings.GlobalSettingsService;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -22,6 +24,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class MyAreaController {
 
     private final MyAreaService myAreaService;
+    private final GlobalSettingsService globalSettingsService;
 
     @GetMapping
     public String index(
@@ -29,6 +32,7 @@ public class MyAreaController {
             Model model,
             @RequestParam(required = false, defaultValue = "profile") String tab) {
         MyAreaService.MyAreaView view = myAreaService.loadView(actor.getUserId(), actor.getUnitId());
+        ApplicationSettings global = globalSettingsService.get();
         String activeTab = normalizeTab(tab);
         if (view.person() == null && ("qualifications".equals(activeTab) || "lehrgaenge".equals(activeTab))) {
             return "redirect:/my-area?tab=profile";
@@ -41,6 +45,9 @@ public class MyAreaController {
         model.addAttribute("completions", view.completions());
         model.addAttribute("hasLinkedPerson", view.person() != null);
         model.addAttribute("loginEmail", view.user().getLoginEmail());
+        model.addAttribute("privacyContactName", global.getPrivacyContactName());
+        model.addAttribute("privacyContactEmail", global.getPrivacyContactEmail());
+        model.addAttribute("privacyContactPhone", global.getPrivacyContactPhone());
         return "my-area";
     }
 

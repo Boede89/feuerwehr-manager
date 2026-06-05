@@ -410,7 +410,7 @@ public class AdminPanelController {
         try {
             userManagementService.deleteUserByAdmin(id, actor, request);
             redirectAttributes.addFlashAttribute("saved", true);
-            redirectAttributes.addFlashAttribute("message", "Benutzerkonto wurde gelöscht.");
+            redirectAttributes.addFlashAttribute("message", "Benutzerkonto wurde gelöscht (Art. 17 DSGVO).");
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }

@@ -1,5 +1,7 @@
 package de.feuerwehr.manager.user;
 
+import de.feuerwehr.manager.personal.PersonRepository;
+import de.feuerwehr.manager.unit.UserUnitFunctionRepository;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -14,6 +16,8 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final UserRfidCardRepository rfidCardRepository;
+    private final PersonRepository personRepository;
+    private final UserUnitFunctionRepository userUnitFunctionRepository;
     private final PasswordEncoder passwordEncoder;
 
     public Optional<User> findById(long id) {
@@ -109,12 +113,20 @@ public class UserService {
     @Transactional
     public void anonymizeUser(long userId) {
         User user = userRepository.findById(userId).orElseThrow();
+        if (user.getAnonymizedAt() != null) {
+            return;
+        }
+        personRepository.findAllByUserIdAndAnonymizedAtIsNull(userId).forEach(person -> person.setUser(null));
+        userUnitFunctionRepository.deleteByUserId(userId);
         user.setUsername("deleted-" + userId + "-" + UUID.randomUUID().toString().substring(0, 8));
         user.setDisplayName("Gelöschter Nutzer");
         user.setLoginEmail(null);
         user.setDiveraApiKey(null);
         user.setTotpSecret(null);
         user.setTotpEnabled(false);
+        user.setTheme("light");
+        user.setPrivacyNoticeVersion(null);
+        user.setPrivacyNoticeAcceptedAt(null);
         user.setPasswordHash(null);
         user.setActive(false);
         user.setAnonymizedAt(Instant.now());

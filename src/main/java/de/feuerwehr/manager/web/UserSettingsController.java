@@ -1,7 +1,5 @@
 package de.feuerwehr.manager.web;
 
-import de.feuerwehr.manager.dsgvo.AuditEventType;
-import de.feuerwehr.manager.dsgvo.AuditService;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.unit.UnitService;
@@ -32,7 +30,6 @@ public class UserSettingsController {
     private final UserManagementService userManagementService;
     private final UserService userService;
     private final UnitService unitService;
-    private final AuditService auditService;
     private final AccessControlService accessControlService;
 
     @GetMapping
@@ -178,18 +175,10 @@ public class UserSettingsController {
             @PathVariable long id,
             HttpServletRequest request,
             RedirectAttributes redirectAttributes) {
-        if (id == actor.getUserId()) {
-            redirectAttributes.addFlashAttribute("error", "Sie können sich nicht selbst löschen.");
-            return "redirect:/settings/users/" + id;
-        }
         try {
-            User target = userService.findByIdWithUnit(id).orElseThrow();
-            accessControlService.requireCanManageUser(actor, target);
-            String auditDetail = target.getUsername() + " · " + target.getDisplayName();
-            auditService.record(AuditEventType.USER_ANONYMIZED, actor.getUserId(), id, request, auditDetail);
-            userService.anonymizeUser(id);
+            userManagementService.deleteUserByAdmin(id, actor, request);
             redirectAttributes.addFlashAttribute("saved", true);
-            redirectAttributes.addFlashAttribute("message", "Benutzerkonto wurde gelöscht.");
+            redirectAttributes.addFlashAttribute("message", "Benutzerkonto wurde gelöscht (Art. 17 DSGVO).");
             return "redirect:/settings/users";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());

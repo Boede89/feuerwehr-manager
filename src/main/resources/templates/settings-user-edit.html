@@ -88,10 +88,10 @@
   </div>
 
   <form method="post" th:action="@{/settings/users/{id}/anonymize(id=${user.id})}" class="card"
-        onsubmit="return confirm('Benutzerkonto wirklich löschen? Nicht rückgängig.');">
+        onsubmit="return confirm('Benutzerkonto wirklich löschen (Art. 17 DSGVO)?\n\nNicht rückgängig. Der Benutzer kann sich danach nicht mehr anmelden.');">
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-    <h2 style="margin:0 0 0.5rem;font-size:1.05rem;color:#991b1b;">Konto löschen</h2>
-    <p class="hint">Der Benutzer kann sich danach nicht mehr anmelden. Der Name wird entfernt; Protokolleinträge bleiben ohne Personenbezug.</p>
+    <h2 style="margin:0 0 0.5rem;font-size:1.05rem;color:#991b1b;">Konto löschen (Art. 17 DSGVO)</h2>
+    <p class="hint">Personenbezogene Daten am Benutzerkonto werden entfernt (Benutzername, E-Mail, Passwort, 2FA, RFID). Verknüpfungen zu Personen-Stammdaten werden gelöst. Protokolleinträge bleiben ohne Namenszuordnung.</p>
     <button type="submit" class="btn btn-block" style="background:#dc2626;">Konto löschen</button>
   </form>
 </main>

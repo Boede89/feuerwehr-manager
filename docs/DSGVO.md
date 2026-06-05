@@ -14,7 +14,7 @@ Die Software unterstützt eure **organisatorischen** Pflichten (Dokumentation, V
 | **2FA (TOTP)** | Geheimnisse in der DB **verschlüsselt** (AES-256-GCM), wenn `FEUERWEHR_TOTP_ENCRYPTION_KEY` gesetzt ist — in Produktion **Pflicht** |
 | **Protokollierung** | `audit_events`: Login/Logout/Fehler **ohne** Passwort und **ohne** Chip-ID im Klartext; IP nur als SHA-256 mit Salt |
 | **Speicherfrist Logs** | Standard **90 Tage**, danach automatische Löschung (`feuerwehr.dsgvo.audit-retention-days`) |
-| **Löschung** | `UserService.anonymizeUser()` – Konto pseudonymisiert, RFID-Karten deaktiviert (Workflow in UI folgt) |
+| **Löschung (Art. 17)** | `UserService.anonymizeUser()` – Konto pseudonymisiert, RFID deaktiviert, Personen-Verknüpfung gelöst; Admin: **Konto löschen**; Nutzer: Antrag unter **Mein Bereich → Datenschutz** |
 
 ## RFID-Chip (vorbereitet)
 
@@ -43,6 +43,6 @@ docker compose up -d --build
 
 - Datenschutzhinweis in `privacy_notices` **anpassen** (Verantwortlicher, Kontakt).
 - Verarbeitungsverzeichnis und ggf. AV-Vertrag für Hosting ergänzen.
-- Betroffenenrechte (Auskunft/Löschung) organisatorisch + später in der App als Workflows.
+- Betroffenenrechte: Auskunft (Export) und Lösch-Antrag in **Mein Bereich**; Ausführung der Löschung durch Administratoren.
 
 Siehe auch Projektplan: `docs/MODUL-KONZEPT.md` Abschnitt 9 (übergeordnetes Repo).

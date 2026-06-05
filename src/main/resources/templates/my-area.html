@@ -126,12 +126,36 @@
     </div>
 
     <div class="card card--narrow mt-md">
-      <div class="card__header">Datenschutz (Art. 15 DSGVO)</div>
+      <div class="card__header">Datenschutz</div>
       <div class="card__body">
+        <h3 class="text-sm" style="margin:0 0 0.5rem;font-weight:600;">Auskunft (Art. 15 DSGVO)</h3>
         <p class="hint">
           Sie haben das Recht, alle über Sie gespeicherten Daten als Kopie zu erhalten.
         </p>
         <a class="btn btn--outline" th:href="@{/my-area/export}">Meine Daten exportieren (JSON)</a>
+
+        <hr class="mt-md mb-md" style="border:none;border-top:1px solid var(--border);"/>
+
+        <h3 class="text-sm" style="margin:0 0 0.5rem;font-weight:600;">Löschung (Art. 17 DSGVO)</h3>
+        <p class="hint">
+          Sie können die Löschung Ihres Benutzerkontos und der damit verknüpften Zugangsdaten beantragen.
+          Personenbezogene Daten am Konto werden entfernt; gesetzliche Aufbewahrungspflichten
+          (z.&nbsp;B. Zeiterfassung) bleiben unberührt.
+        </p>
+        <p class="hint" th:if="${privacyContactEmail != null and !#strings.isEmpty(privacyContactEmail)}">
+          Stellen Sie Ihren Löschantrag bitte an
+          <span th:if="${privacyContactName != null and !#strings.isEmpty(privacyContactName)}"
+                th:text="${privacyContactName}">Name</span><span th:if="${privacyContactName == null or #strings.isEmpty(privacyContactName)}">den Datenschutzkontakt</span>:
+          <a th:href="'mailto:' + ${privacyContactEmail} + '?subject=L%C3%B6schantrag%20Art.%2017%20DSGVO'"
+             th:text="${privacyContactEmail}">E-Mail</a><span th:if="${privacyContactPhone != null and !#strings.isEmpty(privacyContactPhone)}"> · <span th:text="${privacyContactPhone}">Telefon</span></span>.
+        </p>
+        <p class="hint" th:if="${privacyContactEmail == null or #strings.isEmpty(privacyContactEmail)}">
+          Für einen Löschantrag wenden Sie sich bitte an Ihre Verwaltung oder den Wehrleiter.
+        </p>
+        <p class="hint" style="margin-bottom:0;">
+          Weitere Informationen finden Sie in der
+          <a th:href="@{/datenschutz}" target="_blank" rel="noopener noreferrer">Datenschutzerklärung</a>.
+        </p>
       </div>
     </div>
 

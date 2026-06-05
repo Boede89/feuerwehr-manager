@@ -117,9 +117,9 @@
                       class="table-inline-form"
                       th:action="@{/admin/users/{id}/delete(id=${u.id}, scope=${adminScope}, unit=${unitId})}"
                       th:data-username="${u.username}"
-                      onsubmit="return confirm('Benutzerkonto wirklich löschen?');">
+                      onsubmit="return confirm('Benutzerkonto wirklich löschen (Art. 17 DSGVO)?\n\nDer Benutzer kann sich danach nicht mehr anmelden. Personenbezogene Daten am Konto werden entfernt; Protokolleinträge bleiben ohne Namenszuordnung.');">
                   <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-                  <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
+                  <button type="submit" class="btn btn--danger btn--sm" title="Konto löschen (Art. 17 DSGVO)">Konto löschen</button>
                 </form>
               </div>
             </td>
