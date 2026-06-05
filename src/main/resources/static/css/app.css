@@ -2852,7 +2852,7 @@ span.required { color: var(--error); }
 
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 1rem;
   margin: 1rem 0 1.25rem;
 }
@@ -2890,7 +2890,12 @@ span.required { color: var(--error); }
   line-height: 1.1;
 }
 .kpi-card__value--success { color: var(--gruen, #16a34a); }
+.kpi-card__value--warning { color: var(--gelb, #d97706); }
 .kpi-card__value--danger { color: var(--error, #dc2626); }
+.kpi-card--warning.kpi-card--active {
+  border-color: var(--gelb, #d97706);
+  box-shadow: 0 0 0 1px var(--gelb, #d97706);
+}
 .card--nested { border-style: dashed; }
 
 /* Topnav Personal-Dropdown (FW-Hub) */

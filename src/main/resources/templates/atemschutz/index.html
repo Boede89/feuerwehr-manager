@@ -31,6 +31,11 @@
       <span class="kpi-card__label">Tauglich</span>
       <span class="kpi-card__value kpi-card__value--success" th:text="${stats.tauglich()}">0</span>
     </a>
+    <a class="kpi-card kpi-card--warning" th:classappend="${activeFilter == 'uebung_abgelaufen'} ? ' kpi-card--active' : ''"
+       th:href="@{/atemschutz(unit=${unitId}, filter='uebung_abgelaufen')}">
+      <span class="kpi-card__label">Übung abgelaufen</span>
+      <span class="kpi-card__value kpi-card__value--warning" th:text="${stats.uebungAbgelaufen()}">0</span>
+    </a>
     <a class="kpi-card kpi-card--danger" th:classappend="${activeFilter == 'nicht_tauglich'} ? ' kpi-card--active' : ''"
        th:href="@{/atemschutz(unit=${unitId}, filter='nicht_tauglich')}">
       <span class="kpi-card__label">Nicht tauglich</span>
@@ -69,8 +74,8 @@
             <span class="text-muted text-sm" th:text="${row.carrier.status.label()}">Aktiv</span>
           </td>
           <td>
-            <span th:class="${row.overallTauglich ? 'badge active' : 'badge inactive'}"
-                  th:text="${row.overallTauglich ? 'Tauglich' : 'Nicht tauglich'}">—</span>
+            <span th:class="${row.tauglichkeit.badgeClass()}"
+                  th:text="${row.tauglichkeit.label()}">—</span>
           </td>
           <td>
             <div th:replace="~{fragments/atemschutz-fitness-badge :: validityDate(${row.g26})}"></div>

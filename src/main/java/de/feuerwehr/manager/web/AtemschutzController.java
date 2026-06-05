@@ -220,6 +220,9 @@ public class AtemschutzController {
         if ("tauglich".equalsIgnoreCase(filter)) {
             return "tauglich";
         }
+        if ("uebung_abgelaufen".equalsIgnoreCase(filter) || "uebungabgelaufen".equalsIgnoreCase(filter)) {
+            return "uebung_abgelaufen";
+        }
         if ("nicht_tauglich".equalsIgnoreCase(filter) || "nichttauglich".equalsIgnoreCase(filter)) {
             return "nicht_tauglich";
         }
