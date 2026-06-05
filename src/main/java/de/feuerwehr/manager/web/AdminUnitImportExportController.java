@@ -2,11 +2,8 @@ package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
-import de.feuerwehr.manager.transfer.UnitPersonalAtemschutzTransferService;
-import de.feuerwehr.manager.transfer.UnitPersonalAtemschutzTransferService.ImportSummary;
-import de.feuerwehr.manager.unit.Unit;
-import de.feuerwehr.manager.unit.UnitService;
-import java.nio.charset.StandardCharsets;
+import de.feuerwehr.manager.transfer.DatabaseBackupService;
+import de.feuerwehr.manager.transfer.DatabaseBackupService.DatabaseImportSummary;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import lombok.RequiredArgsConstructor;
@@ -29,65 +26,44 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @RequiredArgsConstructor
 public class AdminUnitImportExportController {
 
-    private final UnitService unitService;
     private final AccessControlService accessControlService;
-    private final UnitPersonalAtemschutzTransferService transferService;
+    private final DatabaseBackupService databaseBackupService;
 
     @GetMapping("/export")
-    public ResponseEntity<byte[]> export(
-            @AuthenticationPrincipal AppUserDetails actor, @RequestParam long unit) {
-        accessControlService.requireAdminLevel(actor);
-        Unit resolved = unitService
-                .resolveActiveUnit(unit, actor)
-                .orElseThrow(() -> new IllegalArgumentException("Keine gültige Einheit."));
-        accessControlService.requireUnitAccess(actor, resolved.getId());
+    public ResponseEntity<byte[]> export(@AuthenticationPrincipal AppUserDetails actor) {
+        accessControlService.requireSuperAdmin(actor);
 
-        byte[] json = transferService.exportJson(resolved.getId());
+        byte[] sql = databaseBackupService.exportSql();
         String stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
-        String filename = "personal-atemschutz-export-unit" + resolved.getId() + "-" + stamp + ".json";
+        String filename = "feuerwehr-manager-backup-" + stamp + ".sql";
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(json);
+                .contentType(new MediaType("application", "sql"))
+                .body(sql);
     }
 
     @PostMapping("/import")
     public String importData(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam long unit,
-            @RequestParam(name = "importFormat", defaultValue = "legacy-sql") String importFormat,
             @RequestParam("importFile") MultipartFile importFile,
-            @RequestParam(name = "sourceEinheitId", required = false) Integer sourceEinheitId,
-            @RequestParam(name = "replaceExisting", defaultValue = "false") boolean replaceExisting,
-            @RequestParam(name = "confirmReplace", defaultValue = "false") boolean confirmReplace,
+            @RequestParam(name = "confirmRestore", defaultValue = "false") boolean confirmRestore,
             RedirectAttributes redirectAttributes) {
         try {
-            accessControlService.requireAdminLevel(actor);
-            Unit resolved = unitService
-                    .resolveActiveUnit(unit, actor)
-                    .orElseThrow(() -> new IllegalArgumentException("Keine gültige Einheit."));
-            accessControlService.requireUnitAccess(actor, resolved.getId());
+            accessControlService.requireSuperAdmin(actor);
 
             if (importFile == null || importFile.isEmpty()) {
                 throw new IllegalArgumentException("Bitte eine Datei auswählen.");
             }
-            if (replaceExisting && !confirmReplace) {
+            if (!confirmRestore) {
                 throw new IllegalArgumentException(
-                        "Zum Ersetzen vorhandener Daten bitte die Bestätigung aktivieren.");
+                        "Zum Wiederherstellen der Datenbank bitte die Bestätigung aktivieren.");
             }
 
-            ImportSummary summary;
-            if ("json".equalsIgnoreCase(importFormat)) {
-                summary = transferService.importJson(resolved.getId(), importFile.getBytes(), replaceExisting);
-            } else if ("legacy-sql".equalsIgnoreCase(importFormat)) {
-                String sql = new String(importFile.getBytes(), StandardCharsets.UTF_8);
-                summary = transferService.importLegacySql(resolved.getId(), sql, sourceEinheitId, replaceExisting);
-            } else {
-                throw new IllegalArgumentException("Unbekanntes Import-Format.");
-            }
+            DatabaseImportSummary summary = databaseBackupService.importSql(importFile.getBytes());
 
             redirectAttributes.addFlashAttribute("saved", true);
-            redirectAttributes.addFlashAttribute("message", "Import abgeschlossen: " + summary.message());
+            redirectAttributes.addFlashAttribute("message", summary.message());
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }

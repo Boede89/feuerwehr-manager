@@ -2,24 +2,32 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
 <th:block th:fragment="panel">
-  <div class="import-export-grid">
+  <div th:if="${!isSuperAdmin}" class="card">
+    <div class="card__body">
+      <p class="hint" style="margin:0;">
+        Datenbank-Backups können nur vom <strong>Superadmin</strong> erstellt und wiederhergestellt werden.
+      </p>
+    </div>
+  </div>
+
+  <div class="import-export-grid" th:if="${isSuperAdmin}">
     <div class="card">
-      <div class="card__header">Daten sichern (Export)</div>
+      <div class="card__header">Datenbank sichern (Export)</div>
       <div class="card__body">
         <p class="hint" style="margin-top:0;">
-          Sichert Personal- und Atemschutz-Daten dieser Einheit als JSON-Datei
-          (Personen, Lehrgänge, Gruppen, Geräteträger, Nachweise, Einstellungen).
-          Qualifikationen können separat unter Ausbildung gepflegt werden.
+          Erstellt ein vollständiges SQL-Backup der gesamten Datenbank
+          (alle Einheiten, Benutzer, Personal, Atemschutz, Fahrzeuge, Einstellungen usw.).
+          Das Schema selbst wird über Flyway verwaltet — gesichert werden nur die Daten.
         </p>
         <a class="btn btn--primary"
-           th:href="@{/admin/unit/import-export/export(unit=${unitId})}">
-          Export herunterladen
+           th:href="@{/admin/unit/import-export/export}">
+          Backup herunterladen
         </a>
       </div>
     </div>
 
     <div class="card">
-      <div class="card__header">Daten wiederherstellen (Import)</div>
+      <div class="card__header">Datenbank wiederherstellen (Import)</div>
       <div class="card__body">
         <form method="post" th:action="@{/admin/unit/import-export/import}" enctype="multipart/form-data"
               class="import-export-form">
@@ -27,75 +35,27 @@
           <input type="hidden" name="unit" th:value="${unitId}"/>
 
           <div class="form-group">
-            <label>Import-Quelle</label>
-            <div class="import-export-format">
-              <label class="radio-card">
-                <input type="radio" name="importFormat" value="legacy-sql" checked/>
-                <span>
-                  <strong>Alte Feuerwehr-App (SQL)</strong>
-                  <small>Export aus Admin → Einstellungen → Datenbank-Export (.sql)</small>
-                </span>
-              </label>
-              <label class="radio-card">
-                <input type="radio" name="importFormat" value="json"/>
-                <span>
-                  <strong>Feuerwehr-Manager (JSON)</strong>
-                  <small>Wiederherstellung aus vorherigem Export dieser Seite</small>
-                </span>
-              </label>
-            </div>
-          </div>
-
-          <div class="form-grid form-grid--2 form-grid--align-start">
-            <div class="form-group">
-              <label for="import-file">Datei</label>
-              <input id="import-file" name="importFile" type="file" accept=".sql,.json,text/sql,application/json" required/>
-              <p class="hint">Max. Dateigröße: 128 MB</p>
-            </div>
-            <div class="form-group" id="source-einheit-group">
-              <label for="source-einheit-id">Quell-Einheit-ID (nur SQL)</label>
-              <input id="source-einheit-id" name="sourceEinheitId" type="number" min="1" placeholder="z. B. 1"/>
-              <p class="hint">Optional: nur Datensätze mit dieser <code>einheit_id</code> aus der alten App importieren.</p>
-            </div>
+            <label for="import-file">Backup-Datei (.sql)</label>
+            <input id="import-file" name="importFile" type="file" accept=".sql,text/sql,application/sql" required/>
+            <p class="hint">Nur Backups aus dem Feuerwehr-Manager. Max. Dateigröße: 128 MB</p>
           </div>
 
           <div class="form-group form-group--full">
             <label class="checkbox-row import-export-warning">
-              <input type="checkbox" name="replaceExisting" value="true"/>
-              <span>Vorhandene Personal- und Atemschutz-Daten dieser Einheit vor dem Import löschen</span>
-            </label>
-            <label class="checkbox-row import-export-warning">
-              <input type="checkbox" name="confirmReplace" value="true"/>
-              <span>Ja, Löschen und Import bewusst bestätigen</span>
+              <input type="checkbox" name="confirmRestore" value="true"/>
+              <span>Ja, gesamte Datenbank mit diesem Backup ersetzen</span>
             </label>
             <p class="hint hint--warn">
-              Beim Ersetzen werden Personen, Lehrgänge, Gruppen, Geräteträger und Nachweise dieser Einheit entfernt.
-              <strong>Benutzerkonten (inkl. Superadmin und Einheitsadmins) werden nie gelöscht</strong> — verknüpfte
-              Admin-Personen in dieser Einheit bleiben ebenfalls erhalten. Fahrzeuge und andere Module bleiben unberührt.
+              Alle vorhandenen Daten werden gelöscht und durch den Inhalt der Backup-Datei ersetzt.
+              Dieser Vorgang kann nicht rückgängig gemacht werden. Vorher ein aktuelles Backup erstellen.
             </p>
           </div>
 
           <div class="atemschutz-settings-form__actions">
-            <button type="submit" class="btn btn--primary">Import starten</button>
+            <button type="submit" class="btn btn--primary">Wiederherstellen</button>
           </div>
         </form>
       </div>
-    </div>
-  </div>
-
-  <div class="card mt-md">
-    <div class="card__header">Hinweise zum SQL-Import aus der alten App</div>
-    <div class="card__body">
-      <ul class="import-export-notes">
-        <li><strong>members</strong> → Personen</li>
-        <li><strong>member_qualifications</strong> → wird ignoriert (Qualifikationen bitte manuell unter Ausbildung pflegen)</li>
-        <li><strong>courses</strong> / <strong>member_courses</strong> → Lehrgänge und Abschlüsse</li>
-        <li><strong>member_groups</strong> → Gruppen</li>
-        <li><strong>atemschutz_traeger</strong> → Geräteträger mit G26-, Übungs- und Strecken-Nachweisen</li>
-      </ul>
-      <p class="hint" style="margin-bottom:0;">
-        Tabellen mit anderen Namen oder zusätzliche Module (Fahrzeuge, Reservierungen, Einsätze usw.) werden ignoriert.
-      </p>
     </div>
   </div>
 </th:block>

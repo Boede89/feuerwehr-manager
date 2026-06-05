@@ -27,6 +27,12 @@ public class AccessControlService {
         }
     }
 
+    public void requireSuperAdmin(AppUserDetails actor) {
+        if (actor == null || !actor.getRole().isSuperAdmin()) {
+            throw new IllegalArgumentException("Nur Superadmins dürfen diese Aktion ausführen.");
+        }
+    }
+
     public boolean canManageUser(AppUserDetails actor, User target) {
         if (actor == null || target == null) {
             return false;
