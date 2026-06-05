@@ -3,6 +3,7 @@
   var search = document.getElementById('atemschutz-search');
   var showPaused = document.getElementById('atemschutz-show-paused');
   var visibleCount = document.getElementById('atemschutz-visible-count');
+  var kpiGrid = document.getElementById('atemschutz-kpi-grid');
   var kpiTotal = document.getElementById('kpi-value-total');
   var kpiTauglich = document.getElementById('kpi-value-tauglich');
   var kpiUebung = document.getElementById('kpi-value-uebung');
@@ -30,35 +31,28 @@
     return showPaused && showPaused.checked;
   }
 
-  function rowCounts(includePausedRows) {
-    var counts = { total: 0, tauglich: 0, uebung: 0, nicht: 0 };
-    table.querySelectorAll('.carrier-row').forEach(function (row) {
-      var status = row.getAttribute('data-status') || 'ACTIVE';
-      if (!includePausedRows && status === 'PAUSED') {
-        return;
-      }
-      counts.total++;
-      var tauglichkeit = row.getAttribute('data-tauglichkeit') || 'NICHT_TAUGLICH';
-      if (tauglichkeit === 'TAUGLICH') {
-        counts.tauglich++;
-      } else if (tauglichkeit === 'UEBUNG_ABGELAUFEN') {
-        counts.uebung++;
-      } else {
-        counts.nicht++;
-      }
-    });
-    return counts;
+  function kpiStats(includePausedRows) {
+    if (!kpiGrid) {
+      return { total: 0, tauglich: 0, uebung: 0, nicht: 0 };
+    }
+    var prefix = includePausedRows ? 'all' : 'active';
+    return {
+      total: parseInt(kpiGrid.getAttribute('data-' + prefix + '-total'), 10) || 0,
+      tauglich: parseInt(kpiGrid.getAttribute('data-' + prefix + '-tauglich'), 10) || 0,
+      uebung: parseInt(kpiGrid.getAttribute('data-' + prefix + '-uebung'), 10) || 0,
+      nicht: parseInt(kpiGrid.getAttribute('data-' + prefix + '-nicht'), 10) || 0
+    };
   }
 
   function updateKpis() {
-    var counts = rowCounts(includePaused());
+    var counts = kpiStats(includePaused());
     if (kpiTotal) kpiTotal.textContent = String(counts.total);
     if (kpiTauglich) kpiTauglich.textContent = String(counts.tauglich);
     if (kpiUebung) kpiUebung.textContent = String(counts.uebung);
     if (kpiNicht) kpiNicht.textContent = String(counts.nicht);
   }
 
-  function applyFilters() {
+  function applyTableFilters() {
     var q = search ? search.value.trim().toLowerCase() : '';
     var includePausedRows = includePaused();
     var count = 0;
@@ -74,15 +68,19 @@
     if (visibleCount) {
       visibleCount.textContent = String(count);
     }
+  }
+
+  function onPausedToggle() {
     updateKpis();
+    applyTableFilters();
   }
 
   if (search) {
-    search.addEventListener('input', applyFilters);
+    search.addEventListener('input', applyTableFilters);
   }
   if (showPaused) {
-    showPaused.addEventListener('change', applyFilters);
+    showPaused.addEventListener('change', onPausedToggle);
   }
 
-  applyFilters();
+  applyTableFilters();
 })();

@@ -49,9 +49,11 @@ public class AtemschutzService {
         boolean testData = testModeService.isEnabled();
         List<AtemschutzCarrier> carriers = carrierRepository.findByUnitId(unitId, testData);
         if (carriers.isEmpty()) {
+            CarrierListStats emptyStats = new CarrierListStats(0, 0, 0, 0);
             return new CarrierListResult(
                     List.of(),
-                    new CarrierListStats(0, 0, 0, 0),
+                    emptyStats,
+                    emptyStats,
                     atemschutzSettingsService.agtCourseName(unitId),
                     atemschutzSettingsService.isAgtCourseConfigured(unitId));
         }
@@ -85,20 +87,13 @@ public class AtemschutzService {
         }
         List<CarrierOverview> activeCarriers =
                 all.stream().filter(row -> row.carrier().getStatus() == AtemschutzCarrierStatus.ACTIVE).toList();
-        int tauglich = (int) activeCarriers.stream()
-                .filter(row -> row.tauglichkeit() == CarrierTauglichkeitStatus.TAUGLICH)
-                .count();
-        int uebungAbgelaufen = (int) activeCarriers.stream()
-                .filter(row -> row.tauglichkeit() == CarrierTauglichkeitStatus.UEBUNG_ABGELAUFEN)
-                .count();
-        int nichtTauglich = (int) activeCarriers.stream()
-                .filter(row -> row.tauglichkeit() == CarrierTauglichkeitStatus.NICHT_TAUGLICH)
-                .count();
-        CarrierListStats stats = new CarrierListStats(activeCarriers.size(), tauglich, uebungAbgelaufen, nichtTauglich);
+        CarrierListStats stats = computeStats(activeCarriers);
+        CarrierListStats statsAll = computeStats(all);
         List<CarrierOverview> filtered = applyFilter(all, filter);
         return new CarrierListResult(
                 filtered,
                 stats,
+                statsAll,
                 atemschutzSettingsService.agtCourseName(unitId),
                 atemschutzSettingsService.isAgtCourseConfigured(unitId));
     }
@@ -398,9 +393,23 @@ public class AtemschutzService {
         return carriers;
     }
 
+    private static CarrierListStats computeStats(List<CarrierOverview> carriers) {
+        int tauglich = (int) carriers.stream()
+                .filter(row -> row.tauglichkeit() == CarrierTauglichkeitStatus.TAUGLICH)
+                .count();
+        int uebungAbgelaufen = (int) carriers.stream()
+                .filter(row -> row.tauglichkeit() == CarrierTauglichkeitStatus.UEBUNG_ABGELAUFEN)
+                .count();
+        int nichtTauglich = (int) carriers.stream()
+                .filter(row -> row.tauglichkeit() == CarrierTauglichkeitStatus.NICHT_TAUGLICH)
+                .count();
+        return new CarrierListStats(carriers.size(), tauglich, uebungAbgelaufen, nichtTauglich);
+    }
+
     public record CarrierListResult(
             List<CarrierOverview> carriers,
             CarrierListStats stats,
+            CarrierListStats statsAll,
             String agtCourseName,
             boolean agtCourseConfigured) {}
 

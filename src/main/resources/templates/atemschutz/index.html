@@ -20,7 +20,15 @@
     <span th:unless="${isAdmin}">Bitte einen Administrator.</span>
   </p>
 
-  <div class="kpi-grid">
+  <div class="kpi-grid" id="atemschutz-kpi-grid"
+       th:attr="data-active-total=${stats.total()},
+                data-active-tauglich=${stats.tauglich()},
+                data-active-uebung=${stats.uebungAbgelaufen()},
+                data-active-nicht=${stats.nichtTauglich()},
+                data-all-total=${statsAll.total()},
+                data-all-tauglich=${statsAll.tauglich()},
+                data-all-uebung=${statsAll.uebungAbgelaufen()},
+                data-all-nicht=${statsAll.nichtTauglich()}">
     <a class="kpi-card" th:classappend="${activeFilter == 'all'} ? ' kpi-card--active' : ''"
        th:href="@{/atemschutz(unit=${unitId}, filter='all')}">
       <span class="kpi-card__label">Gesamt</span>

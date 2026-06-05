@@ -55,6 +55,7 @@ public class AtemschutzController {
             model.addAttribute("carriers", result.carriers());
             model.addAttribute("carrierCount", result.carriers().size());
             model.addAttribute("stats", result.stats());
+            model.addAttribute("statsAll", result.statsAll());
             model.addAttribute("activeFilter", normalizeFilter(filter));
             model.addAttribute("agtCourseName", result.agtCourseName());
             model.addAttribute("agtCourseConfigured", result.agtCourseConfigured());
