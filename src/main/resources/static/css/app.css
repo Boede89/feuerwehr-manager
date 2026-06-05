@@ -244,6 +244,14 @@ button, input, select, textarea {
 
 .topnav__spacer { flex: 1; }
 
+.topnav__sep {
+  width: 1px;
+  background: var(--border);
+  margin: 8px 4px;
+  flex-shrink: 0;
+  align-self: stretch;
+}
+
 .topnav__item {
   display: flex;
   align-items: center;

@@ -24,13 +24,16 @@
   <nav class="topnav" aria-label="Hauptnavigation">
     <a class="topnav__item" th:classappend="${activeNav == 'home'} ? ' active' : ''"
        th:href="@{/(unit=${unitId})}">Startseite</a>
+    <a class="topnav__item" th:classappend="${activeNav == 'my-area'} ? ' active' : ''"
+       th:href="@{/my-area}">Mein Bereich</a>
+
+    <div class="topnav__sep" aria-hidden="true"></div>
+
     <span class="topnav__item topnav__item--soon" th:if="${navReservierungen == 'soon'}" title="Modul folgt später">Reservierungen</span>
     <span class="topnav__item topnav__item--soon" th:if="${navAtemschutz == 'soon'}" title="Modul folgt später">Atemschutz</span>
     <a class="topnav__item" th:if="${navPersonal == 'link'}"
        th:classappend="${activeNav == 'personal'} ? ' active' : ''"
        th:href="@{/personal(unit=${unitId})}">Personal</a>
-    <a class="topnav__item" th:classappend="${activeNav == 'my-area'} ? ' active' : ''"
-       th:href="@{/my-area}">Mein Bereich</a>
     <a class="topnav__item topnav__item--test" th:if="${testModeEnabled and isAdmin}"
        th:classappend="${activeNav == 'test-alarm'} ? ' active' : ''"
        th:href="@{/test-alarm(unit=${unitId})}" title="Nur Testmodus — simuliert DIVERA-Webhooks lokal">Testalarm</a>
