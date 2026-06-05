@@ -30,9 +30,9 @@
         </tr>
         </thead>
         <tbody>
-        <tr th:each="p : ${persons}" class="member-row"
+        <tr th:each="p : ${persons}" class="member-row" role="link" tabindex="0"
             th:attr="data-search=${p.lastName + ' ' + p.firstName + ' ' + (p.personnelNumber != null ? p.personnelNumber : '') + ' ' + (p.user != null ? p.user.username : '') + ' ' + (p.user != null ? p.user.displayName : '')}"
-            th:onclick="|window.location='@{/personal/{id}(id=${p.id},unit=${unitId})}'|">
+            th:data-href="@{/personal/{id}(id=${p.id},unit=${unitId})}">
           <td>
             <strong th:text="${p.displayName()}">Name</strong>
             <span class="text-muted text-xs ms-sm" th:if="${p.user != null}"
