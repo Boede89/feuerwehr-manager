@@ -23,4 +23,13 @@ public enum AtemschutzFitnessLevel {
             case MISSING -> "fitness-badge--missing";
         };
     }
+
+    public String validityDateCssClass() {
+        return switch (this) {
+            case OK -> "validity-date--ok";
+            case WARN -> "validity-date--warn";
+            case OVERDUE -> "validity-date--overdue";
+            case MISSING -> "validity-date--missing";
+        };
+    }
 }

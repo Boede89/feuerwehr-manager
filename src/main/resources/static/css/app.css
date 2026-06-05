@@ -2686,6 +2686,31 @@ span.required { color: var(--error); }
 .fitness-badge--overdue { background: #fee2e2; color: #b91c1c; }
 .fitness-badge--missing { background: var(--bg-card-hover); color: var(--text-muted); }
 
+.validity-date {
+  display: inline-block;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: 1.4;
+}
+.validity-date--ok { color: inherit; }
+.validity-date--warn {
+  padding: 2px 8px;
+  border: 1px solid #eab308;
+  border-radius: 6px;
+  background: #fef9c3;
+  color: #000;
+  font-weight: 600;
+}
+.validity-date--overdue {
+  padding: 2px 8px;
+  border: 1px solid #b91c1c;
+  border-radius: 6px;
+  background: #b91c1c;
+  color: #fff;
+  font-weight: 600;
+}
+.validity-date--missing { color: var(--text-muted); }
+
 .atemschutz-summary-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
