@@ -278,12 +278,14 @@
       <div class="card__header card__header--toolbar attendance-toolbar">
         <span th:text="|Teilnahmen (${#lists.size(attendanceRecords)})|">Teilnahmen</span>
         <div class="attendance-toolbar__controls">
-          <input type="search" class="field attendance-search-field" id="attendance-search"
-                 placeholder="Suchen…" maxlength="100" autocomplete="off" aria-label="Teilnahmen suchen"/>
-          <select class="field attendance-type-filter" id="attendance-type-filter" aria-label="Nach Typ filtern">
-            <option value="">Alle Typen</option>
-            <option th:each="t : ${attendanceServiceTypes}" th:value="${t.name()}" th:text="${t.label()}">Typ</option>
-          </select>
+          <div class="attendance-toolbar__filters">
+            <input type="search" class="field attendance-filter-field" id="attendance-search"
+                   placeholder="Suchen…" maxlength="100" autocomplete="off" aria-label="Teilnahmen suchen"/>
+            <select class="field attendance-filter-field" id="attendance-type-filter" aria-label="Nach Typ filtern">
+              <option value="">Alle Typen</option>
+              <option th:each="t : ${attendanceServiceTypes}" th:value="${t.name()}" th:text="${t.label()}">Typ</option>
+            </select>
+          </div>
           <button type="button" class="btn btn--primary btn--sm" data-open-modal="modal-attendance">+ Eintrag</button>
         </div>
       </div>
