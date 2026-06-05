@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.personal;
 
+import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.settings.GlobalSettingsService;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
@@ -320,11 +321,14 @@ public class PersonalMemberService {
     @Transactional
     public void updateFwHubStammdaten(
             long personId,
+            String firstName,
+            String lastName,
             LocalDate birthdate,
             String personnelNumber,
             LocalDate entryDate,
             LocalDate exitDate,
             String notes) {
+        personalService.updatePersonNames(personId, firstName, lastName);
         Person person = requireWritablePerson(personId);
         person.setBirthdate(birthdate);
         person.setPersonnelNumber(blankToNull(personnelNumber));
@@ -384,8 +388,13 @@ public class PersonalMemberService {
 
     @Transactional
     public PersonalService.StammdatenUpdateResult updateLoginAccess(
-            long personId, boolean allowLogin, long actorUserId, jakarta.servlet.http.HttpServletRequest request) {
-        return personalService.updateLoginAccess(personId, allowLogin, actorUserId, request);
+            long personId, boolean allowLogin, AppUserDetails actor, jakarta.servlet.http.HttpServletRequest request) {
+        return personalService.updateLoginAccess(personId, allowLogin, actor, request);
+    }
+
+    @Transactional
+    public void deletePerson(long personId, AppUserDetails actor, jakarta.servlet.http.HttpServletRequest request) {
+        personalService.anonymizePerson(personId, actor, request);
     }
 
     @Transactional

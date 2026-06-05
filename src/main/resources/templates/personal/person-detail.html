@@ -32,7 +32,7 @@
               <input id="lastName" name="lastName" type="text" required maxlength="100" th:value="${formLastName}"/>
             </div>
             <div class="form-group">
-              <label for="email">E-Mail</label>
+              <label for="email">E-Mail <span class="required" id="email-required-mark" style="display:none;">*</span></label>
               <input id="email" name="email" type="email" maxlength="255" th:value="${formEmail}"/>
             </div>
             <div class="form-group">
@@ -52,7 +52,7 @@
                 <input id="allowLogin" name="allowLogin" type="checkbox" value="true" th:checked="${formAllowLogin}"/>
                 <span>Login erlauben</span>
               </label>
-              <p class="hint">Legt automatisch ein Benutzerkonto an. Startpasswort wird nach dem Speichern angezeigt.</p>
+              <p class="hint">Legt automatisch ein Benutzerkonto an. E-Mail ist dann Pflicht (Initialpasswort per Mail später).</p>
             </div>
           </div>
           <div class="btn-group mt-md">
@@ -69,6 +69,8 @@
     <div th:replace="~{fragments/personal-member-tabs :: memberTabs}"></div>
     <script th:src="@{/js/personal-member.js}" defer></script>
   </th:block>
+
+  <script th:if="${isNewPerson}" th:src="@{/js/personal-create.js}" defer></script>
 
 </main>
 </html>

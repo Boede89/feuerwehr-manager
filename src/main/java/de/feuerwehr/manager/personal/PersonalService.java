@@ -5,6 +5,7 @@ import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
 import de.feuerwehr.manager.unit.UnitRole;
 import de.feuerwehr.manager.unit.UnitRoleService;
+import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserManagementService;
 import de.feuerwehr.manager.user.UserRepository;
@@ -180,6 +181,7 @@ public class PersonalService {
         String generatedPassword = null;
         String createdUsername = null;
         if (allowLogin) {
+            requireEmailForLogin(email);
             String password = generateNumericLoginPassword();
             String username = userManagementService.allocateUniqueUsername(firstName, lastName);
             User user = userManagementService.createUserForPerson(
@@ -234,11 +236,13 @@ public class PersonalService {
 
     @Transactional
     public StammdatenUpdateResult updateLoginAccess(
-            long personId, boolean allowLogin, long actorUserId, HttpServletRequest request) {
+            long personId, boolean allowLogin, AppUserDetails actor, HttpServletRequest request) {
         Person person = writablePerson(requirePerson(personId));
         String generatedPassword = null;
         String createdUsername = null;
         if (allowLogin) {
+            String loginEmail = resolveLoginEmail(person);
+            requireEmailForLogin(loginEmail);
             if (person.getUser() == null) {
                 String password = generateNumericLoginPassword();
                 String username =
@@ -248,15 +252,22 @@ public class PersonalService {
                         person.displayName(),
                         password,
                         person.getUnit().getId(),
-                        person.getEmail(),
-                        actorUserId,
+                        loginEmail,
+                        actor.getUserId(),
                         request);
                 person.setUser(user);
                 generatedPassword = password;
                 createdUsername = username;
+            } else {
+                syncLoginEmailFromPerson(person);
             }
         } else {
-            person.setUser(null);
+            User linkedUser = person.getUser();
+            if (linkedUser != null) {
+                person.setUser(null);
+                personRepository.save(person);
+                userManagementService.deleteUserByAdmin(linkedUser.getId(), actor, request);
+            }
         }
         personRepository.save(person);
         Person reloaded = requirePerson(person.getId());
@@ -579,8 +590,9 @@ public class PersonalService {
     }
 
     @Transactional
-    public void anonymizePerson(long personId) {
+    public void anonymizePerson(long personId, AppUserDetails actor, HttpServletRequest request) {
         Person person = writablePerson(requirePerson(personId));
+        User linkedUser = person.getUser();
         person.setFirstName("Gelöscht");
         person.setLastName("#" + person.getId());
         person.setEmail(null);
@@ -594,6 +606,23 @@ public class PersonalService {
         person.setAnonymizedAt(Instant.now());
         completionRepository.deleteByPersonId(person.getId());
         diveraRicRepository.deleteByPersonId(person.getId());
+        personRepository.save(person);
+        if (linkedUser != null && linkedUser.getAnonymizedAt() == null) {
+            userManagementService.deleteUserByAdmin(linkedUser.getId(), actor, request);
+        }
+    }
+
+    @Transactional
+    public void updatePersonNames(long personId, String firstName, String lastName) {
+        validateName(firstName, lastName);
+        Person person = writablePerson(requirePerson(personId));
+        person.setFirstName(firstName.trim());
+        person.setLastName(lastName.trim());
+        if (person.getUser() != null) {
+            User user = person.getUser();
+            user.setDisplayName(person.displayName());
+            userRepository.save(user);
+        }
         personRepository.save(person);
     }
 
@@ -858,6 +887,25 @@ public class PersonalService {
     private static void validateName(String firstName, String lastName) {
         if (firstName == null || firstName.isBlank() || lastName == null || lastName.isBlank()) {
             throw new IllegalArgumentException("Vor- und Nachname sind Pflicht");
+        }
+    }
+
+    private static String resolveLoginEmail(Person person) {
+        if (person.getUser() != null
+                && person.getUser().getLoginEmail() != null
+                && !person.getUser().getLoginEmail().isBlank()) {
+            return person.getUser().getLoginEmail();
+        }
+        if (person.getEmail() != null && !person.getEmail().isBlank()) {
+            return person.getEmail();
+        }
+        return person.getEmailPrivate();
+    }
+
+    private static void requireEmailForLogin(String email) {
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Für „Login erlauben“ ist eine E-Mail-Adresse erforderlich (Kontaktdaten).");
         }
     }
 

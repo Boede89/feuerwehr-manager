@@ -93,6 +93,10 @@ public class PersonalController {
         try {
             if (allowLogin) {
                 accessControlService.requireAdminLevel(actor);
+                if (email == null || email.isBlank()) {
+                    throw new IllegalArgumentException(
+                            "Für „Login erlauben“ ist eine E-Mail-Adresse erforderlich.");
+                }
             }
             PersonCreateResult result = personalService.createPersonComplete(
                     unit,
@@ -112,7 +116,14 @@ public class PersonalController {
                     request);
             if (personnelNumber != null && !personnelNumber.isBlank()) {
                 personalMemberService.updateFwHubStammdaten(
-                        result.person().getId(), birthdate, personnelNumber.trim(), null, null, null);
+                        result.person().getId(),
+                        firstName,
+                        lastName,
+                        birthdate,
+                        personnelNumber.trim(),
+                        null,
+                        null,
+                        null);
             }
             Person created = result.person();
             redirectAttributes.addFlashAttribute("saved", true);
@@ -227,10 +238,10 @@ public class PersonalController {
             accessControlService.requireUnitAccess(actor, person.getUnit().getId());
             accessControlService.requireAdminLevel(actor);
             StammdatenUpdateResult result =
-                    personalMemberService.updateLoginAccess(id, allowLogin, actor.getUserId(), request);
+                    personalMemberService.updateLoginAccess(id, allowLogin, actor, request);
             redirectAttributes.addFlashAttribute("saved", true);
             if (result.initialPassword() != null) {
-                String email = result.person().getEmail();
+                String email = personalMemberService.resolvePersonEmail(result.person());
                 redirectAttributes.addFlashAttribute(
                         "message",
                         "Benutzerkonto angelegt. Login: „"
@@ -239,11 +250,11 @@ public class PersonalController {
                                 + (email != null && !email.isBlank() ? " oder E-Mail „" + email.trim() + "“" : "")
                                 + ", Startpasswort: "
                                 + result.initialPassword()
-                                + ".");
+                                + " (E-Mail-Versand folgt später).");
             } else if (allowLogin) {
                 redirectAttributes.addFlashAttribute("message", "Systemzugang ist aktiv.");
             } else {
-                redirectAttributes.addFlashAttribute("message", "Login-Verknüpfung wurde entfernt.");
+                redirectAttributes.addFlashAttribute("message", "Benutzerkonto wurde gelöscht.");
             }
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
@@ -256,6 +267,8 @@ public class PersonalController {
             @AuthenticationPrincipal AppUserDetails actor,
             @PathVariable long id,
             @RequestParam long unit,
+            @RequestParam String firstName,
+            @RequestParam String lastName,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate birthdate,
             @RequestParam(required = false) String personnelNumber,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate entryDate,
@@ -263,7 +276,7 @@ public class PersonalController {
             @RequestParam(required = false) String notes,
             RedirectAttributes redirectAttributes) {
         return memberAction(actor, id, unit, "stammdaten", redirectAttributes, () -> personalMemberService.updateFwHubStammdaten(
-                id, birthdate, personnelNumber, entryDate, exitDate, notes));
+                id, firstName, lastName, birthdate, personnelNumber, entryDate, exitDate, notes));
     }
 
     @PostMapping("/{id}/course-completions")
@@ -498,9 +511,16 @@ public class PersonalController {
 
     @PostMapping("/{id}/delete")
     public String delete(
-            @PathVariable long id, @RequestParam long unit, RedirectAttributes redirectAttributes) {
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @RequestParam long unit,
+            HttpServletRequest request,
+            RedirectAttributes redirectAttributes) {
         try {
-            personalService.anonymizePerson(id);
+            Person person = personalService.requirePerson(id);
+            accessControlService.requireUnitAccess(actor, person.getUnit().getId());
+            accessControlService.requireAdminLevel(actor);
+            personalMemberService.deletePerson(id, actor, request);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Person wurde gelöscht.");
             return "redirect:/personal?unit=" + unit;

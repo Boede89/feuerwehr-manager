@@ -173,6 +173,24 @@
     });
   });
 
+  var loginForm = document.getElementById('form-login-access');
+  if (loginForm) {
+    loginForm.addEventListener('submit', function (e) {
+      var allowLogin = document.getElementById('allow-login');
+      var hadUser = loginForm.getAttribute('data-had-user') === 'true';
+      var hasEmail = loginForm.getAttribute('data-has-email') === 'true';
+      if (allowLogin && allowLogin.checked && !hadUser && !hasEmail) {
+        e.preventDefault();
+        window.alert('Bitte zuerst eine E-Mail-Adresse unter Kontaktdaten speichern.');
+        return;
+      }
+      if (hadUser && allowLogin && !allowLogin.checked) {
+        var msg = 'Das verknüpfte Benutzerkonto wird unwiderruflich gelöscht. Fortfahren?';
+        if (!window.confirm(msg)) e.preventDefault();
+      }
+    });
+  }
+
   (function initAttendanceTable() {
     var table = document.getElementById('attendance-table');
     var tbody = document.getElementById('attendance-tbody');

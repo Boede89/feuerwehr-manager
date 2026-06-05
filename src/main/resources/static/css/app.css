@@ -2640,6 +2640,9 @@ span.required { color: var(--error); }
 .fw-semibold { font-weight: 600; }
 .text-success { color: var(--gruen, #16a34a); }
 .text-error { color: var(--error, #dc2626); }
+.card--danger-zone {
+  border-color: rgba(239, 68, 68, 0.35);
+}
 .text-info { color: #2563eb; }
 
 /* Topnav Personal-Dropdown (FW-Hub) */

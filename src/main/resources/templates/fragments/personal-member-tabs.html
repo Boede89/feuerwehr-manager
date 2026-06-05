@@ -19,6 +19,14 @@
           <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
           <input type="hidden" name="unit" th:value="${unitId}"/>
           <div class="form-group">
+            <label for="d-first">Vorname <span class="required">*</span></label>
+            <input type="text" id="d-first" name="firstName" required maxlength="100" th:value="${person.firstName}"/>
+          </div>
+          <div class="form-group">
+            <label for="d-last">Nachname <span class="required">*</span></label>
+            <input type="text" id="d-last" name="lastName" required maxlength="100" th:value="${person.lastName}"/>
+          </div>
+          <div class="form-group">
             <label for="d-dob">Geburtsdatum</label>
             <input type="date" id="d-dob" name="birthdate" th:value="${person.birthdate}"/>
           </div>
@@ -48,7 +56,9 @@
     <div class="card card--narrow mt-md" th:if="${isAdmin}">
       <div class="card__header">Systemzugang</div>
       <div class="card__body">
-        <form method="post" th:action="@{/personal/{id}/login-access(id=${person.id})}">
+        <form method="post" id="form-login-access" th:action="@{/personal/{id}/login-access(id=${person.id})}"
+              th:attr="data-had-user=${person.user != null},
+                       data-has-email=${personEmail != null and !#strings.isEmpty(personEmail)}">
           <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
           <input type="hidden" name="unit" th:value="${unitId}"/>
           <div class="form-group form-group--full" th:if="${person.user != null}">
@@ -66,9 +76,12 @@
               <span>Login erlauben</span>
             </label>
             <p class="hint">
-              Erstellt ein Benutzerkonto und verknüpft es mit dieser Person.
-              Beim ersten Anlegen wird ein Startpasswort angezeigt.
-              Weitere Kontoverwaltung im Adminpanel unter Benutzer.
+              Erstellt ein Benutzerkonto zum Anmelden. Eine E-Mail-Adresse in den Kontaktdaten ist erforderlich
+              (für den späteren Versand des Initialpassworts). Beim ersten Anlegen wird das Startpasswort angezeigt.
+            </p>
+            <p class="hint text-error" id="login-email-missing" style="margin-top:0.5rem;"
+               th:if="${person.user == null and (personEmail == null or #strings.isEmpty(personEmail))}">
+              Bitte zuerst eine E-Mail-Adresse unter Kontaktdaten speichern.
             </p>
           </div>
           <button type="submit" class="btn btn--primary">Systemzugang speichern</button>
@@ -125,6 +138,21 @@
             <div class="text-muted" th:text="${c.relationship != null ? c.relationship : '–'}">—</div>
           </div>
         </th:block>
+      </div>
+    </div>
+
+    <div class="card card--narrow mt-md card--danger-zone" th:if="${isAdmin}">
+      <div class="card__header">Person löschen</div>
+      <div class="card__body">
+        <p class="hint" style="margin:0 0 1rem;">
+          Die Person wird anonymisiert. Ein verknüpftes Benutzerkonto wird ebenfalls gelöscht.
+          Protokolleinträge bleiben ohne Namenszuordnung erhalten.
+        </p>
+        <form method="post" th:action="@{/personal/{id}/delete(id=${person.id})}" data-confirm="Person wirklich löschen? Dieser Vorgang kann nicht rückgängig gemacht werden.">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <input type="hidden" name="unit" th:value="${unitId}"/>
+          <button type="submit" class="btn btn--danger">Person löschen</button>
+        </form>
       </div>
     </div>
   </div>
