@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de" xmlns:th="http://www.thymeleaf.org"
       th:replace="~{fragments/layout :: layout('Atemschutz-Einstellungen', ~{::main})}">
-<main>
+<main class="atemschutz-settings-page">
   <div class="page-header">
     <div>
       <h2>Atemschutz-Einstellungen</h2>
@@ -23,10 +23,11 @@
        th:href="@{/settings/atemschutz(unit=${unitId}, tab='cc')}">E-Mail CC</a>
   </nav>
 
-  <div class="card card--narrow mt-md" th:if="${activeTab == 'warnschwelle'}">
+  <div class="card mt-md" th:if="${activeTab == 'warnschwelle'}">
     <div class="card__header">Warnschwelle &amp; Lehrgang</div>
     <div class="card__body">
-      <form method="post" th:action="@{/settings/atemschutz/warnschwelle}" class="form-grid form-grid--2">
+      <form method="post" th:action="@{/settings/atemschutz/warnschwelle}"
+            class="form-grid form-grid--2 form-grid--align-start atemschutz-settings-form">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="unit" th:value="${unitId}"/>
         <div class="form-group">
@@ -43,13 +44,17 @@
           </select>
           <p class="hint">
             Personen mit hinterlegtem Lehrgang erscheinen automatisch als Geräteträger (Abschlussjahr optional).
+          </p>
+        </div>
+        <div class="form-group form-group--full atemschutz-settings-form__hint">
+          <p class="hint" style="margin:0;">
             Lehrgänge werden unter <strong>Admin → Ausbildung</strong> verwaltet.
           </p>
-          <p class="hint hint--warn" th:if="${#lists.isEmpty(unitCourses)}">
+          <p class="hint hint--warn" th:if="${#lists.isEmpty(unitCourses)}" style="margin:0.35rem 0 0;">
             Noch keine Lehrgänge vorhanden — zuerst unter Admin → Ausbildung anlegen.
           </p>
         </div>
-        <div class="form-group form-group--full">
+        <div class="form-group form-group--full atemschutz-settings-form__actions">
           <button type="submit" class="btn btn--primary">Speichern</button>
         </div>
       </form>
@@ -78,52 +83,43 @@
             </div>
           </div>
         </div>
-        <div class="btn-group mt-md">
+        <div class="atemschutz-settings-form__actions mt-md">
           <button type="submit" class="btn btn--primary">Vorlagen speichern</button>
         </div>
       </form>
     </div>
   </div>
 
-  <div class="card card--narrow mt-md" th:if="${activeTab == 'benachrichtigungen'}">
+  <div class="card mt-md" th:if="${activeTab == 'benachrichtigungen'}">
     <div class="card__header">Benachrichtigungen bei neuen Anträgen</div>
     <div class="card__body">
-      <p class="hint">Welche Benutzer bei neuen Atemschutz-Vorgängen informiert werden (E-Mail-Versand folgt).</p>
+      <p class="hint" style="margin-top:0;">
+        Welche Benutzer bei neuen Atemschutz-Vorgängen informiert werden (E-Mail-Versand folgt).
+      </p>
       <form method="post" th:action="@{/settings/atemschutz/notifications}">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="unit" th:value="${unitId}"/>
-        <div class="form-group form-group--full" th:if="${!#lists.isEmpty(unitUsers)}">
-          <div th:each="u : ${unitUsers}" class="checkbox-row">
-            <label class="checkbox-row">
-              <input type="checkbox" name="notificationUserIds" th:value="${u.id}"
-                     th:checked="${notificationUserIds.contains(u.id)}"/>
-              <span th:text="${u.displayName + ' (' + u.username + ')'}">User</span>
-            </label>
-          </div>
+        <div th:replace="~{fragments/atemschutz-user-picker :: picker(${unitUsers}, 'notificationUserIds', ${notificationUserIds})}"></div>
+        <div class="atemschutz-settings-form__actions">
+          <button type="submit" class="btn btn--primary">Speichern</button>
         </div>
-        <p class="hint" th:if="${#lists.isEmpty(unitUsers)}">Keine Benutzer in dieser Einheit.</p>
-        <button type="submit" class="btn btn--primary mt-md">Speichern</button>
       </form>
     </div>
   </div>
 
-  <div class="card card--narrow mt-md" th:if="${activeTab == 'cc'}">
+  <div class="card mt-md" th:if="${activeTab == 'cc'}">
     <div class="card__header">CC bei Erinnerungs- und Aufforderungs-Mails</div>
     <div class="card__body">
+      <p class="hint" style="margin-top:0;">
+        Diese Benutzer erhalten eine Kopie bei Erinnerungs- und Aufforderungs-E-Mails.
+      </p>
       <form method="post" th:action="@{/settings/atemschutz/cc}">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="unit" th:value="${unitId}"/>
-        <div class="form-group form-group--full" th:if="${!#lists.isEmpty(unitUsers)}">
-          <div th:each="u : ${unitUsers}" class="checkbox-row">
-            <label class="checkbox-row">
-              <input type="checkbox" name="ccUserIds" th:value="${u.id}"
-                     th:checked="${ccUserIds.contains(u.id)}"/>
-              <span th:text="${u.displayName + ' (' + u.username + ')'}">User</span>
-            </label>
-          </div>
+        <div th:replace="~{fragments/atemschutz-user-picker :: picker(${unitUsers}, 'ccUserIds', ${ccUserIds})}"></div>
+        <div class="atemschutz-settings-form__actions">
+          <button type="submit" class="btn btn--primary">Speichern</button>
         </div>
-        <p class="hint" th:if="${#lists.isEmpty(unitUsers)}">Keine Benutzer in dieser Einheit.</p>
-        <button type="submit" class="btn btn--primary mt-md">Speichern</button>
       </form>
     </div>
   </div>
