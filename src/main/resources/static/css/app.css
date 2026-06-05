@@ -2552,19 +2552,31 @@ span.required { color: var(--error); }
   align-items: center;
   gap: 0.5rem;
 }
-.attendance-filter-field {
+.attendance-toolbar__filters .attendance-filter-field {
   width: 11.5rem;
   height: 2.25rem;
+  min-height: 2.25rem;
+  max-height: 2.25rem;
   box-sizing: border-box;
   margin: 0;
   padding: 0 0.75rem;
+  font-size: var(--fs-sm);
   line-height: 1.25;
 }
-input.attendance-filter-field {
+.attendance-toolbar__filters input.attendance-filter-field {
   padding-block: 0;
+  appearance: none;
+  -webkit-appearance: none;
 }
-select.attendance-filter-field {
+.attendance-toolbar__filters select.attendance-filter-field {
   padding-right: 1.75rem;
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: var(--bg);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M3 4.5 6 8l3-3.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.625rem center;
+  background-size: 0.75rem;
 }
 .badge--info { background: rgba(59, 130, 246, 0.12); color: #2563eb; }
 .badge--danger { background: rgba(239, 68, 68, 0.12); color: var(--error, #dc2626); }
