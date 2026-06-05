@@ -28,7 +28,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserManagementService {
 
     private static final SecureRandom PASSWORD_RANDOM = new SecureRandom();
-    private static final String PASSWORD_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
 
     private final UserRepository userRepository;
     private final UnitRepository unitRepository;
@@ -556,13 +555,9 @@ public class UserManagementService {
         validatePassword(plainPassword);
     }
 
-    public String generateRandomPassword() {
-        int length = Math.max(securityProperties.minPasswordLength(), 12);
-        StringBuilder password = new StringBuilder(length);
-        for (int i = 0; i < length; i++) {
-            password.append(PASSWORD_CHARS.charAt(PASSWORD_RANDOM.nextInt(PASSWORD_CHARS.length())));
-        }
-        return password.toString();
+    /** Vierstelliges Zahlencode (0000–9999) für automatisch generierte Initialpasswörter. */
+    public String generateNumericPassword() {
+        return String.format("%04d", PASSWORD_RANDOM.nextInt(10_000));
     }
 
     private void validatePassword(String plainPassword) {

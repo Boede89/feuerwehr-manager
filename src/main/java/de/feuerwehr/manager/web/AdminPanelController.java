@@ -344,7 +344,7 @@ public class AdminPanelController {
                     throw new IllegalArgumentException(
                             "Keine E-Mail-Adresse am Benutzer hinterlegt — bitte Passwort selbst vergeben.");
                 }
-                password = userManagementService.generateRandomPassword();
+                password = userManagementService.generateNumericPassword();
             } else {
                 if (newPassword == null || newPassword.isBlank()) {
                     throw new IllegalArgumentException("Bitte ein neues Passwort eingeben.");
