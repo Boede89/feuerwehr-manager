@@ -7,52 +7,150 @@
       <h2>Personal</h2>
       <p>Mitgliederverwaltung · <strong th:text="${currentUnitName}">—</strong></p>
     </div>
-    <a class="btn btn--primary" th:href="@{/personal/new(unit=${unitId})}">+ Neue Person</a>
+    <a class="btn btn--primary" th:if="${personalTab == 'mitglieder'}"
+       th:href="@{/personal/new(unit=${unitId})}">+ Neue Person</a>
+    <button type="button" class="btn btn--primary" th:if="${personalTab == 'gruppen'}"
+            data-open-modal="modal-group-form">+ Gruppe</button>
   </div>
 
   <div th:replace="~{fragments/testmode-banner :: banner}"></div>
   <div th:replace="~{fragments/flash-messages :: alerts}"></div>
 
-  <div class="card">
-    <div class="card__header">
-      <span th:text="'Alle Mitglieder (' + ${personCount} + ')'">Alle Mitglieder</span>
-      <input type="search" class="field personal-search-field" id="personal-search"
-             placeholder="Suchen…" maxlength="100" autocomplete="off" aria-label="Mitglieder suchen"/>
+  <nav class="tab-bar personal-module-tabs" aria-label="Personalbereiche">
+    <a class="tab-btn" th:classappend="${personalTab == 'mitglieder'} ? ' tab-btn--active' : ''"
+       th:href="@{/personal(unit=${unitId}, tab='mitglieder')}">Mitglieder</a>
+    <a class="tab-btn" th:classappend="${personalTab == 'gruppen'} ? ' tab-btn--active' : ''"
+       th:href="@{/personal(unit=${unitId}, tab='gruppen')}">Gruppen</a>
+  </nav>
+
+  <!-- Tab: Mitglieder -->
+  <div th:if="${personalTab == 'mitglieder'}" class="personal-module-panel">
+    <div class="card">
+      <div class="card__header">
+        <span th:text="'Alle Mitglieder (' + ${personCount} + ')'">Alle Mitglieder</span>
+        <input type="search" class="field personal-search-field" id="personal-search"
+               placeholder="Suchen…" maxlength="100" autocomplete="off" aria-label="Mitglieder suchen"/>
+      </div>
+      <div class="card__body card__body--flush" th:if="${!#lists.isEmpty(persons)}">
+        <table class="data-table" id="personal-members-table">
+          <thead>
+          <tr>
+            <th>Name</th>
+            <th>Pers.-Nr.</th>
+            <th>Eintrittsdatum</th>
+            <th>Status</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="p : ${persons}" class="member-row" role="link" tabindex="0"
+              th:attr="data-search=${p.lastName + ' ' + p.firstName + ' ' + (p.personnelNumber != null ? p.personnelNumber : '') + ' ' + (p.user != null ? p.user.username : '') + ' ' + (p.user != null ? p.user.displayName : '')}"
+              th:data-href="@{/personal/{id}(id=${p.id},unit=${unitId})}">
+            <td>
+              <strong th:text="${p.displayName()}">Name</strong>
+              <span class="text-muted text-xs ms-sm" th:if="${p.user != null}"
+                    th:text="${p.user.username}">user</span>
+            </td>
+            <td th:text="${p.personnelNumber != null ? p.personnelNumber : '–'}">–</td>
+            <td th:text="${p.entryDate != null ? #temporals.format(p.entryDate, 'dd.MM.yyyy') : '–'}">–</td>
+            <td>
+              <span class="text-error" th:if="${p.exitDate != null}"
+                    th:text="${#temporals.format(p.exitDate, 'dd.MM.yyyy')}">Austritt</span>
+              <span class="text-success" th:unless="${p.exitDate != null}">Aktiv</span>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card__body" th:if="${#lists.isEmpty(persons)}">
+        <p class="hint" style="margin:0;">Noch keine Mitglieder erfasst.</p>
+      </div>
     </div>
-    <div class="card__body card__body--flush" th:if="${!#lists.isEmpty(persons)}">
-      <table class="data-table" id="personal-members-table">
-        <thead>
-        <tr>
-          <th>Name</th>
-          <th>Pers.-Nr.</th>
-          <th>Eintrittsdatum</th>
-          <th>Status</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr th:each="p : ${persons}" class="member-row" role="link" tabindex="0"
-            th:attr="data-search=${p.lastName + ' ' + p.firstName + ' ' + (p.personnelNumber != null ? p.personnelNumber : '') + ' ' + (p.user != null ? p.user.username : '') + ' ' + (p.user != null ? p.user.displayName : '')}"
-            th:data-href="@{/personal/{id}(id=${p.id},unit=${unitId})}">
-          <td>
-            <strong th:text="${p.displayName()}">Name</strong>
-            <span class="text-muted text-xs ms-sm" th:if="${p.user != null}"
-                  th:text="${p.user.username}">user</span>
-          </td>
-          <td th:text="${p.personnelNumber != null ? p.personnelNumber : '–'}">–</td>
-          <td th:text="${p.entryDate != null ? #temporals.format(p.entryDate, 'dd.MM.yyyy') : '–'}">–</td>
-          <td>
-            <span class="text-error" th:if="${p.exitDate != null}"
-                  th:text="${#temporals.format(p.exitDate, 'dd.MM.yyyy')}">Austritt</span>
-            <span class="text-success" th:unless="${p.exitDate != null}">Aktiv</span>
-          </td>
-        </tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="card__body" th:if="${#lists.isEmpty(persons)}">
-      <p class="hint" style="margin:0;">Noch keine Mitglieder erfasst.</p>
-    </div>
+    <script th:src="@{/js/personal-list.js}"></script>
   </div>
-  <script th:src="@{/js/personal-list.js}"></script>
+
+  <!-- Tab: Gruppen -->
+  <div th:if="${personalTab == 'gruppen'}" class="personal-module-panel">
+    <div class="card">
+      <div class="card__header">
+        <span th:text="'Gruppen (' + ${groupCount} + ')'">Gruppen</span>
+      </div>
+      <div class="card__body card__body--flush" th:if="${!#lists.isEmpty(groups)}">
+        <table class="data-table" id="personal-groups-table">
+          <thead>
+          <tr>
+            <th>Gruppe</th>
+            <th>Mitglieder</th>
+            <th>Aktionen</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="g : ${groups}" class="group-row"
+              th:attr="data-id=${g.id},
+                       data-name=${g.name},
+                       data-member-ids=${g.memberIdsCsv()}">
+            <td><strong th:text="${g.name}">Gruppe</strong></td>
+            <td class="text-muted text-sm"
+                th:text="${#lists.isEmpty(g.members)} ? '—' : ${g.memberNamesLabel()}">Mitglieder</td>
+            <td>
+              <div class="btn-group">
+                <button type="button" class="btn btn--outline btn--sm" data-edit-group>Bearb.</button>
+                <form method="post" th:action="@{/personal/groups/{id}/delete(id=${g.id})}" class="table-inline-form"
+                      data-confirm="Gruppe wirklich löschen?">
+                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                  <input type="hidden" name="unit" th:value="${unitId}"/>
+                  <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card__body" th:if="${#lists.isEmpty(groups)}">
+        <p class="hint" style="margin:0;">Noch keine Gruppen angelegt.</p>
+      </div>
+    </div>
+
+    <div id="modal-group-form" class="modal-overlay">
+      <div class="modal modal--wide" role="dialog" aria-labelledby="modal-group-title">
+        <div class="modal__header">
+          <h3 id="modal-group-title">Gruppe anlegen</h3>
+          <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
+        </div>
+        <form method="post" th:action="@{/personal/groups}" id="form-group"
+              th:attr="data-create-action=@{/personal/groups}">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <input type="hidden" name="unit" th:value="${unitId}"/>
+          <div class="modal__body">
+            <div class="form-group">
+              <label for="group-name">Gruppenname <span class="required">*</span></label>
+              <input type="text" id="group-name" name="name" required maxlength="100"
+                     placeholder="z. B. Gruppe 1, Atemschutz, Jugendbetreuer"/>
+            </div>
+            <div class="form-group">
+              <label>Mitglieder</label>
+              <p class="hint" style="margin:0 0 0.5rem;">Eine Person kann mehreren Gruppen angehören.</p>
+              <div class="member-picker" th:if="${!#lists.isEmpty(persons)}">
+                <label class="checkbox-row member-picker__item" th:each="p : ${persons}">
+                  <input type="checkbox" name="personIds" th:value="${p.id}"
+                         th:attr="data-person-id=${p.id}"/>
+                  <span th:text="${p.displayName()}">Name</span>
+                </label>
+              </div>
+              <p class="hint" th:if="${#lists.isEmpty(persons)}" style="margin:0;">
+                Noch keine Mitglieder vorhanden — legen Sie zuerst Personen an.
+              </p>
+            </div>
+          </div>
+          <div class="modal__footer">
+            <button type="submit" class="btn btn--primary">Speichern</button>
+            <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script th:src="@{/js/personal-groups.js}"></script>
+  </div>
 </main>
 </html>

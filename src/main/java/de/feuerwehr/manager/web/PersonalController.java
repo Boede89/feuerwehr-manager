@@ -7,8 +7,10 @@ import de.feuerwehr.manager.personal.EquipmentType;
 import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.personal.PersonCourseCompletion;
 import de.feuerwehr.manager.personal.PersonStatus;
+import de.feuerwehr.manager.personal.PersonalGroupService;
 import de.feuerwehr.manager.personal.PersonalMemberService;
 import de.feuerwehr.manager.personal.PersonalService;
+import de.feuerwehr.manager.personal.PersonGroup;
 import de.feuerwehr.manager.personal.PersonalService.CourseCompletionInput;
 import de.feuerwehr.manager.personal.PersonalService.PersonCreateResult;
 import de.feuerwehr.manager.personal.PersonalService.PersonDetailView;
@@ -51,18 +53,81 @@ public class PersonalController {
     private final UnitService unitService;
     private final PersonalService personalService;
     private final PersonalMemberService personalMemberService;
+    private final PersonalGroupService personalGroupService;
     private final AccessControlService accessControlService;
 
     @GetMapping
     public String index(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "tab", defaultValue = "mitglieder") String tab,
             Model model) {
         Unit unit = resolveUnit(unitId, actor, model);
+        String personalTab = normalizePersonalTab(tab);
+        model.addAttribute("personalTab", personalTab);
         var persons = personalService.listPersons(unit.getId());
         model.addAttribute("persons", persons);
         model.addAttribute("personCount", persons.size());
+        if ("gruppen".equals(personalTab)) {
+            List<PersonGroup> groups = personalGroupService.listGroups(unit.getId());
+            model.addAttribute("groups", groups);
+            model.addAttribute("groupCount", groups.size());
+        }
         return "personal/index";
+    }
+
+    @PostMapping("/groups")
+    public String createGroup(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam String name,
+            @RequestParam(name = "personIds", required = false) List<Long> personIds,
+            RedirectAttributes redirectAttributes) {
+        try {
+            accessControlService.requireUnitAccess(actor, unit);
+            personalGroupService.createGroup(unit, name, personIds);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "Gruppe wurde angelegt.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/personal?unit=" + unit + "&tab=gruppen";
+    }
+
+    @PostMapping("/groups/{groupId}")
+    public String updateGroup(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long groupId,
+            @RequestParam long unit,
+            @RequestParam String name,
+            @RequestParam(name = "personIds", required = false) List<Long> personIds,
+            RedirectAttributes redirectAttributes) {
+        try {
+            accessControlService.requireUnitAccess(actor, unit);
+            personalGroupService.updateGroup(groupId, name, personIds);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "Gruppe wurde gespeichert.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/personal?unit=" + unit + "&tab=gruppen";
+    }
+
+    @PostMapping("/groups/{groupId}/delete")
+    public String deleteGroup(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long groupId,
+            @RequestParam long unit,
+            RedirectAttributes redirectAttributes) {
+        try {
+            accessControlService.requireUnitAccess(actor, unit);
+            personalGroupService.deleteGroup(groupId);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "Gruppe wurde gelöscht.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/personal?unit=" + unit + "&tab=gruppen";
     }
 
     @GetMapping("/new")
@@ -674,6 +739,13 @@ public class PersonalController {
         redirectAttributes.addFlashAttribute("formPhone", phone);
         redirectAttributes.addFlashAttribute("formBirthdate", birthdate);
         redirectAttributes.addFlashAttribute("formAllowLogin", allowLogin);
+    }
+
+    private static String normalizePersonalTab(String tab) {
+        if ("gruppen".equals(tab)) {
+            return "gruppen";
+        }
+        return "mitglieder";
     }
 
     private static String normalizeTab(String tab) {

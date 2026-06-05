@@ -3,6 +3,7 @@ package de.feuerwehr.manager.settings;
 import de.feuerwehr.manager.divera.DiveraAlarmSampleRepository;
 import de.feuerwehr.manager.divera.TestDiveraAlarmRepository;
 import de.feuerwehr.manager.personal.CourseRepository;
+import de.feuerwehr.manager.personal.PersonGroupRepository;
 import de.feuerwehr.manager.personal.PersonRepository;
 import de.feuerwehr.manager.personal.QualificationTypeRepository;
 import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class TestModeService {
 
     private final ApplicationSettingsRepository settingsRepository;
+    private final PersonGroupRepository personGroupRepository;
     private final PersonRepository personRepository;
     private final CourseRepository courseRepository;
     private final QualificationTypeRepository qualificationTypeRepository;
@@ -63,6 +65,7 @@ public class TestModeService {
         entityManager
                 .createQuery("DELETE FROM PersonCourseCompletion c WHERE c.person.testData = true")
                 .executeUpdate();
+        personGroupRepository.deleteAllByTestDataTrue();
         personRepository.deleteAllByTestDataTrue();
         courseRepository.deleteAllByTestDataTrue();
         qualificationTypeRepository.deleteAllByTestDataTrue();
