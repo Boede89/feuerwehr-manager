@@ -107,7 +107,7 @@
         <a class="tab-btn" th:classappend="${adminTab == 'technik'} ? ' tab-btn--active' : ''"
            th:href="@{/admin(scope='einheit', tab='technik', unit=${unitId})}">Fahrzeuge/Technik</a>
         <a class="tab-btn" th:classappend="${adminTab == 'ausbildung'} ? ' tab-btn--active' : ''"
-           th:href="@{/admin(scope='einheit', tab='ausbildung', unit=${unitId})}">Qualifikationen / Lehrgänge</a>
+           th:href="@{/admin(scope='einheit', tab='ausbildung', unit=${unitId})}">Ausbildung</a>
       </nav>
 
       <div class="admin-panel" th:if="${adminTab == 'konfiguration'}">

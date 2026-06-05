@@ -15,7 +15,7 @@
     <a class="tab-btn" th:classappend="${myAreaTab == 'profile'} ? ' tab-btn--active' : ''"
        th:href="@{/my-area(tab='profile')}">Mein Profil</a>
     <a class="tab-btn" th:classappend="${myAreaTab == 'lehrgaenge'} ? ' tab-btn--active' : ''"
-       th:href="@{/my-area(tab='lehrgaenge')}" th:if="${hasLinkedPerson}">Qualifikationen / Lehrgänge</a>
+       th:href="@{/my-area(tab='lehrgaenge')}" th:if="${hasLinkedPerson}">Ausbildung</a>
   </div>
 
   <!-- Tab: Profil -->
@@ -167,7 +167,7 @@
     </div>
   </div>
 
-  <!-- Tab: Qualifikationen / Lehrgänge -->
+  <!-- Tab: Ausbildung -->
   <div th:if="${myAreaTab == 'lehrgaenge' and hasLinkedPerson}" class="my-area-tab-panel">
     <div class="card card--narrow">
       <div class="card__header">Meine Qualifikation</div>

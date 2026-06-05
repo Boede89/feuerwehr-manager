@@ -5,7 +5,7 @@
     <a class="tab-btn" th:classappend="${activeTab == 'stammdaten'} ? ' tab-btn--active' : ''"
        th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='stammdaten')}">Stammdaten</a>
     <a class="tab-btn" th:classappend="${activeTab == 'lehrgaenge'} ? ' tab-btn--active' : ''"
-       th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='lehrgaenge')}">Qualifikationen / Lehrgänge</a>
+       th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='lehrgaenge')}">Ausbildung</a>
     <a class="tab-btn" th:classappend="${activeTab == 'anwesenheit'} ? ' tab-btn--active' : ''"
        th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='anwesenheit')}">Anwesenheit</a>
   </nav>
@@ -129,7 +129,7 @@
     </div>
   </div>
 
-  <!-- Tab: Qualifikationen / Lehrgänge -->
+  <!-- Tab: Ausbildung -->
   <div th:if="${activeTab == 'lehrgaenge'}" class="personal-tab-panel">
     <div class="card card--narrow">
       <div class="card__header">Aktuelle Qualifikation</div>
