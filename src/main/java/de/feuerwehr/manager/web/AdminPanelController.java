@@ -143,6 +143,7 @@ public class AdminPanelController {
                 adminUnitViewService.populateTechnik(model, resolvedId);
             }
             case "ausbildung" -> adminUnitViewService.populateAusbildung(model, resolvedId);
+            case "import-export" -> adminUnitViewService.populateImportExport(model, resolvedId);
             case "benutzer" -> populateUnitUsersTab(model, actor, resolvedId);
             default -> adminUnitViewService.populateKonfiguration(model, active);
         }
@@ -631,7 +632,7 @@ public class AdminPanelController {
 
     private static String normalizeUnitTab(String tab) {
         return switch (tab) {
-            case "konfiguration", "benutzer", "rollen", "schnittstellen", "module", "technik", "ausbildung" -> tab;
+            case "konfiguration", "benutzer", "rollen", "schnittstellen", "module", "technik", "ausbildung", "import-export" -> tab;
             case "personal" -> "ausbildung";
             default -> "konfiguration";
         };

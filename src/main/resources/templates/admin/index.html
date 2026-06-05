@@ -108,6 +108,8 @@
            th:href="@{/admin(scope='einheit', tab='technik', unit=${unitId})}">Fahrzeuge/Technik</a>
         <a class="tab-btn" th:classappend="${adminTab == 'ausbildung'} ? ' tab-btn--active' : ''"
            th:href="@{/admin(scope='einheit', tab='ausbildung', unit=${unitId})}">Ausbildung</a>
+        <a class="tab-btn" th:classappend="${adminTab == 'import-export'} ? ' tab-btn--active' : ''"
+           th:href="@{/admin(scope='einheit', tab='import-export', unit=${unitId})}">Import/Export</a>
       </nav>
 
       <div class="admin-panel" th:if="${adminTab == 'konfiguration'}">
@@ -136,6 +138,10 @@
 
       <div class="admin-panel" th:if="${adminTab == 'ausbildung'}">
         <div th:replace="~{fragments/admin-unit-ausbildung :: panel}"></div>
+      </div>
+
+      <div class="admin-panel" th:if="${adminTab == 'import-export'}">
+        <div th:replace="~{fragments/admin-unit-import-export :: panel}"></div>
       </div>
     </th:block>
   </th:block>

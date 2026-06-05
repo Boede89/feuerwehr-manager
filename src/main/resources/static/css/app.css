@@ -2686,6 +2686,57 @@ span.required { color: var(--error); }
 .fitness-badge--overdue { background: #fee2e2; color: #b91c1c; }
 .fitness-badge--missing { background: var(--bg-card-hover); color: var(--text-muted); }
 
+.import-export-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1rem;
+}
+.import-export-format {
+  display: grid;
+  gap: 0.65rem;
+}
+.radio-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-card);
+  cursor: pointer;
+}
+.radio-card:has(input:checked) {
+  border-color: var(--gruen);
+  background: var(--gruen-hell);
+}
+.radio-card input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+.radio-card span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.radio-card strong {
+  font-size: var(--fs-sm);
+}
+.radio-card small {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.import-export-warning {
+  margin-top: 0.35rem;
+}
+.import-export-notes {
+  margin: 0 0 0.75rem 1.1rem;
+  padding: 0;
+  color: var(--text);
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+}
+
 .atemschutz-settings-form__actions {
   display: flex;
   gap: 0.75rem;

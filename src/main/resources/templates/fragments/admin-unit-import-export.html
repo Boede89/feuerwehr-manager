@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<th:block th:fragment="panel">
+  <div class="import-export-grid">
+    <div class="card">
+      <div class="card__header">Daten sichern (Export)</div>
+      <div class="card__body">
+        <p class="hint" style="margin-top:0;">
+          Sichert Personal- und Atemschutz-Daten dieser Einheit als JSON-Datei
+          (Personen, Lehrgänge, Gruppen, Geräteträger, Nachweise, Einstellungen).
+        </p>
+        <a class="btn btn--primary"
+           th:href="@{/admin/unit/import-export/export(unit=${unitId})}">
+          Export herunterladen
+        </a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__header">Daten wiederherstellen (Import)</div>
+      <div class="card__body">
+        <form method="post" th:action="@{/admin/unit/import-export/import}" enctype="multipart/form-data"
+              class="import-export-form">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <input type="hidden" name="unit" th:value="${unitId}"/>
+
+          <div class="form-group">
+            <label>Import-Quelle</label>
+            <div class="import-export-format">
+              <label class="radio-card">
+                <input type="radio" name="importFormat" value="legacy-sql" checked/>
+                <span>
+                  <strong>Alte Feuerwehr-App (SQL)</strong>
+                  <small>Export aus Admin → Einstellungen → Datenbank-Export (.sql)</small>
+                </span>
+              </label>
+              <label class="radio-card">
+                <input type="radio" name="importFormat" value="json"/>
+                <span>
+                  <strong>Feuerwehr-Manager (JSON)</strong>
+                  <small>Wiederherstellung aus vorherigem Export dieser Seite</small>
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-grid form-grid--2 form-grid--align-start">
+            <div class="form-group">
+              <label for="import-file">Datei</label>
+              <input id="import-file" name="importFile" type="file" accept=".sql,.json,text/sql,application/json" required/>
+            </div>
+            <div class="form-group" id="source-einheit-group">
+              <label for="source-einheit-id">Quell-Einheit-ID (nur SQL)</label>
+              <input id="source-einheit-id" name="sourceEinheitId" type="number" min="1" placeholder="z. B. 1"/>
+              <p class="hint">Optional: nur Datensätze mit dieser <code>einheit_id</code> aus der alten App importieren.</p>
+            </div>
+          </div>
+
+          <div class="form-group form-group--full">
+            <label class="checkbox-row import-export-warning">
+              <input type="checkbox" name="replaceExisting" value="true"/>
+              <span>Vorhandene Personal- und Atemschutz-Daten dieser Einheit vor dem Import löschen</span>
+            </label>
+            <label class="checkbox-row import-export-warning">
+              <input type="checkbox" name="confirmReplace" value="true"/>
+              <span>Ja, Löschen und Import bewusst bestätigen</span>
+            </label>
+            <p class="hint hint--warn">
+              Beim Ersetzen werden Personen, Lehrgänge, Gruppen, Geräteträger und Nachweise dieser Einheit entfernt.
+              Benutzer, Fahrzeuge und andere Module bleiben unberührt.
+            </p>
+          </div>
+
+          <div class="atemschutz-settings-form__actions">
+            <button type="submit" class="btn btn--primary">Import starten</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-md">
+    <div class="card__header">Hinweise zum SQL-Import aus der alten App</div>
+    <div class="card__body">
+      <ul class="import-export-notes">
+        <li><strong>members</strong> → Personen</li>
+        <li><strong>member_qualifications</strong> → Qualifikationen</li>
+        <li><strong>courses</strong> / <strong>member_courses</strong> → Lehrgänge und Abschlüsse</li>
+        <li><strong>member_groups</strong> → Gruppen</li>
+        <li><strong>atemschutz_traeger</strong> → Geräteträger mit G26-, Übungs- und Strecken-Nachweisen</li>
+      </ul>
+      <p class="hint" style="margin-bottom:0;">
+        Tabellen mit anderen Namen oder zusätzliche Module (Fahrzeuge, Reservierungen, Einsätze usw.) werden ignoriert.
+      </p>
+    </div>
+  </div>
+</th:block>
+</body>
+</html>
