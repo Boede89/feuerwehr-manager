@@ -1,11 +1,13 @@
 package de.feuerwehr.manager.atemschutz;
 
+import de.feuerwehr.manager.personal.Course;
 import de.feuerwehr.manager.unit.Unit;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.MapsId;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
@@ -35,6 +37,10 @@ public class UnitAtemschutzSettings {
 
     @Column(name = "agt_course_name", nullable = false, length = 64)
     private String agtCourseName = "AGT";
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "agt_course_id")
+    private Course agtCourse;
 
     @Column(name = "notification_user_ids", columnDefinition = "TEXT")
     private String notificationUserIds;

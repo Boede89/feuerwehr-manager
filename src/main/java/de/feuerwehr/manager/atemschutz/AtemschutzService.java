@@ -40,11 +40,16 @@ public class AtemschutzService {
 
     @Transactional
     public CarrierListResult listCarrierOverviews(long unitId, boolean includeHealthDetails, String filter) {
+        atemschutzSettingsService.ensureSettings(unitId);
         syncCarriersFromAgt(unitId);
         boolean testData = testModeService.isEnabled();
         List<AtemschutzCarrier> carriers = carrierRepository.findByUnitId(unitId, testData);
         if (carriers.isEmpty()) {
-            return new CarrierListResult(List.of(), new CarrierListStats(0, 0, 0), atemschutzSettingsService.agtCourseName(unitId));
+            return new CarrierListResult(
+                    List.of(),
+                    new CarrierListStats(0, 0, 0),
+                    atemschutzSettingsService.agtCourseName(unitId),
+                    atemschutzSettingsService.isAgtCourseConfigured(unitId));
         }
         List<Long> carrierIds = carriers.stream().map(AtemschutzCarrier::getId).toList();
         int warnDays = warnDays(unitId);
@@ -77,7 +82,11 @@ public class AtemschutzService {
         int tauglich = (int) all.stream().filter(CarrierOverview::overallTauglich).count();
         CarrierListStats stats = new CarrierListStats(all.size(), tauglich, all.size() - tauglich);
         List<CarrierOverview> filtered = applyFilter(all, filter);
-        return new CarrierListResult(filtered, stats, atemschutzSettingsService.agtCourseName(unitId));
+        return new CarrierListResult(
+                filtered,
+                stats,
+                atemschutzSettingsService.agtCourseName(unitId),
+                atemschutzSettingsService.isAgtCourseConfigured(unitId));
     }
 
     @Transactional(readOnly = true)
@@ -112,9 +121,12 @@ public class AtemschutzService {
     @Transactional
     public void syncCarriersFromAgt(long unitId) {
         boolean testData = testModeService.isEnabled();
-        String courseName = atemschutzSettingsService.agtCourseName(unitId);
+        Long courseId = atemschutzSettingsService.agtCourseId(unitId).orElse(null);
+        if (courseId == null) {
+            return;
+        }
         List<Person> agtPersons =
-                completionRepository.findPersonsWithCompletedCourse(unitId, testData, courseName);
+                completionRepository.findPersonsWithCompletedCourseId(unitId, testData, courseId);
         Set<Long> agtPersonIds = agtPersons.stream().map(Person::getId).collect(Collectors.toCollection(HashSet::new));
         Unit unit = unitRepository
                 .findVisibleById(unitId, testModeService.isEnabled())
@@ -308,7 +320,10 @@ public class AtemschutzService {
     }
 
     public record CarrierListResult(
-            List<CarrierOverview> carriers, CarrierListStats stats, String agtCourseName) {}
+            List<CarrierOverview> carriers,
+            CarrierListStats stats,
+            String agtCourseName,
+            boolean agtCourseConfigured) {}
 
     public record CarrierListStats(int total, int tauglich, int nichtTauglich) {}
 

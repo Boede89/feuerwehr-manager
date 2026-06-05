@@ -57,6 +57,7 @@ public class AtemschutzController {
             model.addAttribute("stats", result.stats());
             model.addAttribute("activeFilter", normalizeFilter(filter));
             model.addAttribute("agtCourseName", result.agtCourseName());
+            model.addAttribute("agtCourseConfigured", result.agtCourseConfigured());
             model.addAttribute("canWrite", canWrite(actor, unit.getId()));
             model.addAttribute("warnDays", atemschutzService.warnDays(unit.getId()));
             return "atemschutz/index";

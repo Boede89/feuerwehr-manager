@@ -12,11 +12,18 @@
   <div th:replace="~{fragments/testmode-banner :: banner}"></div>
   <div th:replace="~{fragments/flash-messages :: alerts}"></div>
 
-  <p class="hint">
+  <p class="hint" th:if="${agtCourseConfigured}">
     Geräteträger werden automatisch aus dem Personal übernommen, sobald der Lehrgang
     <strong th:text="${agtCourseName}">AGT</strong> abgeschlossen ist.
     Warnschwelle: <span th:text="${warnDays}">90</span> Tage vor Ablauf.
     <a th:if="${isAdmin}" th:href="@{/settings/atemschutz(unit=${unitId})}">Atemschutz-Einstellungen</a>
+  </p>
+  <p class="hint hint--warn" th:if="${!agtCourseConfigured}">
+    Noch kein Lehrgang für Geräteträger konfiguriert.
+    <a th:if="${isAdmin}" th:href="@{/settings/atemschutz(unit=${unitId}, tab='warnschwelle')}">
+      Lehrgang in den Atemschutz-Einstellungen wählen
+    </a>
+    <span th:unless="${isAdmin}">Bitte einen Administrator.</span>
   </p>
 
   <div class="kpi-grid">
@@ -90,9 +97,12 @@
     </div>
     <div class="card__body" th:if="${#lists.isEmpty(carriers)}">
       <p class="hint" style="margin:0;">
-        <span th:if="${activeFilter == 'all'}">
+        <span th:if="${activeFilter == 'all' and agtCourseConfigured}">
           Noch keine Geräteträger — im Personal den Lehrgang
           <strong th:text="${agtCourseName}">AGT</strong> als abgeschlossen erfassen.
+        </span>
+        <span th:if="${activeFilter == 'all' and !agtCourseConfigured}">
+          Zuerst einen Lehrgang in den Atemschutz-Einstellungen auswählen.
         </span>
         <span th:if="${activeFilter != 'all'}">Keine Geräteträger für diesen Filter.</span>
       </p>

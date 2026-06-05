@@ -2,6 +2,9 @@ package de.feuerwehr.manager.atemschutz;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import de.feuerwehr.manager.personal.Course;
+import de.feuerwehr.manager.personal.CourseRepository;
+import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.settings.GlobalSettingsService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
@@ -9,6 +12,7 @@ import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +27,8 @@ public class AtemschutzSettingsService {
     private final UnitAtemschutzSettingsRepository settingsRepository;
     private final AtemschutzEmailTemplateRepository emailTemplateRepository;
     private final UserRepository userRepository;
+    private final CourseRepository courseRepository;
+    private final PersonalService personalService;
     private final GlobalSettingsService globalSettingsService;
     private final ObjectMapper objectMapper;
 
@@ -35,16 +41,42 @@ public class AtemschutzSettingsService {
 
     @Transactional
     public UnitAtemschutzSettings ensureSettings(long unitId) {
-        return settingsRepository.findByUnitId(unitId).orElseGet(() -> {
+        return settingsRepository.findByUnitId(unitId).map(settings -> {
+            if (settings.getAgtCourse() == null) {
+                resolveDefaultAgtCourse(unitId, settings);
+                if (settings.getAgtCourse() != null) {
+                    return settingsRepository.save(settings);
+                }
+            }
+            return settings;
+        }).orElseGet(() -> {
             Unit unit = unitRepository.findById(unitId).orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden"));
             UnitAtemschutzSettings settings = new UnitAtemschutzSettings();
             settings.setUnit(unit);
             settings.setWarnDays(globalSettingsService.get().getQualificationWarnDays());
             settings.setAgtCourseName("AGT");
+            resolveDefaultAgtCourse(unitId, settings);
             UnitAtemschutzSettings saved = settingsRepository.save(settings);
             seedEmailTemplates(unit);
             return saved;
         });
+    }
+
+    @Transactional(readOnly = true)
+    public Long selectedAgtCourseUiId(long unitId) {
+        return settingsRepository
+                .findByUnitId(unitId)
+                .map(UnitAtemschutzSettings::getAgtCourse)
+                .flatMap(stored -> personalService.listCourses(unitId, true).stream()
+                        .filter(course -> matchesStoredCourse(course, normalizeStoredCourseId(stored)))
+                        .map(Course::getId)
+                        .findFirst())
+                .orElse(null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Course> listSelectableCourses(long unitId) {
+        return personalService.listCourses(unitId, true);
     }
 
     @Transactional(readOnly = true)
@@ -53,20 +85,48 @@ public class AtemschutzSettingsService {
     }
 
     @Transactional(readOnly = true)
+    public Optional<Long> agtCourseId(long unitId) {
+        UnitAtemschutzSettings settings = requireSettings(unitId);
+        if (settings.getAgtCourse() == null) {
+            return Optional.empty();
+        }
+        return Optional.of(normalizeStoredCourseId(settings.getAgtCourse()));
+    }
+
+    @Transactional(readOnly = true)
     public String agtCourseName(long unitId) {
-        String name = requireSettings(unitId).getAgtCourseName();
-        return name == null || name.isBlank() ? "AGT" : name.trim();
+        UnitAtemschutzSettings settings = requireSettings(unitId);
+        if (settings.getAgtCourse() != null) {
+            return settings.getAgtCourse().getName();
+        }
+        String name = settings.getAgtCourseName();
+        return name == null || name.isBlank() ? "—" : name.trim();
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isAgtCourseConfigured(long unitId) {
+        return agtCourseId(unitId).isPresent();
     }
 
     @Transactional
-    public void saveWarnschwelle(long unitId, int warnDays, String agtCourseName) {
+    public void saveWarnschwelle(long unitId, int warnDays, Long agtCourseId) {
         if (warnDays < 0) {
             throw new IllegalArgumentException("Warnschwelle darf nicht negativ sein.");
         }
-        String course = agtCourseName == null || agtCourseName.isBlank() ? "AGT" : agtCourseName.trim();
+        if (agtCourseId == null || agtCourseId <= 0) {
+            throw new IllegalArgumentException("Bitte einen Lehrgang auswählen.");
+        }
+        Course selected = courseRepository
+                .findById(agtCourseId)
+                .orElseThrow(() -> new IllegalArgumentException("Lehrgang nicht gefunden."));
+        if (!selected.getUnit().getId().equals(unitId)) {
+            throw new IllegalArgumentException("Lehrgang gehört nicht zur Einheit.");
+        }
+        Course stored = resolveStoredCourse(selected);
         UnitAtemschutzSettings settings = ensureSettings(unitId);
         settings.setWarnDays(warnDays);
-        settings.setAgtCourseName(course);
+        settings.setAgtCourse(stored);
+        settings.setAgtCourseName(stored.getName());
         settingsRepository.save(settings);
     }
 
@@ -124,7 +184,48 @@ public class AtemschutzSettingsService {
         UnitAtemschutzSettings settings = new UnitAtemschutzSettings();
         settings.setWarnDays(globalSettingsService.get().getQualificationWarnDays());
         settings.setAgtCourseName("AGT");
+        resolveDefaultAgtCourse(unitId, settings);
         return settings;
+    }
+
+    private void resolveDefaultAgtCourse(long unitId, UnitAtemschutzSettings settings) {
+        personalService.listCourses(unitId, true).stream()
+                .filter(course -> "AGT".equalsIgnoreCase(course.getName().trim()))
+                .findFirst()
+                .ifPresent(course -> {
+                    Course stored = resolveStoredCourse(course);
+                    settings.setAgtCourse(stored);
+                    settings.setAgtCourseName(stored.getName());
+                });
+    }
+
+    private Course resolveStoredCourse(Course selected) {
+        if (selected.isTestData() && selected.getProductionSourceId() != null) {
+            return courseRepository
+                    .findById(selected.getProductionSourceId())
+                    .orElse(selected);
+        }
+        if (!selected.isTestData()) {
+            return selected;
+        }
+        return selected;
+    }
+
+    private long normalizeStoredCourseId(Course course) {
+        if (!course.isTestData()) {
+            return course.getId();
+        }
+        if (course.getProductionSourceId() != null) {
+            return course.getProductionSourceId();
+        }
+        return course.getId();
+    }
+
+    private static boolean matchesStoredCourse(Course course, long storedProdId) {
+        if (course.getId().equals(storedProdId)) {
+            return true;
+        }
+        return course.getProductionSourceId() != null && course.getProductionSourceId().equals(storedProdId);
     }
 
     private void seedEmailTemplates(Unit unit) {

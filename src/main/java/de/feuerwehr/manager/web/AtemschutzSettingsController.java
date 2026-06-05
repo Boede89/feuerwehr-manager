@@ -58,6 +58,8 @@ public class AtemschutzSettingsController {
             model.addAttribute("notificationUserIds", atemschutzSettingsService.parseNotificationUserIds(settings));
             model.addAttribute("ccUserIds", atemschutzSettingsService.parseCcUserIds(settings));
             model.addAttribute("emailTemplates", templates);
+            model.addAttribute("unitCourses", atemschutzSettingsService.listSelectableCourses(unit.getId()));
+            model.addAttribute("selectedAgtCourseId", atemschutzSettingsService.selectedAgtCourseUiId(unit.getId()));
             return "settings/atemschutz";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
@@ -70,10 +72,10 @@ public class AtemschutzSettingsController {
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam long unit,
             @RequestParam int warnDays,
-            @RequestParam(defaultValue = "AGT") String agtCourseName,
+            @RequestParam long agtCourseId,
             RedirectAttributes redirectAttributes) {
         return save(actor, unit, "warnschwelle", redirectAttributes, () -> {
-            atemschutzSettingsService.saveWarnschwelle(unit, warnDays, agtCourseName);
+            atemschutzSettingsService.saveWarnschwelle(unit, warnDays, agtCourseId);
             redirectAttributes.addFlashAttribute("message", "Warnschwelle gespeichert.");
         });
     }

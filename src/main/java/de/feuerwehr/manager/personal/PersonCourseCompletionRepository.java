@@ -38,4 +38,20 @@ public interface PersonCourseCompletionRepository extends JpaRepository<PersonCo
             @Param("unitId") long unitId,
             @Param("testData") boolean testData,
             @Param("courseName") String courseName);
+
+    @Query("""
+            SELECT DISTINCT cc.person FROM PersonCourseCompletion cc
+            JOIN cc.person p
+            JOIN cc.course c
+            WHERE p.unit.id = :unitId
+              AND p.anonymizedAt IS NULL
+              AND p.testData = :testData
+              AND (c.id = :courseId OR c.productionSourceId = :courseId)
+              AND (cc.completedOn IS NOT NULL OR cc.completionYear IS NOT NULL)
+            ORDER BY p.lastName, p.firstName
+            """)
+    List<de.feuerwehr.manager.personal.Person> findPersonsWithCompletedCourseId(
+            @Param("unitId") long unitId,
+            @Param("testData") boolean testData,
+            @Param("courseId") long courseId);
 }
