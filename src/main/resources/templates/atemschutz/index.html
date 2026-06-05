@@ -69,7 +69,7 @@
             <span class="text-muted text-sm" th:text="${row.carrier.status.label()}">Aktiv</span>
           </td>
           <td>
-            <span class="fitness-badge" th:classappend="${row.overallTauglich ? ' fitness-badge--ok' : ' fitness-badge--overdue'}"
+            <span th:class="${row.overallTauglich ? 'badge active' : 'badge inactive'}"
                   th:text="${row.overallTauglich ? 'Tauglich' : 'Nicht tauglich'}">—</span>
           </td>
           <td>
