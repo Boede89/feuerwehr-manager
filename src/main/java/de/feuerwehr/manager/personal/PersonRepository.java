@@ -13,6 +13,7 @@ public interface PersonRepository extends JpaRepository<Person, Long> {
     @Query("""
             SELECT p FROM Person p
             LEFT JOIN FETCH p.qualificationType
+            LEFT JOIN FETCH p.user
             WHERE p.unit.id = :unitId AND p.anonymizedAt IS NULL AND p.testData = :testData
             ORDER BY p.lastName, p.firstName
             """)

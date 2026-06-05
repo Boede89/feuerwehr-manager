@@ -54,6 +54,9 @@ public class ApplicationSettings {
     @Column(name = "privacy_hoster")
     private String privacyHoster;
 
+    @Column(name = "qualification_warn_days", nullable = false)
+    private int qualificationWarnDays = 90;
+
     @Column(name = "logo_base64", columnDefinition = "MEDIUMTEXT")
     private String logoBase64;
 

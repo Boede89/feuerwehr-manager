@@ -78,6 +78,22 @@ public class Person {
     @Column(length = 512)
     private String notes;
 
+    @Column(name = "personnel_number", length = 50)
+    private String personnelNumber;
+
+    @Column(name = "entry_date")
+    private LocalDate entryDate;
+
+    @Column(name = "exit_date")
+    private LocalDate exitDate;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "profile_updated_by_id")
+    private User profileUpdatedBy;
+
+    @Column(name = "profile_updated_by_name", length = 255)
+    private String profileUpdatedByName;
+
     @Column(name = "anonymized_at")
     private Instant anonymizedAt;
 

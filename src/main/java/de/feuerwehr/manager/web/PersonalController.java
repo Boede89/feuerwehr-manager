@@ -1,8 +1,12 @@
 package de.feuerwehr.manager.web;
 
+import de.feuerwehr.manager.personal.AttendanceStatus;
+import de.feuerwehr.manager.personal.EquipmentType;
 import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.personal.PersonCourseCompletion;
+import de.feuerwehr.manager.personal.PersonQualification;
 import de.feuerwehr.manager.personal.PersonStatus;
+import de.feuerwehr.manager.personal.PersonalMemberService;
 import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.personal.PersonalService.CourseCompletionInput;
 import de.feuerwehr.manager.personal.PersonalService.PersonCreateResult;
@@ -14,6 +18,8 @@ import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,6 +30,9 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -41,6 +50,7 @@ public class PersonalController {
 
     private final UnitService unitService;
     private final PersonalService personalService;
+    private final PersonalMemberService personalMemberService;
     private final AccessControlService accessControlService;
 
     @GetMapping
@@ -76,13 +86,8 @@ public class PersonalController {
             @RequestParam(required = false) String email,
             @RequestParam(required = false) String phone,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate birthdate,
-            @RequestParam(required = false) Long qualificationTypeId,
+            @RequestParam(required = false) String personnelNumber,
             @RequestParam(required = false, defaultValue = "false") boolean allowLogin,
-            @RequestParam(required = false) String diveraUcrId,
-            @RequestParam(required = false) String notes,
-            @RequestParam(required = false) PersonStatus status,
-            @RequestParam(required = false) List<Long> courseIds,
-            @RequestParam(required = false) List<String> ricCodes,
             HttpServletRequest request,
             RedirectAttributes redirectAttributes) {
         try {
@@ -94,14 +99,18 @@ public class PersonalController {
                     phone,
                     birthdate,
                     allowLogin,
-                    notes,
-                    status,
-                    qualificationTypeId,
-                    parseCourseCompletions(courseIds, request),
-                    diveraUcrId,
-                    ricCodes,
+                    null,
+                    PersonStatus.ACTIVE,
+                    null,
+                    List.of(),
+                    null,
+                    List.of(),
                     actor.getUserId(),
                     request);
+            if (personnelNumber != null && !personnelNumber.isBlank()) {
+                personalMemberService.updateFwHubStammdaten(
+                        result.person().getId(), birthdate, personnelNumber.trim(), null, null, null);
+            }
             Person created = result.person();
             redirectAttributes.addFlashAttribute("saved", true);
             String message = created.displayName() + " wurde angelegt.";
@@ -118,17 +127,8 @@ public class PersonalController {
             return "redirect:/personal/" + created.getId() + "?unit=" + unit + "&tab=stammdaten";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
-            storeNewPersonFlash(
-                    redirectAttributes,
-                    firstName,
-                    lastName,
-                    email,
-                    phone,
-                    birthdate,
-                    allowLogin,
-                    notes,
-                    status);
-            return "redirect:/personal/new?unit=" + unit + "&tab=stammdaten";
+            storeNewPersonFlash(redirectAttributes, firstName, lastName, email, phone, birthdate, allowLogin);
+            return "redirect:/personal/new?unit=" + unit;
         }
     }
 
@@ -138,22 +138,15 @@ public class PersonalController {
             @PathVariable long id,
             @RequestParam(name = "unit", required = false) Long unitId,
             @RequestParam(name = "tab", defaultValue = "stammdaten") String tab,
-            @RequestParam(name = "edit", required = false) String edit,
             Model model) {
-        PersonDetailView detail = personalService.loadPersonDetailView(id);
-        Person person = detail.person();
+        Person person = personalService.requirePerson(id);
         accessControlService.requireUnitAccess(actor, person.getUnit().getId());
         Unit unit = person.getUnit();
         model.addAttribute("unitId", unit.getId());
         model.addAttribute("currentUnitName", unit.getName());
         model.addAttribute("isNewPerson", false);
-        model.addAttribute("person", person);
-        model.addAttribute("personDisplayName", person.displayName());
-        model.addAttribute("personInitials", personInitials(person));
         String activeTab = normalizeTab(tab);
-        model.addAttribute("activeTab", activeTab);
-        model.addAttribute("editMode", edit != null && (edit.equals("1") || edit.equals(activeTab)));
-        populatePersonDetailData(model, unit.getId(), detail);
+        populateMemberDetailData(model, id, activeTab);
         return "personal/person-detail";
     }
 
@@ -218,6 +211,195 @@ public class PersonalController {
             return "redirect:/personal/" + id + "?unit=" + unit + "&tab=" + tab + "&edit=1";
         }
         return "redirect:/personal/" + id + "?unit=" + unit + "&tab=" + tab;
+    }
+
+    @PostMapping("/{id}/fw-stammdaten")
+    public String updateFwStammdaten(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @RequestParam long unit,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate birthdate,
+            @RequestParam(required = false) String personnelNumber,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate entryDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate exitDate,
+            @RequestParam(required = false) String notes,
+            RedirectAttributes redirectAttributes) {
+        return memberAction(actor, id, unit, "stammdaten", redirectAttributes, () -> personalMemberService.updateFwHubStammdaten(
+                id, birthdate, personnelNumber, entryDate, exitDate, notes));
+    }
+
+    @PostMapping("/{id}/contact-data")
+    public String updateContactData(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @RequestParam long unit,
+            @RequestParam(required = false) String phone,
+            @RequestParam(required = false) String emailPrivate,
+            @RequestParam(required = false) String address,
+            RedirectAttributes redirectAttributes) {
+        return memberAction(actor, id, unit, "stammdaten", redirectAttributes, () -> personalMemberService.updateContactData(
+                id, phone, emailPrivate, address, actor.getUserId(), actor.getDisplayName()));
+    }
+
+    @PostMapping("/{id}/qualifications")
+    public String createQualification(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @RequestParam long unit,
+            @RequestParam String name,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate acquiredAt,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate expiresAt,
+            @RequestParam(required = false) String notes,
+            @RequestParam(required = false, defaultValue = "false") boolean healthData,
+            RedirectAttributes redirectAttributes) {
+        return memberAction(actor, id, unit, "qualifikationen", redirectAttributes, () ->
+                personalMemberService.createQualification(id, name, acquiredAt, expiresAt, notes, healthData));
+    }
+
+    @PostMapping("/{id}/qualifications/{qid}")
+    public String updateQualification(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @PathVariable long qid,
+            @RequestParam long unit,
+            @RequestParam String name,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate acquiredAt,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate expiresAt,
+            @RequestParam(required = false) String notes,
+            @RequestParam(required = false, defaultValue = "false") boolean healthData,
+            RedirectAttributes redirectAttributes) {
+        return memberAction(actor, id, unit, "qualifikationen", redirectAttributes, () ->
+                personalMemberService.updateQualification(id, qid, name, acquiredAt, expiresAt, notes, healthData));
+    }
+
+    @PostMapping("/{id}/qualifications/{qid}/delete")
+    public String deleteQualification(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @PathVariable long qid,
+            @RequestParam long unit,
+            RedirectAttributes redirectAttributes) {
+        return memberAction(actor, id, unit, "qualifikationen", redirectAttributes, () ->
+                personalMemberService.deleteQualification(id, qid));
+    }
+
+    @PostMapping("/{id}/equipment")
+    public String createEquipment(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @RequestParam long unit,
+            @RequestParam EquipmentType type,
+            @RequestParam(required = false) String identifier,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate issuedAt,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate expiresAt,
+            @RequestParam(required = false) String notes,
+            RedirectAttributes redirectAttributes) {
+        return memberAction(actor, id, unit, "ausruestung", redirectAttributes, () ->
+                personalMemberService.createEquipment(id, type, identifier, issuedAt, expiresAt, notes));
+    }
+
+    @PostMapping("/{id}/equipment/{eid}")
+    public String updateEquipment(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @PathVariable long eid,
+            @RequestParam long unit,
+            @RequestParam EquipmentType type,
+            @RequestParam(required = false) String identifier,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate issuedAt,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate expiresAt,
+            @RequestParam(required = false) String notes,
+            RedirectAttributes redirectAttributes) {
+        return memberAction(actor, id, unit, "ausruestung", redirectAttributes, () ->
+                personalMemberService.updateEquipment(id, eid, type, identifier, issuedAt, expiresAt, notes));
+    }
+
+    @PostMapping("/{id}/equipment/{eid}/delete")
+    public String deleteEquipment(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @PathVariable long eid,
+            @RequestParam long unit,
+            RedirectAttributes redirectAttributes) {
+        return memberAction(actor, id, unit, "ausruestung", redirectAttributes, () ->
+                personalMemberService.deleteEquipment(id, eid));
+    }
+
+    @PostMapping("/{id}/honors")
+    public String createHonor(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @RequestParam long unit,
+            @RequestParam String name,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate awardedAt,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String notes,
+            RedirectAttributes redirectAttributes) {
+        return memberAction(actor, id, unit, "ehrungen", redirectAttributes, () ->
+                personalMemberService.createHonor(id, name, awardedAt, status, notes));
+    }
+
+    @PostMapping("/{id}/honors/{hid}")
+    public String updateHonor(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @PathVariable long hid,
+            @RequestParam long unit,
+            @RequestParam String name,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate awardedAt,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String notes,
+            RedirectAttributes redirectAttributes) {
+        return memberAction(actor, id, unit, "ehrungen", redirectAttributes, () ->
+                personalMemberService.updateHonor(id, hid, name, awardedAt, status, notes));
+    }
+
+    @PostMapping("/{id}/honors/{hid}/delete")
+    public String deleteHonor(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @PathVariable long hid,
+            @RequestParam long unit,
+            RedirectAttributes redirectAttributes) {
+        return memberAction(actor, id, unit, "ehrungen", redirectAttributes, () ->
+                personalMemberService.deleteHonor(id, hid));
+    }
+
+    @PostMapping("/{id}/attendance")
+    public String createAttendance(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @RequestParam long unit,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate serviceDate,
+            @RequestParam(required = false) AttendanceStatus status,
+            @RequestParam(required = false) String notes,
+            RedirectAttributes redirectAttributes) {
+        return memberAction(actor, id, unit, "anwesenheit", redirectAttributes, () ->
+                personalMemberService.createAttendance(id, serviceDate, status, notes, actor.getUserId()));
+    }
+
+    @PostMapping("/{id}/attendance/{aid}/delete")
+    public String deleteAttendance(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @PathVariable long aid,
+            @RequestParam long unit,
+            RedirectAttributes redirectAttributes) {
+        return memberAction(actor, id, unit, "anwesenheit", redirectAttributes, () ->
+                personalMemberService.deleteAttendance(id, aid));
+    }
+
+    @GetMapping("/{id}/attendance/export")
+    public ResponseEntity<byte[]> exportAttendance(
+            @AuthenticationPrincipal AppUserDetails actor, @PathVariable long id, @RequestParam long unit) {
+        Person person = personalService.requirePerson(id);
+        accessControlService.requireUnitAccess(actor, person.getUnit().getId());
+        byte[] body = personalMemberService.exportAttendanceCsv(id);
+        String filename = "anwesenheit_" + person.getLastName() + ".csv";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+                .body(body);
     }
 
     @PostMapping("/{id}/delete")
@@ -289,10 +471,70 @@ public class PersonalController {
         person.setUnit(unit);
         person.setStatus(PersonStatus.ACTIVE);
         model.addAttribute("isNewPerson", true);
-        model.addAttribute("editMode", true);
         model.addAttribute("person", person);
         model.addAttribute("activeTab", activeTab);
-        populatePersonDetailData(model, unit.getId(), (PersonDetailView) null);
+    }
+
+    private String memberAction(
+            AppUserDetails actor,
+            long personId,
+            long unitId,
+            String tab,
+            RedirectAttributes redirectAttributes,
+            Runnable action) {
+        try {
+            Person person = personalService.requirePerson(personId);
+            accessControlService.requireUnitAccess(actor, person.getUnit().getId());
+            action.run();
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "Gespeichert.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/personal/" + personId + "?unit=" + unitId + "&tab=" + tab;
+    }
+
+    private void populateMemberDetailData(Model model, long personId, String activeTab) {
+        PersonDetailView detail = personalService.loadPersonDetailView(personId);
+        Person person = detail.person();
+        model.addAttribute("person", person);
+        model.addAttribute("personDisplayName", person.displayName());
+        model.addAttribute("personInitials", personInitials(person));
+        model.addAttribute("activeTab", activeTab);
+        model.addAttribute("equipmentTypes", EquipmentType.values());
+        model.addAttribute("emergencyContacts", personalMemberService.listEmergencyContacts(personId));
+        model.addAttribute("memberQualifications", personalMemberService.listQualifications(personId));
+        model.addAttribute("memberEquipment", personalMemberService.listEquipment(personId));
+        model.addAttribute("memberHonors", personalMemberService.listHonors(personId));
+        model.addAttribute("memberAttendance", personalMemberService.listAttendance(personId));
+        model.addAttribute("attendanceStats", personalMemberService.attendanceStats(personId));
+        populateQualificationExpiry(model, personalMemberService.listQualifications(personId), personalMemberService.qualificationWarnDays());
+    }
+
+    private void populateQualificationExpiry(Model model, List<PersonQualification> qualifications, int warnDays) {
+        Map<Long, String> classes = new HashMap<>();
+        Map<Long, String> hints = new HashMap<>();
+        LocalDate today = LocalDate.now();
+        for (PersonQualification q : qualifications) {
+            if (q.getExpiresAt() == null) {
+                continue;
+            }
+            long days = ChronoUnit.DAYS.between(today, q.getExpiresAt());
+            if (days < 0) {
+                classes.put(q.getId(), "danger");
+                hints.put(q.getId(), "abgelaufen");
+            } else if (days <= 30) {
+                classes.put(q.getId(), "danger");
+                hints.put(q.getId(), "noch " + days + "d");
+            } else if (days <= warnDays) {
+                classes.put(q.getId(), "warning");
+                hints.put(q.getId(), "noch " + days + "d");
+            } else {
+                classes.put(q.getId(), "success");
+            }
+        }
+        model.addAttribute("qualiExpiryClass", classes);
+        model.addAttribute("qualiExpiryHint", hints);
     }
 
     private void populatePersonDetailData(Model model, long unitId, PersonDetailView detail) {
@@ -337,17 +579,13 @@ public class PersonalController {
             String email,
             String phone,
             LocalDate birthdate,
-            boolean allowLogin,
-            String notes,
-            PersonStatus status) {
+            boolean allowLogin) {
         redirectAttributes.addFlashAttribute("formFirstName", firstName);
         redirectAttributes.addFlashAttribute("formLastName", lastName);
         redirectAttributes.addFlashAttribute("formEmail", email);
         redirectAttributes.addFlashAttribute("formPhone", phone);
         redirectAttributes.addFlashAttribute("formBirthdate", birthdate);
         redirectAttributes.addFlashAttribute("formAllowLogin", allowLogin);
-        redirectAttributes.addFlashAttribute("formNotes", notes);
-        redirectAttributes.addFlashAttribute("formStatus", status);
     }
 
     private static String normalizeTab(String tab) {
@@ -355,7 +593,7 @@ public class PersonalController {
             return "stammdaten";
         }
         return switch (tab) {
-            case "atemschutz", "lehrgaenge", "divera" -> tab;
+            case "qualifikationen", "ausruestung", "ehrungen", "anwesenheit" -> tab;
             default -> "stammdaten";
         };
     }

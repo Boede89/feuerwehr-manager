@@ -5,7 +5,7 @@
   <div class="page-header">
     <div>
       <h2>Personal</h2>
-      <p>Mitgliederverwaltung · <span th:text="${personCount}">0</span> Personen · <strong th:text="${currentUnitName}">—</strong></p>
+      <p>Mitgliederverwaltung · <strong th:text="${currentUnitName}">—</strong></p>
     </div>
     <a class="btn btn--primary" th:href="@{/personal/new(unit=${unitId})}">+ Neue Person</a>
   </div>
@@ -13,22 +13,45 @@
   <div th:replace="~{fragments/testmode-banner :: banner}"></div>
   <div th:replace="~{fragments/flash-messages :: alerts}"></div>
 
-  <input type="search" class="person-search" id="personSearch" placeholder="Name suchen…" autocomplete="off"
-         aria-label="Personen suchen"/>
-
-  <div class="person-list" id="personList">
-    <a class="person-list-item" th:each="p : ${persons}"
-       th:href="@{/personal/{id}(id=${p.id},unit=${unitId})}"
-       th:attr="data-search=${p.lastName + ' ' + p.firstName + ' ' + (p.email != null ? p.email : '')}">
-      <span class="person-list-avatar"
-            th:text="${#strings.substring(p.firstName,0,1) + #strings.substring(p.lastName,0,1)}">AB</span>
-      <span class="person-list-body">
-        <span class="person-list-name" th:text="${p.firstName + ' ' + p.lastName}">Name</span>
-        <span class="person-list-sub" th:text="${p.email != null ? p.email : '—'}">E-Mail</span>
-      </span>
-      <span class="person-list-chevron" aria-hidden="true">›</span>
-    </a>
-    <p class="hint" th:if="${#lists.isEmpty(persons)}" id="personListEmpty">Noch keine Personen erfasst.</p>
+  <div class="card">
+    <div class="card__header">
+      <span th:text="'Alle Mitglieder (' + ${personCount} + ')'">Alle Mitglieder</span>
+      <input type="search" class="field personal-search-field" id="personal-search"
+             placeholder="Suchen…" maxlength="100" autocomplete="off" aria-label="Mitglieder suchen"/>
+    </div>
+    <div class="card__body card__body--flush" th:if="${!#lists.isEmpty(persons)}">
+      <table class="data-table" id="personal-members-table">
+        <thead>
+        <tr>
+          <th>Name</th>
+          <th>Pers.-Nr.</th>
+          <th>Eintrittsdatum</th>
+          <th>Status</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="p : ${persons}" class="member-row"
+            th:attr="data-search=${p.lastName + ' ' + p.firstName + ' ' + (p.personnelNumber != null ? p.personnelNumber : '') + ' ' + (p.user != null ? p.user.username : '') + ' ' + (p.user != null ? p.user.displayName : '')}"
+            th:onclick="|window.location='@{/personal/{id}(id=${p.id},unit=${unitId})}'|">
+          <td>
+            <strong th:text="${p.displayName()}">Name</strong>
+            <span class="text-muted text-xs ms-sm" th:if="${p.user != null}"
+                  th:text="${p.user.username}">user</span>
+          </td>
+          <td th:text="${p.personnelNumber != null ? p.personnelNumber : '–'}">–</td>
+          <td th:text="${p.entryDate != null ? #temporals.format(p.entryDate, 'dd.MM.yyyy') : '–'}">–</td>
+          <td>
+            <span class="text-error" th:if="${p.exitDate != null}"
+                  th:text="${#temporals.format(p.exitDate, 'dd.MM.yyyy')}">Austritt</span>
+            <span class="text-success" th:unless="${p.exitDate != null}">Aktiv</span>
+          </td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card__body" th:if="${#lists.isEmpty(persons)}">
+      <p class="hint" style="margin:0;">Noch keine Mitglieder erfasst.</p>
+    </div>
   </div>
   <script th:src="@{/js/personal-list.js}"></script>
 </main>

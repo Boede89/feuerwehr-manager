@@ -1,27 +1,17 @@
 (function () {
-  const search = document.getElementById('personSearch');
-  const list = document.getElementById('personList');
-  const emptyHint = document.getElementById('personSearchEmpty');
-  const countEl = document.getElementById('personCountVisible');
-  if (!search || !list) return;
+  var search = document.getElementById('personal-search');
+  if (!search) return;
 
-  const items = () => Array.from(list.querySelectorAll('.person-list-item'));
+  function rows() {
+    return Array.prototype.slice.call(document.querySelectorAll('.member-row'));
+  }
 
   function filter() {
-    const q = search.value.trim().toLowerCase();
-    let visible = 0;
-    items().forEach((el) => {
-      const hay = el.getAttribute('data-search') || '';
-      const show = !q || hay.includes(q);
-      el.classList.toggle('is-hidden', !show);
-      if (show) visible++;
+    var q = search.value.trim().toLowerCase();
+    rows().forEach(function (row) {
+      var hay = (row.getAttribute('data-search') || '').toLowerCase();
+      row.style.display = !q || hay.indexOf(q) !== -1 ? '' : 'none';
     });
-    if (emptyHint) {
-      emptyHint.style.display = q && visible === 0 && items().length > 0 ? 'block' : 'none';
-    }
-    if (countEl && items().length > 0) {
-      countEl.textContent = String(visible);
-    }
   }
 
   search.addEventListener('input', filter);
