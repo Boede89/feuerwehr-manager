@@ -12,12 +12,6 @@
   <div th:replace="~{fragments/testmode-banner :: banner}"></div>
   <div th:replace="~{fragments/flash-messages :: alerts}"></div>
 
-  <p class="hint" th:if="${agtCourseConfigured}">
-    Geräteträger werden automatisch aus dem Personal übernommen, sobald der Lehrgang
-    <strong th:text="${agtCourseName}">AGT</strong> dort hinterlegt ist (Jahr optional).
-    Warnschwelle: <span th:text="${warnDays}">90</span> Tage vor Ablauf.
-    <a th:if="${isAdmin}" th:href="@{/settings/atemschutz(unit=${unitId})}">Atemschutz-Einstellungen</a>
-  </p>
   <p class="hint hint--warn" th:if="${!agtCourseConfigured}">
     Noch kein Lehrgang für Geräteträger konfiguriert.
     <a th:if="${isAdmin}" th:href="@{/settings/atemschutz(unit=${unitId}, tab='warnschwelle')}">
@@ -79,16 +73,16 @@
                   th:text="${row.overallTauglich ? 'Tauglich' : 'Nicht tauglich'}">—</span>
           </td>
           <td>
-            <div th:replace="~{fragments/atemschutz-fitness-badge :: badge(${row.g26})}"></div>
+            <div th:replace="~{fragments/atemschutz-fitness-badge :: validityDate(${row.g26})}"></div>
           </td>
           <td>
             <th:block th:with="view=${row.summaries.get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).UEBUNG)}">
-              <div th:replace="~{fragments/atemschutz-fitness-badge :: badge(${view})}"></div>
+              <div th:replace="~{fragments/atemschutz-fitness-badge :: validityDate(${view})}"></div>
             </th:block>
           </td>
           <td>
             <th:block th:with="view=${row.summaries.get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).STRECKEN)}">
-              <div th:replace="~{fragments/atemschutz-fitness-badge :: badge(${view})}"></div>
+              <div th:replace="~{fragments/atemschutz-fitness-badge :: validityDate(${view})}"></div>
             </th:block>
           </td>
         </tr>
