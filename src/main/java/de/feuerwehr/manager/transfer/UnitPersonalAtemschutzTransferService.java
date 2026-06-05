@@ -551,21 +551,22 @@ public class UnitPersonalAtemschutzTransferService {
                 continue;
             }
             long sourceId = parseLong(row.get("id"));
-            String name = row.get("group_name");
-            if (blank(name)) {
-                name = row.get("name");
+            String groupName = row.get("group_name");
+            if (blank(groupName)) {
+                groupName = row.get("name");
             }
-            if (blank(name)) {
+            if (blank(groupName)) {
                 continue;
             }
+            final String resolvedGroupName = groupName.trim();
             PersonGroup group = personGroupRepository
                     .findByUnitIdWithMembers(unit.getId(), testData).stream()
-                    .filter(g -> g.getName().equalsIgnoreCase(name.trim()))
+                    .filter(g -> g.getName().equalsIgnoreCase(resolvedGroupName))
                     .findFirst()
                     .orElseGet(() -> {
                         PersonGroup created = new PersonGroup();
                         created.setUnit(unit);
-                        created.setName(name.trim());
+                        created.setName(resolvedGroupName);
                         created.setTestData(testData);
                         return created;
                     });
