@@ -19,6 +19,8 @@ chmod +x scripts/repair-flyway-v37.sh
 ./scripts/repair-flyway-v37.sh
 ```
 
+Das Skript stoppt die App, entfernt den fehlgeschlagenen V37-Eintrag, legt das Schema per SQL an und startet die App neu.
+
 Erfolg: `ffm_app` = **running**, Log: `Started FeuerwehrManagerApplication`.
 
 Browser: `http://<Server-IP>:8080`

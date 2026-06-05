@@ -10,12 +10,17 @@ import org.flywaydb.core.api.migration.Context;
 public class V37__AtemschutzCourseSelection extends BaseJavaMigration {
 
     @Override
+    public boolean canExecuteInTransaction() {
+        // MySQL: DDL erzeugt implizite Commits — sonst markiert Flyway die Migration fälschlich als fehlgeschlagen.
+        return false;
+    }
+
+    @Override
     public void migrate(Context context) throws Exception {
         Connection conn = context.getConnection();
-        String schema = conn.getCatalog();
-        if (schema == null || schema.isBlank()) {
-            throw new IllegalStateException("Kein Datenbankschema für Flyway-Migration V37.");
-        }
+        String schema = resolveSchema(conn);
+
+        ensureSettingsTable(conn);
 
         if (!columnExists(conn, schema, "unit_atemschutz_settings", "agt_course_id")) {
             try (Statement st = conn.createStatement()) {
@@ -43,6 +48,52 @@ public class V37__AtemschutzCourseSelection extends BaseJavaMigration {
                     SET uas.agt_course_id = c.id
                     WHERE uas.agt_course_id IS NULL
                     """);
+        }
+    }
+
+    private static void ensureSettingsTable(Connection conn) throws Exception {
+        if (tableExists(conn, resolveSchema(conn), "unit_atemschutz_settings")) {
+            return;
+        }
+        try (Statement st = conn.createStatement()) {
+            st.execute("""
+                    CREATE TABLE unit_atemschutz_settings (
+                        unit_id BIGINT NOT NULL PRIMARY KEY,
+                        warn_days INT NOT NULL DEFAULT 90,
+                        agt_course_name VARCHAR(64) NOT NULL DEFAULT 'AGT',
+                        notification_user_ids TEXT,
+                        cc_user_ids TEXT,
+                        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        CONSTRAINT fk_unit_atemschutz_settings_unit FOREIGN KEY (unit_id) REFERENCES units (id) ON DELETE CASCADE
+                    )
+                    """);
+        }
+    }
+
+    private static String resolveSchema(Connection conn) throws Exception {
+        try (Statement st = conn.createStatement();
+                ResultSet rs = st.executeQuery("SELECT DATABASE()")) {
+            if (!rs.next()) {
+                throw new IllegalStateException("Kein Datenbankschema für Flyway-Migration V37.");
+            }
+            String schema = rs.getString(1);
+            if (schema == null || schema.isBlank()) {
+                throw new IllegalStateException("Kein Datenbankschema für Flyway-Migration V37.");
+            }
+            return schema;
+        }
+    }
+
+    private static boolean tableExists(Connection conn, String schema, String table) throws Exception {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT COUNT(*) FROM information_schema.TABLES
+                WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
+                """)) {
+            ps.setString(1, schema);
+            ps.setString(2, table);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() && rs.getInt(1) > 0;
+            }
         }
     }
 
