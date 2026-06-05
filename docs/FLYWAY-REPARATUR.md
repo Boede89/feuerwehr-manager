@@ -3,12 +3,8 @@
 Symptom:
 
 ```text
-Detected failed migration to version 37 (atemschutz course selection).
+Detected failed migration to version 37 (AtemschutzCourseSelection).
 ```
-
-## Wichtig
-
-Zuerst die App **stoppen**, sonst legt der Neustart bei jedem Versuch erneut einen fehlgeschlagenen V37-Eintrag an.
 
 ## Schnellfix (empfohlen)
 
@@ -19,36 +15,39 @@ chmod +x scripts/repair-flyway-v37.sh
 ./scripts/repair-flyway-v37.sh
 ```
 
-Das Skript stoppt die App, entfernt den fehlgeschlagenen V37-Eintrag, legt das Schema per SQL an und startet die App neu.
+Das Skript:
+
+1. stoppt die App
+2. legt das Schema per SQL an
+3. markiert V37 in Flyway als **erfolgreich** (ohne die Java-Migration erneut auszuführen)
+4. startet die App
 
 Erfolg: `ffm_app` = **running**, Log: `Started FeuerwehrManagerApplication`.
 
 Browser: `http://<Server-IP>:8080`
 
-## Manuell (falls Skript nicht verfügbar)
+## Manuell (einzelne Schritte)
 
 ```bash
 cd /opt/feuerwehr/feuerwehr-manager
-
 docker compose stop app
 
+docker compose exec -T mysql mysql -uff -pffsecret feuerwehr_manager < scripts/repair-v37-schema.sql \
+  2>/dev/null || true
+
+docker compose exec -T mysql mysql -uff -pffsecret feuerwehr_manager < scripts/repair-v37-mark-success.sql
+
 docker compose exec mysql mysql -uff -pffsecret feuerwehr_manager -e \
-  "DELETE FROM flyway_schema_history WHERE version = '37';"
+  "SELECT version, success FROM flyway_schema_history WHERE version='37';"
 
-git pull
-docker compose up -d --build app
-
-sleep 35
-docker compose ps
-docker compose logs app --tail 40
+docker compose up -d app
 ```
+
+`success` muss **1** sein.
 
 ## Prüfen
 
 ```bash
 docker compose exec mysql mysql -uff -pffsecret feuerwehr_manager -e \
-  "SELECT version, success, script FROM flyway_schema_history WHERE version='37';
-   SHOW COLUMNS FROM unit_atemschutz_settings LIKE 'agt_course_id';"
+  "SHOW COLUMNS FROM unit_atemschutz_settings LIKE 'agt_course_id';"
 ```
-
-Version 37 sollte `success = 1` sein (Java-Migration `V37__AtemschutzCourseSelection`).

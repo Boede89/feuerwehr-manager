@@ -1,7 +1,12 @@
--- Manuell ausführen, wenn Flyway V37 weiterhin scheitert.
--- Fehler „Duplicate column“ / „Duplicate key name“ sind unkritisch (Schema bereits vorhanden).
-
-DELETE FROM flyway_schema_history WHERE version = '37';
+CREATE TABLE IF NOT EXISTS unit_atemschutz_settings (
+    unit_id BIGINT NOT NULL PRIMARY KEY,
+    warn_days INT NOT NULL DEFAULT 90,
+    agt_course_name VARCHAR(64) NOT NULL DEFAULT 'AGT',
+    notification_user_ids TEXT,
+    cc_user_ids TEXT,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_unit_atemschutz_settings_unit FOREIGN KEY (unit_id) REFERENCES units (id) ON DELETE CASCADE
+);
 
 ALTER TABLE unit_atemschutz_settings ADD COLUMN agt_course_id BIGINT NULL;
 
