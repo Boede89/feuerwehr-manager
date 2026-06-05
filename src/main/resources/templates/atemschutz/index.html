@@ -14,7 +14,7 @@
 
   <p class="hint" th:if="${agtCourseConfigured}">
     Geräteträger werden automatisch aus dem Personal übernommen, sobald der Lehrgang
-    <strong th:text="${agtCourseName}">AGT</strong> abgeschlossen ist.
+    <strong th:text="${agtCourseName}">AGT</strong> dort hinterlegt ist (Jahr optional).
     Warnschwelle: <span th:text="${warnDays}">90</span> Tage vor Ablauf.
     <a th:if="${isAdmin}" th:href="@{/settings/atemschutz(unit=${unitId})}">Atemschutz-Einstellungen</a>
   </p>
@@ -99,7 +99,7 @@
       <p class="hint" style="margin:0;">
         <span th:if="${activeFilter == 'all' and agtCourseConfigured}">
           Noch keine Geräteträger — im Personal den Lehrgang
-          <strong th:text="${agtCourseName}">AGT</strong> als abgeschlossen erfassen.
+          <strong th:text="${agtCourseName}">AGT</strong> bei den Personen hinterlegen.
         </span>
         <span th:if="${activeFilter == 'all' and !agtCourseConfigured}">
           Zuerst einen Lehrgang in den Atemschutz-Einstellungen auswählen.

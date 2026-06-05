@@ -31,7 +31,6 @@ public interface PersonCourseCompletionRepository extends JpaRepository<PersonCo
               AND p.anonymizedAt IS NULL
               AND p.testData = :testData
               AND LOWER(TRIM(c.name)) = LOWER(TRIM(:courseName))
-              AND (cc.completedOn IS NOT NULL OR cc.completionYear IS NOT NULL)
             ORDER BY p.lastName, p.firstName
             """)
     List<de.feuerwehr.manager.personal.Person> findPersonsWithCompletedCourse(
@@ -47,7 +46,6 @@ public interface PersonCourseCompletionRepository extends JpaRepository<PersonCo
               AND p.anonymizedAt IS NULL
               AND p.testData = :testData
               AND (c.id = :courseId OR c.productionSourceId = :courseId)
-              AND (cc.completedOn IS NOT NULL OR cc.completionYear IS NOT NULL)
             ORDER BY p.lastName, p.firstName
             """)
     List<de.feuerwehr.manager.personal.Person> findPersonsWithCompletedCourseId(

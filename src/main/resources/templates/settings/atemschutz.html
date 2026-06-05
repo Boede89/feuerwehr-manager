@@ -42,7 +42,7 @@
                     th:selected="${selectedAgtCourseId != null and selectedAgtCourseId == c.id}">AGT</option>
           </select>
           <p class="hint">
-            Personen mit abgeschlossenem Lehrgang erscheinen automatisch als Geräteträger.
+            Personen mit hinterlegtem Lehrgang erscheinen automatisch als Geräteträger (Abschlussjahr optional).
             Lehrgänge werden unter <strong>Admin → Ausbildung</strong> verwaltet.
           </p>
           <p class="hint hint--warn" th:if="${#lists.isEmpty(unitCourses)}">
