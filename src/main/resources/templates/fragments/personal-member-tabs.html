@@ -78,13 +78,13 @@
               <span>Login erlauben</span>
             </label>
             <p class="hint">
-              Erstellt ein Benutzerkonto zum Anmelden. Eine E-Mail-Adresse in den Kontaktdaten ist erforderlich
-              (für den späteren Versand des Initialpassworts). Beim ersten Anlegen wird das Startpasswort angezeigt.
+              Erstellt ein Benutzerkonto zum Anmelden. Eine E-Mail-Adresse in den Kontaktdaten ist erforderlich.
             </p>
             <p class="hint text-error" id="login-email-missing" style="margin-top:0.5rem;"
                th:if="${person.user == null and (personEmail == null or #strings.isEmpty(personEmail))}">
               Bitte zuerst eine E-Mail-Adresse unter Kontaktdaten speichern.
             </p>
+            <div th:if="${person.user == null}" th:replace="~{fragments/personal-login-password-options :: options}"></div>
           </div>
           <button type="submit" class="btn btn--primary">Systemzugang speichern</button>
         </form>

@@ -390,8 +390,14 @@ public class PersonalMemberService {
 
     @Transactional
     public PersonalService.StammdatenUpdateResult updateLoginAccess(
-            long personId, boolean allowLogin, AppUserDetails actor, jakarta.servlet.http.HttpServletRequest request) {
-        return personalService.updateLoginAccess(personId, allowLogin, actor, request);
+            long personId,
+            boolean allowLogin,
+            String passwordDelivery,
+            String manualPassword,
+            AppUserDetails actor,
+            jakarta.servlet.http.HttpServletRequest request) {
+        return personalService.updateLoginAccess(
+                personId, allowLogin, passwordDelivery, manualPassword, actor, request);
     }
 
     @Transactional

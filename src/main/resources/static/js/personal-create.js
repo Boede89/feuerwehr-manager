@@ -14,11 +14,15 @@
   allowLogin.addEventListener('change', syncEmailRequired);
   syncEmailRequired();
 
+  if (window.initLoginPasswordOptions) {
+    window.initLoginPasswordOptions(allowLogin, form);
+  }
+
   form.addEventListener('submit', function (e) {
     if (allowLogin.checked && !email.value.trim()) {
       e.preventDefault();
       email.focus();
-      window.alert('Bitte eine E-Mail-Adresse eingeben, wenn Login erlaubt ist.');
+      window.alert('Bitte eine E-Mail-Adresse eingeben, wenn Login erlauben aktiviert ist.');
     }
   });
 })();

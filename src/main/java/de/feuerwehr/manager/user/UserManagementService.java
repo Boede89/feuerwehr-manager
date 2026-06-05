@@ -548,6 +548,10 @@ public class UserManagementService {
         return email.trim().toLowerCase();
     }
 
+    public void validatePlainPassword(String plainPassword) {
+        validatePassword(plainPassword);
+    }
+
     private void validatePassword(String plainPassword) {
         int min = securityProperties.minPasswordLength();
         if (plainPassword == null || plainPassword.length() < min) {

@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.personal;
 
+import de.feuerwehr.manager.mail.AccountMailService;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
@@ -38,6 +39,7 @@ public class PersonalService {
     private final PersonDiveraRicRepository diveraRicRepository;
     private final UserRepository userRepository;
     private final UserManagementService userManagementService;
+    private final AccountMailService accountMailService;
     private final UnitRoleService unitRoleService;
     private final TestModeService testModeService;
 
@@ -169,6 +171,8 @@ public class PersonalService {
             String phone,
             LocalDate birthdate,
             boolean allowLogin,
+            String passwordDelivery,
+            String manualPassword,
             String notes,
             PersonStatus status,
             Long qualificationTypeId,
@@ -178,23 +182,26 @@ public class PersonalService {
             long actorUserId,
             HttpServletRequest request) {
         Long linkedUserId = null;
-        String generatedPassword = null;
+        String displayPassword = null;
+        String mailNotice = null;
         String createdUsername = null;
         if (allowLogin) {
             requireEmailForLogin(email);
-            String password = generateNumericLoginPassword();
+            InitialPasswordPlan plan = planInitialPassword(passwordDelivery, manualPassword);
             String username = userManagementService.allocateUniqueUsername(firstName, lastName);
             User user = userManagementService.createUserForPerson(
                     username,
                     (firstName + " " + lastName).trim(),
-                    password,
+                    plan.password(),
                     unitId,
                     email,
                     actorUserId,
                     request);
             linkedUserId = user.getId();
-            generatedPassword = password;
             createdUsername = username;
+            InitialPasswordDelivery delivery = deliverInitialPassword(plan, user);
+            displayPassword = delivery.displayPassword();
+            mailNotice = delivery.mailNotice();
         }
         Person created = createPerson(
                 unitId, firstName, lastName, email, phone, birthdate, null, linkedUserId, null, notes);
@@ -204,7 +211,7 @@ public class PersonalService {
         }
         updateLehrgaenge(created.getId(), qualificationTypeId, courseInputs);
         updateDivera(created.getId(), diveraUcrId, ricCodes);
-        return new PersonCreateResult(requirePerson(created.getId()), createdUsername, generatedPassword);
+        return new PersonCreateResult(requirePerson(created.getId()), createdUsername, displayPassword, mailNotice);
     }
 
     @Transactional
@@ -236,28 +243,36 @@ public class PersonalService {
 
     @Transactional
     public StammdatenUpdateResult updateLoginAccess(
-            long personId, boolean allowLogin, AppUserDetails actor, HttpServletRequest request) {
+            long personId,
+            boolean allowLogin,
+            String passwordDelivery,
+            String manualPassword,
+            AppUserDetails actor,
+            HttpServletRequest request) {
         Person person = writablePerson(requirePerson(personId));
-        String generatedPassword = null;
+        String displayPassword = null;
+        String mailNotice = null;
         String createdUsername = null;
         if (allowLogin) {
             String loginEmail = resolveLoginEmail(person);
             requireEmailForLogin(loginEmail);
             if (person.getUser() == null) {
-                String password = generateNumericLoginPassword();
+                InitialPasswordPlan plan = planInitialPassword(passwordDelivery, manualPassword);
                 String username =
                         userManagementService.allocateUniqueUsername(person.getFirstName(), person.getLastName());
                 User user = userManagementService.createUserForPerson(
                         username,
                         person.displayName(),
-                        password,
+                        plan.password(),
                         person.getUnit().getId(),
                         loginEmail,
                         actor.getUserId(),
                         request);
                 person.setUser(user);
-                generatedPassword = password;
                 createdUsername = username;
+                InitialPasswordDelivery delivery = deliverInitialPassword(plan, user);
+                displayPassword = delivery.displayPassword();
+                mailNotice = delivery.mailNotice();
             } else {
                 syncLoginEmailFromPerson(person);
             }
@@ -272,7 +287,7 @@ public class PersonalService {
         personRepository.save(person);
         Person reloaded = requirePerson(person.getId());
         syncUserDienstgradFromPersonQualification(reloaded);
-        return new StammdatenUpdateResult(reloaded, createdUsername, generatedPassword);
+        return new StammdatenUpdateResult(reloaded, createdUsername, displayPassword, mailNotice);
     }
 
     @Transactional
@@ -325,7 +340,7 @@ public class PersonalService {
         Person saved = personRepository.save(person);
         Person reloaded = requirePerson(saved.getId());
         syncUserDienstgradFromPersonQualification(reloaded);
-        return new StammdatenUpdateResult(reloaded, createdUsername, generatedPassword);
+        return new StammdatenUpdateResult(reloaded, createdUsername, generatedPassword, null);
     }
 
     private void syncLoginEmailFromPerson(Person person) {
@@ -753,6 +768,30 @@ public class PersonalService {
         }
     }
 
+    private InitialPasswordPlan planInitialPassword(String passwordDelivery, String manualPassword) {
+        if ("email".equals(passwordDelivery)) {
+            if (!accountMailService.canSendMail()) {
+                throw new IllegalArgumentException(
+                        "SMTP ist nicht konfiguriert (Admin → Global → Schnittstellen). Bitte Passwort selbst vergeben.");
+            }
+            return new InitialPasswordPlan(generateNumericLoginPassword(), true);
+        }
+        userManagementService.validatePlainPassword(manualPassword);
+        return new InitialPasswordPlan(manualPassword, false);
+    }
+
+    private InitialPasswordDelivery deliverInitialPassword(InitialPasswordPlan plan, User user) {
+        if (!plan.sendByEmail()) {
+            return new InitialPasswordDelivery(plan.password(), null);
+        }
+        Optional<String> mailError =
+                accountMailService.sendPasswordNotification(user, plan.password(), false);
+        if (mailError.isPresent()) {
+            return new InitialPasswordDelivery(plan.password(), mailError.get());
+        }
+        return new InitialPasswordDelivery(null, "Das Initialpasswort wurde per E-Mail versendet.");
+    }
+
     private static String generateNumericLoginPassword() {
         return String.format("%04d", LOGIN_PASSWORD_RANDOM.nextInt(10_000));
     }
@@ -971,9 +1010,15 @@ public class PersonalService {
 
     public record CourseCompletionInput(Long courseId, Integer completionYear, LocalDate completedOn) {}
 
-    public record PersonCreateResult(Person person, String createdUsername, String initialPassword) {}
+    private record InitialPasswordPlan(String password, boolean sendByEmail) {}
 
-    public record StammdatenUpdateResult(Person person, String createdUsername, String initialPassword) {}
+    private record InitialPasswordDelivery(String displayPassword, String mailNotice) {}
+
+    public record PersonCreateResult(
+            Person person, String createdUsername, String initialPassword, String mailNotice) {}
+
+    public record StammdatenUpdateResult(
+            Person person, String createdUsername, String initialPassword, String mailNotice) {}
 
     public record PersonDetailView(
             Person person, List<PersonCourseCompletion> completions, List<PersonDiveraRic> diveraRics) {}

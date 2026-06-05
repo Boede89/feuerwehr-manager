@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.web;
 
+import de.feuerwehr.manager.mail.AccountMailService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.SecurityProperties;
 import de.feuerwehr.manager.settings.AppModule;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 public class WebUiAdvice {
 
     private final SecurityProperties securityProperties;
+    private final AccountMailService accountMailService;
     private final TestModeService testModeService;
     private final UnitService unitService;
     private final ModuleSettingsService moduleSettingsService;
@@ -80,6 +82,11 @@ public class WebUiAdvice {
     @ModelAttribute("minPasswordLength")
     public int minPasswordLength() {
         return securityProperties.minPasswordLength();
+    }
+
+    @ModelAttribute("smtpConfigured")
+    public boolean smtpConfigured() {
+        return accountMailService.canSendMail();
     }
 
     @ModelAttribute("userTheme")

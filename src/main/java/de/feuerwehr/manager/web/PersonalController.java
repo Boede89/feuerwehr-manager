@@ -153,6 +153,8 @@ public class PersonalController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate birthdate,
             @RequestParam(required = false) String personnelNumber,
             @RequestParam(required = false, defaultValue = "false") boolean allowLogin,
+            @RequestParam(required = false, defaultValue = "manual") String passwordDelivery,
+            @RequestParam(required = false) String initialPassword,
             HttpServletRequest request,
             RedirectAttributes redirectAttributes) {
         try {
@@ -171,6 +173,8 @@ public class PersonalController {
                     phone,
                     birthdate,
                     allowLogin,
+                    passwordDelivery,
+                    initialPassword,
                     null,
                     PersonStatus.ACTIVE,
                     null,
@@ -193,20 +197,16 @@ public class PersonalController {
             Person created = result.person();
             redirectAttributes.addFlashAttribute("saved", true);
             String message = created.displayName() + " wurde angelegt.";
-            if (result.initialPassword() != null) {
-                message += " Login: „"
-                        + result.createdUsername()
-                        + "“"
-                        + (email != null && !email.isBlank() ? " oder E-Mail „" + email.trim() + "“" : "")
-                        + ", Startpasswort: "
-                        + result.initialPassword()
-                        + " (E-Mail-Versand folgt später).";
+            if (result.createdUsername() != null) {
+                message = appendLoginCreatedNotice(
+                        message, result.createdUsername(), email, result.initialPassword(), result.mailNotice());
             }
             redirectAttributes.addFlashAttribute("message", message);
             return "redirect:/personal/" + created.getId() + "?unit=" + unit + "&tab=stammdaten";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
-            storeNewPersonFlash(redirectAttributes, firstName, lastName, email, phone, birthdate, allowLogin);
+            storeNewPersonFlash(
+                    redirectAttributes, firstName, lastName, email, phone, birthdate, allowLogin, passwordDelivery);
             return "redirect:/personal/new?unit=" + unit;
         }
     }
@@ -268,14 +268,9 @@ public class PersonalController {
                             actor.getUserId(),
                             request);
                     String message = "Gespeichert.";
-                    if (result.initialPassword() != null) {
-                        message += " Login: „"
-                                + result.createdUsername()
-                                + "“"
-                                + (email != null && !email.isBlank() ? " oder E-Mail „" + email.trim() + "“" : "")
-                                + ", Startpasswort: "
-                                + result.initialPassword()
-                                + ".";
+                    if (result.createdUsername() != null) {
+                        message = appendLoginCreatedNotice(
+                                message, result.createdUsername(), email, result.initialPassword(), result.mailNotice());
                     }
                     redirectAttributes.addFlashAttribute("message", message);
                 }
@@ -297,26 +292,27 @@ public class PersonalController {
             @PathVariable long id,
             @RequestParam long unit,
             @RequestParam(required = false, defaultValue = "false") boolean allowLogin,
+            @RequestParam(required = false, defaultValue = "manual") String passwordDelivery,
+            @RequestParam(required = false) String initialPassword,
             HttpServletRequest request,
             RedirectAttributes redirectAttributes) {
         try {
             Person person = personalService.requirePerson(id);
             accessControlService.requireUnitAccess(actor, person.getUnit().getId());
             accessControlService.requireAdminLevel(actor);
-            StammdatenUpdateResult result =
-                    personalMemberService.updateLoginAccess(id, allowLogin, actor, request);
+            StammdatenUpdateResult result = personalMemberService.updateLoginAccess(
+                    id, allowLogin, passwordDelivery, initialPassword, actor, request);
             redirectAttributes.addFlashAttribute("saved", true);
-            if (result.initialPassword() != null) {
+            if (result.createdUsername() != null) {
                 String email = personalMemberService.resolvePersonEmail(result.person());
                 redirectAttributes.addFlashAttribute(
                         "message",
-                        "Benutzerkonto angelegt. Login: „"
-                                + result.createdUsername()
-                                + "“"
-                                + (email != null && !email.isBlank() ? " oder E-Mail „" + email.trim() + "“" : "")
-                                + ", Startpasswort: "
-                                + result.initialPassword()
-                                + " (E-Mail-Versand folgt später).");
+                        appendLoginCreatedNotice(
+                                "Benutzerkonto angelegt.",
+                                result.createdUsername(),
+                                email,
+                                result.initialPassword(),
+                                result.mailNotice()));
             } else if (allowLogin) {
                 redirectAttributes.addFlashAttribute("message", "Systemzugang ist aktiv.");
             } else {
@@ -766,13 +762,34 @@ public class PersonalController {
             String email,
             String phone,
             LocalDate birthdate,
-            boolean allowLogin) {
+            boolean allowLogin,
+            String passwordDelivery) {
         redirectAttributes.addFlashAttribute("formFirstName", firstName);
         redirectAttributes.addFlashAttribute("formLastName", lastName);
         redirectAttributes.addFlashAttribute("formEmail", email);
         redirectAttributes.addFlashAttribute("formPhone", phone);
         redirectAttributes.addFlashAttribute("formBirthdate", birthdate);
         redirectAttributes.addFlashAttribute("formAllowLogin", allowLogin);
+        redirectAttributes.addFlashAttribute("formPasswordDelivery", passwordDelivery);
+    }
+
+    private static String appendLoginCreatedNotice(
+            String baseMessage,
+            String username,
+            String email,
+            String initialPassword,
+            String mailNotice) {
+        String loginPart = " Login: „" + username + "“";
+        if (email != null && !email.isBlank()) {
+            loginPart += " oder E-Mail „" + email.trim() + "“";
+        }
+        if (initialPassword != null) {
+            return baseMessage + loginPart + ", Startpasswort: " + initialPassword + ".";
+        }
+        if (mailNotice != null && !mailNotice.isBlank()) {
+            return baseMessage + loginPart + ". " + mailNotice;
+        }
+        return baseMessage + loginPart + ".";
     }
 
     private static String normalizePersonalTab(String tab) {

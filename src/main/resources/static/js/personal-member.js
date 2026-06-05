@@ -178,6 +178,10 @@
 
   var loginForm = document.getElementById('form-login-access');
   if (loginForm) {
+    var allowLoginCheckbox = document.getElementById('allow-login');
+    if (window.initLoginPasswordOptions && allowLoginCheckbox) {
+      window.initLoginPasswordOptions(allowLoginCheckbox, loginForm);
+    }
     loginForm.addEventListener('submit', function (e) {
       var allowLogin = document.getElementById('allow-login');
       var hadUser = loginForm.getAttribute('data-had-user') === 'true';
