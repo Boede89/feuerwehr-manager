@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="de" xmlns:th="http://www.thymeleaf.org">
 <th:block th:fragment="badge(view)">
-  <span class="fitness-badge" th:if="${view != null}"
-        th:classappend="${' ' + view.level.cssClass()}"
+  <span th:if="${view != null and view.level.validityBadgeClass() != ''}"
+        th:class="${view.level.validityBadgeClass()}"
         th:text="${view.level.label()}">OK</span>
-  <span class="fitness-badge fitness-badge--missing" th:if="${view == null}">Fehlt</span>
+  <span class="text-muted" th:if="${view != null and view.level.validityBadgeClass() == ''}"
+        th:text="${view.level.label()}">Fehlt</span>
+  <span class="text-muted" th:if="${view == null}">Fehlt</span>
 </th:block>
 <th:block th:fragment="validityDate(view)">
   <span class="text-muted" th:if="${view == null or view.validUntil == null}">—</span>
