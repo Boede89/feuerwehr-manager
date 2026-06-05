@@ -7,5 +7,9 @@ public interface PersonDiveraRicRepository extends JpaRepository<PersonDiveraRic
 
     List<PersonDiveraRic> findByPersonIdOrderByRicCodeAsc(long personId);
 
+    boolean existsByPersonIdAndRicCode(long personId, String ricCode);
+
+    boolean existsByIdAndPersonId(long id, long personId);
+
     void deleteByPersonId(long personId);
 }

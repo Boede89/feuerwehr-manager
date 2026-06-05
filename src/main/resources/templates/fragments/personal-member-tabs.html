@@ -8,6 +8,8 @@
        th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='lehrgaenge')}">Ausbildung</a>
     <a class="tab-btn" th:classappend="${activeTab == 'anwesenheit'} ? ' tab-btn--active' : ''"
        th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='anwesenheit')}">Anwesenheit</a>
+    <a class="tab-btn" th:classappend="${activeTab == 'schnittstellen'} ? ' tab-btn--active' : ''"
+       th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='schnittstellen')}">Schnittstellen</a>
   </nav>
 
   <!-- Tab: Stammdaten -->
@@ -397,6 +399,95 @@
           </div>
           <div class="modal__footer">
             <button type="submit" class="btn btn--primary">Speichern</button>
+            <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Schnittstellen -->
+  <div th:if="${activeTab == 'schnittstellen'}" class="personal-tab-panel">
+    <div class="card card--narrow">
+      <div class="card__header">DIVERA 24/7</div>
+      <div class="card__body">
+        <p class="hint" style="margin:0 0 1rem;">
+          Die <strong>UCR-ID</strong> verknüpft diese Person mit dem DIVERA-Benutzer.
+          So kann die Person später bei Alarmen und Diensten zugeordnet werden.
+          Die Einrichtung der Schnittstelle erfolgt unter <em>Adminpanel → Schnittstellen</em>.
+        </p>
+        <form method="post" th:action="@{/personal/{id}/schnittstellen/divera(id=${person.id})}" class="form-grid">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <input type="hidden" name="unit" th:value="${unitId}"/>
+          <div class="form-group form-group--full">
+            <label for="divera-ucr-id">DIVERA UCR-ID</label>
+            <input type="text" id="divera-ucr-id" name="diveraUcrId" maxlength="64"
+                   th:value="${person.diveraUcrId}" placeholder="z. B. 12345"/>
+            <p class="hint" style="margin:0.5rem 0 0;">Leer lassen, um die Zuordnung zu entfernen.</p>
+          </div>
+          <div class="form-group form-group--full">
+            <button type="submit" class="btn btn--primary">UCR-ID speichern</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card mt-md">
+      <div class="card__header card__header--toolbar">
+        <span th:text="|RICs (${#lists.size(diveraRics)})|">RICs</span>
+        <button type="button" class="btn btn--primary btn--sm" data-open-modal="modal-ric">+ RIC</button>
+      </div>
+      <div class="card__body card__body--flush">
+        <div class="table-wrapper" th:if="${!#lists.isEmpty(diveraRics)}">
+          <table class="table">
+            <thead>
+            <tr>
+              <th scope="col">RIC</th>
+              <th scope="col">Aktionen</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="ric : ${diveraRics}">
+              <td><strong th:text="${ric.ricCode}">RIC</strong></td>
+              <td>
+                <form method="post" th:action="@{/personal/{id}/rics/{rid}/delete(id=${person.id}, rid=${ric.id})}"
+                      class="table-inline-form" data-confirm="RIC wirklich entfernen?">
+                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                  <input type="hidden" name="unit" th:value="${unitId}"/>
+                  <button type="submit" class="btn btn--danger btn--sm">Entfernen</button>
+                </form>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-empty" th:if="${#lists.isEmpty(diveraRics)}">
+          Noch keine RICs hinterlegt. Klicken Sie auf <strong>+ RIC</strong>.
+        </p>
+        <p class="hint" style="margin:1rem;">
+          Die zentrale Verwaltung und Validierung von RICs folgt in einer späteren Version.
+        </p>
+      </div>
+    </div>
+
+    <div id="modal-ric" class="modal-overlay">
+      <div class="modal" role="dialog" aria-labelledby="modal-ric-title">
+        <div class="modal__header">
+          <h3 id="modal-ric-title">RIC hinzufügen</h3>
+          <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
+        </div>
+        <form method="post" th:action="@{/personal/{id}/rics(id=${person.id})}" id="form-ric">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <input type="hidden" name="unit" th:value="${unitId}"/>
+          <div class="modal__body">
+            <div class="form-group">
+              <label for="ric-code">RIC <span class="required">*</span></label>
+              <input id="ric-code" name="ricCode" type="text" required maxlength="64"
+                     placeholder="z. B. 1234567" autocomplete="off"/>
+            </div>
+          </div>
+          <div class="modal__footer">
+            <button type="submit" class="btn btn--primary">Hinzufügen</button>
             <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
           </div>
         </form>

@@ -45,6 +45,9 @@
         if (attTitle) attTitle.textContent = 'Teilnahme hinzufügen';
         form.reset();
       }
+      if (form && form.id === 'form-ric') {
+        form.reset();
+      }
       openModal(modalId);
     });
   });

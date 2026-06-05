@@ -252,7 +252,8 @@ public class PersonalController {
         String tab = normalizeTab(section);
         try {
             switch (tab) {
-                case "divera" -> personalService.updateDivera(id, diveraUcrId, ricCodes);
+                case "divera", "schnittstellen" ->
+                        personalService.updateDivera(id, diveraUcrId, ricCodes);
                 default -> {
                     StammdatenUpdateResult result = personalService.updateStammdaten(
                             id,
@@ -550,6 +551,39 @@ public class PersonalController {
                         id, aid, serviceDate, serviceType, serviceLabel, status, notes));
     }
 
+    @PostMapping("/{id}/schnittstellen/divera")
+    public String updateDiveraUcr(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @RequestParam long unit,
+            @RequestParam(required = false) String diveraUcrId,
+            RedirectAttributes redirectAttributes) {
+        return memberAction(actor, id, unit, "schnittstellen", redirectAttributes, () ->
+                personalService.updateDiveraUcrId(id, diveraUcrId));
+    }
+
+    @PostMapping("/{id}/rics")
+    public String addRic(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @RequestParam long unit,
+            @RequestParam String ricCode,
+            RedirectAttributes redirectAttributes) {
+        return memberAction(actor, id, unit, "schnittstellen", redirectAttributes, () ->
+                personalService.addDiveraRic(id, ricCode));
+    }
+
+    @PostMapping("/{id}/rics/{ricId}/delete")
+    public String deleteRic(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @PathVariable long ricId,
+            @RequestParam long unit,
+            RedirectAttributes redirectAttributes) {
+        return memberAction(actor, id, unit, "schnittstellen", redirectAttributes, () ->
+                personalService.deleteDiveraRic(id, ricId));
+    }
+
     @PostMapping("/{id}/attendance/{aid}/delete")
     public String deleteAttendance(
             @AuthenticationPrincipal AppUserDetails actor,
@@ -753,7 +787,8 @@ public class PersonalController {
             return "stammdaten";
         }
         return switch (tab) {
-            case "lehrgaenge", "anwesenheit" -> tab;
+            case "lehrgaenge", "anwesenheit", "schnittstellen" -> tab;
+            case "divera" -> "schnittstellen";
             default -> "stammdaten";
         };
     }

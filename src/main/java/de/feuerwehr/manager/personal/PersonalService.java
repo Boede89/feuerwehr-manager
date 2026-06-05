@@ -434,9 +434,8 @@ public class PersonalService {
 
     @Transactional
     public Person updateDivera(long personId, String diveraUcrId, List<String> ricCodes) {
+        updateDiveraUcrId(personId, diveraUcrId);
         Person person = writablePerson(requirePerson(personId));
-        person.setDiveraUcrId(blankToNull(diveraUcrId));
-        personRepository.save(person);
         long writableId = person.getId();
         diveraRicRepository.deleteByPersonId(writableId);
         if (ricCodes != null) {
@@ -444,13 +443,58 @@ public class PersonalService {
                 if (raw == null || raw.isBlank()) {
                     continue;
                 }
-                PersonDiveraRic ric = new PersonDiveraRic();
-                ric.setPerson(person);
-                ric.setRicCode(raw.trim());
-                diveraRicRepository.save(ric);
+                addDiveraRicInternal(person, raw);
             }
         }
         return requirePerson(personId);
+    }
+
+    @Transactional
+    public void updateDiveraUcrId(long personId, String diveraUcrId) {
+        Person person = writablePerson(requirePerson(personId));
+        String normalized = blankToNull(diveraUcrId);
+        if (normalized != null && normalized.length() > 64) {
+            throw new IllegalArgumentException("DIVERA UCR-ID darf maximal 64 Zeichen lang sein.");
+        }
+        person.setDiveraUcrId(normalized);
+        personRepository.save(person);
+    }
+
+    @Transactional
+    public PersonDiveraRic addDiveraRic(long personId, String ricCode) {
+        Person person = writablePerson(requirePerson(personId));
+        return addDiveraRicInternal(person, ricCode);
+    }
+
+    @Transactional
+    public void deleteDiveraRic(long personId, long ricId) {
+        Person person = writablePerson(requirePerson(personId));
+        if (!diveraRicRepository.existsByIdAndPersonId(ricId, person.getId())) {
+            throw new IllegalArgumentException("RIC nicht gefunden.");
+        }
+        diveraRicRepository.deleteById(ricId);
+    }
+
+    private PersonDiveraRic addDiveraRicInternal(Person person, String ricCode) {
+        String normalized = normalizeRicCode(ricCode);
+        if (diveraRicRepository.existsByPersonIdAndRicCode(person.getId(), normalized)) {
+            throw new IllegalArgumentException("Diese RIC ist der Person bereits zugeordnet.");
+        }
+        PersonDiveraRic ric = new PersonDiveraRic();
+        ric.setPerson(person);
+        ric.setRicCode(normalized);
+        return diveraRicRepository.save(ric);
+    }
+
+    private static String normalizeRicCode(String ricCode) {
+        if (ricCode == null || ricCode.isBlank()) {
+            throw new IllegalArgumentException("Bitte eine RIC angeben.");
+        }
+        String normalized = ricCode.trim();
+        if (normalized.length() > 64) {
+            throw new IllegalArgumentException("RIC darf maximal 64 Zeichen lang sein.");
+        }
+        return normalized;
     }
 
     @Transactional
