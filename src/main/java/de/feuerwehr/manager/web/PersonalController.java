@@ -283,7 +283,7 @@ public class PersonalController {
             @PathVariable long id,
             @RequestParam long unit,
             @RequestParam long courseId,
-            @RequestParam Integer completionYear,
+            @RequestParam(required = false) Integer completionYear,
             RedirectAttributes redirectAttributes) {
         return memberAction(actor, id, unit, "lehrgaenge", redirectAttributes, () ->
                 personalMemberService.addCourseCompletion(id, courseId, completionYear));
@@ -296,7 +296,7 @@ public class PersonalController {
             @PathVariable long cid,
             @RequestParam long unit,
             @RequestParam long courseId,
-            @RequestParam Integer completionYear,
+            @RequestParam(required = false) Integer completionYear,
             RedirectAttributes redirectAttributes) {
         return memberAction(actor, id, unit, "lehrgaenge", redirectAttributes, () ->
                 personalMemberService.updateCourseCompletion(id, cid, courseId, completionYear));

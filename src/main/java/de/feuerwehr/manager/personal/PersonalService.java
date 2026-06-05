@@ -831,7 +831,7 @@ public class PersonalService {
 
     private static void validateCompletionYear(Integer completionYear) {
         if (completionYear == null) {
-            throw new IllegalArgumentException("Bitte das Abschlussjahr angeben.");
+            return;
         }
         if (completionYear < 1950 || completionYear > 2100) {
             throw new IllegalArgumentException("Bitte ein gültiges Jahr zwischen 1950 und 2100 angeben.");
