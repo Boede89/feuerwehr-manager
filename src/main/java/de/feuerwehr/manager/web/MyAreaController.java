@@ -34,7 +34,7 @@ public class MyAreaController {
         MyAreaService.MyAreaView view = myAreaService.loadView(actor.getUserId(), actor.getUnitId());
         ApplicationSettings global = globalSettingsService.get();
         String activeTab = normalizeTab(tab);
-        if (view.person() == null && ("qualifications".equals(activeTab) || "lehrgaenge".equals(activeTab))) {
+        if (view.person() == null && "lehrgaenge".equals(activeTab)) {
             return "redirect:/my-area?tab=profile";
         }
         model.addAttribute("displayName", actor.getDisplayName());
@@ -132,8 +132,7 @@ public class MyAreaController {
     private static String normalizeTab(String tab) {
         String t = tab != null ? tab.trim().toLowerCase() : "";
         return switch (t) {
-            case "qualifications" -> "qualifications";
-            case "lehrgaenge" -> "lehrgaenge";
+            case "qualifications", "lehrgaenge" -> "lehrgaenge";
             default -> "profile";
         };
     }

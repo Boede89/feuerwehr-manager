@@ -14,10 +14,8 @@
   <div class="tab-bar my-area-tabs" role="tablist" aria-label="Mein Bereich">
     <a class="tab-btn" th:classappend="${myAreaTab == 'profile'} ? ' tab-btn--active' : ''"
        th:href="@{/my-area(tab='profile')}">Mein Profil</a>
-    <a class="tab-btn" th:classappend="${myAreaTab == 'qualifications'} ? ' tab-btn--active' : ''"
-       th:href="@{/my-area(tab='qualifications')}" th:if="${hasLinkedPerson}">Qualifikationen</a>
     <a class="tab-btn" th:classappend="${myAreaTab == 'lehrgaenge'} ? ' tab-btn--active' : ''"
-       th:href="@{/my-area(tab='lehrgaenge')}" th:if="${hasLinkedPerson}">Lehrgänge</a>
+       th:href="@{/my-area(tab='lehrgaenge')}" th:if="${hasLinkedPerson}">Qualifikationen / Lehrgänge</a>
   </div>
 
   <!-- Tab: Profil -->
@@ -169,8 +167,8 @@
     </div>
   </div>
 
-  <!-- Tab: Qualifikationen -->
-  <div th:if="${myAreaTab == 'qualifications' and hasLinkedPerson}" class="my-area-tab-panel">
+  <!-- Tab: Qualifikationen / Lehrgänge -->
+  <div th:if="${myAreaTab == 'lehrgaenge' and hasLinkedPerson}" class="my-area-tab-panel">
     <div class="card card--narrow">
       <div class="card__header">Meine Qualifikation</div>
       <div class="card__body">
@@ -182,11 +180,8 @@
         </p>
       </div>
     </div>
-  </div>
 
-  <!-- Tab: Lehrgänge -->
-  <div th:if="${myAreaTab == 'lehrgaenge' and hasLinkedPerson}" class="my-area-tab-panel">
-    <div class="card card--narrow" th:if="${!#lists.isEmpty(completions)}">
+    <div class="card card--narrow mt-md" th:if="${!#lists.isEmpty(completions)}">
       <div class="card__header">Abgeschlossene Lehrgänge</div>
       <div class="card__body card__body--flush">
         <table class="table">
@@ -209,7 +204,7 @@
         </table>
       </div>
     </div>
-    <div class="card card--narrow" th:if="${#lists.isEmpty(completions)}">
+    <div class="card card--narrow mt-md" th:if="${#lists.isEmpty(completions)}">
       <div class="card__body">
         <p class="hint" style="margin:0;">
           Noch keine Lehrgänge hinterlegt. Der Wehrleiter kann diese im Personal-Modul eintragen.
