@@ -53,6 +53,8 @@
          th:href="@{/admin(scope='global', tab='schnittstellen')}">Schnittstellen</a>
       <a class="tab-btn" th:classappend="${adminTab == 'audit'} ? ' tab-btn--active' : ''"
          th:href="@{/admin(scope='global', tab='audit')}">Audit-Log</a>
+      <a class="tab-btn" th:classappend="${adminTab == 'import-export'} ? ' tab-btn--active' : ''"
+         th:href="@{/admin(scope='global', tab='import-export')}">Import/Export</a>
       <a class="tab-btn" th:classappend="${adminTab == 'container-log'} ? ' tab-btn--active' : ''"
          th:href="@{/admin(scope='global', tab='container-log')}">Container-Log</a>
     </nav>
@@ -75,6 +77,10 @@
 
     <div class="admin-panel" th:if="${adminTab == 'audit'}">
       <div th:replace="~{fragments/admin-global-audit :: panel}"></div>
+    </div>
+
+    <div class="admin-panel" th:if="${adminTab == 'import-export'}">
+      <div th:replace="~{fragments/admin-global-import-export :: panel}"></div>
     </div>
 
     <div class="admin-panel" th:if="${adminTab == 'container-log'}">

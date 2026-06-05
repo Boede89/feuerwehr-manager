@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<th:block th:fragment="panel">
+  <div class="import-export-grid">
+    <div class="card">
+      <div class="card__header">Datenbank sichern (Export)</div>
+      <div class="card__body">
+        <p class="hint" style="margin-top:0;">
+          Erstellt ein vollständiges SQL-Backup der gesamten Datenbank
+          (alle Einheiten, Benutzer, Personal, Atemschutz, Fahrzeuge, Einstellungen usw.).
+          Das Schema selbst wird über Flyway verwaltet — gesichert werden nur die Daten.
+        </p>
+        <a class="btn btn--primary"
+           th:href="@{/admin/global/import-export/export}">
+          Backup herunterladen
+        </a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__header">Datenbank wiederherstellen (Import)</div>
+      <div class="card__body">
+        <form method="post" th:action="@{/admin/global/import-export/import}" enctype="multipart/form-data"
+              class="import-export-form">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+          <div class="form-group">
+            <label for="global-import-file">Backup-Datei (.sql)</label>
+            <input id="global-import-file" name="importFile" type="file" accept=".sql,text/sql,application/sql" required/>
+            <p class="hint">Nur globale Backups aus dem Feuerwehr-Manager. Max. Dateigröße: 128 MB</p>
+          </div>
+
+          <div class="form-group form-group--full">
+            <label class="checkbox-row import-export-warning">
+              <input type="checkbox" name="confirmRestore" value="true"/>
+              <span>Ja, gesamte Datenbank mit diesem Backup ersetzen</span>
+            </label>
+            <p class="hint hint--warn">
+              Alle vorhandenen Daten werden gelöscht und durch den Inhalt der Backup-Datei ersetzt.
+              Dieser Vorgang kann nicht rückgängig gemacht werden. Vorher ein aktuelles Backup erstellen.
+            </p>
+          </div>
+
+          <div class="atemschutz-settings-form__actions">
+            <button type="submit" class="btn btn--primary">Wiederherstellen</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</th:block>
+</body>
+</html>

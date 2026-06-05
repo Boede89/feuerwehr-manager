@@ -2,32 +2,24 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
 <th:block th:fragment="panel">
-  <div th:if="${!isSuperAdmin}" class="card">
-    <div class="card__body">
-      <p class="hint" style="margin:0;">
-        Datenbank-Backups können nur vom <strong>Superadmin</strong> erstellt und wiederhergestellt werden.
-      </p>
-    </div>
-  </div>
-
-  <div class="import-export-grid" th:if="${isSuperAdmin}">
+  <div class="import-export-grid">
     <div class="card">
-      <div class="card__header">Datenbank sichern (Export)</div>
+      <div class="card__header">Einheit sichern (Export)</div>
       <div class="card__body">
         <p class="hint" style="margin-top:0;">
-          Erstellt ein vollständiges SQL-Backup der gesamten Datenbank
-          (alle Einheiten, Benutzer, Personal, Atemschutz, Fahrzeuge, Einstellungen usw.).
-          Das Schema selbst wird über Flyway verwaltet — gesichert werden nur die Daten.
+          Sichert alle Daten dieser Einheit als SQL-Backup
+          (<strong th:text="${currentUnitName}">Einheit</strong>):
+          Personal, Atemschutz, Fahrzeuge, Benutzer, Einstellungen und weitere einheitsbezogene Daten.
         </p>
         <a class="btn btn--primary"
-           th:href="@{/admin/unit/import-export/export}">
+           th:href="@{/admin/unit/import-export/export(unit=${unitId})}">
           Backup herunterladen
         </a>
       </div>
     </div>
 
     <div class="card">
-      <div class="card__header">Datenbank wiederherstellen (Import)</div>
+      <div class="card__header">Einheit wiederherstellen (Import)</div>
       <div class="card__body">
         <form method="post" th:action="@{/admin/unit/import-export/import}" enctype="multipart/form-data"
               class="import-export-form">
@@ -35,19 +27,19 @@
           <input type="hidden" name="unit" th:value="${unitId}"/>
 
           <div class="form-group">
-            <label for="import-file">Backup-Datei (.sql)</label>
-            <input id="import-file" name="importFile" type="file" accept=".sql,text/sql,application/sql" required/>
-            <p class="hint">Nur Backups aus dem Feuerwehr-Manager. Max. Dateigröße: 128 MB</p>
+            <label for="unit-import-file">Backup-Datei (.sql)</label>
+            <input id="unit-import-file" name="importFile" type="file" accept=".sql,text/sql,application/sql" required/>
+            <p class="hint">Nur Einheits-Backups aus dem Feuerwehr-Manager für diese Einheit. Max. 128 MB</p>
           </div>
 
           <div class="form-group form-group--full">
             <label class="checkbox-row import-export-warning">
               <input type="checkbox" name="confirmRestore" value="true"/>
-              <span>Ja, gesamte Datenbank mit diesem Backup ersetzen</span>
+              <span>Ja, alle Daten dieser Einheit mit diesem Backup ersetzen</span>
             </label>
             <p class="hint hint--warn">
-              Alle vorhandenen Daten werden gelöscht und durch den Inhalt der Backup-Datei ersetzt.
-              Dieser Vorgang kann nicht rückgängig gemacht werden. Vorher ein aktuelles Backup erstellen.
+              Alle vorhandenen Daten der Einheit werden gelöscht und durch den Backup-Inhalt ersetzt.
+              Superadmin-Konten und andere Einheiten bleiben unberührt. Vorher ein Backup erstellen.
             </p>
           </div>
 

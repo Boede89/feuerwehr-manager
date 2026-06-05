@@ -625,7 +625,7 @@ public class AdminPanelController {
 
     private static String normalizeGlobalTab(String tab) {
         return switch (tab) {
-            case "konfiguration", "benutzer", "einheiten", "schnittstellen", "audit", "container-log" -> tab;
+            case "konfiguration", "benutzer", "einheiten", "schnittstellen", "audit", "import-export", "container-log" -> tab;
             default -> "konfiguration";
         };
     }

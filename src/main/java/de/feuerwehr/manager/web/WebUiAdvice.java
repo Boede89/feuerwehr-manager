@@ -185,8 +185,12 @@ public class WebUiAdvice {
             MaxUploadSizeExceededException ex, HttpServletRequest request, RedirectAttributes redirectAttributes) {
         redirectAttributes.addFlashAttribute(
                 "error",
-                "Die Import-Datei ist zu groß (max. 128 MB). Bitte eine kleinere SQL-Datei verwenden oder den Export aus der alten App auf Personal/Atemschutz beschränken.");
+                "Die Import-Datei ist zu groß (max. 128 MB). Bitte eine kleinere Backup-Datei verwenden.");
         String unit = request.getParameter("unit");
+        String requestUri = request.getRequestURI() != null ? request.getRequestURI() : "";
+        if (requestUri.contains("/admin/global/import-export")) {
+            return "redirect:/admin?scope=global&tab=import-export";
+        }
         if (unit != null && !unit.isBlank()) {
             return "redirect:/admin?scope=einheit&tab=import-export&unit=" + unit;
         }

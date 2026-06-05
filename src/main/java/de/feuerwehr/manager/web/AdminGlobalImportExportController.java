@@ -2,9 +2,8 @@ package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
-import de.feuerwehr.manager.transfer.UnitDatabaseBackupService;
-import de.feuerwehr.manager.unit.Unit;
-import de.feuerwehr.manager.unit.UnitService;
+import de.feuerwehr.manager.transfer.DatabaseBackupService;
+import de.feuerwehr.manager.transfer.DatabaseBackupService.DatabaseImportSummary;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import lombok.RequiredArgsConstructor;
@@ -22,27 +21,21 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
-@RequestMapping("/admin/unit/import-export")
-@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'UNIT_ADMIN')")
+@RequestMapping("/admin/global/import-export")
+@PreAuthorize("hasRole('SUPER_ADMIN')")
 @RequiredArgsConstructor
-public class AdminUnitImportExportController {
+public class AdminGlobalImportExportController {
 
-    private final UnitService unitService;
     private final AccessControlService accessControlService;
-    private final UnitDatabaseBackupService unitDatabaseBackupService;
+    private final DatabaseBackupService databaseBackupService;
 
     @GetMapping("/export")
-    public ResponseEntity<byte[]> export(
-            @AuthenticationPrincipal AppUserDetails actor, @RequestParam long unit) {
-        accessControlService.requireAdminLevel(actor);
-        Unit resolved = unitService
-                .resolveActiveUnit(unit, actor)
-                .orElseThrow(() -> new IllegalArgumentException("Keine gültige Einheit."));
-        accessControlService.requireUnitAccess(actor, resolved.getId());
+    public ResponseEntity<byte[]> export(@AuthenticationPrincipal AppUserDetails actor) {
+        accessControlService.requireSuperAdmin(actor);
 
-        byte[] sql = unitDatabaseBackupService.exportSql(resolved.getId());
+        byte[] sql = databaseBackupService.exportSql();
         String stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
-        String filename = "feuerwehr-manager-unit" + resolved.getId() + "-" + stamp + ".sql";
+        String filename = "feuerwehr-manager-backup-" + stamp + ".sql";
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
                 .contentType(new MediaType("application", "sql"))
@@ -52,32 +45,27 @@ public class AdminUnitImportExportController {
     @PostMapping("/import")
     public String importData(
             @AuthenticationPrincipal AppUserDetails actor,
-            @RequestParam long unit,
             @RequestParam("importFile") MultipartFile importFile,
             @RequestParam(name = "confirmRestore", defaultValue = "false") boolean confirmRestore,
             RedirectAttributes redirectAttributes) {
         try {
-            accessControlService.requireAdminLevel(actor);
-            Unit resolved = unitService
-                    .resolveActiveUnit(unit, actor)
-                    .orElseThrow(() -> new IllegalArgumentException("Keine gültige Einheit."));
-            accessControlService.requireUnitAccess(actor, resolved.getId());
+            accessControlService.requireSuperAdmin(actor);
 
             if (importFile == null || importFile.isEmpty()) {
                 throw new IllegalArgumentException("Bitte eine Datei auswählen.");
             }
             if (!confirmRestore) {
                 throw new IllegalArgumentException(
-                        "Zum Wiederherstellen der Einheit bitte die Bestätigung aktivieren.");
+                        "Zum Wiederherstellen der Datenbank bitte die Bestätigung aktivieren.");
             }
 
-            var summary = unitDatabaseBackupService.importSql(resolved.getId(), importFile.getBytes());
+            DatabaseImportSummary summary = databaseBackupService.importSql(importFile.getBytes());
 
             redirectAttributes.addFlashAttribute("saved", true);
-            redirectAttributes.addFlashAttribute("message", summary.unitMessage(resolved.getName()));
+            redirectAttributes.addFlashAttribute("message", summary.message());
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
-        return "redirect:/admin?scope=einheit&tab=import-export&unit=" + unit;
+        return "redirect:/admin?scope=global&tab=import-export";
     }
 }
