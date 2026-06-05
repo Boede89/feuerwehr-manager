@@ -28,9 +28,27 @@
        th:href="@{/(unit=${unitId})}">Startseite</a>
     <span class="topnav__item topnav__item--soon" th:if="${navReservierungen == 'soon'}" title="Modul folgt später">Reservierungen</span>
     <span class="topnav__item topnav__item--soon" th:if="${navAtemschutz == 'soon'}" title="Modul folgt später">Atemschutz</span>
-    <a class="topnav__item" th:if="${navPersonal == 'link'}"
-       th:classappend="${activeNav == 'personal'} ? ' active' : ''"
-       th:href="@{/personal(unit=${unitId})}">Personal</a>
+    <div class="topnav__dropdown-wrap" th:if="${navPersonal == 'link'}" data-nav-dropdown="personal">
+      <div class="topnav__item-group">
+        <a class="topnav__item topnav__item--personal topnav__item--has-dd"
+           th:classappend="${activeNav == 'personal'} ? ' active' : ''"
+           th:href="@{/personal(unit=${unitId})}">Personal</a>
+        <button type="button" class="topnav__arrow" data-dd-toggle="personal" aria-label="Personal-Menü öffnen"></button>
+      </div>
+      <div class="topnav__dropdown" data-dropdown-panel="personal" role="menu">
+        <div class="topnav__dropdown-label" style="color:var(--personal-c)">Personal</div>
+        <a class="topnav__dd-item" role="menuitem"
+           th:classappend="${activePersonalSub == 'mitglieder'} ? ' active' : ''"
+           th:href="@{/personal(unit=${unitId})}">
+          <span class="topnav__dd-item__icon" style="--item-accent-hell:var(--personal-hell)">👥</span>
+          Mitglieder
+        </a>
+        <span class="topnav__dd-item topnav__dd-item--soon" role="menuitem" title="Modul folgt später">
+          <span class="topnav__dd-item__icon" style="--item-accent-hell:var(--personal-hell)">📅</span>
+          Termine
+        </span>
+      </div>
+    </div>
     <a class="topnav__item" th:classappend="${activeNav == 'my-area'} ? ' active' : ''"
        th:href="@{/my-area}">Mein Bereich</a>
     <a class="topnav__item topnav__item--test" th:if="${testModeEnabled and isAdmin}"
@@ -55,5 +73,6 @@
 <script th:src="@{/js/flash-toast.js}" defer></script>
 <script th:src="@{/js/theme.js}" defer></script>
 <script th:src="@{/js/unit-switcher.js}" defer></script>
+<script th:src="@{/js/topnav-dropdown.js}" defer></script>
 </body>
 </html>

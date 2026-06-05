@@ -228,6 +228,15 @@ public class PersonalMemberService {
         attendanceRepository.deleteById(attendanceId);
     }
 
+    /**
+     * Anwesenheits-Kennzahlen für die UI (Platzhalter — Berechnung folgt später).
+     */
+    @Transactional(readOnly = true)
+    public AttendanceDisplayStats displayAttendanceStats(long personId) {
+        requireWritablePerson(personId);
+        return AttendanceDisplayStats.placeholder();
+    }
+
     @Transactional(readOnly = true)
     public AttendanceStats attendanceStats(long personId) {
         List<PersonAttendance> rows = listAttendance(personId);
@@ -327,4 +336,13 @@ public class PersonalMemberService {
     }
 
     public record AttendanceStats(int total, int present, int absent, int excused, int presentPercent) {}
+
+    /** Kennzahlen für Reiter Anwesenheit (Gesamt, Übungsdienste, Einsätze, Abwesend, Quote). */
+    public record AttendanceDisplayStats(
+            int total, int uebungsdienste, int einsaetze, int abwesend, String quoteLabel) {
+
+        public static AttendanceDisplayStats placeholder() {
+            return new AttendanceDisplayStats(0, 0, 0, 0, "–");
+        }
+    }
 }

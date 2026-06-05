@@ -4,12 +4,8 @@
   <nav class="tab-bar" aria-label="Personenbereiche">
     <a class="tab-btn" th:classappend="${activeTab == 'stammdaten'} ? ' tab-btn--active' : ''"
        th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='stammdaten')}">Stammdaten</a>
-    <a class="tab-btn" th:classappend="${activeTab == 'qualifikationen'} ? ' tab-btn--active' : ''"
-       th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='qualifikationen')}">Qualifikationen</a>
-    <a class="tab-btn" th:classappend="${activeTab == 'ausruestung'} ? ' tab-btn--active' : ''"
-       th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='ausruestung')}">Ausrüstung</a>
-    <a class="tab-btn" th:classappend="${activeTab == 'ehrungen'} ? ' tab-btn--active' : ''"
-       th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='ehrungen')}">Ehrungen</a>
+    <a class="tab-btn" th:classappend="${activeTab == 'lehrgaenge'} ? ' tab-btn--active' : ''"
+       th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='lehrgaenge')}">Qualifikationen / Lehrgänge</a>
     <a class="tab-btn" th:classappend="${activeTab == 'anwesenheit'} ? ' tab-btn--active' : ''"
        th:href="@{/personal/{id}(id=${person.id},unit=${unitId},tab='anwesenheit')}">Anwesenheit</a>
   </nav>
@@ -102,133 +98,45 @@
     </div>
   </div>
 
-  <!-- Tab: Qualifikationen -->
-  <div th:if="${activeTab == 'qualifikationen'}" class="personal-tab-panel">
-    <div class="card">
-      <div class="card__header">
-        <span>Qualifikationen</span>
-        <button type="button" class="btn btn--primary btn--sm" data-open-modal="modal-quali">+ Hinzufügen</button>
-      </div>
-      <div class="card__body card__body--flush" th:if="${!#lists.isEmpty(memberQualifications)}">
-        <table class="data-table">
-          <thead>
-          <tr><th>Qualifikation</th><th>Erworben</th><th>Gültig bis</th><th></th></tr>
-          </thead>
-          <tbody>
-          <tr th:each="q : ${memberQualifications}"
-              th:attr="data-id=${q.id},data-name=${q.name},data-acquired=${q.acquiredAt},data-expires=${q.expiresAt},data-notes=${q.notes},data-health=${q.healthData}">
-            <td>
-              <strong th:text="${q.name}">Quali</strong>
-              <span class="badge badge--danger" th:if="${q.healthData}" title="Gesundheitsdatum (Art. 9 DSGVO)">§ 9</span>
-            </td>
-            <td th:text="${q.acquiredAt != null ? #temporals.format(q.acquiredAt, 'dd.MM.yyyy') : '–'}">–</td>
-            <td>
-              <span th:classappend="${'status-dot status-dot--' + qualiExpiryClass[q.id]}"
-                    th:if="${q.expiresAt != null}" class="status-dot"></span>
-              <span th:text="${q.expiresAt != null ? #temporals.format(q.expiresAt, 'dd.MM.yyyy') : '–'}">–</span>
-              <span class="text-muted text-xs" th:if="${qualiExpiryHint[q.id] != null}"
-                    th:text="'(' + ${qualiExpiryHint[q.id]} + ')'"></span>
-            </td>
-            <td>
-              <div class="btn-group">
-                <button type="button" class="btn btn--outline btn--sm" data-edit-quali>Bearbeiten</button>
-                <form method="post" th:action="@{/personal/{pid}/qualifications/{qid}/delete(pid=${person.id},qid=${q.id})}" class="table-inline-form"
-                      onsubmit="return confirm('Qualifikation löschen?');">
-                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-                  <input type="hidden" name="unit" th:value="${unitId}"/>
-                  <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
-                </form>
-              </div>
-            </td>
-          </tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="p-empty" th:if="${#lists.isEmpty(memberQualifications)}">
-        <p class="hint">Noch keine Qualifikationen eingetragen.</p>
-      </div>
-    </div>
-  </div>
+  <!-- Tab: Qualifikationen / Lehrgänge -->
+  <div th:if="${activeTab == 'lehrgaenge'}" class="personal-tab-panel">
+    <div class="card card--narrow">
+      <div class="card__header">Qualifikation &amp; Lehrgänge</div>
+      <div class="card__body">
+        <form method="post" th:action="@{/personal/{id}(id=${person.id})}">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <input type="hidden" name="unit" th:value="${unitId}"/>
+          <input type="hidden" name="section" value="lehrgaenge"/>
 
-  <!-- Tab: Ausrüstung -->
-  <div th:if="${activeTab == 'ausruestung'}" class="personal-tab-panel">
-    <div class="card">
-      <div class="card__header">
-        <span>Ausrüstung &amp; Ausweise</span>
-        <button type="button" class="btn btn--primary btn--sm" data-open-modal="modal-equip">+ Hinzufügen</button>
-      </div>
-      <div class="card__body card__body--flush" th:if="${!#lists.isEmpty(memberEquipment)}">
-        <table class="data-table">
-          <thead>
-          <tr><th>Typ</th><th>Nr./Bezeichnung</th><th>Ausgestellt</th><th>Gültig bis</th><th></th></tr>
-          </thead>
-          <tbody>
-          <tr th:each="e : ${memberEquipment}"
-              th:attr="data-id=${e.id},data-type=${e.type.name()},data-identifier=${e.identifier},data-issued=${e.issuedAt},data-expires=${e.expiresAt},data-notes=${e.notes}">
-            <td th:text="${e.type.label()}">Typ</td>
-            <td th:text="${e.identifier != null ? e.identifier : '–'}">—</td>
-            <td th:text="${e.issuedAt != null ? #temporals.format(e.issuedAt, 'dd.MM.yyyy') : '–'}">–</td>
-            <td th:text="${e.expiresAt != null ? #temporals.format(e.expiresAt, 'dd.MM.yyyy') : '–'}">–</td>
-            <td>
-              <div class="btn-group">
-                <button type="button" class="btn btn--outline btn--sm" data-edit-equip>Bearbeiten</button>
-                <form method="post" th:action="@{/personal/{pid}/equipment/{eid}/delete(pid=${person.id},eid=${e.id})}" class="table-inline-form"
-                      onsubmit="return confirm('Eintrag löschen?');">
-                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-                  <input type="hidden" name="unit" th:value="${unitId}"/>
-                  <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
-                </form>
-              </div>
-            </td>
-          </tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="p-empty" th:if="${#lists.isEmpty(memberEquipment)}">
-        <p class="hint">Noch keine Ausrüstung eingetragen.</p>
-      </div>
-    </div>
-  </div>
+          <div class="form-group">
+            <label for="qualificationTypeId">Aktuelle Qualifikation</label>
+            <select id="qualificationTypeId" name="qualificationTypeId">
+              <option value="">— keine —</option>
+              <option th:each="q : ${qualificationTypes}" th:value="${q.id}"
+                      th:selected="${person.qualificationType != null ? person.qualificationType.id == q.id : false}"
+                      th:text="${q.name}">Quali</option>
+            </select>
+            <p class="hint">Qualifikationstypen werden im Adminpanel unter Ausbildung gepflegt.</p>
+          </div>
 
-  <!-- Tab: Ehrungen -->
-  <div th:if="${activeTab == 'ehrungen'}" class="personal-tab-panel">
-    <div class="card">
-      <div class="card__header">
-        <span>Ehrungen</span>
-        <button type="button" class="btn btn--primary btn--sm" data-open-modal="modal-honor">+ Hinzufügen</button>
-      </div>
-      <div class="card__body card__body--flush" th:if="${!#lists.isEmpty(memberHonors)}">
-        <table class="data-table">
-          <thead>
-          <tr><th>Ehrung</th><th>Verliehen am</th><th>Status</th><th>Hinweis</th><th></th></tr>
-          </thead>
-          <tbody>
-          <tr th:each="h : ${memberHonors}"
-              th:attr="data-id=${h.id},data-name=${h.name},data-awarded=${h.awardedAt},data-status=${h.status},data-notes=${h.notes}">
-            <td><strong th:text="${h.name}">Ehrung</strong></td>
-            <td th:text="${h.awardedAt != null ? #temporals.format(h.awardedAt, 'dd.MM.yyyy') : '–'}">–</td>
-            <td>
-              <span class="badge-success" th:if="${h.status == 'aktiv'}">Aktiv</span>
-              <span class="badge-muted" th:unless="${h.status == 'aktiv'}">Zurückgezogen</span>
-            </td>
-            <td th:text="${h.notes != null ? h.notes : '–'}">–</td>
-            <td>
-              <div class="btn-group">
-                <button type="button" class="btn btn--outline btn--sm" data-edit-honor>Bearbeiten</button>
-                <form method="post" th:action="@{/personal/{pid}/honors/{hid}/delete(pid=${person.id},hid=${h.id})}" class="table-inline-form"
-                      onsubmit="return confirm('Ehrung löschen?');">
-                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-                  <input type="hidden" name="unit" th:value="${unitId}"/>
-                  <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
-                </form>
-              </div>
-            </td>
-          </tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="p-empty" th:if="${#lists.isEmpty(memberHonors)}">
-        <p class="hint">Noch keine Ehrungen eingetragen.</p>
+          <h3 class="text-sm" style="margin:1.25rem 0 0.5rem;font-weight:600;">Abgeschlossene Lehrgänge</h3>
+          <div class="course-pick-list" th:if="${!#lists.isEmpty(unitCourses)}">
+            <div class="course-pick-row" th:each="course : ${unitCourses}">
+              <input type="checkbox" name="courseIds" th:id="'course-' + ${course.id}" th:value="${course.id}"
+                     th:checked="${completedCourseIds.contains(course.id)}"/>
+              <label class="pick-name" th:for="'course-' + ${course.id}" th:text="${course.name}">Lehrgang</label>
+              <input type="number" th:name="'completionYear_' + ${course.id}" min="1950" max="2100"
+                     placeholder="Jahr" th:value="${completionYears[course.id]}"/>
+            </div>
+          </div>
+          <p class="hint" th:if="${#lists.isEmpty(unitCourses)}">
+            Noch keine Lehrgänge in der Einheit hinterlegt. Lehrgänge können im Adminpanel unter Ausbildung angelegt werden.
+          </p>
+
+          <div class="btn-group mt-md">
+            <button type="submit" class="btn btn--primary">Speichern</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
@@ -238,214 +146,36 @@
     <div class="card">
       <div class="card__header">
         <span>Dienstbeteiligung</span>
-        <div class="btn-group">
-          <a class="btn btn--outline btn--sm"
-             th:href="@{/personal/{id}/attendance/export(id=${person.id},unit=${unitId})}">CSV Export</a>
-          <button type="button" class="btn btn--primary btn--sm" id="btn-toggle-attendance-form">+ Eintrag hinzufügen</button>
-        </div>
       </div>
       <div class="card__body">
-        <div class="att-stats">
+        <div class="att-stats att-stats--5">
           <div class="att-stat">
-            <div class="att-stat__value" th:text="${attendanceStats.total()}">0</div>
+            <div class="att-stat__value" th:text="${attendanceDisplay.total()}">0</div>
             <div class="att-stat__label">Gesamt</div>
           </div>
           <div class="att-stat">
-            <div class="att-stat__value att-status--present" th:text="${attendanceStats.present()}">0</div>
-            <div class="att-stat__label">Anwesend</div>
+            <div class="att-stat__value att-status--present" th:text="${attendanceDisplay.uebungsdienste()}">0</div>
+            <div class="att-stat__label">Übungsdienste</div>
           </div>
           <div class="att-stat">
-            <div class="att-stat__value att-status--absent" th:text="${attendanceStats.absent()}">0</div>
+            <div class="att-stat__value att-status--excused" th:text="${attendanceDisplay.einsaetze()}">0</div>
+            <div class="att-stat__label">Einsätze</div>
+          </div>
+          <div class="att-stat">
+            <div class="att-stat__value att-status--absent" th:text="${attendanceDisplay.abwesend()}">0</div>
             <div class="att-stat__label">Abwesend</div>
           </div>
-          <div class="att-stat">
-            <div class="att-stat__value att-status--excused" th:text="${attendanceStats.excused()}">0</div>
-            <div class="att-stat__label">Entschuldigt</div>
-          </div>
-          <div class="att-stat">
-            <div class="att-stat__value text-info" th:text="${attendanceStats.presentPercent() + '%'}">0%</div>
+          <div class="att-stat att-stat--quote">
+            <div class="att-stat__value text-info" th:text="${attendanceDisplay.quoteLabel()}">–</div>
             <div class="att-stat__label">Quote</div>
           </div>
         </div>
 
-        <form method="post" th:action="@{/personal/{id}/attendance(id=${person.id})}"
-              id="add-attendance-form" class="att-add-form" style="display:none;">
-          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-          <input type="hidden" name="unit" th:value="${unitId}"/>
-          <div class="form-grid form-grid--2">
-            <div class="form-group">
-              <label for="att-date">Datum</label>
-              <input type="date" id="att-date" name="serviceDate" required/>
-            </div>
-            <div class="form-group">
-              <label for="att-status">Status</label>
-              <select id="att-status" name="status">
-                <option value="PRESENT">Anwesend</option>
-                <option value="ABSENT">Abwesend</option>
-                <option value="EXCUSED">Entschuldigt</option>
-              </select>
-            </div>
-            <div class="form-group form-group--full">
-              <label for="att-notes">Notiz (optional)</label>
-              <input type="text" id="att-notes" name="notes" maxlength="200"/>
-            </div>
-          </div>
-          <div class="btn-group mt-sm">
-            <button type="submit" class="btn btn--primary btn--sm">Speichern</button>
-            <button type="button" class="btn btn--outline btn--sm" id="btn-cancel-attendance-form">Abbrechen</button>
-          </div>
-        </form>
-
-        <div th:if="${!#lists.isEmpty(memberAttendance)}" class="mt-md">
-          <table class="data-table">
-            <thead><tr><th>Datum</th><th>Status</th><th>Notiz</th><th></th></tr></thead>
-            <tbody>
-            <tr th:each="a : ${memberAttendance}" class="data-row">
-              <td th:text="${#temporals.format(a.serviceDate, 'dd.MM.yyyy')}">—</td>
-              <td th:classappend="${'att-status att-status--' + #strings.toLowerCase(a.status.name())}"
-                  class="fw-semibold" th:text="${a.status.label()}">—</td>
-              <td th:text="${a.notes != null ? a.notes : '–'}">–</td>
-              <td>
-                <form method="post" th:action="@{/personal/{pid}/attendance/{aid}/delete(pid=${person.id},aid=${a.id})}" class="table-inline-form"
-                      onsubmit="return confirm('Eintrag löschen?');">
-                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-                  <input type="hidden" name="unit" th:value="${unitId}"/>
-                  <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
-                </form>
-              </td>
-            </tr>
-            </tbody>
-          </table>
-        </div>
-        <p class="hint mt-md" th:if="${#lists.isEmpty(memberAttendance)}">Noch keine Einträge vorhanden.</p>
+        <p class="hint att-stats-hint">
+          Die Auswertung wird zu einem späteren Zeitpunkt aus Übungsdiensten und Einsätzen berechnet.
+          Aktuell werden nur Platzhalterwerte angezeigt.
+        </p>
       </div>
-    </div>
-  </div>
-
-  <!-- Modals -->
-  <div id="modal-quali" class="modal-overlay">
-    <div class="modal modal--xs">
-      <div class="modal__header">
-        <h3 id="modal-quali-title">Qualifikation</h3>
-        <button type="button" class="modal__close" data-close-modal>&times;</button>
-      </div>
-      <form method="post" id="form-quali" th:action="@{/personal/{id}/qualifications(id=${person.id})}">
-        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-        <input type="hidden" name="unit" th:value="${unitId}"/>
-        <div class="modal__body">
-          <div class="form-grid">
-            <div class="form-group form-group--full">
-              <label for="q-name">Bezeichnung</label>
-              <input type="text" id="q-name" name="name" maxlength="100" required placeholder="z.B. Grundausbildung, G26.3…"/>
-            </div>
-            <div class="form-group">
-              <label for="q-acquired">Erworben am</label>
-              <input type="date" id="q-acquired" name="acquiredAt"/>
-            </div>
-            <div class="form-group">
-              <label for="q-expires">Gültig bis</label>
-              <input type="date" id="q-expires" name="expiresAt"/>
-            </div>
-            <div class="form-group form-group--full">
-              <label for="q-notes">Hinweis</label>
-              <input type="text" id="q-notes" name="notes" maxlength="200"/>
-            </div>
-            <div class="form-group form-group--full">
-              <label class="checkbox-row">
-                <input type="checkbox" id="q-health" name="healthData" value="true"/>
-                <span>Gesundheitsdatum (Art. 9 DSGVO) — z.&nbsp;B. Atemschutz G26/3</span>
-              </label>
-            </div>
-          </div>
-        </div>
-        <div class="modal__footer">
-          <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
-          <button type="submit" class="btn btn--primary">Speichern</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <div id="modal-equip" class="modal-overlay">
-    <div class="modal modal--xs">
-      <div class="modal__header">
-        <h3 id="modal-equip-title">Ausrüstung</h3>
-        <button type="button" class="modal__close" data-close-modal>&times;</button>
-      </div>
-      <form method="post" id="form-equip" th:action="@{/personal/{id}/equipment(id=${person.id})}">
-        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-        <input type="hidden" name="unit" th:value="${unitId}"/>
-        <div class="modal__body">
-          <div class="form-grid">
-            <div class="form-group form-group--full">
-              <label for="e-type">Typ</label>
-              <select id="e-type" name="type" required>
-                <option th:each="t : ${equipmentTypes}" th:value="${t.name()}" th:text="${t.label()}">Typ</option>
-              </select>
-            </div>
-            <div class="form-group form-group--full">
-              <label for="e-identifier">Nr. / Bezeichnung</label>
-              <input type="text" id="e-identifier" name="identifier" maxlength="100"/>
-            </div>
-            <div class="form-group">
-              <label for="e-issued">Ausgestellt am</label>
-              <input type="date" id="e-issued" name="issuedAt"/>
-            </div>
-            <div class="form-group">
-              <label for="e-expires">Gültig bis</label>
-              <input type="date" id="e-expires" name="expiresAt"/>
-            </div>
-            <div class="form-group form-group--full">
-              <label for="e-notes">Hinweis</label>
-              <input type="text" id="e-notes" name="notes" maxlength="200"/>
-            </div>
-          </div>
-        </div>
-        <div class="modal__footer">
-          <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
-          <button type="submit" class="btn btn--primary">Speichern</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <div id="modal-honor" class="modal-overlay">
-    <div class="modal modal--xs">
-      <div class="modal__header">
-        <h3 id="modal-honor-title">Ehrung</h3>
-        <button type="button" class="modal__close" data-close-modal>&times;</button>
-      </div>
-      <form method="post" id="form-honor" th:action="@{/personal/{id}/honors(id=${person.id})}">
-        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-        <input type="hidden" name="unit" th:value="${unitId}"/>
-        <div class="modal__body">
-          <div class="form-grid">
-            <div class="form-group form-group--full">
-              <label for="h-name">Bezeichnung</label>
-              <input type="text" id="h-name" name="name" maxlength="100" required/>
-            </div>
-            <div class="form-group">
-              <label for="h-awarded">Verliehen am</label>
-              <input type="date" id="h-awarded" name="awardedAt"/>
-            </div>
-            <div class="form-group">
-              <label for="h-status">Status</label>
-              <select id="h-status" name="status">
-                <option value="aktiv">Aktiv</option>
-                <option value="zurueckgezogen">Zurückgezogen</option>
-              </select>
-            </div>
-            <div class="form-group form-group--full">
-              <label for="h-notes">Hinweis</label>
-              <input type="text" id="h-notes" name="notes" maxlength="200"/>
-            </div>
-          </div>
-        </div>
-        <div class="modal__footer">
-          <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
-          <button type="submit" class="btn btn--primary">Speichern</button>
-        </div>
-      </form>
     </div>
   </div>
 </th:block>

@@ -140,6 +140,18 @@ public class WebUiAdvice {
         }
     }
 
+    @ModelAttribute("activePersonalSub")
+    public String activePersonalSub(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        if (path.startsWith("/personal/termine")) {
+            return "termine";
+        }
+        if (path.startsWith("/personal")) {
+            return "mitglieder";
+        }
+        return "";
+    }
+
     @ModelAttribute("activeNav")
     public String activeNav(HttpServletRequest request) {
         String path = request.getRequestURI();

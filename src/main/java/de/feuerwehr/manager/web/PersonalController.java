@@ -4,7 +4,6 @@ import de.feuerwehr.manager.personal.AttendanceStatus;
 import de.feuerwehr.manager.personal.EquipmentType;
 import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.personal.PersonCourseCompletion;
-import de.feuerwehr.manager.personal.PersonQualification;
 import de.feuerwehr.manager.personal.PersonStatus;
 import de.feuerwehr.manager.personal.PersonalMemberService;
 import de.feuerwehr.manager.personal.PersonalService;
@@ -18,7 +17,6 @@ import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -501,40 +499,9 @@ public class PersonalController {
         model.addAttribute("personDisplayName", person.displayName());
         model.addAttribute("personInitials", personInitials(person));
         model.addAttribute("activeTab", activeTab);
-        model.addAttribute("equipmentTypes", EquipmentType.values());
         model.addAttribute("emergencyContacts", personalMemberService.listEmergencyContacts(personId));
-        model.addAttribute("memberQualifications", personalMemberService.listQualifications(personId));
-        model.addAttribute("memberEquipment", personalMemberService.listEquipment(personId));
-        model.addAttribute("memberHonors", personalMemberService.listHonors(personId));
-        model.addAttribute("memberAttendance", personalMemberService.listAttendance(personId));
-        model.addAttribute("attendanceStats", personalMemberService.attendanceStats(personId));
-        populateQualificationExpiry(model, personalMemberService.listQualifications(personId), personalMemberService.qualificationWarnDays());
-    }
-
-    private void populateQualificationExpiry(Model model, List<PersonQualification> qualifications, int warnDays) {
-        Map<Long, String> classes = new HashMap<>();
-        Map<Long, String> hints = new HashMap<>();
-        LocalDate today = LocalDate.now();
-        for (PersonQualification q : qualifications) {
-            if (q.getExpiresAt() == null) {
-                continue;
-            }
-            long days = ChronoUnit.DAYS.between(today, q.getExpiresAt());
-            if (days < 0) {
-                classes.put(q.getId(), "danger");
-                hints.put(q.getId(), "abgelaufen");
-            } else if (days <= 30) {
-                classes.put(q.getId(), "danger");
-                hints.put(q.getId(), "noch " + days + "d");
-            } else if (days <= warnDays) {
-                classes.put(q.getId(), "warning");
-                hints.put(q.getId(), "noch " + days + "d");
-            } else {
-                classes.put(q.getId(), "success");
-            }
-        }
-        model.addAttribute("qualiExpiryClass", classes);
-        model.addAttribute("qualiExpiryHint", hints);
+        model.addAttribute("attendanceDisplay", personalMemberService.displayAttendanceStats(personId));
+        populatePersonDetailData(model, person.getUnit().getId(), detail);
     }
 
     private void populatePersonDetailData(Model model, long unitId, PersonDetailView detail) {
@@ -593,7 +560,7 @@ public class PersonalController {
             return "stammdaten";
         }
         return switch (tab) {
-            case "qualifikationen", "ausruestung", "ehrungen", "anwesenheit" -> tab;
+            case "lehrgaenge", "anwesenheit" -> tab;
             default -> "stammdaten";
         };
     }
