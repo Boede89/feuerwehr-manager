@@ -1,0 +1,79 @@
+package db.migration;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.Statement;
+import org.flywaydb.core.api.migration.BaseJavaMigration;
+import org.flywaydb.core.api.migration.Context;
+
+public class V37__AtemschutzCourseSelection extends BaseJavaMigration {
+
+    @Override
+    public void migrate(Context context) throws Exception {
+        Connection conn = context.getConnection();
+        String schema = conn.getCatalog();
+        if (schema == null || schema.isBlank()) {
+            throw new IllegalStateException("Kein Datenbankschema für Flyway-Migration V37.");
+        }
+
+        if (!columnExists(conn, schema, "unit_atemschutz_settings", "agt_course_id")) {
+            try (Statement st = conn.createStatement()) {
+                st.execute("ALTER TABLE unit_atemschutz_settings ADD COLUMN agt_course_id BIGINT NULL");
+            }
+        }
+
+        if (!foreignKeyExists(conn, schema, "unit_atemschutz_settings", "fk_unit_atemschutz_course")) {
+            try (Statement st = conn.createStatement()) {
+                st.execute("""
+                        ALTER TABLE unit_atemschutz_settings
+                        ADD CONSTRAINT fk_unit_atemschutz_course
+                        FOREIGN KEY (agt_course_id) REFERENCES courses (id) ON DELETE SET NULL
+                        """);
+            }
+        }
+
+        try (Statement st = conn.createStatement()) {
+            st.execute("""
+                    UPDATE unit_atemschutz_settings uas
+                    INNER JOIN courses c
+                        ON c.unit_id = uas.unit_id
+                       AND c.test_data = FALSE
+                       AND LOWER(TRIM(c.name)) = LOWER(TRIM(uas.agt_course_name))
+                    SET uas.agt_course_id = c.id
+                    WHERE uas.agt_course_id IS NULL
+                    """);
+        }
+    }
+
+    private static boolean columnExists(Connection conn, String schema, String table, String column)
+            throws Exception {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT COUNT(*) FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?
+                """)) {
+            ps.setString(1, schema);
+            ps.setString(2, table);
+            ps.setString(3, column);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() && rs.getInt(1) > 0;
+            }
+        }
+    }
+
+    private static boolean foreignKeyExists(Connection conn, String schema, String table, String constraint)
+            throws Exception {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
+                WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND CONSTRAINT_NAME = ?
+                  AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+                """)) {
+            ps.setString(1, schema);
+            ps.setString(2, table);
+            ps.setString(3, constraint);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() && rs.getInt(1) > 0;
+            }
+        }
+    }
+}
