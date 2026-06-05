@@ -22,6 +22,7 @@
             <th th:unless="${showUnitUserRoles}">E-Mail</th>
             <th th:unless="${showUnitUserRoles}">Einheit</th>
             <th>Status</th>
+            <th class="text-center">2FA</th>
             <th>Aktionen</th>
           </tr>
           </thead>
@@ -78,6 +79,10 @@
               <span class="badge" th:classappend="${u.active} ? ' active' : ' inactive'"
                     th:text="${u.active} ? 'Aktiv' : 'Inaktiv'">Status</span>
             </td>
+            <td class="text-center">
+              <span th:if="${u.totpEnabled}" title="2FA aktiv">🔒</span>
+              <span th:unless="${u.totpEnabled}" class="text-muted">—</span>
+            </td>
             <td>
               <span class="text-subtle text-sm" th:if="${canManageUserById != null and !canManageUserById.get(u.id)}">
                 Nur Superadmin
@@ -97,6 +102,15 @@
                         th:data-reset-url="@{/admin/users/{id}/password(id=${u.id})}"
                         th:data-username="${u.username}"
                         th:data-login-email="${u.loginEmail}">PW Reset</button>
+                <form th:if="${u.totpEnabled and (currentUserId == null or u.id != currentUserId)}"
+                      method="post" class="table-inline-form"
+                      th:action="@{/admin/users/{id}/totp-reset(id=${u.id})}"
+                      onsubmit="return confirm('2FA wirklich zurücksetzen? Der Benutzer muss 2FA danach neu einrichten.');">
+                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                  <input type="hidden" name="scope" th:value="${adminScope}"/>
+                  <input type="hidden" name="unit" th:if="${unitId != null}" th:value="${unitId}"/>
+                  <button type="submit" class="btn btn--outline btn--sm">2FA Reset</button>
+                </form>
                 <a class="btn btn--outline btn--sm"
                    th:href="@{/admin/users/{id}/export(id=${u.id})}">Export</a>
                 <form th:if="${currentUserId == null or u.id != currentUserId}" method="post"

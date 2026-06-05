@@ -845,6 +845,8 @@ input:focus, select:focus, textarea:focus {
   line-height: 1.45;
 }
 
+.text-center { text-align: center; }
+
 .page-body .ok,
 .page-body .err,
 .page-body .testmode-banner,

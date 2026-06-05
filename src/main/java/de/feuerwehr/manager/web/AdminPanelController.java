@@ -339,6 +339,27 @@ public class AdminPanelController {
         return redirectAfterUser(scope, unitId, actor);
     }
 
+    @PostMapping("/users/{id}/totp-reset")
+    public String resetUserTotp(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @RequestParam(name = "scope") String scope,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            HttpServletRequest request,
+            RedirectAttributes redirectAttributes) {
+        try {
+            userManagementService.resetTotpByAdmin(id, actor, request);
+            User user = userService.findByIdWithUnit(id).orElseThrow();
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute(
+                    "message",
+                    "2FA für „" + user.getUsername() + "“ wurde zurückgesetzt. Der Benutzer muss 2FA neu einrichten.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return redirectAfterUser(scope, unitId, actor);
+    }
+
     @PostMapping("/users/{id}/rfid")
     public String addRfid(
             @AuthenticationPrincipal AppUserDetails actor,

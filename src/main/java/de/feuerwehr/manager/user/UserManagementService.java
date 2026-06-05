@@ -37,6 +37,7 @@ public class UserManagementService {
     private final UserService userService;
     private final UnitRoleService unitRoleService;
     private final UserUnitFunctionRepository userUnitFunctionRepository;
+    private final UserTotpService userTotpService;
 
     public List<User> listAccounts(AppUserDetails actor) {
         return listAccounts(actor, null);
@@ -210,6 +211,15 @@ public class UserManagementService {
     }
 
     @Transactional
+    public void resetTotpByAdmin(long userId, AppUserDetails actor, HttpServletRequest request) {
+        User user = userRepository.findByIdWithUnit(userId).orElseThrow();
+        if (user.getAnonymizedAt() != null) {
+            throw new IllegalArgumentException("Konto wurde gelöscht");
+        }
+        accessControlService.requireCanManageUser(actor, user);
+        userTotpService.resetByAdmin(userId, actor.getUserId(), request);
+    }
+
     public void setPasswordByAdmin(
             long userId, String plainPassword, AppUserDetails actor, HttpServletRequest request) {
         validatePassword(plainPassword);
