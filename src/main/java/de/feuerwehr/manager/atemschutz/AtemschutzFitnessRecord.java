@@ -56,6 +56,18 @@ public class AtemschutzFitnessRecord {
     @JoinColumn(name = "created_by_user_id")
     private User createdBy;
 
+    /** Anzeigename des Bezugs (z. B. Einsatzstichwort), für spätere Automatik befüllbar. */
+    @Column(name = "source_label", length = 255)
+    private String sourceLabel;
+
+    /** Typ des verknüpften Datensatzes (z. B. ATTENDANCE), für spätere Automatik. */
+    @Column(name = "source_ref_type", length = 32)
+    private String sourceRefType;
+
+    /** ID des verknüpften Datensatzes (z. B. person_attendance.id), für spätere Automatik. */
+    @Column(name = "source_ref_id")
+    private Long sourceRefId;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;
 

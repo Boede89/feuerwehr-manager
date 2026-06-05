@@ -76,6 +76,7 @@
         <thead>
         <tr>
           <th>Typ</th>
+          <th>Bezug</th>
           <th>Status</th>
           <th>Datum</th>
           <th>Gültig bis</th>
@@ -86,8 +87,9 @@
         <tbody>
         <tr th:each="rec : ${detail.records}">
           <td th:text="${rec.type.label()}">G26</td>
+          <td th:text="${rec.sourceLabel != null ? rec.sourceLabel : '—'}">—</td>
           <td>
-            <span class="fitness-badge" th:classappend="${' ' + rec.level.cssClass()}"
+            <span th:class="${rec.level.validityBadgeClass()}"
                   th:text="${rec.level.label()}">OK</span>
           </td>
           <td th:text="${rec.validFrom != null ? #temporals.format(rec.validFrom, 'dd.MM.yyyy') : '—'}">01.01.2026</td>

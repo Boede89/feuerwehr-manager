@@ -292,7 +292,8 @@ public class AtemschutzService {
                     record.getValidUntil(),
                     null,
                     null,
-                    createdByDisplay);
+                    createdByDisplay,
+                    blankToNull(record.getSourceLabel()));
         }
         return new FitnessRecordView(
                 record.getId(),
@@ -302,7 +303,8 @@ public class AtemschutzService {
                 record.getValidUntil(),
                 record.getPhysician(),
                 record.getResultNotes(),
-                createdByDisplay);
+                createdByDisplay,
+                blankToNull(record.getSourceLabel()));
     }
 
     private static String formatCreatedBy(AtemschutzFitnessRecord record) {
@@ -384,5 +386,6 @@ public class AtemschutzService {
             LocalDate validUntil,
             String physician,
             String resultNotes,
-            String createdByDisplay) {}
+            String createdByDisplay,
+            String sourceLabel) {}
 }
