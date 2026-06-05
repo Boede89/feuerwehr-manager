@@ -4,44 +4,60 @@ Symptom in den Logs:
 
 ```text
 Detected failed migration to version 37 (atemschutz course selection).
-Please remove any half-completed changes then run repair to fix the schema history.
 ```
 
 ## Schnellfix auf dem Server
 
-Im Projektordner (`/opt/feuerwehr/feuerwehr-manager`):
-
 ```bash
-# 1) Fehlgeschlagenen Eintrag aus der Flyway-Historie entfernen
+cd /opt/feuerwehr/feuerwehr-manager
+
+# 1) ALLE V37-Einträge entfernen (auch erneut fehlgeschlagene)
 docker compose exec mysql mysql -uff -pffsecret feuerwehr_manager -e \
-  "DELETE FROM flyway_schema_history WHERE version = '37' AND success = 0;"
+  "DELETE FROM flyway_schema_history WHERE version = '37';"
 
-# 2) Neuesten Code holen (enthält idempotente V37-Migration)
+# 2) Fix holen und App neu bauen
 git pull
-
-# 3) App neu bauen und starten
 docker compose up -d --build app
 
-# 4) Logs prüfen
+# 3) Prüfen (ca. 30 Sekunden warten)
+docker compose ps
 docker compose logs app --tail 40
 ```
 
-Erfolg: Zeile `Started FeuerwehrManagerApplication` und `docker compose ps` zeigt **running** (nicht Restarting).
+Erfolg: `ffm_app` = **running**, Log enthält `Started FeuerwehrManagerApplication`.
 
-## Optional: Schema prüfen
+Browser: `http://<Server-IP>:8080`
+
+## Optional: Zustand prüfen
 
 ```bash
 docker compose exec mysql mysql -uff -pffsecret feuerwehr_manager -e \
-  "SHOW COLUMNS FROM unit_atemschutz_settings LIKE 'agt_course_id';
-   SELECT version, success, description FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 5;"
+  "SELECT version, success, description FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 5;
+   SHOW COLUMNS FROM unit_atemschutz_settings LIKE 'agt_course_id';"
 ```
 
-Die Spalte `agt_course_id` sollte existieren; Version 37 in `flyway_schema_history` mit `success = 1`.
+Version 37 sollte `success = 1` sein.
 
-## Wenn es danach noch hakt
+## Wenn es weiterhin scheitert
+
+Logs sichern:
 
 ```bash
 docker compose logs app --tail 100
 ```
 
-Die letzten Zeilen speichern und als Issue melden.
+Manuell Schema anlegen (Fehler „Duplicate column“ ignorieren):
+
+```bash
+docker compose exec mysql mysql -uff -pffsecret feuerwehr_manager
+```
+
+```sql
+ALTER TABLE unit_atemschutz_settings ADD COLUMN agt_course_id BIGINT NULL;
+ALTER TABLE unit_atemschutz_settings
+  ADD CONSTRAINT fk_unit_atemschutz_course
+  FOREIGN KEY (agt_course_id) REFERENCES courses (id) ON DELETE SET NULL;
+DELETE FROM flyway_schema_history WHERE version = '37';
+```
+
+Dann erneut `git pull` und `docker compose up -d --build app`.
