@@ -160,7 +160,7 @@ public class PersonalController {
         model.addAttribute("currentUnitName", unit.getName());
         model.addAttribute("isNewPerson", false);
         String activeTab = normalizeTab(tab);
-        populateMemberDetailData(model, id, activeTab);
+        populateMemberDetailData(model, actor, id, activeTab);
         return "personal/person-detail";
     }
 
@@ -608,10 +608,11 @@ public class PersonalController {
         return "redirect:/personal/" + personId + "?unit=" + unitId + "&tab=" + tab;
     }
 
-    private void populateMemberDetailData(Model model, long personId, String activeTab) {
+    private void populateMemberDetailData(Model model, AppUserDetails actor, long personId, String activeTab) {
         PersonDetailView detail = personalService.loadPersonDetailView(personId);
         Person person = detail.person();
         model.addAttribute("person", person);
+        model.addAttribute("canDeletePerson", accessControlService.canDeletePerson(actor, person));
         model.addAttribute("personDisplayName", person.displayName());
         model.addAttribute("personInitials", personInitials(person));
         model.addAttribute("activeTab", activeTab);

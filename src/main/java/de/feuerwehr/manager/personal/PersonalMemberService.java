@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.personal;
 
+import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.settings.GlobalSettingsService;
 import de.feuerwehr.manager.user.User;
@@ -24,6 +25,7 @@ public class PersonalMemberService {
     private final UserRepository userRepository;
     private final PersonalService personalService;
     private final GlobalSettingsService globalSettingsService;
+    private final AccessControlService accessControlService;
 
     @Transactional(readOnly = true)
     public int qualificationWarnDays() {
@@ -394,6 +396,8 @@ public class PersonalMemberService {
 
     @Transactional
     public void deletePerson(long personId, AppUserDetails actor, jakarta.servlet.http.HttpServletRequest request) {
+        Person person = personalService.requirePerson(personId);
+        accessControlService.requireCanDeletePerson(actor, person);
         personalService.anonymizePerson(personId, actor, request);
     }
 

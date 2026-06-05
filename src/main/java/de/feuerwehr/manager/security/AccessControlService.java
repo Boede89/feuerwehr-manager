@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.security;
 
+import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRole;
 import org.springframework.stereotype.Service;
@@ -51,6 +52,47 @@ public class AccessControlService {
             }
             throw new IllegalArgumentException("Kein Zugriff auf diesen Benutzer");
         }
+    }
+
+    public boolean canDeletePerson(AppUserDetails actor, Person person) {
+        if (actor == null || person == null || !actor.getRole().isAdminLevel()) {
+            return false;
+        }
+        User linked = person.getUser();
+        if (linked != null && linked.getAnonymizedAt() == null) {
+            if (actor.getUserId().equals(linked.getId())) {
+                return false;
+            }
+            return canManageUser(actor, linked);
+        }
+        if (actor.getRole().isSuperAdmin()) {
+            return true;
+        }
+        Long actorUnit = actor.getUnitId();
+        Long personUnit = person.getUnit() != null ? person.getUnit().getId() : null;
+        return actorUnit != null && actorUnit.equals(personUnit);
+    }
+
+    public void requireCanDeletePerson(AppUserDetails actor, Person person) {
+        if (canDeletePerson(actor, person)) {
+            return;
+        }
+        User linked = person != null ? person.getUser() : null;
+        if (linked != null
+                && linked.getAnonymizedAt() == null
+                && linked.getRole() == UserRole.SUPER_ADMIN) {
+            throw new IllegalArgumentException("Superadmin-Personen können nur vom Superadmin gelöscht werden.");
+        }
+        if (linked != null
+                && linked.getAnonymizedAt() == null
+                && linked.getRole() == UserRole.UNIT_ADMIN) {
+            throw new IllegalArgumentException(
+                    "Einheitsadmin-Personen können nur vom Einheitsadmin der Einheit oder vom Superadmin gelöscht werden.");
+        }
+        if (actor != null && person != null && person.getUser() != null && actor.getUserId().equals(person.getUser().getId())) {
+            throw new IllegalArgumentException("Sie können sich nicht selbst löschen.");
+        }
+        throw new IllegalArgumentException("Kein Zugriff zum Löschen dieser Person.");
     }
 
     public void requireCanAssignRole(AppUserDetails actor, UserRole newRole) {
