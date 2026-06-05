@@ -31,6 +31,7 @@ import de.feuerwehr.manager.personal.QualificationTypeRepository;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
+import de.feuerwehr.manager.user.UserRole;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -690,12 +691,14 @@ public class UnitPersonalAtemschutzTransferService {
         personGroupRepository.deleteAll(groups);
 
         List<Person> persons = personRepository.findActiveByUnitId(unitId, testData);
-        for (Person person : persons) {
+        List<Person> deletablePersons = persons.stream().filter(p -> !isProtectedPerson(p)).toList();
+        for (Person person : deletablePersons) {
             personCourseCompletionRepository.deleteByPersonId(person.getId());
-            personAttendanceRepository.deleteAll(personAttendanceRepository.findByPersonIdOrderByServiceDateDesc(person.getId()));
+            personAttendanceRepository.deleteAll(
+                    personAttendanceRepository.findByPersonIdOrderByServiceDateDesc(person.getId()));
             personDiveraRicRepository.deleteByPersonId(person.getId());
         }
-        personRepository.deleteAll(persons);
+        personRepository.deleteAll(deletablePersons);
 
         List<Course> courses = courseRepository.findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(unitId, testData);
         courseRepository.deleteAll(courses);
@@ -798,6 +801,15 @@ public class UnitPersonalAtemschutzTransferService {
 
     private static long sourceId(Long productionSourceId, long id) {
         return productionSourceId != null ? productionSourceId : id;
+    }
+
+    /** Personen mit verknüpftem Superadmin- oder Einheitsadmin-Konto nicht löschen. */
+    private static boolean isProtectedPerson(Person person) {
+        if (person.getUser() == null) {
+            return false;
+        }
+        UserRole role = person.getUser().getRole();
+        return role == UserRole.SUPER_ADMIN || role == UserRole.UNIT_ADMIN;
     }
 
     private static boolean matchesEinheit(Map<String, String> row, Integer sourceEinheitId) {
