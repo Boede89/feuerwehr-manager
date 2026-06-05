@@ -224,9 +224,8 @@ public class UnitPersonalAtemschutzTransferService {
         boolean testData = testModeService.isEnabled();
         ImportSummary summary = new ImportSummary();
 
-        Map<Long, QualificationType> qualificationBySource = importLegacyQualifications(unit, tables, sourceEinheitId, testData, summary);
-        Map<Long, Course> courseBySource = importLegacyCourses(unit, tables, sourceEinheitId, testData, qualificationBySource, summary);
-        Map<Long, Person> personByMemberId = importLegacyMembers(unit, tables, sourceEinheitId, testData, qualificationBySource, summary);
+        Map<Long, Course> courseBySource = importLegacyCourses(unit, tables, sourceEinheitId, testData, summary);
+        Map<Long, Person> personByMemberId = importLegacyMembers(unit, tables, sourceEinheitId, testData, summary);
         importLegacyMemberCourses(tables, personByMemberId, courseBySource, summary);
         importLegacyGroups(unit, tables, sourceEinheitId, testData, personByMemberId, summary);
         importLegacyAtemschutz(unit, tables, sourceEinheitId, testData, personByMemberId, summary);
@@ -238,34 +237,22 @@ public class UnitPersonalAtemschutzTransferService {
         boolean testData = testModeService.isEnabled();
         ImportSummary summary = new ImportSummary();
 
-        Map<Long, QualificationType> qualifications = new HashMap<>();
-        for (UnitDataExportDocument.QualificationTypeRow row : doc.getQualificationTypes()) {
-            QualificationType qt = findOrCreateQualification(unit, testData, row.getSourceId(), row.getName());
-            qt.setSortOrder(row.getSortOrder() != null ? row.getSortOrder() : qt.getSortOrder());
-            if (row.getActive() != null) {
-                qt.setActive(row.getActive());
-            }
-            qualifications.put(row.getSourceId(), qualificationTypeRepository.saveAndFlush(qt));
-            summary.qualifications++;
-        }
         Map<Long, Course> courses = new HashMap<>();
         for (UnitDataExportDocument.CourseRow row : doc.getCourses()) {
-            Course course = findOrCreateCourse(unit, testData, row.getSourceId(), row.getName());
+            Course course = findOrCreateCourse(unit, testData, row.getName());
             course.setSortOrder(row.getSortOrder() != null ? row.getSortOrder() : course.getSortOrder());
             if (row.getActive() != null) {
                 course.setActive(row.getActive());
             }
-            course.setQualificationType(resolveQualificationRef(
-                    unit, testData, row.getQualificationTypeSourceId(), qualifications));
+            course.setQualificationType(null);
             courses.put(row.getSourceId(), courseRepository.save(course));
             summary.courses++;
         }
         Map<Long, Person> persons = new HashMap<>();
         for (UnitDataExportDocument.PersonRow row : doc.getPersons()) {
-            Person person = findOrCreatePerson(unit, testData, row.getSourceId());
+            Person person = findOrCreatePerson(unit, testData, row.getFirstName(), row.getLastName());
             applyPersonRow(person, row);
-            person.setQualificationType(resolveQualificationRef(
-                    unit, testData, row.getQualificationTypeSourceId(), qualifications));
+            person.setQualificationType(null);
             persons.put(row.getSourceId(), personRepository.save(person));
             summary.persons++;
         }
@@ -419,24 +406,11 @@ public class UnitPersonalAtemschutzTransferService {
         return summary;
     }
 
-    private Map<Long, QualificationType> importLegacyQualifications(
-            Unit unit,
-            Map<String, List<Map<String, String>>> tables,
-            Integer sourceEinheitId,
-            boolean testData,
-            ImportSummary summary) {
-        Map<Long, QualificationType> result = new HashMap<>();
-        importLegacyQualificationRows(unit, testData, tables.getOrDefault("member_qualifications", List.of()), sourceEinheitId, result, summary);
-        importLegacyQualificationRows(unit, testData, tables.getOrDefault("qualifications", List.of()), sourceEinheitId, result, summary);
-        return result;
-    }
-
     private Map<Long, Course> importLegacyCourses(
             Unit unit,
             Map<String, List<Map<String, String>>> tables,
             Integer sourceEinheitId,
             boolean testData,
-            Map<Long, QualificationType> qualificationBySource,
             ImportSummary summary) {
         Map<Long, Course> result = new HashMap<>();
         for (Map<String, String> row : tables.getOrDefault("courses", List.of())) {
@@ -448,9 +422,8 @@ public class UnitPersonalAtemschutzTransferService {
             if (blank(name)) {
                 continue;
             }
-            Course course = findOrCreateCourse(unit, testData, sourceId, name.trim());
-            Long qualId = parseLongOrNull(row.get("qualification_id"));
-            course.setQualificationType(resolveQualificationRef(unit, testData, qualId, qualificationBySource));
+            Course course = findOrCreateCourse(unit, testData, name.trim());
+            course.setQualificationType(null);
             result.put(sourceId, courseRepository.save(course));
             summary.courses++;
         }
@@ -462,7 +435,6 @@ public class UnitPersonalAtemschutzTransferService {
             Map<String, List<Map<String, String>>> tables,
             Integer sourceEinheitId,
             boolean testData,
-            Map<Long, QualificationType> qualificationBySource,
             ImportSummary summary) {
         Map<Long, Person> result = new HashMap<>();
         for (Map<String, String> row : tables.getOrDefault("members", List.of())) {
@@ -470,15 +442,16 @@ public class UnitPersonalAtemschutzTransferService {
                 continue;
             }
             long sourceId = parseLong(row.get("id"));
-            Person person = findOrCreatePerson(unit, testData, sourceId);
-            person.setFirstName(required(row.get("first_name"), "first_name"));
-            person.setLastName(required(row.get("last_name"), "last_name"));
+            String firstName = required(row.get("first_name"), "first_name");
+            String lastName = required(row.get("last_name"), "last_name");
+            Person person = findOrCreatePerson(unit, testData, firstName, lastName);
+            person.setFirstName(firstName);
+            person.setLastName(lastName);
             person.setEmail(row.get("email"));
             person.setPhone(row.get("phone"));
             person.setBirthdate(parseDate(row.get("birthdate")));
             person.setStatus(PersonStatus.ACTIVE);
-            Long qualId = parseLongOrNull(row.get("qualification_id"));
-            person.setQualificationType(resolveQualificationRef(unit, testData, qualId, qualificationBySource));
+            person.setQualificationType(null);
             if (row.get("divera_ucr_id") != null) {
                 person.setDiveraUcrId(row.get("divera_ucr_id").trim());
             }
@@ -689,97 +662,31 @@ public class UnitPersonalAtemschutzTransferService {
 
         List<Course> courses = courseRepository.findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(unitId, testData);
         courseRepository.deleteAll(courses);
-        List<QualificationType> qualifications =
-                qualificationTypeRepository.findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(unitId, testData);
-        qualificationTypeRepository.deleteAll(qualifications);
     }
 
-    private void importLegacyQualificationRows(
-            Unit unit,
-            boolean testData,
-            List<Map<String, String>> rows,
-            Integer sourceEinheitId,
-            Map<Long, QualificationType> result,
-            ImportSummary summary) {
-        for (Map<String, String> row : rows) {
-            if (!matchesEinheit(row, sourceEinheitId)) {
-                continue;
-            }
-            long sourceId = parseLong(row.get("id"));
-            if (sourceId <= 0) {
-                continue;
-            }
-            String name = row.get("name");
-            if (blank(name)) {
-                name = "Qualifikation " + sourceId;
-            }
-            QualificationType qt = findOrCreateQualification(unit, testData, sourceId, name.trim());
-            qt.setSortOrder(parseInt(row.get("sort_order"), qt.getSortOrder()));
-            result.put(sourceId, qualificationTypeRepository.saveAndFlush(qt));
-            summary.qualifications++;
-        }
-    }
-
-    private QualificationType resolveQualificationRef(
-            Unit unit, boolean testData, Long qualSourceId, Map<Long, QualificationType> bySource) {
-        if (qualSourceId == null || qualSourceId <= 0) {
-            return null;
-        }
-        QualificationType existing = bySource.get(qualSourceId);
-        if (existing != null && existing.getId() != null) {
-            return existing;
-        }
-        QualificationType created = findOrCreateQualification(unit, testData, qualSourceId, "Qualifikation " + qualSourceId);
-        QualificationType saved = qualificationTypeRepository.saveAndFlush(created);
-        bySource.put(qualSourceId, saved);
-        return saved;
-    }
-
-    private QualificationType findOrCreateQualification(Unit unit, boolean testData, long sourceId, String name) {
-        return qualificationTypeRepository.findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(unit.getId(), testData).stream()
-                .filter(q -> sourceId > 0 && Objects.equals(q.getProductionSourceId(), sourceId))
-                .findFirst()
-                .or(() -> qualificationTypeRepository.findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(unit.getId(), testData).stream()
-                        .filter(q -> q.getName().equalsIgnoreCase(name))
-                        .findFirst())
-                .orElseGet(() -> {
-                    QualificationType created = new QualificationType();
-                    created.setUnit(unit);
-                    created.setName(name);
-                    created.setTestData(testData);
-                    created.setProductionSourceId(sourceId > 0 ? sourceId : null);
-                    return created;
-                });
-    }
-
-    private Course findOrCreateCourse(Unit unit, boolean testData, long sourceId, String name) {
+    private Course findOrCreateCourse(Unit unit, boolean testData, String name) {
         return courseRepository.findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(unit.getId(), testData).stream()
-                .filter(c -> sourceId > 0 && Objects.equals(c.getProductionSourceId(), sourceId))
+                .filter(c -> c.getName().equalsIgnoreCase(name))
                 .findFirst()
-                .or(() -> courseRepository.findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(unit.getId(), testData).stream()
-                        .filter(c -> c.getName().equalsIgnoreCase(name))
-                        .findFirst())
                 .orElseGet(() -> {
                     Course created = new Course();
                     created.setUnit(unit);
                     created.setName(name);
                     created.setTestData(testData);
-                    created.setProductionSourceId(sourceId > 0 ? sourceId : null);
                     return created;
                 });
     }
 
-    private Person findOrCreatePerson(Unit unit, boolean testData, long sourceId) {
+    private Person findOrCreatePerson(Unit unit, boolean testData, String firstName, String lastName) {
         return personRepository.findActiveByUnitId(unit.getId(), testData).stream()
-                .filter(p -> sourceId > 0 && Objects.equals(p.getProductionSourceId(), sourceId))
+                .filter(p -> p.getFirstName().equalsIgnoreCase(firstName) && p.getLastName().equalsIgnoreCase(lastName))
                 .findFirst()
                 .orElseGet(() -> {
                     Person created = new Person();
                     created.setUnit(unit);
                     created.setTestData(testData);
-                    created.setProductionSourceId(sourceId > 0 ? sourceId : null);
-                    created.setFirstName("—");
-                    created.setLastName("—");
+                    created.setFirstName(firstName);
+                    created.setLastName(lastName);
                     return created;
                 });
     }
@@ -943,9 +850,8 @@ public class UnitPersonalAtemschutzTransferService {
         public String message() {
             return String.format(
                     Locale.GERMANY,
-                    "%d Qualifikationen, %d Lehrgänge, %d Personen, %d Lehrgangszuordnungen, %d Gruppen, "
-                            + "%d Geräteträger, %d Nachweise importiert.",
-                    qualifications,
+                    "%d Lehrgänge, %d Personen, %d Lehrgangszuordnungen, %d Gruppen, "
+                            + "%d Geräteträger, %d Nachweise importiert. Qualifikationen bitte manuell pflegen.",
                     courses,
                     persons,
                     courseCompletions,

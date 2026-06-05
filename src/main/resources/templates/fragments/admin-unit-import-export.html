@@ -9,6 +9,7 @@
         <p class="hint" style="margin-top:0;">
           Sichert Personal- und Atemschutz-Daten dieser Einheit als JSON-Datei
           (Personen, Lehrgänge, Gruppen, Geräteträger, Nachweise, Einstellungen).
+          Qualifikationen können separat unter Ausbildung gepflegt werden.
         </p>
         <a class="btn btn--primary"
            th:href="@{/admin/unit/import-export/export(unit=${unitId})}">
@@ -87,7 +88,7 @@
     <div class="card__body">
       <ul class="import-export-notes">
         <li><strong>members</strong> → Personen</li>
-        <li><strong>member_qualifications</strong> → Qualifikationen</li>
+        <li><strong>member_qualifications</strong> → wird ignoriert (Qualifikationen bitte manuell unter Ausbildung pflegen)</li>
         <li><strong>courses</strong> / <strong>member_courses</strong> → Lehrgänge und Abschlüsse</li>
         <li><strong>member_groups</strong> → Gruppen</li>
         <li><strong>atemschutz_traeger</strong> → Geräteträger mit G26-, Übungs- und Strecken-Nachweisen</li>
