@@ -379,15 +379,28 @@
         <div class="modal__body">
           <p id="reset-pw-username" class="hint">Benutzer: —</p>
           <p id="reset-pw-email" class="hint text-sm"></p>
-          <div class="form-group">
-            <label for="reset-pw-value">Neues Passwort</label>
-            <input id="reset-pw-value" name="newPassword" type="password" required th:minlength="${minPasswordLength}"/>
+          <div class="form-group form-group--full">
+            <span class="form-label">Neues Passwort</span>
+            <div class="radio-group">
+              <label class="radio-row" th:if="${smtpConfigured}">
+                <input type="radio" name="passwordDelivery" value="email" checked/>
+                <span>Automatisch generieren und per E-Mail senden</span>
+              </label>
+              <label class="radio-row">
+                <input type="radio" name="passwordDelivery" value="manual"
+                       th:checked="${!smtpConfigured}"/>
+                <span>Selbst vergeben (ohne E-Mail)</span>
+              </label>
+            </div>
+            <p class="hint" th:if="${!smtpConfigured}">
+              SMTP der Einheit ist nicht konfiguriert — nur manuelle Vergabe möglich.
+            </p>
           </div>
-          <div class="form-group" th:if="${smtpConfigured}">
-            <label class="checkbox-row">
-              <input type="checkbox" name="sendPasswordEmail" value="true" checked/>
-              Passwort per E-Mail senden
-            </label>
+          <div class="form-group" id="reset-pw-manual-field" hidden>
+            <label for="reset-pw-value">Passwort</label>
+            <input id="reset-pw-value" name="newPassword" type="password"
+                   th:minlength="${minPasswordLength}" autocomplete="new-password"/>
+            <p class="hint" th:text="'Mindestens ' + ${minPasswordLength} + ' Zeichen.'">Mindestens 8 Zeichen.</p>
           </div>
         </div>
         <div class="modal__footer">

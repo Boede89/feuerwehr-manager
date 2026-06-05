@@ -15,6 +15,7 @@ import de.feuerwehr.manager.unit.UserUnitFunctionId;
 import de.feuerwehr.manager.unit.UserUnitFunctionRepository;
 import de.feuerwehr.manager.web.dto.UserDataExport;
 import jakarta.servlet.http.HttpServletRequest;
+import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class UserManagementService {
+
+    private static final SecureRandom PASSWORD_RANDOM = new SecureRandom();
+    private static final String PASSWORD_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
 
     private final UserRepository userRepository;
     private final UnitRepository unitRepository;
@@ -550,6 +554,15 @@ public class UserManagementService {
 
     public void validatePlainPassword(String plainPassword) {
         validatePassword(plainPassword);
+    }
+
+    public String generateRandomPassword() {
+        int length = Math.max(securityProperties.minPasswordLength(), 12);
+        StringBuilder password = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            password.append(PASSWORD_CHARS.charAt(PASSWORD_RANDOM.nextInt(PASSWORD_CHARS.length())));
+        }
+        return password.toString();
     }
 
     private void validatePassword(String plainPassword) {

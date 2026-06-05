@@ -320,18 +320,49 @@ public class AdminPanelController {
     public String resetUserPassword(
             @AuthenticationPrincipal AppUserDetails actor,
             @PathVariable long id,
-            @RequestParam String newPassword,
+            @RequestParam(required = false) String newPassword,
+            @RequestParam(name = "passwordDelivery", defaultValue = "manual") String passwordDelivery,
             @RequestParam(name = "scope") String scope,
             @RequestParam(name = "unit", required = false) Long unitId,
-            @RequestParam(name = "sendPasswordEmail", defaultValue = "false") boolean sendPasswordEmail,
             HttpServletRequest request,
             RedirectAttributes redirectAttributes) {
         try {
-            userManagementService.setPasswordByAdmin(id, newPassword, actor, request);
             User user = userService.findByIdWithUnit(id).orElseThrow();
-            String message = "Passwort wurde zurückgesetzt.";
             Long mailUnitId = user.getUnit() != null ? user.getUnit().getId() : unitId;
-            message = appendMailNotice(message, user, newPassword, sendPasswordEmail, true, mailUnitId);
+            boolean sendByEmail = "email".equals(passwordDelivery);
+            String password;
+            if (sendByEmail) {
+                if (mailUnitId == null) {
+                    throw new IllegalArgumentException(
+                            "Keine Einheit zugeordnet — automatischer E-Mail-Versand nicht möglich.");
+                }
+                if (!accountMailService.canSendMailForUnit(mailUnitId)) {
+                    throw new IllegalArgumentException(
+                            "SMTP der Einheit ist nicht konfiguriert (Admin → Einheit → Schnittstellen).");
+                }
+                if (user.getLoginEmail() == null || user.getLoginEmail().isBlank()) {
+                    throw new IllegalArgumentException(
+                            "Keine E-Mail-Adresse am Benutzer hinterlegt — bitte Passwort selbst vergeben.");
+                }
+                password = userManagementService.generateRandomPassword();
+            } else {
+                if (newPassword == null || newPassword.isBlank()) {
+                    throw new IllegalArgumentException("Bitte ein neues Passwort eingeben.");
+                }
+                userManagementService.validatePlainPassword(newPassword);
+                password = newPassword;
+            }
+            userManagementService.setPasswordByAdmin(id, password, actor, request);
+            String message = "Passwort wurde zurückgesetzt.";
+            if (sendByEmail) {
+                Optional<String> mailError =
+                        accountMailService.sendPasswordNotification(user, mailUnitId, password, true);
+                if (mailError.isEmpty()) {
+                    message += " Das neue Passwort wurde per E-Mail versendet.";
+                } else {
+                    message += " " + mailError.get() + " Neues Passwort: " + password;
+                }
+            }
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", message);
         } catch (IllegalArgumentException e) {

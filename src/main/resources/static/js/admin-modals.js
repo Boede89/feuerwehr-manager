@@ -40,6 +40,43 @@
     if (hintRequired) hintRequired.hidden = isSuperAdmin;
   }
 
+  function syncResetPasswordFields() {
+    const form = document.getElementById('form-reset-pw');
+    const manualField = document.getElementById('reset-pw-manual-field');
+    const pw = document.getElementById('reset-pw-value');
+    if (!form) return;
+    const checked = form.querySelector('input[name="passwordDelivery"]:checked');
+    const mode = checked ? checked.value : 'manual';
+    const showManual = mode === 'manual';
+    if (manualField) manualField.hidden = !showManual;
+    if (pw) {
+      pw.required = showManual;
+      if (!showManual) pw.value = '';
+    }
+  }
+
+  function initResetPasswordHandlers() {
+    const form = document.getElementById('form-reset-pw');
+    if (!form) return;
+    form.querySelectorAll('input[name="passwordDelivery"]').forEach((radio) => {
+      radio.addEventListener('change', syncResetPasswordFields);
+    });
+    form.addEventListener('submit', (e) => {
+      const checked = form.querySelector('input[name="passwordDelivery"]:checked');
+      const mode = checked ? checked.value : 'manual';
+      if (mode !== 'manual') return;
+      const pw = document.getElementById('reset-pw-value');
+      const minLen = pw ? parseInt(pw.getAttribute('minlength') || '8', 10) : 8;
+      const value = pw ? pw.value : '';
+      if (!value || value.length < minLen) {
+        e.preventDefault();
+        if (pw) pw.focus();
+        window.alert('Bitte ein Passwort mit mindestens ' + minLen + ' Zeichen eingeben.');
+      }
+    });
+    syncResetPasswordFields();
+  }
+
   function initUnitRoleHandlers() {
     document.querySelectorAll('[data-unit-role-select]').forEach((select) => {
       const root = select.closest('form') || select.closest('.modal');
@@ -70,8 +107,14 @@
           emailHint.textContent =
             mail && mail.trim() ? 'E-Mail: ' + mail : 'Keine E-Mail hinterlegt — Versand nicht möglich.';
         }
-        const pw = document.getElementById('reset-pw-value');
-        if (pw) pw.value = '';
+        const emailRadio = form && form.querySelector('input[name="passwordDelivery"][value="email"]');
+        const manualRadio = form && form.querySelector('input[name="passwordDelivery"][value="manual"]');
+        if (emailRadio && emailHint && emailHint.textContent.indexOf('Keine E-Mail') === -1) {
+          emailRadio.checked = true;
+        } else if (manualRadio) {
+          manualRadio.checked = true;
+        }
+        syncResetPasswordFields();
       }
 
       if (modalId === 'modal-edit-unit') {
@@ -162,6 +205,7 @@
   });
 
   initUnitRoleHandlers();
+  initResetPasswordHandlers();
 
   function initTestModeToggle() {
     const form = document.getElementById('testmode-toggle-form');
