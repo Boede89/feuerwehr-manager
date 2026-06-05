@@ -83,6 +83,7 @@
         <table class="table" id="course-table">
           <thead>
           <tr>
+            <th scope="col">Reihenfolge</th>
             <th class="table__th-sort" scope="col" data-sort-key="name" tabindex="0" role="columnheader"
                 aria-sort="none">Name</th>
             <th class="table__th-sort" scope="col" data-sort-key="qualification" tabindex="0" role="columnheader"
@@ -95,13 +96,18 @@
           <tr th:each="c, stat : ${courses}" class="course-row"
               th:attr="data-sort-name=${c.name},
                        data-sort-qualification=${c.qualificationType != null ? c.qualificationType.name : ''}">
-            <th:block th:replace="~{fragments/admin-table-order :: cell(
-                moveUrl=@{/admin/unit/courses/move},
-                unitId=${unitId},
-                itemIdParam='courseId',
-                itemId=${c.id},
-                disableUp=${stat.first},
-                disableDown=${stat.last})}"></th:block>
+            <td>
+              <div class="priority-cell">
+                <span class="priority-cell__rank" th:text="${stat.count}">1</span>
+                <th:block th:replace="~{fragments/admin-table-order :: controls(
+                    moveUrl=@{/admin/unit/courses/move},
+                    unitId=${unitId},
+                    itemIdParam='courseId',
+                    itemId=${c.id},
+                    disableUp=${stat.first},
+                    disableDown=${stat.last})}"></th:block>
+              </div>
+            </td>
             <td><strong th:text="${c.name}">Lehrgang</strong></td>
             <td class="text-muted text-sm"
                 th:text="${c.qualificationType != null ? c.qualificationType.name : '—'}">—</td>
@@ -111,13 +117,6 @@
             </td>
             <td>
               <div class="btn-group">
-                <th:block th:replace="~{fragments/admin-table-order :: controls(
-                    moveUrl=@{/admin/unit/courses/move},
-                    unitId=${unitId},
-                    itemIdParam='courseId',
-                    itemId=${c.id},
-                    disableUp=${stat.first},
-                    disableDown=${stat.last})}"></th:block>
                 <button type="button" class="btn btn--outline btn--sm" data-open-modal="modal-course-edit"
                         th:data-id="${c.id}" th:data-name="${c.name}" th:data-active="${c.active}"
                         th:attr="data-qualification-id=${c.qualificationType != null ? c.qualificationType.id : ''}">Bearb.</button>

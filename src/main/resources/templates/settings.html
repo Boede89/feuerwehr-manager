@@ -109,7 +109,8 @@
           <p class="totp-muted">Scanne den QR-Code mit deiner Authenticator-App (2FAS, Google Authenticator, Authy, …):</p>
           <div class="totp-qr-wrap">
             <div class="totp-qr-box">
-              <img th:src="@{/settings/totp/qr}" width="200" height="200" alt="QR-Code für Authenticator"/>
+              <img th:if="${totpSetupActive}" th:src="@{/settings/totp/qr}" width="200" height="200"
+                   alt="QR-Code für Authenticator"/>
             </div>
           </div>
           <p class="totp-muted totp-muted--sm">Oder manuell eingeben:</p>
