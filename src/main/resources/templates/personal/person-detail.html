@@ -47,7 +47,7 @@
               <label for="personnelNumber">Personalnummer</label>
               <input id="personnelNumber" name="personnelNumber" type="text" maxlength="50"/>
             </div>
-            <div class="form-group form-group--full">
+            <div class="form-group form-group--full" th:if="${isAdmin}">
               <label class="checkbox-row">
                 <input id="allowLogin" name="allowLogin" type="checkbox" value="true" th:checked="${formAllowLogin}"/>
                 <span>Login erlauben</span>

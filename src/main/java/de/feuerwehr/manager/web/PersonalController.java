@@ -91,6 +91,9 @@ public class PersonalController {
             HttpServletRequest request,
             RedirectAttributes redirectAttributes) {
         try {
+            if (allowLogin) {
+                accessControlService.requireAdminLevel(actor);
+            }
             PersonCreateResult result = personalService.createPersonComplete(
                     unit,
                     firstName,
@@ -209,6 +212,43 @@ public class PersonalController {
             return "redirect:/personal/" + id + "?unit=" + unit + "&tab=" + tab + "&edit=1";
         }
         return "redirect:/personal/" + id + "?unit=" + unit + "&tab=" + tab;
+    }
+
+    @PostMapping("/{id}/login-access")
+    public String updateLoginAccess(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @RequestParam long unit,
+            @RequestParam(required = false, defaultValue = "false") boolean allowLogin,
+            HttpServletRequest request,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Person person = personalService.requirePerson(id);
+            accessControlService.requireUnitAccess(actor, person.getUnit().getId());
+            accessControlService.requireAdminLevel(actor);
+            StammdatenUpdateResult result =
+                    personalMemberService.updateLoginAccess(id, allowLogin, actor.getUserId(), request);
+            redirectAttributes.addFlashAttribute("saved", true);
+            if (result.initialPassword() != null) {
+                String email = result.person().getEmail();
+                redirectAttributes.addFlashAttribute(
+                        "message",
+                        "Benutzerkonto angelegt. Login: „"
+                                + result.createdUsername()
+                                + "“"
+                                + (email != null && !email.isBlank() ? " oder E-Mail „" + email.trim() + "“" : "")
+                                + ", Startpasswort: "
+                                + result.initialPassword()
+                                + ".");
+            } else if (allowLogin) {
+                redirectAttributes.addFlashAttribute("message", "Systemzugang ist aktiv.");
+            } else {
+                redirectAttributes.addFlashAttribute("message", "Login-Verknüpfung wurde entfernt.");
+            }
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/personal/" + id + "?unit=" + unit + "&tab=stammdaten";
     }
 
     @PostMapping("/{id}/fw-stammdaten")

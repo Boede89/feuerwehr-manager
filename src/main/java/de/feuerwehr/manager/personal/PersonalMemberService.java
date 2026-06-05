@@ -383,6 +383,12 @@ public class PersonalMemberService {
     }
 
     @Transactional
+    public PersonalService.StammdatenUpdateResult updateLoginAccess(
+            long personId, boolean allowLogin, long actorUserId, jakarta.servlet.http.HttpServletRequest request) {
+        return personalService.updateLoginAccess(personId, allowLogin, actorUserId, request);
+    }
+
+    @Transactional
     public void updateQualificationType(long personId, Long qualificationTypeId) {
         personalService.updateQualificationType(personId, qualificationTypeId);
     }

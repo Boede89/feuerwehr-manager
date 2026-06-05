@@ -233,6 +233,38 @@ public class PersonalService {
     }
 
     @Transactional
+    public StammdatenUpdateResult updateLoginAccess(
+            long personId, boolean allowLogin, long actorUserId, HttpServletRequest request) {
+        Person person = writablePerson(requirePerson(personId));
+        String generatedPassword = null;
+        String createdUsername = null;
+        if (allowLogin) {
+            if (person.getUser() == null) {
+                String password = generateNumericLoginPassword();
+                String username =
+                        userManagementService.allocateUniqueUsername(person.getFirstName(), person.getLastName());
+                User user = userManagementService.createUserForPerson(
+                        username,
+                        person.displayName(),
+                        password,
+                        person.getUnit().getId(),
+                        person.getEmail(),
+                        actorUserId,
+                        request);
+                person.setUser(user);
+                generatedPassword = password;
+                createdUsername = username;
+            }
+        } else {
+            person.setUser(null);
+        }
+        personRepository.save(person);
+        Person reloaded = requirePerson(person.getId());
+        syncUserDienstgradFromPersonQualification(reloaded);
+        return new StammdatenUpdateResult(reloaded, createdUsername, generatedPassword);
+    }
+
+    @Transactional
     public StammdatenUpdateResult updateStammdaten(
             long personId,
             String firstName,

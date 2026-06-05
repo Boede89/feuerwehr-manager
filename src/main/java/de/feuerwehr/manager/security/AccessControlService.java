@@ -20,6 +20,12 @@ public class AccessControlService {
         }
     }
 
+    public void requireAdminLevel(AppUserDetails actor) {
+        if (actor == null || !actor.getRole().isAdminLevel()) {
+            throw new IllegalArgumentException("Nur Einheits- oder Superadmins dürfen diese Aktion ausführen.");
+        }
+    }
+
     public boolean canManageUser(AppUserDetails actor, User target) {
         if (actor == null || target == null) {
             return false;
