@@ -3841,6 +3841,13 @@ span.required { color: var(--error); }
   border-bottom: 1px solid var(--border);
 }
 
+.einsatzbericht-form-page .incident-vehicle-card__title-wrap {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .einsatzbericht-form-page .incident-vehicle-card__name {
   margin: 0;
   font-size: 14px;
@@ -3849,6 +3856,15 @@ span.required { color: var(--error); }
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.einsatzbericht-form-page .incident-vehicle-card__type-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  line-height: 1.2;
 }
 
 .einsatzbericht-form-page .incident-vehicle-card__staerke {
@@ -3894,13 +3910,54 @@ span.required { color: var(--error); }
   max-width: 100%;
 }
 
-.einsatzbericht-form-page .incident-vehicle-card--wache {
+.einsatzbericht-form-page .incident-vehicle-card--einsatzstelle {
   border-style: dashed;
-  background: var(--bg);
+  border-color: color-mix(in srgb, var(--einsatz-c, var(--rot)) 40%, var(--border));
+  background: color-mix(in srgb, var(--einsatz-c, var(--rot)) 4%, var(--bg));
 }
 
-.einsatzbericht-form-page .incident-vehicle-card--wache .incident-vehicle-card__head {
-  background: var(--bg-card);
+.einsatzbericht-form-page .incident-vehicle-card--einsatzstelle .incident-vehicle-card__head {
+  background: color-mix(in srgb, var(--einsatz-c, var(--rot)) 10%, var(--bg-card));
+}
+
+.einsatzbericht-form-page .incident-kraefte-section--scene .incident-vehicle-card {
+  max-width: none;
+}
+
+/* Fahrzeugkarten — Farbe nach Typ */
+.einsatzbericht-form-page .incident-vehicle-card--type-lkw .incident-vehicle-card__head {
+  background: color-mix(in srgb, #2563eb 14%, var(--bg-card));
+  border-bottom-color: color-mix(in srgb, #2563eb 35%, var(--border));
+}
+
+.einsatzbericht-form-page .incident-vehicle-card--type-loeschfahrzeug .incident-vehicle-card__head {
+  background: color-mix(in srgb, #dc2626 14%, var(--bg-card));
+  border-bottom-color: color-mix(in srgb, #dc2626 35%, var(--border));
+}
+
+.einsatzbericht-form-page .incident-vehicle-card--type-drehleiter .incident-vehicle-card__head {
+  background: color-mix(in srgb, #ea580c 14%, var(--bg-card));
+  border-bottom-color: color-mix(in srgb, #ea580c 35%, var(--border));
+}
+
+.einsatzbericht-form-page .incident-vehicle-card--type-pkw .incident-vehicle-card__head {
+  background: color-mix(in srgb, #64748b 14%, var(--bg-card));
+  border-bottom-color: color-mix(in srgb, #64748b 35%, var(--border));
+}
+
+.einsatzbericht-form-page .incident-vehicle-card--type-anhaenger .incident-vehicle-card__head {
+  background: color-mix(in srgb, #ca8a04 14%, var(--bg-card));
+  border-bottom-color: color-mix(in srgb, #ca8a04 35%, var(--border));
+}
+
+.einsatzbericht-form-page .incident-vehicle-card--type-fuehrungsfahrzeug .incident-vehicle-card__head {
+  background: color-mix(in srgb, #7c3aed 14%, var(--bg-card));
+  border-bottom-color: color-mix(in srgb, #7c3aed 35%, var(--border));
+}
+
+.einsatzbericht-form-page .incident-vehicle-card--type-sonstiges .incident-vehicle-card__head {
+  background: color-mix(in srgb, #6b7280 12%, var(--bg-card));
+  border-bottom-color: color-mix(in srgb, #6b7280 30%, var(--border));
 }
 
 /* Berichte-Einstellungen */

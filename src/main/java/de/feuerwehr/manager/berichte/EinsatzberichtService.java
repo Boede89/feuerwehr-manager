@@ -17,6 +17,7 @@ import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.technik.Vehicle;
 import de.feuerwehr.manager.technik.VehicleRepository;
+import de.feuerwehr.manager.technik.VehicleTypes;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
 import de.feuerwehr.manager.user.User;
@@ -90,7 +91,7 @@ public class EinsatzberichtService {
         for (Vehicle vehicle : unitVehicles) {
             crewByVehicleId.put(vehicle.getId(), new ArrayList<>());
         }
-        List<Long> wacheCrewIds = new ArrayList<>();
+        List<Long> einsatzstelleCrewIds = new ArrayList<>();
 
         Set<Long> diveraPersonIds = new HashSet<>();
         Set<Long> onVehiclePersonIds = new HashSet<>();
@@ -112,8 +113,9 @@ public class EinsatzberichtService {
                     long vehicleId = reportVehicle.getVehicle().getId();
                     crewByVehicleId.computeIfAbsent(vehicleId, k -> new ArrayList<>()).add(person.getId());
                     onVehiclePersonIds.add(person.getId());
-                } else if (IncidentCrewSupport.WACHE_VEHICLE_NAME.equals(reportVehicle.getVehicleName())) {
-                    wacheCrewIds.add(person.getId());
+                } else if (reportVehicle.getVehicle() == null
+                        && IncidentCrewSupport.isSceneWithoutVehicleName(reportVehicle.getVehicleName())) {
+                    einsatzstelleCrewIds.add(person.getId());
                     onVehiclePersonIds.add(person.getId());
                 }
             }
@@ -149,26 +151,31 @@ public class EinsatzberichtService {
             List<KraefteFahrzeugeState.KraeftePersonView> crewViews = crew.stream()
                     .map(p -> toPersonView(p, sortOrderByPersonId))
                     .toList();
+            String typeKey = vehicle.getVehicleType();
             vehicles.add(new KraefteFahrzeugeState.KraefteVehicleView(
                     vehicle.getId(),
                     vehicle.getName(),
+                    typeKey,
+                    VehicleTypes.labelFor(typeKey),
                     new ArrayList<>(crewIds),
                     crewViews,
                     Besatzungsstaerke.format(crew)));
         }
 
-        List<Person> wacheCrew = wacheCrewIds.stream()
+        List<Person> einsatzstelleCrew = einsatzstelleCrewIds.stream()
                 .map(personById::get)
                 .filter(Objects::nonNull)
                 .toList();
-        vehicles.add(new KraefteFahrzeugeState.KraefteVehicleView(
-                IncidentCrewSupport.WACHE_VEHICLE_ID,
-                IncidentCrewSupport.WACHE_VEHICLE_NAME,
-                new ArrayList<>(wacheCrewIds),
-                wacheCrew.stream().map(p -> toPersonView(p, sortOrderByPersonId)).toList(),
-                Besatzungsstaerke.format(wacheCrew)));
+        KraefteFahrzeugeState.KraefteVehicleView einsatzstelle = new KraefteFahrzeugeState.KraefteVehicleView(
+                IncidentCrewSupport.EINSATZSTELLE_VEHICLE_ID,
+                IncidentCrewSupport.EINSATZSTELLE_VEHICLE_NAME,
+                null,
+                null,
+                new ArrayList<>(einsatzstelleCrewIds),
+                einsatzstelleCrew.stream().map(p -> toPersonView(p, sortOrderByPersonId)).toList(),
+                Besatzungsstaerke.format(einsatzstelleCrew));
 
-        return new KraefteFahrzeugeState(manualPersons, diveraPersons, vehicles);
+        return new KraefteFahrzeugeState(manualPersons, diveraPersons, einsatzstelle, vehicles);
     }
 
     public String serializeKraefteFahrzeugeState(KraefteFahrzeugeState state) {
@@ -397,19 +404,19 @@ public class EinsatzberichtService {
         List<CrewAssignment> assignments =
                 form.crewAssignments() != null ? form.crewAssignments() : List.of();
 
-        IncidentReportVehicle wacheVehicle = null;
+        IncidentReportVehicle einsatzstelleVehicle = null;
 
         for (CrewAssignment assignment : assignments) {
             IncidentReportVehicle reportVehicle;
-            if (assignment.vehicleId() == IncidentCrewSupport.WACHE_VEHICLE_ID) {
-                if (wacheVehicle == null) {
-                    wacheVehicle = new IncidentReportVehicle();
-                    wacheVehicle.setIncidentReport(report);
-                    wacheVehicle.setVehicle(null);
-                    wacheVehicle.setVehicleName(IncidentCrewSupport.WACHE_VEHICLE_NAME);
-                    wacheVehicle = incidentReportVehicleRepository.save(wacheVehicle);
+            if (IncidentCrewSupport.isSceneWithoutVehicle(assignment.vehicleId())) {
+                if (einsatzstelleVehicle == null) {
+                    einsatzstelleVehicle = new IncidentReportVehicle();
+                    einsatzstelleVehicle.setIncidentReport(report);
+                    einsatzstelleVehicle.setVehicle(null);
+                    einsatzstelleVehicle.setVehicleName(IncidentCrewSupport.EINSATZSTELLE_VEHICLE_NAME);
+                    einsatzstelleVehicle = incidentReportVehicleRepository.save(einsatzstelleVehicle);
                 }
-                reportVehicle = wacheVehicle;
+                reportVehicle = einsatzstelleVehicle;
             } else {
                 reportVehicle = reportVehicleByUnitVehicleId.get(assignment.vehicleId());
             }
