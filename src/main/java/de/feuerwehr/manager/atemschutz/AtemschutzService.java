@@ -18,6 +18,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class AtemschutzService {
+
+    public static final String FITNESS_SOURCE_INCIDENT_REPORT = "INCIDENT_REPORT";
 
     private final UnitRepository unitRepository;
     private final PersonalService personalService;
@@ -270,6 +274,104 @@ public class AtemschutzService {
                 .findByIdAndTestData(recordId, testModeService.isEnabled())
                 .orElseThrow(() -> new IllegalArgumentException("Nachweis nicht gefunden"));
         fitnessRecordRepository.delete(record);
+    }
+
+    /** PA-Zuordnung im Einsatzbericht → Übung/Einsatz-Nachweis; entfernt verwaiste Einträge. */
+    @Transactional
+    public void syncIncidentPaFitnessRecords(
+            long unitId,
+            long reportId,
+            Set<Long> paPersonIds,
+            LocalDate incidentDate,
+            String sourceLabel,
+            Long createdByUserId) {
+        if (incidentDate == null) {
+            return;
+        }
+        boolean testData = testModeService.isEnabled();
+        Set<Long> desiredPersonIds = paPersonIds != null ? paPersonIds : Set.of();
+        List<AtemschutzFitnessRecord> existing = fitnessRecordRepository.findBySourceRefTypeAndSourceRefId(
+                FITNESS_SOURCE_INCIDENT_REPORT, reportId, testData);
+        for (AtemschutzFitnessRecord record : existing) {
+            long personId = record.getCarrier().getPerson().getId();
+            if (!desiredPersonIds.contains(personId)) {
+                fitnessRecordRepository.delete(record);
+            }
+        }
+        if (desiredPersonIds.isEmpty()) {
+            return;
+        }
+        User createdBy = resolveCreatedBy(createdByUserId);
+        String label = blankToNull(sourceLabel);
+        for (Long personId : desiredPersonIds) {
+            if (personId == null || personId <= 0) {
+                continue;
+            }
+            carrierRepository
+                    .findByPersonIdAndTestData(personId, testData)
+                    .filter(carrier -> carrier.getUnit().getId() == unitId)
+                    .ifPresent(carrier -> upsertIncidentPaRecord(
+                            carrier, reportId, incidentDate, label, createdBy, testData));
+        }
+    }
+
+    @Transactional
+    public void deleteIncidentPaFitnessRecords(long reportId) {
+        boolean testData = testModeService.isEnabled();
+        List<AtemschutzFitnessRecord> existing = fitnessRecordRepository.findBySourceRefTypeAndSourceRefId(
+                FITNESS_SOURCE_INCIDENT_REPORT, reportId, testData);
+        if (!existing.isEmpty()) {
+            fitnessRecordRepository.deleteAll(existing);
+        }
+    }
+
+    private void upsertIncidentPaRecord(
+            AtemschutzCarrier carrier,
+            long reportId,
+            LocalDate incidentDate,
+            String sourceLabel,
+            User createdBy,
+            boolean testData) {
+        long personId = carrier.getPerson().getId();
+        Optional<AtemschutzFitnessRecord> existing = fitnessRecordRepository.findBySourceRefAndPersonId(
+                FITNESS_SOURCE_INCIDENT_REPORT, reportId, personId, testData);
+        LocalDate validUntil =
+                computeValidUntil(AtemschutzFitnessType.UEBUNG, incidentDate, carrier.getPerson().getBirthdate());
+        if (existing.isPresent()) {
+            AtemschutzFitnessRecord record = existing.get();
+            boolean changed = false;
+            if (!Objects.equals(record.getValidFrom(), incidentDate)) {
+                record.setValidFrom(incidentDate);
+                record.setValidUntil(validUntil);
+                changed = true;
+            }
+            if (!Objects.equals(record.getSourceLabel(), sourceLabel)) {
+                record.setSourceLabel(sourceLabel);
+                changed = true;
+            }
+            if (changed) {
+                fitnessRecordRepository.save(record);
+            }
+            return;
+        }
+        AtemschutzFitnessRecord record = new AtemschutzFitnessRecord();
+        record.setCarrier(carrier);
+        record.setRecordType(AtemschutzFitnessType.UEBUNG);
+        record.setValidFrom(incidentDate);
+        record.setValidUntil(validUntil);
+        record.setCreatedBy(createdBy);
+        record.setTestData(testData);
+        record.setSourceLabel(sourceLabel);
+        record.setSourceRefType(FITNESS_SOURCE_INCIDENT_REPORT);
+        record.setSourceRefId(reportId);
+        fitnessRecordRepository.save(record);
+    }
+
+    private User resolveCreatedBy(Long createdByUserId) {
+        if (createdByUserId == null || createdByUserId <= 0) {
+            return null;
+        }
+        return userRepository.findById(createdByUserId).orElse(null);
     }
 
     public static AtemschutzFitnessLevel computeLevel(LocalDate validUntil, int warnDays, LocalDate today) {

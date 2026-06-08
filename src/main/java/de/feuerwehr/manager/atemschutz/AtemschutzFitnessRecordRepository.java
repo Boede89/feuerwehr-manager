@@ -34,4 +34,28 @@ public interface AtemschutzFitnessRecordRepository extends JpaRepository<Atemsch
             @Param("carrierIds") List<Long> carrierIds,
             @Param("type") AtemschutzFitnessType type,
             @Param("testData") boolean testData);
+
+    @Query("""
+            SELECT r FROM AtemschutzFitnessRecord r
+            JOIN FETCH r.carrier c
+            JOIN FETCH c.person
+            WHERE r.sourceRefType = :refType AND r.sourceRefId = :refId AND r.testData = :testData
+            """)
+    List<AtemschutzFitnessRecord> findBySourceRefTypeAndSourceRefId(
+            @Param("refType") String refType,
+            @Param("refId") long refId,
+            @Param("testData") boolean testData);
+
+    @Query("""
+            SELECT r FROM AtemschutzFitnessRecord r
+            JOIN FETCH r.carrier c
+            JOIN FETCH c.person
+            WHERE r.sourceRefType = :refType AND r.sourceRefId = :refId
+              AND c.person.id = :personId AND r.testData = :testData
+            """)
+    Optional<AtemschutzFitnessRecord> findBySourceRefAndPersonId(
+            @Param("refType") String refType,
+            @Param("refId") long refId,
+            @Param("personId") long personId,
+            @Param("testData") boolean testData);
 }

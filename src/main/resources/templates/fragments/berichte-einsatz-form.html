@@ -182,9 +182,11 @@
                 <div class="incident-vehicle-dropzone" th:attr="data-vehicle-id=${scene.vehicleId()}">
                   <div class="incident-crew-chip" draggable="true"
                        th:each="person : ${scene.crewPersons()}"
-                       th:classappend="${person.poolSource() == 'divera' ? ' incident-crew-chip--divera' : ''}"
-                       th:attr="data-person-id=${person.id()}, data-qual-tier=${person.qualTier()}, data-person-name=${person.displayName()}, data-sort-order=${person.sortOrder()}, data-pool-source=${person.poolSource()}"
-                       th:text="${person.displayName()}">Name</div>
+                       th:classappend="${(person.poolSource() == 'divera' ? ' incident-crew-chip--divera' : '') + (person.usesPa() ? ' incident-crew-chip--pa' : '')}"
+                       th:attr="data-person-id=${person.id()}, data-qual-tier=${person.qualTier()}, data-person-name=${person.displayName()}, data-sort-order=${person.sortOrder()}, data-pool-source=${person.poolSource()}, data-pa=${person.usesPa() ? 'true' : null}">
+                    <span class="incident-crew-chip__pa-badge" th:if="${person.usesPa()}">PA</span>
+                    <span class="incident-crew-chip__name" th:text="${person.displayName()}">Name</span>
+                  </div>
                 </div>
                 <p class="hint incident-vehicle-dropzone-hint">Vor Ort, kein Fahrzeug</p>
               </article>
@@ -199,9 +201,11 @@
                 <div class="incident-vehicle-dropzone" th:attr="data-vehicle-id=${wache.vehicleId()}">
                   <div class="incident-crew-chip" draggable="true"
                        th:each="person : ${wache.crewPersons()}"
-                       th:classappend="${person.poolSource() == 'divera' ? ' incident-crew-chip--divera' : ''}"
-                       th:attr="data-person-id=${person.id()}, data-qual-tier=${person.qualTier()}, data-person-name=${person.displayName()}, data-sort-order=${person.sortOrder()}, data-pool-source=${person.poolSource()}"
-                       th:text="${person.displayName()}">Name</div>
+                       th:classappend="${(person.poolSource() == 'divera' ? ' incident-crew-chip--divera' : '') + (person.usesPa() ? ' incident-crew-chip--pa' : '')}"
+                       th:attr="data-person-id=${person.id()}, data-qual-tier=${person.qualTier()}, data-person-name=${person.displayName()}, data-sort-order=${person.sortOrder()}, data-pool-source=${person.poolSource()}, data-pa=${person.usesPa() ? 'true' : null}">
+                    <span class="incident-crew-chip__pa-badge" th:if="${person.usesPa()}">PA</span>
+                    <span class="incident-crew-chip__name" th:text="${person.displayName()}">Name</span>
+                  </div>
                 </div>
                 <p class="hint incident-vehicle-dropzone-hint">Nur an der Wache</p>
               </article>
@@ -215,7 +219,7 @@
             <header class="incident-kraefte-section__head">
               <div>
                 <h3 class="incident-kraefte-section__title">Fahrzeugbesetzung</h3>
-                <p class="hint text-sm">ZF / GF / M / Gesamt — Person anklicken für Einheitsführer / Maschinist</p>
+                <p class="hint text-sm">ZF / GF / M / Gesamt — Person anklicken für Einheitsführer, Maschinist oder PA</p>
               </div>
             </header>
             <div class="incident-vehicle-stack" id="incident-vehicle-stack">
@@ -235,12 +239,13 @@
                 <div class="incident-vehicle-dropzone" th:attr="data-vehicle-id=${v.vehicleId()}">
                   <div class="incident-crew-chip incident-crew-chip--vehicle-role" draggable="true"
                        th:each="person : ${v.crewPersons()}"
-                       th:classappend="${(person.poolSource() == 'divera' ? ' incident-crew-chip--divera' : '') + (person.vehicleRole() == 'EINHEITSFUEHRER' ? ' incident-crew-chip--ef' : (person.vehicleRole() == 'MASCHINIST' ? ' incident-crew-chip--maschinist' : ''))}"
-                       th:attr="data-person-id=${person.id()}, data-qual-tier=${person.qualTier()}, data-person-name=${person.displayName()}, data-sort-order=${person.sortOrder()}, data-vehicle-role=${person.vehicleRole()}, data-pool-source=${person.poolSource()}">
+                       th:classappend="${(person.poolSource() == 'divera' ? ' incident-crew-chip--divera' : '') + (person.vehicleRole() == 'EINHEITSFUEHRER' ? ' incident-crew-chip--ef' : (person.vehicleRole() == 'MASCHINIST' ? ' incident-crew-chip--maschinist' : '')) + (person.usesPa() ? ' incident-crew-chip--pa' : '')}"
+                       th:attr="data-person-id=${person.id()}, data-qual-tier=${person.qualTier()}, data-person-name=${person.displayName()}, data-sort-order=${person.sortOrder()}, data-vehicle-role=${person.vehicleRole()}, data-pool-source=${person.poolSource()}, data-pa=${person.usesPa() ? 'true' : null}">
                     <span class="incident-crew-chip__role-badge"
                           th:if="${person.vehicleRole() == 'EINHEITSFUEHRER'}">EF</span>
                     <span class="incident-crew-chip__role-badge"
                           th:if="${person.vehicleRole() == 'MASCHINIST'}">Ma</span>
+                    <span class="incident-crew-chip__pa-badge" th:if="${person.usesPa()}">PA</span>
                     <span class="incident-crew-chip__name" th:text="${person.displayName()}">Name</span>
                   </div>
                 </div>
@@ -258,6 +263,15 @@
         </button>
         <button type="button" class="incident-crew-role-menu__btn" data-role="MASCHINIST" role="menuitem">
           Maschinist
+        </button>
+        <button type="button" class="incident-crew-role-menu__btn" data-action="PA" role="menuitem">
+          PA (Atemschutz)
+        </button>
+        <button type="button" class="incident-crew-role-menu__btn incident-crew-role-menu__btn--danger" data-action="CLEAR_ROLE" role="menuitem">
+          Zuordnung löschen
+        </button>
+        <button type="button" class="incident-crew-role-menu__btn incident-crew-role-menu__btn--danger" data-action="CLEAR_PA" role="menuitem">
+          PA entfernen
         </button>
       </div>
 

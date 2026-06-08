@@ -15,6 +15,7 @@ public record KraefteFahrzeugeState(
             String qualTier,
             int sortOrder,
             String vehicleRole,
+            boolean usesPa,
             String poolSource) {}
 
     public record KraefteVehicleView(

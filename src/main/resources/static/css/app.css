@@ -3931,6 +3931,23 @@ span.required { color: var(--error); }
   color: #fff;
 }
 
+.einsatzbericht-form-page .incident-crew-chip--pa {
+  border-color: color-mix(in srgb, #7c3aed 35%, var(--border));
+}
+
+.einsatzbericht-form-page .incident-crew-chip__pa-badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 2px 5px;
+  border-radius: var(--radius-pill);
+  line-height: 1.2;
+  background: #7c3aed;
+  color: #fff;
+}
+
 .einsatzbericht-form-page .incident-crew-chip__name {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3978,6 +3995,14 @@ span.required { color: var(--error); }
 
 .einsatzbericht-form-page .incident-crew-role-menu__btn[data-role="MASCHINIST"] {
   color: #0369a1;
+}
+
+.einsatzbericht-form-page .incident-crew-role-menu__btn[data-action="PA"] {
+  color: #6d28d9;
+}
+
+.einsatzbericht-form-page .incident-crew-role-menu__btn--danger {
+  color: var(--danger, #b91c1c);
 }
 
 .einsatzbericht-form-page .incident-crew-role-menu__btn[hidden] {

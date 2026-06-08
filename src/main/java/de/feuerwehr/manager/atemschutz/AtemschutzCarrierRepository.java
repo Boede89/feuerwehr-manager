@@ -29,6 +29,15 @@ public interface AtemschutzCarrierRepository extends JpaRepository<AtemschutzCar
     boolean existsByPersonId(long personId);
 
     @Query("""
+            SELECT c FROM AtemschutzCarrier c
+            JOIN FETCH c.person
+            JOIN FETCH c.unit
+            WHERE c.person.id = :personId AND c.testData = :testData
+            """)
+    Optional<AtemschutzCarrier> findByPersonIdAndTestData(
+            @Param("personId") long personId, @Param("testData") boolean testData);
+
+    @Query("""
             SELECT c.person.id FROM AtemschutzCarrier c
             WHERE c.unit.id = :unitId AND c.testData = :testData
             """)

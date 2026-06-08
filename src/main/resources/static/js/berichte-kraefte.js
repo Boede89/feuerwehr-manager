@@ -7,6 +7,9 @@
 
   var ROLE_EF = 'EINHEITSFUEHRER';
   var ROLE_MA = 'MASCHINIST';
+  var ACTION_PA = 'PA';
+  var ACTION_CLEAR_ROLE = 'CLEAR_ROLE';
+  var ACTION_CLEAR_PA = 'CLEAR_PA';
 
   function computeStaerke(chips) {
     var zf = 0;
@@ -72,10 +75,6 @@
     });
   }
 
-  function findChipByPersonId(personId) {
-    return document.querySelector('.incident-crew-chip[data-person-id="' + personId + '"]');
-  }
-
   function removePersonFromBoard(personId, exceptChip) {
     document.querySelectorAll('.incident-crew-chip[data-person-id="' + personId + '"]').forEach(function (chip) {
       if (chip !== exceptChip) {
@@ -96,6 +95,10 @@
     return role === ROLE_EF ? 'EF' : 'Ma';
   }
 
+  function chipHasPa(chip) {
+    return chip && chip.dataset.pa === 'true';
+  }
+
   function ensureChipNameElement(chip) {
     if (!chip.querySelector('.incident-crew-chip__name')) {
       var name = chip.dataset.personName || chip.textContent.trim();
@@ -107,16 +110,36 @@
     }
   }
 
+  function removeRoleBadge(chip) {
+    var badge = chip.querySelector('.incident-crew-chip__role-badge');
+    if (badge) {
+      badge.remove();
+    }
+  }
+
+  function removePaBadge(chip) {
+    var badge = chip.querySelector('.incident-crew-chip__pa-badge');
+    if (badge) {
+      badge.remove();
+    }
+  }
+
   function clearChipVehicleRole(chip) {
     if (!chip) {
       return;
     }
     delete chip.dataset.vehicleRole;
     chip.classList.remove('incident-crew-chip--ef', 'incident-crew-chip--maschinist');
-    var badge = chip.querySelector('.incident-crew-chip__role-badge');
-    if (badge) {
-      badge.remove();
+    removeRoleBadge(chip);
+  }
+
+  function clearChipPa(chip) {
+    if (!chip) {
+      return;
     }
+    delete chip.dataset.pa;
+    chip.classList.remove('incident-crew-chip--pa');
+    removePaBadge(chip);
   }
 
   function applyChipVehicleRole(chip, role) {
@@ -130,7 +153,32 @@
     var badge = document.createElement('span');
     badge.className = 'incident-crew-chip__role-badge';
     badge.textContent = roleBadgeLabel(role);
-    chip.insertBefore(badge, chip.firstChild);
+    var paBadge = chip.querySelector('.incident-crew-chip__pa-badge');
+    if (paBadge) {
+      chip.insertBefore(badge, paBadge);
+    } else {
+      chip.insertBefore(badge, chip.firstChild);
+    }
+  }
+
+  function applyChipPa(chip) {
+    if (!chip) {
+      return;
+    }
+    ensureChipNameElement(chip);
+    chip.dataset.pa = 'true';
+    chip.classList.add('incident-crew-chip--pa');
+    if (!chip.querySelector('.incident-crew-chip__pa-badge')) {
+      var badge = document.createElement('span');
+      badge.className = 'incident-crew-chip__pa-badge';
+      badge.textContent = 'PA';
+      var roleBadge = chip.querySelector('.incident-crew-chip__role-badge');
+      if (roleBadge) {
+        roleBadge.insertAdjacentElement('afterend', badge);
+      } else {
+        chip.insertBefore(badge, chip.firstChild);
+      }
+    }
   }
 
   function findRoleChipInVehicle(card, role) {
@@ -148,30 +196,45 @@
     roleMenuChip = null;
   }
 
+  function configureMenuButton(btn, hidden) {
+    btn.hidden = hidden;
+  }
+
   function showRoleMenu(chip) {
     var card = vehicleCardForChip(chip);
     var menu = document.getElementById('incident-crew-role-menu');
-    if (!isRealVehicleCard(card) || !menu) {
+    if (!chip.closest('.incident-vehicle-dropzone') || !menu) {
       return;
     }
+    var onRealVehicle = isRealVehicleCard(card);
     var currentRole = chip.dataset.vehicleRole || '';
-    if (currentRole) {
-      clearChipVehicleRole(chip);
-      hideRoleMenu();
-      syncHiddenJson();
-      return;
-    }
-    var hasEf = !!findRoleChipInVehicle(card, ROLE_EF);
-    var hasMa = !!findRoleChipInVehicle(card, ROLE_MA);
+    var hasPa = chipHasPa(chip);
+    var hasEf = onRealVehicle && !!findRoleChipInVehicle(card, ROLE_EF);
+    var hasMa = onRealVehicle && !!findRoleChipInVehicle(card, ROLE_MA);
+
     menu.querySelectorAll('.incident-crew-role-menu__btn').forEach(function (btn) {
-      var role = btn.dataset.role;
-      btn.hidden = (role === ROLE_EF && hasEf) || (role === ROLE_MA && hasMa);
+      var action = btn.dataset.action || btn.dataset.role;
+      var hidden = true;
+      if (action === ROLE_EF) {
+        hidden = !onRealVehicle || !!currentRole || (hasEf && currentRole !== ROLE_EF);
+      } else if (action === ROLE_MA) {
+        hidden = !onRealVehicle || !!currentRole || (hasMa && currentRole !== ROLE_MA);
+      } else if (action === ACTION_PA) {
+        hidden = hasPa;
+      } else if (action === ACTION_CLEAR_ROLE) {
+        hidden = !onRealVehicle || !currentRole;
+      } else if (action === ACTION_CLEAR_PA) {
+        hidden = !hasPa;
+      }
+      configureMenuButton(btn, hidden);
     });
+
     var visibleButtons = menu.querySelectorAll('.incident-crew-role-menu__btn:not([hidden])');
     if (visibleButtons.length === 0) {
       hideRoleMenu();
       return;
     }
+
     roleMenuChip = chip;
     menu.hidden = false;
     var board = document.getElementById('incident-kraefte-board');
@@ -186,20 +249,28 @@
     menu.style.top = top + 'px';
   }
 
-  function assignVehicleRole(role) {
-    if (!roleMenuChip || !role) {
+  function handleMenuAction(action) {
+    if (!roleMenuChip || !action) {
       return;
     }
-    var card = vehicleCardForChip(roleMenuChip);
-    if (!isRealVehicleCard(card)) {
-      hideRoleMenu();
-      return;
+    if (action === ACTION_CLEAR_ROLE) {
+      clearChipVehicleRole(roleMenuChip);
+    } else if (action === ACTION_CLEAR_PA) {
+      clearChipPa(roleMenuChip);
+    } else if (action === ACTION_PA) {
+      applyChipPa(roleMenuChip);
+    } else if (action === ROLE_EF || action === ROLE_MA) {
+      var card = vehicleCardForChip(roleMenuChip);
+      if (!isRealVehicleCard(card)) {
+        hideRoleMenu();
+        return;
+      }
+      var existing = findRoleChipInVehicle(card, action);
+      if (existing && existing !== roleMenuChip) {
+        clearChipVehicleRole(existing);
+      }
+      applyChipVehicleRole(roleMenuChip, action);
     }
-    var existing = findRoleChipInVehicle(card, role);
-    if (existing && existing !== roleMenuChip) {
-      clearChipVehicleRole(existing);
-    }
-    applyChipVehicleRole(roleMenuChip, role);
     hideRoleMenu();
     syncHiddenJson();
   }
@@ -229,6 +300,16 @@
         if (maChip) {
           assignment.maschinistPersonId = Number(maChip.dataset.personId);
         }
+      }
+      var paIds = Array.from(card.querySelectorAll('.incident-vehicle-dropzone .incident-crew-chip[data-pa="true"]'))
+        .map(function (chip) {
+          return Number(chip.dataset.personId);
+        })
+        .filter(function (id) {
+          return !isNaN(id);
+        });
+      if (paIds.length > 0) {
+        assignment.paPersonIds = paIds;
       }
       assignments.push(assignment);
     });
@@ -388,6 +469,7 @@
     }
     removePersonFromBoard(draggedChip.dataset.personId, draggedChip);
     clearChipVehicleRole(draggedChip);
+    clearChipPa(draggedChip);
     draggedChip.classList.remove('incident-crew-chip--vehicle-role');
     if (homePool.dataset.pool === 'divera') {
       draggedChip.classList.add('incident-crew-chip--divera');
@@ -416,11 +498,8 @@
       if (suppressChipClick) {
         return;
       }
-      var chip = e.target.closest('.incident-crew-chip--vehicle-role');
+      var chip = e.target.closest('.incident-crew-chip');
       if (!chip || !chip.closest('.incident-vehicle-dropzone')) {
-        return;
-      }
-      if (!isRealVehicleCard(vehicleCardForChip(chip))) {
         return;
       }
       e.stopPropagation();
@@ -432,13 +511,13 @@
       roleMenu.querySelectorAll('.incident-crew-role-menu__btn').forEach(function (btn) {
         btn.addEventListener('click', function (e) {
           e.stopPropagation();
-          assignVehicleRole(btn.dataset.role);
+          handleMenuAction(btn.dataset.action || btn.dataset.role);
         });
       });
     }
 
     document.addEventListener('click', function (e) {
-      if (!e.target.closest('#incident-crew-role-menu') && !e.target.closest('.incident-crew-chip--vehicle-role')) {
+      if (!e.target.closest('#incident-crew-role-menu') && !e.target.closest('.incident-vehicle-dropzone .incident-crew-chip')) {
         hideRoleMenu();
       }
     });

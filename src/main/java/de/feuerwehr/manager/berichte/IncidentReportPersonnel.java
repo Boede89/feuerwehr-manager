@@ -51,6 +51,9 @@ public class IncidentReportPersonnel {
     @Column(name = "vehicle_role", length = 24)
     private IncidentVehicleCrewRole vehicleRole;
 
+    @Column(name = "uses_pa", nullable = false)
+    private boolean usesPa;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;
 }

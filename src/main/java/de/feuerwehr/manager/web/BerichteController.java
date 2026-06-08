@@ -254,6 +254,20 @@ public class BerichteController {
         if (vehicle.maschinistPersonId() != null) {
             sb.append(",\"maschinistPersonId\":").append(vehicle.maschinistPersonId());
         }
+        List<Long> paIds = vehicle.crewPersons().stream()
+                .filter(KraefteFahrzeugeState.KraeftePersonView::usesPa)
+                .map(KraefteFahrzeugeState.KraeftePersonView::id)
+                .toList();
+        if (!paIds.isEmpty()) {
+            sb.append(",\"paPersonIds\":[");
+            for (int i = 0; i < paIds.size(); i++) {
+                if (i > 0) {
+                    sb.append(',');
+                }
+                sb.append(paIds.get(i));
+            }
+            sb.append(']');
+        }
         sb.append('}');
         return false;
     }

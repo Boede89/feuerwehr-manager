@@ -7,6 +7,7 @@ import de.feuerwehr.manager.divera.DiveraApiClient;
 import static de.feuerwehr.manager.divera.DiveraIntegrationSupport.DIVERA_ZONE;
 
 import de.feuerwehr.manager.divera.DiveraIntegrationSupport;
+import de.feuerwehr.manager.atemschutz.AtemschutzService;
 import de.feuerwehr.manager.divera.DiveraMappingService;
 import de.feuerwehr.manager.divera.DiveraService;
 import de.feuerwehr.manager.unit.UnitDiveraSettings;
@@ -63,6 +64,7 @@ public class EinsatzberichtService {
     private final DiveraApiClient diveraApiClient;
     private final DiveraService diveraService;
     private final DiveraMappingService diveraMappingService;
+    private final AtemschutzService atemschutzService;
     private final UnitDiveraSettingsRepository diveraSettingsRepository;
     private final ObjectMapper objectMapper;
 
@@ -100,6 +102,7 @@ public class EinsatzberichtService {
         Set<Long> diveraPersonIds = new HashSet<>();
         Set<Long> onVehiclePersonIds = new HashSet<>();
         Map<Long, IncidentPersonnelSource> sourceByPersonId = new LinkedHashMap<>();
+        Map<Long, Boolean> paByPersonId = new LinkedHashMap<>();
 
         if (reportId != null) {
             for (IncidentReportPersonnel row : incidentReportPersonnelRepository.findByIncidentReportId(reportId)) {
@@ -108,6 +111,9 @@ public class EinsatzberichtService {
                     continue;
                 }
                 sourceByPersonId.put(person.getId(), row.getSource());
+                if (row.isUsesPa()) {
+                    paByPersonId.put(person.getId(), true);
+                }
                 if (row.getSource() == IncidentPersonnelSource.DIVERA) {
                     diveraPersonIds.add(person.getId());
                 }
@@ -149,10 +155,10 @@ public class EinsatzberichtService {
         for (Person person : allPersons) {
             if (diveraPersonIds.contains(person.getId())) {
                 if (!onVehiclePersonIds.contains(person.getId())) {
-                    diveraPersons.add(toPersonView(person, sortOrderByPersonId, null, "divera"));
+                    diveraPersons.add(toPersonView(person, sortOrderByPersonId, null, false, "divera"));
                 }
             } else if (!onVehiclePersonIds.contains(person.getId())) {
-                manualPersons.add(toPersonView(person, sortOrderByPersonId, null, "manual"));
+                manualPersons.add(toPersonView(person, sortOrderByPersonId, null, false, "manual"));
             }
         }
 
@@ -172,6 +178,7 @@ public class EinsatzberichtService {
                             p,
                             sortOrderByPersonId,
                             roles.get(p.getId()),
+                            paByPersonId.getOrDefault(p.getId(), false),
                             poolSourceFor(sourceByPersonId.get(p.getId()))))
                     .toList();
             Long einheitsfuehrerPersonId = null;
@@ -206,7 +213,8 @@ public class EinsatzberichtService {
                 einsatzstelleCrewIds,
                 einsatzstelleCrew,
                 sortOrderByPersonId,
-                sourceByPersonId);
+                sourceByPersonId,
+                paByPersonId);
         List<Person> wacheCrew = wacheCrewIds.stream()
                 .map(personById::get)
                 .filter(Objects::nonNull)
@@ -217,7 +225,8 @@ public class EinsatzberichtService {
                 wacheCrewIds,
                 wacheCrew,
                 sortOrderByPersonId,
-                sourceByPersonId);
+                sourceByPersonId,
+                paByPersonId);
 
         return new KraefteFahrzeugeState(manualPersons, diveraPersons, einsatzstelle, wache, vehicles);
     }
@@ -244,11 +253,15 @@ public class EinsatzberichtService {
                 List<Long> personIds = payload.personIds() != null
                         ? payload.personIds().stream().filter(Objects::nonNull).toList()
                         : List.of();
+                List<Long> paPersonIds = payload.paPersonIds() != null
+                        ? payload.paPersonIds().stream().filter(Objects::nonNull).toList()
+                        : List.of();
                 result.add(new CrewAssignment(
                         payload.vehicleId(),
                         personIds,
                         payload.einheitsfuehrerPersonId(),
-                        payload.maschinistPersonId()));
+                        payload.maschinistPersonId(),
+                        paPersonIds));
             }
             return result;
         } catch (Exception e) {
@@ -301,6 +314,7 @@ public class EinsatzberichtService {
         applyCreator(report, actor);
         IncidentReport saved = incidentReportRepository.save(report);
         saveCrewAssignments(saved, form, unitId);
+        syncPaAtemschutzRecords(saved, form, actor);
         return saved;
     }
 
@@ -308,6 +322,7 @@ public class EinsatzberichtService {
     public void delete(long unitId, long reportId) {
         IncidentReport report = requireReport(unitId, reportId);
         long id = report.getId();
+        atemschutzService.deleteIncidentPaFitnessRecords(id);
         incidentReportPersonnelRepository.deleteByIncidentReportId(id);
         incidentReportVehicleRepository.deleteByIncidentReportId(id);
         incidentReportRepository.delete(report);
@@ -370,6 +385,7 @@ public class EinsatzberichtService {
         applyForm(report, form, unitId);
         IncidentReport saved = incidentReportRepository.save(report);
         saveCrewAssignments(saved, form, unitId);
+        syncPaAtemschutzRecords(saved, form, actor);
         return saved;
     }
 
@@ -476,6 +492,9 @@ public class EinsatzberichtService {
             Long einheitsfuehrerPersonId =
                     assignment.vehicleId() > 0 ? assignment.einheitsfuehrerPersonId() : null;
             Long maschinistPersonId = assignment.vehicleId() > 0 ? assignment.maschinistPersonId() : null;
+            Set<Long> paPersonIds = assignment.paPersonIds() != null
+                    ? assignment.paPersonIds().stream().filter(Objects::nonNull).collect(Collectors.toSet())
+                    : Set.of();
             for (Long personId : assignment.personIds()) {
                 if (personId == null || !assignedPersons.add(personId)) {
                     continue;
@@ -492,9 +511,51 @@ public class EinsatzberichtService {
                 } else if (personId.equals(maschinistPersonId)) {
                     row.setVehicleRole(IncidentVehicleCrewRole.MASCHINIST);
                 }
+                row.setUsesPa(paPersonIds.contains(personId));
                 incidentReportPersonnelRepository.save(row);
             }
         }
+    }
+
+    private void syncPaAtemschutzRecords(IncidentReport report, EinsatzberichtFormData form, AppUserDetails actor) {
+        Set<Long> paPersonIds = collectPaPersonIds(form.crewAssignments());
+        Long userId = actor != null ? actor.getUserId() : null;
+        atemschutzService.syncIncidentPaFitnessRecords(
+                report.getUnit().getId(),
+                report.getId(),
+                paPersonIds,
+                report.getIncidentDate(),
+                incidentPaSourceLabel(report),
+                userId);
+    }
+
+    private static Set<Long> collectPaPersonIds(List<CrewAssignment> assignments) {
+        Set<Long> result = new LinkedHashSet<>();
+        if (assignments == null) {
+            return result;
+        }
+        for (CrewAssignment assignment : assignments) {
+            if (assignment.paPersonIds() == null) {
+                continue;
+            }
+            assignment.paPersonIds().stream().filter(Objects::nonNull).forEach(result::add);
+        }
+        return result;
+    }
+
+    private static String incidentPaSourceLabel(IncidentReport report) {
+        String number = report.getIncidentNumber() != null ? report.getIncidentNumber().trim() : "";
+        String stichwort = report.getStichwort() != null ? report.getStichwort().trim() : "";
+        if (!number.isEmpty() && !stichwort.isEmpty()) {
+            return number + " " + stichwort;
+        }
+        if (!number.isEmpty()) {
+            return number;
+        }
+        if (!stichwort.isEmpty()) {
+            return stichwort;
+        }
+        return "Einsatzbericht";
     }
 
     private Map<Long, IncidentPersonnelSource> loadExistingSources(long reportId) {
@@ -526,7 +587,8 @@ public class EinsatzberichtService {
             List<Long> crewIds,
             List<Person> crew,
             Map<Long, Integer> sortOrderByPersonId,
-            Map<Long, IncidentPersonnelSource> sourceByPersonId) {
+            Map<Long, IncidentPersonnelSource> sourceByPersonId,
+            Map<Long, Boolean> paByPersonId) {
         return new KraefteFahrzeugeState.KraefteVehicleView(
                 slotId,
                 slotName,
@@ -538,6 +600,7 @@ public class EinsatzberichtService {
                                 p,
                                 sortOrderByPersonId,
                                 null,
+                                paByPersonId.getOrDefault(p.getId(), false),
                                 poolSourceFor(sourceByPersonId.get(p.getId()))))
                         .toList(),
                 Besatzungsstaerke.format(crew),
@@ -553,6 +616,7 @@ public class EinsatzberichtService {
             Person person,
             Map<Long, Integer> sortOrderByPersonId,
             IncidentVehicleCrewRole vehicleRole,
+            boolean usesPa,
             String poolSource) {
         return new KraefteFahrzeugeState.KraeftePersonView(
                 person.getId(),
@@ -560,6 +624,7 @@ public class EinsatzberichtService {
                 Besatzungsstaerke.qualTier(person).name(),
                 sortOrderByPersonId.getOrDefault(person.getId(), 0),
                 vehicleRole != null ? vehicleRole.name() : null,
+                usesPa,
                 poolSource);
     }
 
@@ -871,5 +936,6 @@ public class EinsatzberichtService {
             Long vehicleId,
             List<Long> personIds,
             Long einheitsfuehrerPersonId,
-            Long maschinistPersonId) {}
+            Long maschinistPersonId,
+            List<Long> paPersonIds) {}
 }
