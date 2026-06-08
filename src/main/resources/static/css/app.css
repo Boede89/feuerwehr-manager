@@ -2061,12 +2061,25 @@ code {
   border-bottom-color: var(--gelb);
 }
 
-.test-alarm-json {
+.test-alarm-json,
+.api-json-view {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: var(--fs-sm);
   line-height: 1.45;
   min-height: 280px;
   resize: vertical;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.api-json-view {
+  min-height: 320px;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.schnittstellen-endpoint code {
+  font-size: 12px;
 }
 
 /* Module toggles */

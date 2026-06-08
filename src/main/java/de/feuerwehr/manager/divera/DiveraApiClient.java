@@ -37,36 +37,82 @@ public class DiveraApiClient {
         this.restClient = RestClient.builder().requestFactory(rf).build();
     }
 
+    public record RawApiResponse(boolean success, String message, String body, int httpStatus, String endpoint) {}
+
     /** Alle nicht archivierten Alarme von DIVERA (offen und geschlossen). */
     public DiveraAlarmsResponse fetchAlarms(String apiBaseUrl, String accessKey) {
-        String key = accessKey == null ? "" : accessKey.trim().replaceAll("[\\r\\n\\t\\v]+", "");
-        if (key.isEmpty()) {
-            return DiveraAlarmsResponse.fail("Divera Access Key fehlt (in den Einheitseinstellungen hinterlegen)");
+        RawApiResponse raw = fetchRawAlarms(apiBaseUrl, accessKey);
+        if (!raw.success()) {
+            return DiveraAlarmsResponse.fail(raw.message());
         }
-        String base = trimTrailingSlash(apiBaseUrl);
-        if (base.isEmpty()) {
-            base = "https://app.divera247.com";
-        }
-        URI uri = buildAlarmsUri(base, key);
-
         try {
-            String raw = restClient.get().uri(uri).retrieve().body(String.class);
-            if (raw == null || raw.isBlank()) {
-                return DiveraAlarmsResponse.fail("Divera-API: Leere Antwort");
-            }
-            JsonNode root = objectMapper.readTree(raw);
-            if (root.path("success").asBoolean(false) == false && root.has("success")) {
-                String msg = textOr(root, "message", "error", "Divera-API: Zugriff verweigert oder ungültiger Access Key");
-                return DiveraAlarmsResponse.fail(msg);
-            }
+            JsonNode root = objectMapper.readTree(raw.body());
             ParsedAlarms parsed = parseAlarmItems(root.path("data"));
             parsed.alarms().sort(Comparator.comparingLong(DiveraAlarmSummary::dateEpochSeconds).reversed());
             return DiveraAlarmsResponse.ok(parsed.alarms(), parsed.rawJsonByAlarmId());
-        } catch (RestClientResponseException e) {
-            return DiveraAlarmsResponse.fail("Divera-HTTP " + e.getStatusCode().value());
         } catch (Exception e) {
             return DiveraAlarmsResponse.fail("Divera-API: " + e.getMessage());
         }
+    }
+
+    /** Rohe JSON-Antwort von GET /api/v2/alarms (für Debug/Schnittstellen-Reiter). */
+    public RawApiResponse fetchRawAlarms(String apiBaseUrl, String accessKey) {
+        String key = normalizeAccessKey(accessKey);
+        if (key.isEmpty()) {
+            return new RawApiResponse(false, "Divera Access Key fehlt (in den Einheitseinstellungen hinterlegen)", null, 0, null);
+        }
+        String base = normalizeApiBase(apiBaseUrl);
+        URI uri = buildAlarmsUri(base, key);
+        return fetchRawGet(uri, base + "/api/v2/alarms?accesskey=…");
+    }
+
+    /** Rohe JSON-Antwort von GET /api/users (für Debug/Schnittstellen-Reiter). */
+    public RawApiResponse fetchRawUsers(String apiBaseUrl, String accessKey) {
+        String key = normalizeAccessKey(accessKey);
+        if (key.isEmpty()) {
+            return new RawApiResponse(false, "Divera Access Key fehlt (in den Einheitseinstellungen hinterlegen)", null, 0, null);
+        }
+        String base = normalizeApiBase(apiBaseUrl);
+        URI uri = UriComponentsBuilder.fromUriString(base + "/api/users")
+                .queryParam("accesskey", key)
+                .encode(StandardCharsets.UTF_8)
+                .build()
+                .toUri();
+        return fetchRawGet(uri, base + "/api/users?accesskey=…");
+    }
+
+    private RawApiResponse fetchRawGet(URI uri, String endpointLabel) {
+        try {
+            String raw = restClient.get().uri(uri).retrieve().body(String.class);
+            if (raw == null || raw.isBlank()) {
+                return new RawApiResponse(false, "DIVERA-API: Leere Antwort", null, 200, endpointLabel);
+            }
+            JsonNode root = objectMapper.readTree(raw);
+            if (root.path("success").asBoolean(false) == false && root.has("success")) {
+                String msg = textOr(root, "message", "error", "DIVERA-API: Zugriff verweigert oder ungültiger Access Key");
+                return new RawApiResponse(false, msg, raw, 200, endpointLabel);
+            }
+            return new RawApiResponse(true, "OK", raw, 200, endpointLabel);
+        } catch (RestClientResponseException e) {
+            String body = e.getResponseBodyAsString();
+            return new RawApiResponse(
+                    false,
+                    "DIVERA-HTTP " + e.getStatusCode().value(),
+                    body != null && !body.isBlank() ? body : null,
+                    e.getStatusCode().value(),
+                    endpointLabel);
+        } catch (Exception e) {
+            return new RawApiResponse(false, "DIVERA-API: " + e.getMessage(), null, 0, endpointLabel);
+        }
+    }
+
+    private static String normalizeAccessKey(String accessKey) {
+        return accessKey == null ? "" : accessKey.trim().replaceAll("[\\r\\n\\t\\v]+", "");
+    }
+
+    private static String normalizeApiBase(String apiBaseUrl) {
+        String base = trimTrailingSlash(apiBaseUrl);
+        return base.isEmpty() ? "https://app.divera247.com" : base;
     }
 
     private static URI buildAlarmsUri(String base, String key) {

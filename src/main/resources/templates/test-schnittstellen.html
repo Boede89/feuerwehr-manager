@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('Schnittstellen', ~{::main})}">
+<main>
+  <div th:replace="~{fragments/testmode-banner :: banner}"></div>
+
+  <div class="page-header">
+    <div>
+      <h2>Schnittstellen (DIVERA)</h2>
+      <p>
+        Rohe API-Antworten von DIVERA — nur im <strong>Testmodus</strong> sichtbar.
+        Hier können Sie die Felder (z. B. <code>ucr_answered</code>) einsehen und zuordnen.
+      </p>
+    </div>
+    <div class="btn-group">
+      <button type="button" class="btn btn--primary btn--sm" id="btn-schnittstellen-refresh">
+        Von DIVERA aktualisieren
+      </button>
+    </div>
+  </div>
+
+  <div id="schnittstellen-meta" hidden
+       th:attr="data-unit-id=${schnittstellenUnitId}"></div>
+
+  <div class="card" th:if="${!snapshot.ok()}">
+    <div class="card__body">
+      <p class="hint hint--warn" th:text="${snapshot.message()}">Fehler</p>
+    </div>
+  </div>
+
+  <div class="card" th:if="${snapshot.ok() or snapshot.apiBaseUrl() != null}">
+    <div class="card__header">API-Zugang</div>
+    <div class="card__body">
+      <p class="hint" style="margin:0;">
+        Basis-URL: <strong th:text="${snapshot.apiBaseUrl() != null ? snapshot.apiBaseUrl() : '—'}">https://app.divera247.com</strong>
+      </p>
+      <p class="hint schnittstellen-endpoint" style="margin:0.35rem 0 0;">
+        Alarme: <code th:text="${snapshot.alarmsEndpoint() != null ? snapshot.alarmsEndpoint() : 'GET /api/v2/alarms'}">GET /api/v2/alarms</code>
+        <span th:if="${snapshot.alarmsHttpStatus() != null}"
+              th:text="' (HTTP ' + ${snapshot.alarmsHttpStatus()} + ')'"></span>
+      </p>
+      <p class="hint schnittstellen-endpoint" style="margin:0.35rem 0 0;">
+        Benutzer: <code th:text="${snapshot.usersEndpoint() != null ? snapshot.usersEndpoint() : 'GET /api/users'}">GET /api/users</code>
+        <span th:if="${snapshot.usersHttpStatus() != null}"
+              th:text="' (HTTP ' + ${snapshot.usersHttpStatus()} + ')'"></span>
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__header">GET /api/v2/alarms — komplette Antwort</div>
+    <div class="card__body">
+      <p class="hint">
+        Alle nicht archivierten Alarmierungen inkl. <code>ucr_answered</code>, <code>ucr_adressed</code>, Zeitstempel usw.
+      </p>
+      <div class="form-group form-group--full">
+        <textarea id="schnittstellen-alarms-json" class="field api-json-view" rows="22" readonly
+                  th:text="${alarmsJson}"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__header">GET /api/users — Benutzer &amp; Status</div>
+    <div class="card__body">
+      <p class="hint">
+        Alle Nutzer der Einheit mit <code>user_cluster_relation_id</code> und <code>status_id</code> (für Personal-Zuordnung).
+      </p>
+      <div class="form-group form-group--full">
+        <textarea id="schnittstellen-users-json" class="field api-json-view" rows="18" readonly
+                  th:text="${usersJson}"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <p class="hint" id="schnittstellen-status" aria-live="polite"
+     th:text="${snapshot.message()}" th:if="${snapshot.ok()}"></p>
+
+  <script th:src="@{/js/test-schnittstellen.js}" defer></script>
+</main>
+</html>
