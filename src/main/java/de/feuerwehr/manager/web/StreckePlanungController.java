@@ -17,6 +17,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
@@ -32,6 +33,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+@Slf4j
 @Controller
 @RequestMapping("/atemschutz/strecke-planung")
 @RequiredArgsConstructor
@@ -55,13 +57,16 @@ public class StreckePlanungController {
             requireAtemschutzRead(actor, unit.getId());
             boolean includeHealth = actor.getRole().isAdminLevel();
             StreckePlanungView view = streckePlanungService.loadView(unit.getId(), includeHealth);
-            model.addAttribute("planung", view);
+            model.addAttribute("unassignedCarriers", view.unassignedCarriers());
+            model.addAttribute("termine", view.termine());
+            model.addAttribute("warnDays", view.warnDays());
             model.addAttribute("canWrite", canWrite(actor, unit.getId()));
             return "atemschutz/strecke-planung";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return unitId != null ? "redirect:/atemschutz?unit=" + unitId : "redirect:/";
         } catch (RuntimeException e) {
+            log.error("Strecke-Terminplanung laden fehlgeschlagen (unit={})", unitId, e);
             redirectAttributes.addFlashAttribute(
                     "error", "Strecke-Terminplanung konnte nicht geladen werden: " + e.getMessage());
             return unitId != null ? "redirect:/atemschutz?unit=" + unitId : "redirect:/";

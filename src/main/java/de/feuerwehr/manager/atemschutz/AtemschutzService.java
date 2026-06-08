@@ -23,6 +23,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -128,7 +129,7 @@ public class AtemschutzService {
         return new CarrierDetailView(carrier, summaries, recordViews);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void syncCarriersFromAgt(long unitId) {
         boolean testData = testModeService.isEnabled();
         Long courseId = atemschutzSettingsService.agtCourseId(unitId).orElse(null);
