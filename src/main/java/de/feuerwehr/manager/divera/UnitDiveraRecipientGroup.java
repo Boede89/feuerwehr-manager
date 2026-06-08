@@ -30,7 +30,7 @@ public class UnitDiveraRecipientGroup {
     @JoinColumn(name = "unit_id", nullable = false)
     private Unit unit;
 
-    @Column(name = "group_id", nullable = false, length = 64)
+    @Column(name = "group_id", length = 64)
     private String groupId;
 
     @Column(nullable = false, length = 128)

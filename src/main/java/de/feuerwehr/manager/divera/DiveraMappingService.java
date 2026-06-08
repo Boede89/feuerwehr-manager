@@ -27,10 +27,14 @@ public class DiveraMappingService {
 
     @Transactional
     public UnitDiveraRecipientGroup createRecipientGroup(long unitId, String groupId, String label) {
-        String normalizedId = normalizeId(groupId, "Gruppen-ID");
+        String normalizedId = normalizeOptionalGroupId(groupId);
         String normalizedLabel = normalizeLabel(label);
-        if (recipientGroupRepository.existsByUnitIdAndGroupId(unitId, normalizedId)) {
-            throw new IllegalArgumentException("Diese Empfänger-Gruppen-ID ist bereits hinterlegt.");
+        if (normalizedId != null) {
+            if (recipientGroupRepository.existsByUnitIdAndGroupId(unitId, normalizedId)) {
+                throw new IllegalArgumentException("Diese Empfänger-Gruppen-ID ist bereits hinterlegt.");
+            }
+        } else if (recipientGroupRepository.existsByUnitIdAndGroupIdIsNullAndLabel(unitId, normalizedLabel)) {
+            throw new IllegalArgumentException("Diese Bezeichnung ist bereits ohne ID hinterlegt.");
         }
         Unit unit = requireUnit(unitId);
         int nextOrder = recipientGroupRepository.findByUnitIdOrderBySortOrderAscLabelAsc(unitId).size() + 1;
@@ -79,6 +83,13 @@ public class DiveraMappingService {
             throw new IllegalArgumentException("Status-ID gehört nicht zu dieser Einheit.");
         }
         statusIdRepository.delete(row);
+    }
+
+    private static String normalizeOptionalGroupId(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     private static String normalizeId(String value, String fieldName) {

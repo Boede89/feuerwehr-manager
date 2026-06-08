@@ -8,4 +8,6 @@ public interface UnitDiveraRecipientGroupRepository extends JpaRepository<UnitDi
     List<UnitDiveraRecipientGroup> findByUnitIdOrderBySortOrderAscLabelAsc(long unitId);
 
     boolean existsByUnitIdAndGroupId(long unitId, String groupId);
+
+    boolean existsByUnitIdAndGroupIdIsNullAndLabel(long unitId, String label);
 }

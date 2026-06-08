@@ -244,7 +244,7 @@ public class AdminUnitController {
     public String createDiveraRecipientGroup(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam long unit,
-            @RequestParam String groupId,
+            @RequestParam(required = false, defaultValue = "") String groupId,
             @RequestParam String label,
             RedirectAttributes redirectAttributes) {
         return withUnit(actor, unit, redirectAttributes, "schnittstellen", () -> {
