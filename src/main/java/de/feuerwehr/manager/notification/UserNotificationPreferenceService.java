@@ -45,9 +45,6 @@ public class UserNotificationPreferenceService {
 
     @Transactional(readOnly = true)
     public boolean isEmailEnabled(long userId, UserNotificationTopic topic) {
-        if (userId == null) {
-            return true;
-        }
         return preferenceRepository
                 .findByUserIdAndTopicAndChannel(userId, topic, NotificationChannel.EMAIL)
                 .map(UserNotificationPreference::isEnabled)
