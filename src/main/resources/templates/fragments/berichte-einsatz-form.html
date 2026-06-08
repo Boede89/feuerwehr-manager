@@ -27,21 +27,32 @@
       </div>
       <div class="form-group">
         <label for="alarmTime">Alarmzeit</label>
-        <input id="alarmTime" name="alarmTime" type="time" th:value="${form.alarmTime}"/>
+        <input id="alarmTime" name="alarmTime" type="time"
+               th:value="${form.alarmTime != null ? #temporals.format(form.alarmTime, 'HH:mm') : ''}"/>
       </div>
       <div class="form-group">
         <label for="endTime">Einsatzende</label>
-        <input id="endTime" name="endTime" type="time" th:value="${form.endTime}"/>
+        <input id="endTime" name="endTime" type="time"
+               th:value="${form.endTime != null ? #temporals.format(form.endTime, 'HH:mm') : ''}"/>
       </div>
       <div class="form-group form-group--full">
         <label for="stichwort">Stichwort <span class="required">*</span></label>
-        <input id="stichwort" name="stichwort" type="text" maxlength="255" required
-               list="stichwort-list" placeholder="Stichwort eingeben oder auswählen"
-               th:value="${form.stichwort}"/>
-        <datalist id="stichwort-list">
-          <option th:each="s : ${knownStichworte}" th:value="${s}">Stichwort</option>
-        </datalist>
-        <p class="hint text-sm" style="margin:0;">Manuell eingeben; später auch automatisch aus Divera. Bereits verwendete Stichworte erscheinen in der Auswahlliste.</p>
+        <div class="combo-suggest" data-combo-suggest data-combo-min="1">
+          <input id="stichwort" name="stichwort" type="text" maxlength="255" required
+                 class="combo-suggest__input" autocomplete="off"
+                 placeholder="Stichwort eingeben …" th:value="${form.stichwort}"/>
+          <ul class="combo-suggest__list" role="listbox" hidden>
+            <li class="combo-suggest__option" th:each="s : ${knownStichworte}"
+                th:attr="data-value=${s}" th:text="${s}">Stichwort</li>
+          </ul>
+        </div>
+        <p class="hint text-sm" style="margin:0;">Tippen zum Filtern bekannter Stichworte; auch manuell oder aus DIVERA.</p>
+      </div>
+      <div class="form-group form-group--full">
+        <label for="nachrichtLeitstelle">Nachricht Leitstelle</label>
+        <textarea id="nachrichtLeitstelle" name="nachrichtLeitstelle" rows="3"
+                  placeholder="Meldung der Leitstelle aus DIVERA …"
+                  th:text="${form.nachrichtLeitstelle}"></textarea>
       </div>
       <div class="form-group form-group--full">
         <label for="location">Einsatzort <span class="required">*</span></label>
@@ -70,12 +81,16 @@
       </div>
       <div class="form-group form-group--full">
         <label for="incidentCommander">Einsatzleiter</label>
-        <input id="incidentCommander" name="incidentCommander" type="text" maxlength="255"
-               list="einsatzleiter-list" placeholder="Name eingeben …"
-               th:value="${form.incidentCommander}"/>
-        <datalist id="einsatzleiter-list">
-          <option th:each="p : ${unitPersons}" th:value="${p.anwesenheitDisplayName()}">Name</option>
-        </datalist>
+        <div class="combo-suggest" data-combo-suggest data-combo-min="1">
+          <input id="incidentCommander" name="incidentCommander" type="text" maxlength="255"
+                 class="combo-suggest__input" autocomplete="off"
+                 placeholder="Name eingeben …" th:value="${form.incidentCommander}"/>
+          <ul class="combo-suggest__list" role="listbox" hidden>
+            <li class="combo-suggest__option" th:each="p : ${unitPersons}"
+                th:attr="data-value=${p.anwesenheitDisplayName()}"
+                th:text="${p.anwesenheitDisplayName()}">Name</li>
+          </ul>
+        </div>
       </div>
       <div class="form-group">
         <label for="reporterName">Meldender</label>
@@ -110,11 +125,11 @@
 
       <div class="incident-kraefte-col incident-kraefte-col--divera">
         <h4 class="incident-kraefte-col__title">Personal (Divera)</h4>
-        <p class="hint text-sm">Wird später automatisch aus Divera-Rückmeldungen befüllt.</p>
-        <div class="incident-person-pool incident-person-pool--readonly" id="divera-person-pool" data-pool="divera">
-          <div class="incident-crew-chip incident-crew-chip--divera"
+        <p class="hint text-sm">Automatisch aus DIVERA-Rückmeldungen — per Drag &amp; Drop auf Fahrzeuge zuweisen.</p>
+        <div class="incident-person-pool incident-person-pool--divera" id="divera-person-pool" data-pool="divera">
+          <div class="incident-crew-chip incident-crew-chip--divera" draggable="true"
                th:each="p : ${kraefteState.diveraPersons()}"
-               th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}"
+               th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}, data-sort-order=${p.sortOrder()}"
                th:text="${p.displayName()}">Name</div>
         </div>
         <p class="hint incident-person-pool-empty" id="divera-pool-empty"

@@ -12,6 +12,7 @@ public record EinsatzberichtFormData(
         LocalTime arrivalTime,
         LocalTime endTime,
         String stichwort,
+        String nachrichtLeitstelle,
         String location,
         String postalCode,
         String district,

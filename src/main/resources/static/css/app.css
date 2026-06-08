@@ -3414,6 +3414,8 @@ span.required { color: var(--error); }
 
 .einsatzbericht-form-page .card {
   margin-bottom: 24px;
+  width: 100%;
+  max-width: none;
 }
 
 .einsatzbericht-form-page .incident-form-tabs {
@@ -3424,6 +3426,45 @@ span.required { color: var(--error); }
 
 .einsatzbericht-form-page .incident-tab-panel {
   padding: 20px 24px;
+}
+
+.einsatzbericht-form-page .incident-tab-panel[data-panel="1"] {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+/* Combo-Suggest (Stichwort, Einsatzleiter) */
+.einsatzbericht-form-page .combo-suggest {
+  position: relative;
+}
+
+.einsatzbericht-form-page .combo-suggest__list {
+  position: absolute;
+  z-index: 30;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  max-height: 220px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card-hover);
+  box-shadow: var(--schatten-md);
+}
+
+.einsatzbericht-form-page .combo-suggest__option {
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.einsatzbericht-form-page .combo-suggest__option:hover,
+.einsatzbericht-form-page .combo-suggest__option--active {
+  background: var(--rot-subtle);
 }
 
 /* Kompakte Felder wie FW-Hub field-base (ohne 44px Touch-Höhe) */
@@ -3609,10 +3650,11 @@ span.required { color: var(--error); }
 /* Kräfte & Fahrzeuge — Drag & Drop Board */
 .einsatzbericht-form-page .incident-kraefte-board {
   display: grid;
-  grid-template-columns: minmax(220px, 1.15fr) minmax(200px, 1fr) minmax(0, 2.5fr);
-  gap: 16px;
+  grid-template-columns: 190px 190px minmax(0, 1fr);
+  gap: 12px;
   align-items: start;
   width: 100%;
+  max-width: none;
 }
 
 .einsatzbericht-form-page .incident-kraefte-col--manual,
@@ -3670,8 +3712,9 @@ span.required { color: var(--error); }
   gap: 5px;
 }
 
-.einsatzbericht-form-page .incident-person-pool--readonly {
+.einsatzbericht-form-page .incident-person-pool--divera {
   border-style: dashed;
+  border-color: color-mix(in srgb, var(--einsatz-c, var(--rot)) 35%, var(--border));
 }
 
 .einsatzbericht-form-page .incident-crew-chip {
@@ -3702,8 +3745,8 @@ span.required { color: var(--error); }
 
 .einsatzbericht-form-page .incident-vehicle-stack {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 10px;
   width: 100%;
 }
 
@@ -3833,9 +3876,9 @@ span.required { color: var(--error); }
   margin-top: 1.25rem;
 }
 
-@media (min-width: 1400px) {
+@media (min-width: 1200px) {
   .einsatzbericht-form-page .incident-vehicle-stack {
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   }
 }
 

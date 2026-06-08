@@ -5,18 +5,29 @@ import java.time.LocalTime;
 import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.format.annotation.DateTimeFormat;
 
 @Getter
 @Setter
 public class EinsatzberichtForm {
 
     private String incidentNumber;
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate incidentDate;
+
+    @DateTimeFormat(iso = DateTimeFormat.ISO.TIME)
     private LocalTime alarmTime;
+
+    @DateTimeFormat(iso = DateTimeFormat.ISO.TIME)
     private LocalTime departureTime;
+
+    @DateTimeFormat(iso = DateTimeFormat.ISO.TIME)
     private LocalTime arrivalTime;
+
+    @DateTimeFormat(iso = DateTimeFormat.ISO.TIME)
     private LocalTime endTime;
     private String stichwort;
+    private String nachrichtLeitstelle;
     private String location;
     private String postalCode;
     private String district;
@@ -59,6 +70,7 @@ public class EinsatzberichtForm {
         form.setArrivalTime(report.getArrivalTime());
         form.setEndTime(report.getEndTime());
         form.setStichwort(report.getStichwort() != null ? report.getStichwort() : report.getIncidentTypeLabel());
+        form.setNachrichtLeitstelle(report.getSituation());
         form.setLocation(report.getLocation());
         form.setPostalCode(report.getPostalCode());
         form.setDistrict(report.getDistrict());
@@ -102,6 +114,7 @@ public class EinsatzberichtForm {
                 arrivalTime,
                 endTime,
                 stichwort,
+                nachrichtLeitstelle,
                 location,
                 postalCode,
                 district,

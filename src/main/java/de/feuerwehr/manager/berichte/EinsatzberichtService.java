@@ -3,7 +3,10 @@ package de.feuerwehr.manager.berichte;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.feuerwehr.manager.divera.DiveraAlarmDetailsMapper.DiveraAlarmDetails;
-import de.feuerwehr.manager.divera.DiveraAlarmDetailsMapper.DiveraPersonnelHit;
+import de.feuerwehr.manager.divera.DiveraApiClient;
+import de.feuerwehr.manager.divera.DiveraIntegrationSupport;
+import de.feuerwehr.manager.unit.UnitDiveraSettings;
+import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
 import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.personal.PersonRepository;
 import de.feuerwehr.manager.personal.PersonalService;
@@ -51,6 +54,8 @@ public class EinsatzberichtService {
     private final VehicleRepository vehicleRepository;
     private final TestModeService testModeService;
     private final BerichteSettingsService berichteSettingsService;
+    private final DiveraApiClient diveraApiClient;
+    private final UnitDiveraSettingsRepository diveraSettingsRepository;
     private final ObjectMapper objectMapper;
 
     public List<IncidentReport> listByUnit(long unitId) {
@@ -288,6 +293,7 @@ public class EinsatzberichtService {
         report.setStichwort(stichwort);
         report.setIncidentTypeKey("SONSTIGES");
         report.setIncidentTypeLabel(stichwort.isEmpty() ? "Sonstiges" : stichwort);
+        report.setSituation(trimToNull(form.nachrichtLeitstelle()));
         report.setLocation(form.location().trim());
         report.setPostalCode(trimToNull(form.postalCode()));
         report.setDistrict(null);
@@ -460,18 +466,21 @@ public class EinsatzberichtService {
     }
 
     private void applyDiveraDetails(IncidentReport report, DiveraAlarmDetails details, long unitId) {
-        long epoch = details.tsCreateSeconds() > 0 ? details.tsCreateSeconds() : details.dateEpochSeconds();
-        LocalDate incidentDate = epoch > 0
-                ? Instant.ofEpochSecond(epoch).atZone(ZoneId.systemDefault()).toLocalDate()
-                : LocalDate.now();
+        ZoneId zone = ZoneId.systemDefault();
+        long dateEpoch = details.dateEpochSeconds();
+        long createEpoch = details.tsCreateSeconds();
+        LocalDate incidentDate = LocalDate.now();
+        if (dateEpoch > 0) {
+            incidentDate = Instant.ofEpochSecond(dateEpoch).atZone(zone).toLocalDate();
+        } else if (createEpoch > 0) {
+            incidentDate = Instant.ofEpochSecond(createEpoch).atZone(zone).toLocalDate();
+        }
         report.setIncidentDate(incidentDate);
-        report.setAlarmTime(toLocalTime(details.tsCreateSeconds() > 0 ? details.tsCreateSeconds() : details.dateEpochSeconds()));
+        long alarmTimeEpoch = createEpoch > 0 ? createEpoch : dateEpoch;
+        report.setAlarmTime(toLocalTime(alarmTimeEpoch));
         report.setDepartureTime(toLocalTime(details.tsDepartureSeconds()));
         report.setArrivalTime(toLocalTime(details.tsArrivalSeconds()));
-        if (details.closed()) {
-            long endEpoch = details.tsCloseSeconds() > 0 ? details.tsCloseSeconds() : details.dateEpochSeconds();
-            report.setEndTime(toLocalTime(endEpoch));
-        }
+        report.setEndTime(null);
 
         String stichwort = firstNonBlank(details.title(), "DIVERA-Einsatz");
         report.setStichwort(stichwort);
@@ -489,13 +498,12 @@ public class EinsatzberichtService {
         report.setReporterName(details.reporterName());
         report.setReporterPhone(details.reporterPhone());
         report.setFireObject(details.fireObject());
-        report.setSituation(details.situation());
+        report.setSituation(firstNonBlank(details.text(), details.situation()));
         report.setMeasures(details.measures());
         report.setFalseAlarm(details.falseAlarm());
         report.setMaliciousAlarm(details.maliciousAlarm());
 
-        String notes = buildDiveraNotes(details);
-        report.setNotes(notes);
+        report.setNotes(null);
 
         report.setResourcesJson(writeDiveraResources(details));
 
@@ -515,47 +523,88 @@ public class EinsatzberichtService {
             return;
         }
         List<String> allowedStatusIds = berichteSettingsService.parsePersonnelStatusIds(settings);
-        if (allowedStatusIds.isEmpty() || details.personnelHits() == null) {
+        Map<Long, Integer> statusByUcr = loadDiveraUserStatuses(unitId);
+        Set<Long> targetUcrIds = resolveTargetUcrIds(details, allowedStatusIds, statusByUcr);
+        if (targetUcrIds.isEmpty()) {
             return;
         }
         boolean testData = testModeService.isEnabled();
         Set<Long> assigned = new HashSet<>();
-        for (DiveraPersonnelHit hit : details.personnelHits()) {
-            if (hit.statusId() == null || !allowedStatusIds.contains(hit.statusId().trim())) {
-                continue;
-            }
-            if (hit.ucrId() == null || hit.ucrId().isBlank()) {
-                continue;
-            }
-            personRepository
-                    .findByUnitIdAndDiveraUcrId(unitId, hit.ucrId().trim(), testData)
-                    .ifPresent(person -> {
-                        if (!assigned.add(person.getId())) {
-                            return;
-                        }
-                        IncidentReportPersonnel row = new IncidentReportPersonnel();
-                        row.setIncidentReport(report);
-                        row.setPerson(person);
-                        row.setIncidentReportVehicle(null);
-                        row.setDisplayName(person.anwesenheitDisplayName());
-                        row.setSource(IncidentPersonnelSource.DIVERA);
-                        incidentReportPersonnelRepository.save(row);
-                    });
+        for (Long ucrId : targetUcrIds) {
+            resolvePersonForDiveraUcr(unitId, ucrId, testData).ifPresent(person -> {
+                if (!assigned.add(person.getId())) {
+                    return;
+                }
+                IncidentReportPersonnel row = new IncidentReportPersonnel();
+                row.setIncidentReport(report);
+                row.setPerson(person);
+                row.setIncidentReportVehicle(null);
+                row.setDisplayName(person.anwesenheitDisplayName());
+                row.setSource(IncidentPersonnelSource.DIVERA);
+                incidentReportPersonnelRepository.save(row);
+            });
         }
         report.setStrengthCrew(assigned.size());
     }
 
-    private String buildDiveraNotes(DiveraAlarmDetails details) {
-        StringBuilder sb = new StringBuilder();
-        if (details.text() != null && !details.text().isBlank()) {
-            sb.append(details.text().trim());
+    private Set<Long> resolveTargetUcrIds(
+            DiveraAlarmDetails details, List<String> allowedStatusIds, Map<Long, Integer> statusByUcr) {
+        Set<Long> answered = new LinkedHashSet<>();
+        if (details.answeredUcrIds() != null) {
+            for (Long ucrId : details.answeredUcrIds()) {
+                if (ucrId != null && ucrId > 0) {
+                    answered.add(ucrId);
+                }
+            }
         }
-        appendLine(sb, "DIVERA-Adresse", details.address());
-        appendLine(sb, "DIVERA-Fremd-ID", details.externalId());
-        if (details.closed()) {
-            appendLine(sb, "DIVERA-Status", "geschlossen");
+        if (details.personnelHits() != null) {
+            for (var hit : details.personnelHits()) {
+                if (hit.ucrId() == null || hit.ucrId().isBlank()) {
+                    continue;
+                }
+                try {
+                    long ucrId = Long.parseLong(hit.ucrId().trim());
+                    if (ucrId > 0) {
+                        answered.add(ucrId);
+                    }
+                } catch (NumberFormatException ignored) {
+                    // ignore malformed UCR
+                }
+            }
         }
-        return sb.isEmpty() ? null : sb.toString().trim();
+        if (!answered.isEmpty()) {
+            return answered;
+        }
+        if (allowedStatusIds.isEmpty()) {
+            return Set.of();
+        }
+        Set<Long> result = new LinkedHashSet<>();
+        for (Map.Entry<Long, Integer> entry : statusByUcr.entrySet()) {
+            if (allowedStatusIds.contains(String.valueOf(entry.getValue()))) {
+                result.add(entry.getKey());
+            }
+        }
+        return result;
+    }
+
+    private Map<Long, Integer> loadDiveraUserStatuses(long unitId) {
+        return diveraSettingsRepository
+                .findByUnitId(unitId)
+                .map(cfg -> diveraApiClient.fetchUserStatusByUcr(
+                        cfg.getApiBaseUrl() != null ? cfg.getApiBaseUrl() : DiveraIntegrationSupport.DEFAULT_API_BASE,
+                        cfg.getAccessKey()))
+                .orElse(Map.of());
+    }
+
+    private Optional<Person> resolvePersonForDiveraUcr(long unitId, long ucrId, boolean testData) {
+        String ucr = String.valueOf(ucrId);
+        Optional<Person> direct = personRepository.findByUnitIdAndDiveraUcrId(unitId, ucr, testData);
+        if (direct.isPresent()) {
+            return direct;
+        }
+        return personalService.listPersons(unitId).stream()
+                .filter(p -> ucr.equals(p.getDiveraUcrId()))
+                .findFirst();
     }
 
     private String writeDiveraResources(DiveraAlarmDetails details) {
@@ -571,16 +620,6 @@ public class EinsatzberichtService {
         } catch (Exception e) {
             return "{}";
         }
-    }
-
-    private static void appendLine(StringBuilder sb, String label, String value) {
-        if (value == null || value.isBlank()) {
-            return;
-        }
-        if (!sb.isEmpty()) {
-            sb.append('\n');
-        }
-        sb.append(label).append(": ").append(value.trim());
     }
 
     private static LocalTime toLocalTime(long epochSeconds) {

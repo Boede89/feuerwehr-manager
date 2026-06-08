@@ -6,6 +6,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -165,6 +166,45 @@ public class DiveraApiClient {
         }
         x = n.path(b).asText("");
         return !x.isEmpty() ? x : def;
+    }
+
+    /** UCR-ID → aktuelle Status-ID aus DIVERA (/api/users). */
+    public Map<Long, Integer> fetchUserStatusByUcr(String apiBaseUrl, String accessKey) {
+        String key = accessKey == null ? "" : accessKey.trim().replaceAll("[\\r\\n\\t\\v]+", "");
+        if (key.isEmpty()) {
+            return Map.of();
+        }
+        String base = trimTrailingSlash(apiBaseUrl);
+        if (base.isEmpty()) {
+            base = "https://app.divera247.com";
+        }
+        URI uri = UriComponentsBuilder.fromUriString(base + "/api/users")
+                .queryParam("accesskey", key)
+                .encode(StandardCharsets.UTF_8)
+                .build()
+                .toUri();
+        try {
+            String raw = restClient.get().uri(uri).retrieve().body(String.class);
+            if (raw == null || raw.isBlank()) {
+                return Map.of();
+            }
+            JsonNode root = objectMapper.readTree(raw);
+            JsonNode data = root.path("data");
+            if (!data.isArray()) {
+                return Map.of();
+            }
+            Map<Long, Integer> result = new HashMap<>();
+            for (JsonNode user : data) {
+                long ucrId = user.path("user_cluster_relation_id").asLong(0);
+                int statusId = user.path("status_id").asInt(0);
+                if (ucrId > 0 && statusId > 0) {
+                    result.put(ucrId, statusId);
+                }
+            }
+            return result;
+        } catch (Exception e) {
+            return Map.of();
+        }
     }
 
     private static String trimTrailingSlash(String url) {

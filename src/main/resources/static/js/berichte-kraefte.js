@@ -174,19 +174,28 @@
     });
   }
 
-  function onDropManualPool(e) {
+  function homePoolForChip(chip) {
+    if (chip.classList.contains('incident-crew-chip--divera')) {
+      return document.getElementById('divera-person-pool');
+    }
+    return document.getElementById('manual-person-pool');
+  }
+
+  function onDropPersonPool(e) {
     e.preventDefault();
-    if (!draggedChip || draggedChip.closest('#manual-person-pool')) {
+    var pool = e.currentTarget;
+    if (!draggedChip || draggedChip.parentElement === pool) {
       return;
     }
-    var pool = document.getElementById('manual-person-pool');
-    if (!pool) {
+    if (homePoolForChip(draggedChip) !== pool) {
       return;
     }
     removePersonFromBoard(draggedChip.dataset.personId, draggedChip);
     insertChipSorted(pool, draggedChip);
-    var searchEl = document.getElementById('manual-person-search');
-    filterManualPool(searchEl ? searchEl.value : '');
+    if (pool.id === 'manual-person-pool') {
+      var searchEl = document.getElementById('manual-person-search');
+      filterManualPool(searchEl ? searchEl.value : '');
+    }
     refreshBoard();
   }
 
@@ -205,15 +214,18 @@
       zone.addEventListener('drop', onDropVehicle);
     });
 
-    var manualPool = document.getElementById('manual-person-pool');
-    if (manualPool) {
-      manualPool.addEventListener('dragover', function (e) {
-        if (draggedChip) {
+    ['manual-person-pool', 'divera-person-pool'].forEach(function (poolId) {
+      var pool = document.getElementById(poolId);
+      if (!pool) {
+        return;
+      }
+      pool.addEventListener('dragover', function (e) {
+        if (draggedChip && homePoolForChip(draggedChip) === pool) {
           e.preventDefault();
         }
       });
-      manualPool.addEventListener('drop', onDropManualPool);
-    }
+      pool.addEventListener('drop', onDropPersonPool);
+    });
 
     var manualSearch = document.getElementById('manual-person-search');
     if (manualSearch) {

@@ -46,6 +46,7 @@ public final class DiveraAlarmDetailsMapper {
             String measures,
             boolean falseAlarm,
             boolean maliciousAlarm,
+            List<Long> answeredUcrIds,
             List<DiveraPersonnelHit> personnelHits) {}
 
     public static Optional<DiveraAlarmDetails> fromSummary(DiveraAlarmSummary summary, JsonNode root) {
@@ -85,6 +86,7 @@ public final class DiveraAlarmDetailsMapper {
                 null,
                 false,
                 false,
+                List.of(),
                 List.of()));
     }
 
@@ -100,6 +102,7 @@ public final class DiveraAlarmDetailsMapper {
         AddressParts structured = parseAddress(parsed.address());
         AddressParts merged = mergeAddress(structured, alarm);
         List<DiveraPersonnelHit> personnel = collectPersonnel(alarm);
+        List<Long> answeredUcrIds = parseUcrIdArray(alarm, "ucr_answered", "ucr_adressed", "user_cluster_relation");
         return new DiveraAlarmDetails(
                 parsed.alarmId(),
                 blankToNull(parsed.externalId()),
@@ -126,7 +129,52 @@ public final class DiveraAlarmDetailsMapper {
                 textOrNull(alarm, "measures", "massnahme", "massnahmen", "action", "Actions"),
                 boolOrFalse(alarm, "false_alarm", "fehlalarm", "FalseAlarm"),
                 boolOrFalse(alarm, "malicious_alarm", "boeswillig", "boewillig", "MaliciousAlarm"),
+                answeredUcrIds,
                 personnel);
+    }
+
+    private static List<Long> parseUcrIdArray(JsonNode alarm, String... keys) {
+        List<Long> result = new ArrayList<>();
+        Set<Long> seen = new LinkedHashSet<>();
+        for (String key : keys) {
+            JsonNode node = alarm.path(key);
+            if (!node.isArray()) {
+                continue;
+            }
+            for (JsonNode item : node) {
+                long id = extractUcrId(item);
+                if (id > 0 && seen.add(id)) {
+                    result.add(id);
+                }
+            }
+        }
+        return result;
+    }
+
+    private static long extractUcrId(JsonNode item) {
+        if (item == null || item.isNull()) {
+            return 0;
+        }
+        if (item.isNumber()) {
+            return item.asLong(0);
+        }
+        if (item.isTextual()) {
+            try {
+                return Long.parseLong(item.asText("").trim());
+            } catch (NumberFormatException ignored) {
+                return 0;
+            }
+        }
+        if (item.isObject()) {
+            for (String key :
+                    new String[] {"user_cluster_relation_id", "ucr_id", "ucrId", "UCRId", "id", "user_id", "userId"}) {
+                long id = item.path(key).asLong(0);
+                if (id > 0) {
+                    return id;
+                }
+            }
+        }
+        return 0;
     }
 
     private static AddressParts mergeAddress(AddressParts fromAddress, JsonNode alarm) {
