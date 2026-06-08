@@ -49,6 +49,7 @@ public class AtemschutzSettingsController {
             requireModuleEnabled(unit.getId());
             UnitAtemschutzSettings settings = atemschutzSettingsService.ensureSettings(unit.getId());
             List<User> unitUsers = atemschutzSettingsService.listSelectableUnitUsers(unit.getId());
+            model.addAttribute("unitPersons", atemschutzSettingsService.listSelectablePersons(unit.getId()));
             List<AtemschutzNotificationSectionView> sections =
                     atemschutzSettingsService.buildNotificationSections(unit.getId());
             model.addAttribute("unitId", unit.getId());
@@ -101,9 +102,9 @@ public class AtemschutzSettingsController {
             @RequestParam(name = "g26NotifyInstructors", defaultValue = "false") boolean g26NotifyInstructors,
             @RequestParam(name = "streckeNotifyInstructors", defaultValue = "false") boolean streckeNotifyInstructors,
             @RequestParam(name = "uebungNotifyInstructors", defaultValue = "false") boolean uebungNotifyInstructors,
-            @RequestParam(name = "g26CcUserIds", required = false) Long[] g26CcUserIds,
-            @RequestParam(name = "streckeCcUserIds", required = false) Long[] streckeCcUserIds,
-            @RequestParam(name = "uebungCcUserIds", required = false) Long[] uebungCcUserIds,
+            @RequestParam(name = "g26CcPersonIds", required = false) Long[] g26CcPersonIds,
+            @RequestParam(name = "streckeCcPersonIds", required = false) Long[] streckeCcPersonIds,
+            @RequestParam(name = "uebungCcPersonIds", required = false) Long[] uebungCcPersonIds,
             @RequestParam Map<String, String> allParams,
             RedirectAttributes redirectAttributes) {
         return save(actor, unit, redirectAttributes, () -> {
@@ -125,9 +126,9 @@ public class AtemschutzSettingsController {
                     g26NotifyInstructors,
                     streckeNotifyInstructors,
                     uebungNotifyInstructors,
-                    g26CcUserIds == null ? List.of() : Arrays.asList(g26CcUserIds),
-                    streckeCcUserIds == null ? List.of() : Arrays.asList(streckeCcUserIds),
-                    uebungCcUserIds == null ? List.of() : Arrays.asList(uebungCcUserIds),
+                    g26CcPersonIds == null ? List.of() : Arrays.asList(g26CcPersonIds),
+                    streckeCcPersonIds == null ? List.of() : Arrays.asList(streckeCcPersonIds),
+                    uebungCcPersonIds == null ? List.of() : Arrays.asList(uebungCcPersonIds),
                     subjects,
                     bodies);
             redirectAttributes.addFlashAttribute("message", "Benachrichtigungen gespeichert.");

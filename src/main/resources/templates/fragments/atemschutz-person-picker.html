@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<th:block th:fragment="picker(persons, paramName, selectedIds)">
+  <div class="user-picker" th:if="${!#lists.isEmpty(persons)}">
+    <label class="user-picker__item" th:each="p : ${persons}">
+      <input type="checkbox" th:name="${paramName}" th:value="${p.id}"
+             th:checked="${selectedIds.contains(p.id)}"/>
+      <span class="user-picker__text">
+        <span class="user-picker__name" th:text="${p.displayName()}">Name</span>
+        <span class="user-picker__meta"
+              th:text="${(p.email != null and !#strings.isEmpty(p.email)) ? p.email : ((p.emailPrivate != null and !#strings.isEmpty(p.emailPrivate)) ? p.emailPrivate : 'keine E-Mail')}">
+          keine E-Mail
+        </span>
+      </span>
+    </label>
+  </div>
+  <p class="hint" th:if="${#lists.isEmpty(persons)}" style="margin:0;">Keine Personen in dieser Einheit.</p>
+</th:block>
+</html>

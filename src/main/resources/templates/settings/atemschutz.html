@@ -72,8 +72,8 @@
               </label>
               <button type="button" class="btn btn--outline btn--sm atemschutz-open-cc"
                       th:attr="data-modal=${'modal-cc-' + section.category.name()},
-                               data-count=${#lists.size(section.ccUserIds)}">
-                CC-Empfänger (<span class="atemschutz-cc-count" th:text="${#lists.size(section.ccUserIds)}">0</span>)
+                               data-count=${#lists.size(section.ccPersonIds)}">
+                CC-Empfänger (<span class="atemschutz-cc-count" th:text="${#lists.size(section.ccPersonIds)}">0</span>)
               </button>
               <button type="button" class="btn btn--outline btn--sm atemschutz-toggle-template"
                       th:attr="data-target=${'tpl-' + section.category.name()}">
@@ -128,8 +128,8 @@
                 <button type="button" class="modal__close atemschutz-close-cc" aria-label="Schließen">✕</button>
               </div>
               <div class="modal__body">
-                <p class="hint">Diese Benutzer erhalten eine Kopie der Erinnerungs- und Aufforderungs-Mails.</p>
-                <div th:replace="~{fragments/atemschutz-user-picker :: picker(${unitUsers}, ${section.category.ccUserIdsField}, ${section.ccUserIds})}"></div>
+                <p class="hint">Personen aus dem Personal-Bereich, die eine Kopie der Erinnerungs- und Aufforderungs-Mails erhalten.</p>
+                <div th:replace="~{fragments/atemschutz-person-picker :: picker(${unitPersons}, ${section.category.ccPersonIdsField}, ${section.ccPersonIds})}"></div>
               </div>
               <div class="modal__footer">
                 <button type="button" class="btn btn--primary atemschutz-close-cc">Übernehmen</button>
@@ -157,7 +157,7 @@
         <input type="hidden" name="unit" th:value="${unitId}"/>
         <div class="modal__body">
           <p class="hint">
-            Diese Personen erhalten bei aktivierter Option „Ausbilder benachrichtigen“ eine Kopie der jeweiligen Mail.
+            Diese Benutzer erhalten bei aktivierter Option „Ausbilder benachrichtigen“ eine Kopie der jeweiligen Mail.
           </p>
           <div th:replace="~{fragments/atemschutz-user-picker :: picker(${unitUsers}, 'instructorUserIds', ${instructorUserIds})}"></div>
         </div>

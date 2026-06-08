@@ -4,7 +4,10 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.feuerwehr.manager.personal.Course;
 import de.feuerwehr.manager.personal.CourseRepository;
+import de.feuerwehr.manager.personal.Person;
+import de.feuerwehr.manager.personal.PersonRepository;
 import de.feuerwehr.manager.personal.PersonalService;
+import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.settings.GlobalSettingsService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
@@ -30,6 +33,8 @@ public class AtemschutzSettingsService {
     private final UserRepository userRepository;
     private final CourseRepository courseRepository;
     private final PersonalService personalService;
+    private final PersonRepository personRepository;
+    private final TestModeService testModeService;
     private final GlobalSettingsService globalSettingsService;
     private final ObjectMapper objectMapper;
 
@@ -157,9 +162,9 @@ public class AtemschutzSettingsService {
             boolean g26NotifyInstructors,
             boolean streckeNotifyInstructors,
             boolean uebungNotifyInstructors,
-            List<Long> g26CcUserIds,
-            List<Long> streckeCcUserIds,
-            List<Long> uebungCcUserIds,
+            List<Long> g26CcPersonIds,
+            List<Long> streckeCcPersonIds,
+            List<Long> uebungCcPersonIds,
             Map<String, String> templateSubjects,
             Map<String, String> templateBodies) {
         validateWarnDays(g26WarnDays);
@@ -173,9 +178,9 @@ public class AtemschutzSettingsService {
         settings.setG26NotifyInstructors(g26NotifyInstructors);
         settings.setStreckeNotifyInstructors(streckeNotifyInstructors);
         settings.setUebungNotifyInstructors(uebungNotifyInstructors);
-        settings.setG26CcUserIds(writeIds(g26CcUserIds));
-        settings.setStreckeCcUserIds(writeIds(streckeCcUserIds));
-        settings.setUebungCcUserIds(writeIds(uebungCcUserIds));
+        settings.setG26CcPersonIds(writeIds(validatePersonIds(unitId, g26CcPersonIds)));
+        settings.setStreckeCcPersonIds(writeIds(validatePersonIds(unitId, streckeCcPersonIds)));
+        settings.setUebungCcPersonIds(writeIds(validatePersonIds(unitId, uebungCcPersonIds)));
         settingsRepository.save(settings);
         if (templateSubjects != null && templateBodies != null) {
             for (AtemschutzNotificationCategory category : AtemschutzNotificationCategory.values()) {
@@ -196,7 +201,7 @@ public class AtemschutzSettingsService {
                     category,
                     readWarnDays(settings, category),
                     readNotifyInstructors(settings, category),
-                    readCcUserIds(settings, category),
+                    readCcPersonIds(settings, category),
                     requireTemplate(templatesByKey, category.getWarnungTemplateKey()),
                     requireTemplate(templatesByKey, category.getAbgelaufenTemplateKey())));
         }
@@ -227,6 +232,11 @@ public class AtemschutzSettingsService {
     @Transactional(readOnly = true)
     public List<User> listSelectableUnitUsers(long unitId) {
         return userRepository.findAllByAnonymizedAtIsNullAndUnitIdOrderByUsernameAsc(unitId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Person> listSelectablePersons(long unitId) {
+        return personRepository.findActiveByUnitId(unitId, testModeService.isEnabled());
     }
 
     @Transactional(readOnly = true)
@@ -276,12 +286,30 @@ public class AtemschutzSettingsService {
         };
     }
 
-    private List<Long> readCcUserIds(UnitAtemschutzSettings settings, AtemschutzNotificationCategory category) {
+    private List<Long> readCcPersonIds(UnitAtemschutzSettings settings, AtemschutzNotificationCategory category) {
         return switch (category) {
-            case G26 -> parseIds(settings.getG26CcUserIds());
-            case STRECKEN -> parseIds(settings.getStreckeCcUserIds());
-            case UEBUNG -> parseIds(settings.getUebungCcUserIds());
+            case G26 -> parseIds(settings.getG26CcPersonIds());
+            case STRECKEN -> parseIds(settings.getStreckeCcPersonIds());
+            case UEBUNG -> parseIds(settings.getUebungCcPersonIds());
         };
+    }
+
+    private List<Long> validatePersonIds(long unitId, List<Long> personIds) {
+        if (personIds == null || personIds.isEmpty()) {
+            return List.of();
+        }
+        boolean testData = testModeService.isEnabled();
+        List<Long> valid = new ArrayList<>();
+        for (Long personId : personIds) {
+            if (personId == null || personId <= 0) {
+                continue;
+            }
+            personRepository
+                    .findActiveById(personId, testData)
+                    .filter(p -> p.getUnit().getId().equals(unitId))
+                    .ifPresent(p -> valid.add(personId));
+        }
+        return valid.stream().distinct().toList();
     }
 
     private static AtemschutzEmailTemplate requireTemplate(

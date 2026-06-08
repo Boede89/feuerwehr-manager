@@ -10,7 +10,7 @@ public class AtemschutzNotificationSectionView {
     private final AtemschutzNotificationCategory category;
     private final int warnDays;
     private final boolean notifyInstructors;
-    private final List<Long> ccUserIds;
+    private final List<Long> ccPersonIds;
     private final AtemschutzEmailTemplate warnungTemplate;
     private final AtemschutzEmailTemplate abgelaufenTemplate;
 }
