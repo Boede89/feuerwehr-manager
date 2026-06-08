@@ -6,6 +6,7 @@
   var kpiGrid = document.getElementById('atemschutz-kpi-grid');
   var kpiTotal = document.getElementById('kpi-value-total');
   var kpiTauglich = document.getElementById('kpi-value-tauglich');
+  var kpiWarnung = document.getElementById('kpi-value-warnung');
   var kpiUebung = document.getElementById('kpi-value-uebung');
   var kpiNicht = document.getElementById('kpi-value-nicht');
   if (!table) return;
@@ -33,12 +34,13 @@
 
   function kpiStats(includePausedRows) {
     if (!kpiGrid) {
-      return { total: 0, tauglich: 0, uebung: 0, nicht: 0 };
+      return { total: 0, tauglich: 0, warnung: 0, uebung: 0, nicht: 0 };
     }
     var prefix = includePausedRows ? 'all' : 'active';
     return {
       total: parseInt(kpiGrid.getAttribute('data-' + prefix + '-total'), 10) || 0,
       tauglich: parseInt(kpiGrid.getAttribute('data-' + prefix + '-tauglich'), 10) || 0,
+      warnung: parseInt(kpiGrid.getAttribute('data-' + prefix + '-warnung'), 10) || 0,
       uebung: parseInt(kpiGrid.getAttribute('data-' + prefix + '-uebung'), 10) || 0,
       nicht: parseInt(kpiGrid.getAttribute('data-' + prefix + '-nicht'), 10) || 0
     };
@@ -48,6 +50,7 @@
     var counts = kpiStats(includePaused());
     if (kpiTotal) kpiTotal.textContent = String(counts.total);
     if (kpiTauglich) kpiTauglich.textContent = String(counts.tauglich);
+    if (kpiWarnung) kpiWarnung.textContent = String(counts.warnung);
     if (kpiUebung) kpiUebung.textContent = String(counts.uebung);
     if (kpiNicht) kpiNicht.textContent = String(counts.nicht);
   }

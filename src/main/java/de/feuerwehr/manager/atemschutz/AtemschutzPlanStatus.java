@@ -21,7 +21,7 @@ public enum AtemschutzPlanStatus {
     public String badgeClass() {
         return switch (this) {
             case TAUGLICH -> "badge active";
-            case WARNUNG -> "badge-warning";
+            case WARNUNG -> "badge warn";
             case ABGELAUFEN, UEBUNG_ABGELAUFEN -> "badge inactive";
         };
     }

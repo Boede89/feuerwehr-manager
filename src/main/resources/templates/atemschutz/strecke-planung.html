@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('Strecke – Terminplanung', ~{::main})}">
+<main id="strecke-planung-page"
+      th:attr="data-unit=${unitId}, data-can-write=${canWrite}">
+  <div class="page-header page-header--toolbar">
+    <div>
+      <h2>Strecke – Terminplanung</h2>
+      <p>Übungsstrecke planen und Geräteträger zuordnen · <strong th:text="${currentUnitName}">—</strong></p>
+    </div>
+    <div class="toolbar-actions">
+      <a class="btn btn--outline" th:href="@{/atemschutz(unit=${unitId})}">Zurück zur Übersicht</a>
+      <button type="button" class="btn btn--primary" th:if="${canWrite}" data-open-modal="modal-strecke-termin">Neuer Termin</button>
+      <button type="button" class="btn btn--outline" th:if="${canWrite}" id="strecke-auto-zuordnung">Auto-Zuordnung</button>
+      <button type="button" class="btn btn--outline" th:if="${canWrite}" id="strecke-clear-zuordnungen">Zuordnungen löschen</button>
+    </div>
+  </div>
+
+  <div th:replace="~{fragments/testmode-banner :: banner}"></div>
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
+
+  <div class="strecke-pool card" th:if="${!#lists.isEmpty(planung.unassignedCarriers())}">
+    <div class="card__header card__header--toolbar">
+      <span>Nicht zugeordnete Geräteträger (<span th:text="${#lists.size(planung.unassignedCarriers())}">0</span>)</span>
+      <span class="hint" style="margin:0;">Drag &amp; Drop zum Zuordnen</span>
+    </div>
+    <div class="card__body strecke-pool__list" id="strecke-pool" data-drop-zone="pool">
+      <span class="strecke-carrier-badge" th:each="c : ${planung.unassignedCarriers()}"
+            draggable="true"
+            th:attr="data-carrier-id=${c.carrierId()},
+                     data-name=${c.name()},
+                     data-strecke-bis=${c.streckeBis()},
+                     data-g26-bis=${c.g26Bis()},
+                     data-uebung-bis=${c.uebungBis()}">
+        <span th:class="'strecke-status-dot strecke-status-dot--' + ${c.statusDot()}"></span>
+        <span class="strecke-carrier-badge__name" th:text="${c.name()}">Name</span>
+        <span class="strecke-carrier-badge__meta" th:if="${c.streckeBis() != null}"
+              th:classappend="${c.daysUntilExpiry() != null and c.daysUntilExpiry() < 0} ? 'strecke-carrier-badge__meta--danger' : (${c.daysUntilExpiry() != null and c.daysUntilExpiry() <= planung.warnDays()} ? 'strecke-carrier-badge__meta--warn' : '')">
+          <span th:if="${c.daysUntilExpiry() != null and c.daysUntilExpiry() < 0}">abgelaufen</span>
+          <span th:unless="${c.daysUntilExpiry() != null and c.daysUntilExpiry() < 0}"
+                th:text="${#temporals.format(c.streckeBis(), 'dd.MM.yyyy')}">01.01.2026</span>
+        </span>
+      </span>
+    </div>
+  </div>
+
+  <div class="strecke-termine-grid" th:if="${!#lists.isEmpty(planung.termine())}">
+    <div class="strecke-termin-card card" th:each="t : ${planung.termine()}"
+         th:attr="data-termin-id=${t.id()}">
+      <div class="strecke-termin-card__header"
+           th:classappend="${t.vergangen()} ? ' strecke-termin-card__header--past' : (${t.voll()} ? ' strecke-termin-card__header--full' : '')">
+        <div>
+          <h3 th:text="${#temporals.format(t.datum(), 'dd.MM.yyyy')}">01.01.2026</h3>
+          <p th:text="${#temporals.format(t.zeit(), 'HH:mm') + ' Uhr'}">09:00 Uhr</p>
+          <p th:if="${t.ort() != null and !t.ort().isBlank()}" th:text="${t.ort()}">Ort</p>
+        </div>
+        <div class="strecke-termin-card__meta">
+          <span th:text="${t.aktuelleTeilnehmer() + '/' + t.maxTeilnehmer()}">0/10</span>
+          <div class="toolbar-actions" th:if="${canWrite}">
+            <button type="button" class="btn btn--outline btn--sm strecke-edit-termin"
+                    th:attr="data-termin-id=${t.id()},
+                             data-datum=${t.datum()},
+                             data-zeit=${t.zeit()},
+                             data-ort=${t.ort()},
+                             data-max=${t.maxTeilnehmer()},
+                             data-bemerkung=${t.bemerkung()}">Bearbeiten</button>
+            <button type="button" class="btn btn--outline btn--sm strecke-delete-termin"
+                    th:attr="data-termin-id=${t.id()}">Löschen</button>
+          </div>
+        </div>
+      </div>
+      <div class="strecke-termin-card__drop strecke-drop-zone" data-drop-zone="termin"
+           th:attr="data-termin-id=${t.id()},
+                    data-termin-datum=${t.datum()},
+                    data-max=${t.maxTeilnehmer()}">
+        <span class="strecke-carrier-badge" th:each="c : ${t.teilnehmer()}"
+              draggable="true"
+              th:attr="data-carrier-id=${c.carrierId()},
+                       data-name=${c.name()},
+                       data-strecke-bis=${c.streckeBis()},
+                       data-g26-bis=${c.g26Bis()},
+                       data-uebung-bis=${c.uebungBis()},
+                       data-termin-id=${t.id()}">
+          <span th:class="'strecke-status-dot strecke-status-dot--' + ${c.statusDot()}"></span>
+          <span class="strecke-carrier-badge__name" th:text="${c.name()}">Name</span>
+          <span class="strecke-carrier-badge__meta" th:if="${c.streckeBis() != null}">
+            <span th:if="${c.daysUntilExpiry() != null and c.daysUntilExpiry() < 0}">abgelaufen</span>
+            <span th:unless="${c.daysUntilExpiry() != null and c.daysUntilExpiry() < 0}"
+                  th:text="${#temporals.format(c.streckeBis(), 'dd.MM.yyyy')}">01.01.2026</span>
+          </span>
+          <button type="button" class="strecke-carrier-badge__remove" th:if="${canWrite}"
+                  th:attr="data-carrier-id=${c.carrierId()}, data-termin-id=${t.id()}"
+                  title="Entfernen" aria-label="Entfernen">×</button>
+        </span>
+        <p class="hint strecke-drop-zone__empty" th:if="${#lists.isEmpty(t.teilnehmer())}" style="margin:0;text-align:center;">
+          Geräteträger hierher ziehen
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" th:if="${#lists.isEmpty(planung.termine())}">
+    <div class="card__body" style="text-align:center;">
+      <p class="hint">Noch keine Termine vorhanden.</p>
+      <button type="button" class="btn btn--primary" th:if="${canWrite}" data-open-modal="modal-strecke-termin">
+        Ersten Termin erstellen
+      </button>
+    </div>
+  </div>
+
+  <div id="modal-strecke-termin" class="modal-overlay" th:if="${canWrite}">
+    <div class="modal modal--lg" role="dialog">
+      <div class="modal__header">
+        <h3 id="strecke-termin-modal-title">Neue Termine erstellen</h3>
+        <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal__body">
+        <input type="hidden" id="strecke-edit-termin-id" value=""/>
+        <div class="form-grid form-grid--2">
+          <div class="form-group">
+            <label for="strecke-termin-ort">Ort</label>
+            <input id="strecke-termin-ort" class="field" type="text" placeholder="z. B. Atemschutzübungsstrecke"/>
+          </div>
+          <div class="form-group">
+            <label for="strecke-termin-bemerkung">Bemerkung</label>
+            <input id="strecke-termin-bemerkung" class="field" type="text" placeholder="Optional"/>
+          </div>
+        </div>
+        <div class="strecke-termin-rows" id="strecke-termin-rows"></div>
+        <button type="button" class="btn btn--outline btn--sm mt-md" id="strecke-add-termin-row">Termin hinzufügen</button>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--primary" id="strecke-save-termin">Speichern</button>
+        <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <script th:src="@{/js/atemschutz-modals.js}" defer></script>
+  <script th:src="@{/js/strecke-planung.js}" defer></script>
+</main>
+</html>

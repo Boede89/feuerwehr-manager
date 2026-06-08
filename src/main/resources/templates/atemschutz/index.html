@@ -7,7 +7,10 @@
       <h2>Atemschutz</h2>
       <p>Geräteträger und Tauglichkeiten · <strong th:text="${currentUnitName}">—</strong></p>
     </div>
-    <a class="btn btn--outline" th:href="@{/atemschutz/uebung-planen(unit=${unitId})}">Übung planen</a>
+    <div class="toolbar-actions">
+      <a class="btn btn--outline" th:href="@{/atemschutz/strecke-planung(unit=${unitId})}">Strecke – Terminplanung</a>
+      <a class="btn btn--outline" th:href="@{/atemschutz/uebung-planen(unit=${unitId})}">Übung planen</a>
+    </div>
   </div>
 
   <div th:replace="~{fragments/testmode-banner :: banner}"></div>
@@ -24,10 +27,12 @@
   <div class="kpi-grid" id="atemschutz-kpi-grid"
        th:attr="data-active-total=${stats.total()},
                 data-active-tauglich=${stats.tauglich()},
+                data-active-warnung=${stats.warnung()},
                 data-active-uebung=${stats.uebungAbgelaufen()},
                 data-active-nicht=${stats.nichtTauglich()},
                 data-all-total=${statsAll.total()},
                 data-all-tauglich=${statsAll.tauglich()},
+                data-all-warnung=${statsAll.warnung()},
                 data-all-uebung=${statsAll.uebungAbgelaufen()},
                 data-all-nicht=${statsAll.nichtTauglich()}">
     <a class="kpi-card" th:classappend="${activeFilter == 'all'} ? ' kpi-card--active' : ''"
@@ -39,6 +44,11 @@
        th:href="@{/atemschutz(unit=${unitId}, filter='tauglich')}">
       <span class="kpi-card__label">Tauglich</span>
       <span class="kpi-card__value kpi-card__value--success" id="kpi-value-tauglich" th:text="${stats.tauglich()}">0</span>
+    </a>
+    <a class="kpi-card kpi-card--warn" th:classappend="${activeFilter == 'warnung'} ? ' kpi-card--active' : ''"
+       th:href="@{/atemschutz(unit=${unitId}, filter='warnung')}">
+      <span class="kpi-card__label">Warnung</span>
+      <span class="kpi-card__value kpi-card__value--warn" id="kpi-value-warnung" th:text="${stats.warnung()}">0</span>
     </a>
     <a class="kpi-card kpi-card--warning" th:classappend="${activeFilter == 'uebung_abgelaufen'} ? ' kpi-card--active' : ''"
        th:href="@{/atemschutz(unit=${unitId}, filter='uebung_abgelaufen')}">

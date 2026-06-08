@@ -326,6 +326,9 @@ public class AtemschutzController {
         if ("tauglich".equalsIgnoreCase(filter)) {
             return "tauglich";
         }
+        if ("warnung".equalsIgnoreCase(filter)) {
+            return "warnung";
+        }
         if ("uebung_abgelaufen".equalsIgnoreCase(filter) || "uebungabgelaufen".equalsIgnoreCase(filter)) {
             return "uebung_abgelaufen";
         }

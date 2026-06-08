@@ -853,6 +853,8 @@ input:focus, select:focus, textarea:focus {
 }
 
 .badge.active { background: var(--gruen-hell); color: var(--gruen); }
+.badge.warn { background: var(--orange-hell, rgba(251, 191, 36, 0.2)); color: var(--gelb, #b45309); }
+.badge.warn-uebung { background: var(--orange-hell, rgba(251, 191, 36, 0.2)); color: var(--gelb, #d97706); }
 .badge.inactive { background: rgba(239, 68, 68, 0.12); color: var(--error); }
 
 .hint, .text-muted {
@@ -2717,6 +2719,8 @@ span.required { color: var(--error); }
 .data-table td { padding: 10px 16px; }
 .data-table tbody tr { border-bottom: 1px solid var(--border); }
 .data-table tbody tr:last-child { border-bottom: none; }
+.data-table tbody tr.carrier-row { cursor: pointer; transition: background var(--transition-fast); }
+.data-table tbody tr.carrier-row:hover td { background: var(--rot-subtle); }
 .data-row:nth-child(even) { background: var(--bg-card-hover); }
 .data-row:hover { background: var(--rot-subtle); }
 .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
@@ -2939,6 +2943,14 @@ span.required { color: var(--error); }
   background: var(--bg-card);
 }
 
+.atemschutz-plan-status .badge {
+  display: inline-block;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+}
+
 .atemschutz-plan-summary__grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -2956,6 +2968,128 @@ span.required { color: var(--error); }
   .atemschutz-plan-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.strecke-pool__list,
+.strecke-termin-card__drop {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 72px;
+  padding: 12px;
+}
+
+.strecke-pool__list {
+  background: var(--bg-card-hover);
+  border-radius: var(--radius-md);
+}
+
+.strecke-termine-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.strecke-termin-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #5b6fd6 0%, #6b4f9c 100%);
+  color: #fff;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.strecke-termin-card__header--full {
+  background: linear-gradient(135deg, #dc4f4f 0%, #b83232 100%);
+}
+
+.strecke-termin-card__header--past {
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+}
+
+.strecke-termin-card__header h3 {
+  margin: 0 0 4px;
+  font-size: var(--fs-lg);
+}
+
+.strecke-termin-card__header p {
+  margin: 0;
+  font-size: var(--fs-sm);
+  opacity: 0.92;
+}
+
+.strecke-termin-card__meta {
+  text-align: right;
+  font-size: var(--fs-sm);
+}
+
+.strecke-termin-card__drop {
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  background: var(--bg-card);
+}
+
+.strecke-drop-zone.is-dragover {
+  background: var(--rot-subtle);
+  border-color: var(--rot-border);
+}
+
+.strecke-carrier-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--bg-card);
+  font-size: var(--fs-sm);
+  cursor: grab;
+  user-select: none;
+}
+
+.strecke-carrier-badge.is-dragging {
+  opacity: 0.55;
+  cursor: grabbing;
+}
+
+.strecke-carrier-badge__name { font-weight: 600; }
+.strecke-carrier-badge__meta { font-size: var(--fs-xs); color: var(--text-muted); }
+.strecke-carrier-badge__meta--warn { color: var(--gelb, #ca8a04); }
+.strecke-carrier-badge__meta--danger { color: var(--error); }
+
+.strecke-carrier-badge__remove {
+  border: none;
+  background: transparent;
+  color: var(--error);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.strecke-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.strecke-status-dot--gruen { background: var(--gruen, #16a34a); }
+.strecke-status-dot--gelb { background: var(--gelb, #eab308); }
+.strecke-status-dot--rot { background: var(--error, #dc2626); }
+
+.strecke-termin-row {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+}
+
+.strecke-termin-row:first-child {
+  border-top: none;
+  padding-top: 0;
 }
 
 .kpi-grid {
@@ -2998,7 +3132,12 @@ span.required { color: var(--error); }
   line-height: 1.1;
 }
 .kpi-card__value--success { color: var(--gruen, #16a34a); }
+.kpi-card__value--warn { color: var(--gelb, #ca8a04); }
 .kpi-card__value--warning { color: var(--gelb, #d97706); }
+.kpi-card--warn.kpi-card--active {
+  border-color: var(--gelb, #ca8a04);
+  box-shadow: 0 0 0 1px var(--gelb, #ca8a04);
+}
 .kpi-card__value--danger { color: var(--error, #dc2626); }
 .kpi-card--warning.kpi-card--active {
   border-color: var(--gelb, #d97706);

@@ -50,7 +50,7 @@ public class AtemschutzService {
         boolean testData = testModeService.isEnabled();
         List<AtemschutzCarrier> carriers = carrierRepository.findByUnitId(unitId, testData);
         if (carriers.isEmpty()) {
-            CarrierListStats emptyStats = new CarrierListStats(0, 0, 0, 0);
+            CarrierListStats emptyStats = new CarrierListStats(0, 0, 0, 0, 0);
             return new CarrierListResult(
                     List.of(),
                     emptyStats,
@@ -341,35 +341,12 @@ public class AtemschutzService {
         if (status != AtemschutzCarrierStatus.ACTIVE) {
             return CarrierTauglichkeitStatus.NICHT_TAUGLICH;
         }
-        if (isAllFitnessOk(summaries)) {
-            return CarrierTauglichkeitStatus.TAUGLICH;
-        }
-        if (isUebungAbgelaufenOnly(summaries)) {
-            return CarrierTauglichkeitStatus.UEBUNG_ABGELAUFEN;
-        }
-        return CarrierTauglichkeitStatus.NICHT_TAUGLICH;
-    }
-
-    private static boolean isAllFitnessOk(Map<AtemschutzFitnessType, FitnessStatusView> summaries) {
-        for (AtemschutzFitnessType type : AtemschutzFitnessType.values()) {
-            FitnessStatusView view = summaries.get(type);
-            if (view == null || view.level() != AtemschutzFitnessLevel.OK) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private static boolean isUebungAbgelaufenOnly(Map<AtemschutzFitnessType, FitnessStatusView> summaries) {
-        FitnessStatusView g26 = summaries.get(AtemschutzFitnessType.G26_UNTERSUCHUNG);
-        FitnessStatusView uebung = summaries.get(AtemschutzFitnessType.UEBUNG);
-        FitnessStatusView strecke = summaries.get(AtemschutzFitnessType.STRECKEN);
-        return g26 != null
-                && g26.level() == AtemschutzFitnessLevel.OK
-                && strecke != null
-                && strecke.level() == AtemschutzFitnessLevel.OK
-                && uebung != null
-                && uebung.level() == AtemschutzFitnessLevel.OVERDUE;
+        return switch (computePlanStatus(summaries)) {
+            case TAUGLICH -> CarrierTauglichkeitStatus.TAUGLICH;
+            case WARNUNG -> CarrierTauglichkeitStatus.WARNUNG;
+            case UEBUNG_ABGELAUFEN -> CarrierTauglichkeitStatus.UEBUNG_ABGELAUFEN;
+            case ABGELAUFEN -> CarrierTauglichkeitStatus.NICHT_TAUGLICH;
+        };
     }
 
     private static List<CarrierOverview> applyFilter(List<CarrierOverview> carriers, String filter) {
@@ -379,6 +356,11 @@ public class AtemschutzService {
         if ("tauglich".equalsIgnoreCase(filter)) {
             return carriers.stream()
                     .filter(row -> row.tauglichkeit() == CarrierTauglichkeitStatus.TAUGLICH)
+                    .toList();
+        }
+        if ("warnung".equalsIgnoreCase(filter)) {
+            return carriers.stream()
+                    .filter(row -> row.tauglichkeit() == CarrierTauglichkeitStatus.WARNUNG)
                     .toList();
         }
         if ("uebung_abgelaufen".equalsIgnoreCase(filter) || "uebungabgelaufen".equalsIgnoreCase(filter)) {
@@ -470,13 +452,16 @@ public class AtemschutzService {
         int tauglich = (int) carriers.stream()
                 .filter(row -> row.tauglichkeit() == CarrierTauglichkeitStatus.TAUGLICH)
                 .count();
+        int warnung = (int) carriers.stream()
+                .filter(row -> row.tauglichkeit() == CarrierTauglichkeitStatus.WARNUNG)
+                .count();
         int uebungAbgelaufen = (int) carriers.stream()
                 .filter(row -> row.tauglichkeit() == CarrierTauglichkeitStatus.UEBUNG_ABGELAUFEN)
                 .count();
         int nichtTauglich = (int) carriers.stream()
                 .filter(row -> row.tauglichkeit() == CarrierTauglichkeitStatus.NICHT_TAUGLICH)
                 .count();
-        return new CarrierListStats(carriers.size(), tauglich, uebungAbgelaufen, nichtTauglich);
+        return new CarrierListStats(carriers.size(), tauglich, warnung, uebungAbgelaufen, nichtTauglich);
     }
 
     public record UebungPlanResult(
@@ -495,7 +480,7 @@ public class AtemschutzService {
             String agtCourseName,
             boolean agtCourseConfigured) {}
 
-    public record CarrierListStats(int total, int tauglich, int uebungAbgelaufen, int nichtTauglich) {}
+    public record CarrierListStats(int total, int tauglich, int warnung, int uebungAbgelaufen, int nichtTauglich) {}
 
     public record CarrierOverview(
             AtemschutzCarrier carrier,
