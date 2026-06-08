@@ -12,6 +12,7 @@ import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -53,7 +54,11 @@ public class AtemschutzSettingsService {
             Unit unit = unitRepository.findById(unitId).orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden"));
             UnitAtemschutzSettings settings = new UnitAtemschutzSettings();
             settings.setUnit(unit);
-            settings.setWarnDays(globalSettingsService.get().getQualificationWarnDays());
+            int defaultWarn = globalSettingsService.get().getQualificationWarnDays();
+            settings.setWarnDays(defaultWarn);
+            settings.setG26WarnDays(defaultWarn);
+            settings.setStreckeWarnDays(defaultWarn);
+            settings.setUebungWarnDays(defaultWarn);
             settings.setAgtCourseName("AGT");
             resolveDefaultAgtCourse(unitId, settings);
             UnitAtemschutzSettings saved = settingsRepository.save(settings);
@@ -81,7 +86,17 @@ public class AtemschutzSettingsService {
 
     @Transactional(readOnly = true)
     public int warnDays(long unitId) {
-        return requireSettings(unitId).getWarnDays();
+        return requireSettings(unitId).getStreckeWarnDays();
+    }
+
+    @Transactional(readOnly = true)
+    public int warnDays(long unitId, AtemschutzFitnessType type) {
+        UnitAtemschutzSettings settings = requireSettings(unitId);
+        return switch (type) {
+            case G26_UNTERSUCHUNG -> settings.getG26WarnDays();
+            case STRECKEN -> settings.getStreckeWarnDays();
+            case UEBUNG -> settings.getUebungWarnDays();
+        };
     }
 
     @Transactional(readOnly = true)
@@ -109,10 +124,7 @@ public class AtemschutzSettingsService {
     }
 
     @Transactional
-    public void saveWarnschwelle(long unitId, int warnDays, Long agtCourseId) {
-        if (warnDays < 0) {
-            throw new IllegalArgumentException("Warnschwelle darf nicht negativ sein.");
-        }
+    public void saveAgtCourse(long unitId, Long agtCourseId) {
         if (agtCourseId == null || agtCourseId <= 0) {
             throw new IllegalArgumentException("Bitte einen Lehrgang auswählen.");
         }
@@ -124,24 +136,71 @@ public class AtemschutzSettingsService {
         }
         Course stored = resolveStoredCourse(selected);
         UnitAtemschutzSettings settings = ensureSettings(unitId);
-        settings.setWarnDays(warnDays);
         settings.setAgtCourse(stored);
         settings.setAgtCourseName(stored.getName());
         settingsRepository.save(settings);
     }
 
     @Transactional
-    public void saveNotificationUsers(long unitId, List<Long> userIds) {
+    public void saveInstructors(long unitId, List<Long> userIds) {
         UnitAtemschutzSettings settings = ensureSettings(unitId);
-        settings.setNotificationUserIds(writeIds(userIds));
+        settings.setInstructorUserIds(writeIds(userIds));
         settingsRepository.save(settings);
     }
 
     @Transactional
-    public void saveCcUsers(long unitId, List<Long> userIds) {
+    public void saveNotificationSettings(
+            long unitId,
+            int g26WarnDays,
+            int streckeWarnDays,
+            int uebungWarnDays,
+            boolean g26NotifyInstructors,
+            boolean streckeNotifyInstructors,
+            boolean uebungNotifyInstructors,
+            List<Long> g26CcUserIds,
+            List<Long> streckeCcUserIds,
+            List<Long> uebungCcUserIds,
+            Map<String, String> templateSubjects,
+            Map<String, String> templateBodies) {
+        validateWarnDays(g26WarnDays);
+        validateWarnDays(streckeWarnDays);
+        validateWarnDays(uebungWarnDays);
         UnitAtemschutzSettings settings = ensureSettings(unitId);
-        settings.setCcUserIds(writeIds(userIds));
+        settings.setG26WarnDays(g26WarnDays);
+        settings.setStreckeWarnDays(streckeWarnDays);
+        settings.setUebungWarnDays(uebungWarnDays);
+        settings.setWarnDays(streckeWarnDays);
+        settings.setG26NotifyInstructors(g26NotifyInstructors);
+        settings.setStreckeNotifyInstructors(streckeNotifyInstructors);
+        settings.setUebungNotifyInstructors(uebungNotifyInstructors);
+        settings.setG26CcUserIds(writeIds(g26CcUserIds));
+        settings.setStreckeCcUserIds(writeIds(streckeCcUserIds));
+        settings.setUebungCcUserIds(writeIds(uebungCcUserIds));
         settingsRepository.save(settings);
+        if (templateSubjects != null && templateBodies != null) {
+            for (AtemschutzNotificationCategory category : AtemschutzNotificationCategory.values()) {
+                saveTemplateIfPresent(unitId, category.getWarnungTemplateKey(), templateSubjects, templateBodies);
+                saveTemplateIfPresent(unitId, category.getAbgelaufenTemplateKey(), templateSubjects, templateBodies);
+            }
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public List<AtemschutzNotificationSectionView> buildNotificationSections(long unitId) {
+        UnitAtemschutzSettings settings = ensureSettings(unitId);
+        Map<String, AtemschutzEmailTemplate> templatesByKey = listEmailTemplates(unitId).stream()
+                .collect(java.util.stream.Collectors.toMap(AtemschutzEmailTemplate::getTemplateKey, t -> t, (a, b) -> a));
+        List<AtemschutzNotificationSectionView> sections = new ArrayList<>();
+        for (AtemschutzNotificationCategory category : AtemschutzNotificationCategory.values()) {
+            sections.add(new AtemschutzNotificationSectionView(
+                    category,
+                    readWarnDays(settings, category),
+                    readNotifyInstructors(settings, category),
+                    readCcUserIds(settings, category),
+                    requireTemplate(templatesByKey, category.getWarnungTemplateKey()),
+                    requireTemplate(templatesByKey, category.getAbgelaufenTemplateKey())));
+        }
+        return sections;
     }
 
     @Transactional
@@ -180,9 +239,67 @@ public class AtemschutzSettingsService {
         return parseIds(settings.getCcUserIds());
     }
 
+    @Transactional(readOnly = true)
+    public List<Long> parseInstructorUserIds(UnitAtemschutzSettings settings) {
+        return parseIds(settings.getInstructorUserIds());
+    }
+
+    private static void validateWarnDays(int warnDays) {
+        if (warnDays < 0 || warnDays > 365) {
+            throw new IllegalArgumentException("Warnschwelle muss zwischen 0 und 365 Tagen liegen.");
+        }
+    }
+
+    private void saveTemplateIfPresent(
+            long unitId, String templateKey, Map<String, String> subjects, Map<String, String> bodies) {
+        String subject = subjects.get(templateKey);
+        String body = bodies.get(templateKey);
+        if (subject == null || body == null) {
+            return;
+        }
+        saveEmailTemplate(unitId, templateKey, subject, body);
+    }
+
+    private static int readWarnDays(UnitAtemschutzSettings settings, AtemschutzNotificationCategory category) {
+        return switch (category) {
+            case G26 -> settings.getG26WarnDays();
+            case STRECKEN -> settings.getStreckeWarnDays();
+            case UEBUNG -> settings.getUebungWarnDays();
+        };
+    }
+
+    private static boolean readNotifyInstructors(UnitAtemschutzSettings settings, AtemschutzNotificationCategory category) {
+        return switch (category) {
+            case G26 -> settings.isG26NotifyInstructors();
+            case STRECKEN -> settings.isStreckeNotifyInstructors();
+            case UEBUNG -> settings.isUebungNotifyInstructors();
+        };
+    }
+
+    private List<Long> readCcUserIds(UnitAtemschutzSettings settings, AtemschutzNotificationCategory category) {
+        return switch (category) {
+            case G26 -> parseIds(settings.getG26CcUserIds());
+            case STRECKEN -> parseIds(settings.getStreckeCcUserIds());
+            case UEBUNG -> parseIds(settings.getUebungCcUserIds());
+        };
+    }
+
+    private static AtemschutzEmailTemplate requireTemplate(
+            Map<String, AtemschutzEmailTemplate> templatesByKey, String key) {
+        AtemschutzEmailTemplate template = templatesByKey.get(key);
+        if (template == null) {
+            throw new IllegalStateException("E-Mail-Vorlage fehlt: " + key);
+        }
+        return template;
+    }
+
     private UnitAtemschutzSettings buildDefaultSettings(long unitId) {
         UnitAtemschutzSettings settings = new UnitAtemschutzSettings();
-        settings.setWarnDays(globalSettingsService.get().getQualificationWarnDays());
+        int defaultWarn = globalSettingsService.get().getQualificationWarnDays();
+        settings.setWarnDays(defaultWarn);
+        settings.setG26WarnDays(defaultWarn);
+        settings.setStreckeWarnDays(defaultWarn);
+        settings.setUebungWarnDays(defaultWarn);
         settings.setAgtCourseName("AGT");
         resolveDefaultAgtCourse(unitId, settings);
         return settings;

@@ -1,6 +1,6 @@
 package de.feuerwehr.manager.web;
 
-import de.feuerwehr.manager.atemschutz.AtemschutzEmailTemplate;
+import de.feuerwehr.manager.atemschutz.AtemschutzNotificationSectionView;
 import de.feuerwehr.manager.atemschutz.AtemschutzSettingsService;
 import de.feuerwehr.manager.atemschutz.UnitAtemschutzSettings;
 import de.feuerwehr.manager.security.AccessControlService;
@@ -11,6 +11,7 @@ import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
 import de.feuerwehr.manager.user.User;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -37,7 +38,6 @@ public class AtemschutzSettingsController {
     public String index(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
-            @RequestParam(name = "tab", defaultValue = "warnschwelle") String tab,
             Model model,
             RedirectAttributes redirectAttributes) {
         try {
@@ -49,15 +49,14 @@ public class AtemschutzSettingsController {
             requireModuleEnabled(unit.getId());
             UnitAtemschutzSettings settings = atemschutzSettingsService.ensureSettings(unit.getId());
             List<User> unitUsers = atemschutzSettingsService.listSelectableUnitUsers(unit.getId());
-            List<AtemschutzEmailTemplate> templates = atemschutzSettingsService.listEmailTemplates(unit.getId());
+            List<AtemschutzNotificationSectionView> sections =
+                    atemschutzSettingsService.buildNotificationSections(unit.getId());
             model.addAttribute("unitId", unit.getId());
             model.addAttribute("currentUnitName", unit.getName());
-            model.addAttribute("activeTab", normalizeTab(tab));
             model.addAttribute("settings", settings);
             model.addAttribute("unitUsers", unitUsers);
-            model.addAttribute("notificationUserIds", atemschutzSettingsService.parseNotificationUserIds(settings));
-            model.addAttribute("ccUserIds", atemschutzSettingsService.parseCcUserIds(settings));
-            model.addAttribute("emailTemplates", templates);
+            model.addAttribute("notificationSections", sections);
+            model.addAttribute("instructorUserIds", atemschutzSettingsService.parseInstructorUserIds(settings));
             model.addAttribute("unitCourses", atemschutzSettingsService.listSelectableCourses(unit.getId()));
             model.addAttribute("selectedAgtCourseId", atemschutzSettingsService.selectedAgtCourseUiId(unit.getId()));
             return "settings/atemschutz";
@@ -67,16 +66,28 @@ public class AtemschutzSettingsController {
         }
     }
 
-    @PostMapping("/warnschwelle")
-    public String saveWarnschwelle(
+    @PostMapping("/agt")
+    public String saveAgt(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam long unit,
-            @RequestParam int warnDays,
             @RequestParam long agtCourseId,
             RedirectAttributes redirectAttributes) {
-        return save(actor, unit, "warnschwelle", redirectAttributes, () -> {
-            atemschutzSettingsService.saveWarnschwelle(unit, warnDays, agtCourseId);
-            redirectAttributes.addFlashAttribute("message", "Warnschwelle gespeichert.");
+        return save(actor, unit, redirectAttributes, () -> {
+            atemschutzSettingsService.saveAgtCourse(unit, agtCourseId);
+            redirectAttributes.addFlashAttribute("message", "Lehrgang gespeichert.");
+        });
+    }
+
+    @PostMapping("/instructors")
+    public String saveInstructors(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam(name = "instructorUserIds", required = false) Long[] instructorUserIds,
+            RedirectAttributes redirectAttributes) {
+        return save(actor, unit, redirectAttributes, () -> {
+            List<Long> ids = instructorUserIds == null ? List.of() : Arrays.asList(instructorUserIds);
+            atemschutzSettingsService.saveInstructors(unit, ids);
+            redirectAttributes.addFlashAttribute("message", "Atemschutzausbilder gespeichert.");
         });
     }
 
@@ -84,58 +95,48 @@ public class AtemschutzSettingsController {
     public String saveNotifications(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam long unit,
-            @RequestParam(name = "notificationUserIds", required = false) Long[] notificationUserIds,
-            RedirectAttributes redirectAttributes) {
-        return save(actor, unit, "benachrichtigungen", redirectAttributes, () -> {
-            List<Long> ids = notificationUserIds == null ? List.of() : Arrays.asList(notificationUserIds);
-            atemschutzSettingsService.saveNotificationUsers(unit, ids);
-            redirectAttributes.addFlashAttribute("message", "Benachrichtigungen gespeichert.");
-        });
-    }
-
-    @PostMapping("/cc")
-    public String saveCc(
-            @AuthenticationPrincipal AppUserDetails actor,
-            @RequestParam long unit,
-            @RequestParam(name = "ccUserIds", required = false) Long[] ccUserIds,
-            RedirectAttributes redirectAttributes) {
-        return save(actor, unit, "cc", redirectAttributes, () -> {
-            List<Long> ids = ccUserIds == null ? List.of() : Arrays.asList(ccUserIds);
-            atemschutzSettingsService.saveCcUsers(unit, ids);
-            redirectAttributes.addFlashAttribute("message", "CC-Empfänger gespeichert.");
-        });
-    }
-
-    @PostMapping("/email-templates")
-    public String saveEmailTemplates(
-            @AuthenticationPrincipal AppUserDetails actor,
-            @RequestParam long unit,
+            @RequestParam int g26WarnDays,
+            @RequestParam int streckeWarnDays,
+            @RequestParam int uebungWarnDays,
+            @RequestParam(name = "g26NotifyInstructors", defaultValue = "false") boolean g26NotifyInstructors,
+            @RequestParam(name = "streckeNotifyInstructors", defaultValue = "false") boolean streckeNotifyInstructors,
+            @RequestParam(name = "uebungNotifyInstructors", defaultValue = "false") boolean uebungNotifyInstructors,
+            @RequestParam(name = "g26CcUserIds", required = false) Long[] g26CcUserIds,
+            @RequestParam(name = "streckeCcUserIds", required = false) Long[] streckeCcUserIds,
+            @RequestParam(name = "uebungCcUserIds", required = false) Long[] uebungCcUserIds,
             @RequestParam Map<String, String> allParams,
             RedirectAttributes redirectAttributes) {
-        return save(actor, unit, "email", redirectAttributes, () -> {
-            int saved = 0;
-            for (String key : allParams.keySet()) {
-                if (!key.startsWith("subject_")) {
-                    continue;
+        return save(actor, unit, redirectAttributes, () -> {
+            Map<String, String> subjects = new HashMap<>();
+            Map<String, String> bodies = new HashMap<>();
+            for (Map.Entry<String, String> entry : allParams.entrySet()) {
+                String key = entry.getKey();
+                if (key.startsWith("subject_")) {
+                    subjects.put(key.substring("subject_".length()), entry.getValue());
+                } else if (key.startsWith("body_")) {
+                    bodies.put(key.substring("body_".length()), entry.getValue());
                 }
-                String templateKey = key.substring("subject_".length());
-                String subject = allParams.get(key);
-                String body = allParams.get("body_" + templateKey);
-                if (body == null) {
-                    continue;
-                }
-                atemschutzSettingsService.saveEmailTemplate(unit, templateKey, subject, body);
-                saved++;
             }
-            redirectAttributes.addFlashAttribute(
-                    "message", saved > 0 ? saved + " E-Mail-Vorlage(n) gespeichert." : "Gespeichert.");
+            atemschutzSettingsService.saveNotificationSettings(
+                    unit,
+                    g26WarnDays,
+                    streckeWarnDays,
+                    uebungWarnDays,
+                    g26NotifyInstructors,
+                    streckeNotifyInstructors,
+                    uebungNotifyInstructors,
+                    g26CcUserIds == null ? List.of() : Arrays.asList(g26CcUserIds),
+                    streckeCcUserIds == null ? List.of() : Arrays.asList(streckeCcUserIds),
+                    uebungCcUserIds == null ? List.of() : Arrays.asList(uebungCcUserIds),
+                    subjects,
+                    bodies);
+            redirectAttributes.addFlashAttribute("message", "Benachrichtigungen gespeichert.");
         });
     }
 
     private String save(
             AppUserDetails actor,
             long unitId,
-            String tab,
             RedirectAttributes redirectAttributes,
             Runnable action) {
         try {
@@ -147,19 +148,12 @@ public class AtemschutzSettingsController {
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
-        return "redirect:/settings/atemschutz?unit=" + unitId + "&tab=" + tab;
+        return "redirect:/settings/atemschutz?unit=" + unitId;
     }
 
     private void requireModuleEnabled(long unitId) {
         if (!moduleSettingsService.isEnabled(AppModule.ATEMSCHUTZ, unitId)) {
             throw new IllegalArgumentException("Das Modul Atemschutz ist für diese Einheit nicht aktiviert.");
         }
-    }
-
-    private static String normalizeTab(String tab) {
-        return switch (tab) {
-            case "email", "benachrichtigungen", "cc" -> tab;
-            default -> "warnschwelle";
-        };
     }
 }

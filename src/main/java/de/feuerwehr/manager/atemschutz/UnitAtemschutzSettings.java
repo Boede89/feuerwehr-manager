@@ -35,6 +35,36 @@ public class UnitAtemschutzSettings {
     @Column(name = "warn_days", nullable = false)
     private int warnDays = 90;
 
+    @Column(name = "g26_warn_days", nullable = false)
+    private int g26WarnDays = 90;
+
+    @Column(name = "strecke_warn_days", nullable = false)
+    private int streckeWarnDays = 90;
+
+    @Column(name = "uebung_warn_days", nullable = false)
+    private int uebungWarnDays = 90;
+
+    @Column(name = "g26_notify_instructors", nullable = false)
+    private boolean g26NotifyInstructors;
+
+    @Column(name = "strecke_notify_instructors", nullable = false)
+    private boolean streckeNotifyInstructors;
+
+    @Column(name = "uebung_notify_instructors", nullable = false)
+    private boolean uebungNotifyInstructors;
+
+    @Column(name = "g26_cc_user_ids", columnDefinition = "TEXT")
+    private String g26CcUserIds;
+
+    @Column(name = "strecke_cc_user_ids", columnDefinition = "TEXT")
+    private String streckeCcUserIds;
+
+    @Column(name = "uebung_cc_user_ids", columnDefinition = "TEXT")
+    private String uebungCcUserIds;
+
+    @Column(name = "instructor_user_ids", columnDefinition = "TEXT")
+    private String instructorUserIds;
+
     @Column(name = "agt_course_name", nullable = false, length = 64)
     private String agtCourseName = "AGT";
 

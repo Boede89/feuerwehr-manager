@@ -2803,6 +2803,40 @@ span.required { color: var(--error); }
   line-height: 1.6;
 }
 
+.atemschutz-notify-section {
+  padding: 18px 0;
+  border-top: 1px solid var(--border);
+}
+.atemschutz-notify-section:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+.atemschutz-notify-section__head h3 {
+  margin: 0 0 12px;
+  font-size: var(--fs-lg);
+}
+.atemschutz-notify-section__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+.atemschutz-notify-section__warn {
+  min-width: 140px;
+  margin: 0;
+}
+.atemschutz-notify-section__warn input {
+  width: 100%;
+}
+.atemschutz-notify-section__instructors {
+  margin: 0 0 4px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.atemschutz-template-panel {
+  margin-top: 14px;
+}
 .atemschutz-settings-form__actions {
   display: flex;
   gap: 0.75rem;

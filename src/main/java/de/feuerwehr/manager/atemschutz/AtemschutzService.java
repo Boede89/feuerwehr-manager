@@ -60,7 +60,6 @@ public class AtemschutzService {
                     atemschutzSettingsService.isAgtCourseConfigured(unitId));
         }
         List<Long> carrierIds = carriers.stream().map(AtemschutzCarrier::getId).toList();
-        int warnDays = warnDays(unitId);
         LocalDate today = LocalDate.now();
         Map<Long, AtemschutzFitnessRecord> latestG26 =
                 latestRecordsByCarrier(carrierIds, AtemschutzFitnessType.G26_UNTERSUCHUNG, testData);
@@ -73,13 +72,25 @@ public class AtemschutzService {
             Map<AtemschutzFitnessType, FitnessStatusView> summaries = new EnumMap<>(AtemschutzFitnessType.class);
             summaries.put(
                     AtemschutzFitnessType.G26_UNTERSUCHUNG,
-                    toFitnessView(latestG26.get(carrier.getId()), warnDays, today, includeHealthDetails));
+                    toFitnessView(
+                            latestG26.get(carrier.getId()),
+                            atemschutzSettingsService.warnDays(unitId, AtemschutzFitnessType.G26_UNTERSUCHUNG),
+                            today,
+                            includeHealthDetails));
             summaries.put(
                     AtemschutzFitnessType.UEBUNG,
-                    toFitnessView(latestUebung.get(carrier.getId()), warnDays, today, includeHealthDetails));
+                    toFitnessView(
+                            latestUebung.get(carrier.getId()),
+                            atemschutzSettingsService.warnDays(unitId, AtemschutzFitnessType.UEBUNG),
+                            today,
+                            includeHealthDetails));
             summaries.put(
                     AtemschutzFitnessType.STRECKEN,
-                    toFitnessView(latestStrecke.get(carrier.getId()), warnDays, today, includeHealthDetails));
+                    toFitnessView(
+                            latestStrecke.get(carrier.getId()),
+                            atemschutzSettingsService.warnDays(unitId, AtemschutzFitnessType.STRECKEN),
+                            today,
+                            includeHealthDetails));
             CarrierTauglichkeitStatus tauglichkeit = computeTauglichkeit(summaries, carrier.getStatus());
             all.add(new CarrierOverview(
                     carrier,
@@ -112,7 +123,7 @@ public class AtemschutzService {
         AtemschutzCarrier carrier = requireCarrier(carrierId);
         boolean testData = testModeService.isEnabled();
         List<AtemschutzFitnessRecord> records = fitnessRecordRepository.findByCarrierId(carrierId, testData);
-        int warnDays = warnDays(carrier.getUnit().getId());
+        long unitId = carrier.getUnit().getId();
         LocalDate today = LocalDate.now();
         Map<AtemschutzFitnessType, FitnessStatusView> summaries = new EnumMap<>(AtemschutzFitnessType.class);
         for (AtemschutzFitnessType type : AtemschutzFitnessType.values()) {
@@ -121,7 +132,10 @@ public class AtemschutzService {
                     .max(Comparator.comparing(AtemschutzFitnessRecord::getValidUntil)
                             .thenComparing(AtemschutzFitnessRecord::getId))
                     .orElse(null);
-            summaries.put(type, toFitnessView(latest, warnDays, today, includeHealthDetails));
+            summaries.put(
+                    type,
+                    toFitnessView(
+                            latest, atemschutzSettingsService.warnDays(unitId, type), today, includeHealthDetails));
         }
         List<FitnessRecordView> recordViews = records.stream()
                 .map(r -> toRecordView(r, includeHealthDetails))
@@ -287,7 +301,8 @@ public class AtemschutzService {
     }
 
     private FitnessRecordView toRecordView(AtemschutzFitnessRecord record, boolean includeHealthDetails) {
-        int warnDays = warnDays(record.getCarrier().getUnit().getId());
+        int warnDays = atemschutzSettingsService.warnDays(
+                record.getCarrier().getUnit().getId(), record.getRecordType());
         AtemschutzFitnessLevel level = computeLevel(record.getValidUntil(), warnDays, LocalDate.now());
         String createdByDisplay = formatCreatedBy(record);
         if (!includeHealthDetails && record.getRecordType().healthData()) {
