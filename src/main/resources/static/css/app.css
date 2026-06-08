@@ -3036,6 +3036,10 @@ span.required { color: var(--error); }
   margin-top: 16px;
 }
 
+.strecke-termin-card {
+  overflow: hidden;
+}
+
 .strecke-termin-card__header {
   display: flex;
   justify-content: space-between;
@@ -3068,6 +3072,84 @@ span.required { color: var(--error); }
 .strecke-termin-card__meta {
   text-align: right;
   font-size: var(--fs-sm);
+  flex-shrink: 0;
+}
+
+.strecke-termin-card__info {
+  min-width: 0;
+}
+
+.strecke-termin-card__count {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.strecke-termin-card__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+}
+
+.strecke-termin-card__bemerkung {
+  font-size: var(--fs-xs);
+  opacity: 0.9;
+  font-style: italic;
+}
+
+.strecke-header-btn {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+}
+
+.strecke-header-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.28);
+  color: #fff;
+  border-color: #fff;
+}
+
+.strecke-carrier-badge--notified {
+  border-color: var(--gruen-border, rgba(22, 163, 74, 0.45));
+}
+
+.strecke-carrier-badge__notified {
+  color: var(--gruen, #16a34a);
+  font-weight: 700;
+  font-size: var(--fs-xs);
+}
+
+.strecke-carrier-badge__notify {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.strecke-carrier-badge__notify:hover {
+  color: var(--rot, #dc2626);
+}
+
+.strecke-ausbilder-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.strecke-ausbilder-list label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
 }
 
 .strecke-termin-card__drop {

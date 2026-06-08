@@ -34,6 +34,13 @@ public interface StreckeZuordnungRepository extends JpaRepository<StreckeZuordnu
 
     long countByTerminId(long terminId);
 
+    @Query("""
+            SELECT z FROM StreckeZuordnung z
+            WHERE z.termin.id = :terminId AND z.carrier.id = :carrierId
+            """)
+    Optional<StreckeZuordnung> findByTerminIdAndCarrierId(
+            @Param("terminId") long terminId, @Param("carrierId") long carrierId);
+
     @Modifying
     @Query("DELETE FROM StreckeZuordnung z WHERE z.carrier.id = :carrierId")
     void deleteByCarrierId(@Param("carrierId") long carrierId);

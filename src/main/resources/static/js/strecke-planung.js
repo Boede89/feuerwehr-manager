@@ -4,6 +4,7 @@
 
   var unitId = page.getAttribute('data-unit');
   var canWrite = page.getAttribute('data-can-write') === 'true';
+  var canMail = page.getAttribute('data-can-mail') === 'true';
   var draggedBadge = null;
 
   function getCsrfToken() {
@@ -268,6 +269,99 @@
         method: 'POST',
         body: JSON.stringify({ action: 'alle_loeschen' })
       }).then(notifyResult);
+    });
+  }
+
+  function sendEmail(payload, confirmText) {
+    if (!canMail) {
+      if (typeof toast === 'function') toast('SMTP ist nicht konfiguriert.', 'warning');
+      return;
+    }
+    if (confirmText && !confirm(confirmText)) return;
+    apiFetch('/atemschutz/strecke-planung/api/email?unit=' + unitId, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    }).then(notifyResult);
+  }
+
+  document.querySelectorAll('.strecke-carrier-badge__notify').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      sendEmail({
+        action: 'einzeln_informieren',
+        terminId: parseInt(btn.getAttribute('data-termin-id'), 10),
+        carrierId: parseInt(btn.getAttribute('data-carrier-id'), 10)
+      }, 'Teilnehmer per E-Mail informieren?');
+    });
+  });
+
+  document.querySelectorAll('.strecke-notify-termin').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      sendEmail({
+        action: 'termin_informieren',
+        terminId: parseInt(btn.getAttribute('data-termin-id'), 10)
+      }, 'Alle Teilnehmer dieses Termins per E-Mail informieren?');
+    });
+  });
+
+  var notifyAllBtn = document.getElementById('strecke-notify-all');
+  if (notifyAllBtn) {
+    notifyAllBtn.addEventListener('click', function () {
+      sendEmail({ action: 'alle_informieren' }, 'Alle zugeordneten Teilnehmer aller Termine informieren?');
+    });
+  }
+
+  function openAusbilderModal() {
+    var overlay = document.getElementById('modal-strecke-ausbilder');
+    var list = document.getElementById('strecke-ausbilder-list');
+    if (!overlay || !list) return;
+    list.innerHTML = '<p class="hint">Lade Ausbilder …</p>';
+    overlay.classList.add('active');
+    document.body.classList.add('modal-open');
+    fetch('/atemschutz/strecke-planung/api/ausbilder?unit=' + unitId)
+      .then(function (res) { return res.json(); })
+      .then(function (items) {
+        if (!items || !items.length) {
+          list.innerHTML = '<p class="hint">Keine Benutzer mit E-Mail-Adresse gefunden.</p>';
+          return;
+        }
+        list.innerHTML = '';
+        items.forEach(function (a) {
+          var label = document.createElement('label');
+          label.innerHTML =
+            '<input type="checkbox" class="strecke-ausbilder-cb" value="' + a.id + '"/>' +
+            '<span><strong>' + escapeHtml(a.name) + '</strong><br/><span class="hint">' + escapeHtml(a.email) + '</span></span>';
+          list.appendChild(label);
+        });
+      })
+      .catch(function () {
+        list.innerHTML = '<p class="hint">Ausbilder konnten nicht geladen werden.</p>';
+      });
+  }
+
+  function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.textContent = text || '';
+    return div.innerHTML;
+  }
+
+  var ausbilderBtn = document.getElementById('strecke-notify-ausbilder');
+  if (ausbilderBtn) {
+    ausbilderBtn.addEventListener('click', openAusbilderModal);
+  }
+
+  var sendAusbilderBtn = document.getElementById('strecke-send-ausbilder');
+  if (sendAusbilderBtn) {
+    sendAusbilderBtn.addEventListener('click', function () {
+      var ids = [];
+      document.querySelectorAll('.strecke-ausbilder-cb:checked').forEach(function (cb) {
+        ids.push(parseInt(cb.value, 10));
+      });
+      if (!ids.length) {
+        if (typeof toast === 'function') toast('Bitte mindestens einen Ausbilder auswählen.', 'warning');
+        return;
+      }
+      sendEmail({ action: 'ausbilder_informieren', ausbilderIds: ids }, 'Planungsübersicht an ' + ids.length + ' Ausbilder senden?');
     });
   }
 

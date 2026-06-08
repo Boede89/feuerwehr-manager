@@ -298,7 +298,8 @@ public class StreckePlanungService {
                 validUntil(overview, AtemschutzFitnessType.G26_UNTERSUCHUNG),
                 validUntil(overview, AtemschutzFitnessType.UEBUNG),
                 daysUntil(streckeBis, today),
-                dot);
+                dot,
+                zuordnung.getBenachrichtigtAm() != null);
     }
 
     private CarrierPoolView toPoolView(CarrierOverview overview, int warnDays, LocalDate today) {
@@ -455,7 +456,8 @@ public class StreckePlanungService {
             LocalDate g26Bis,
             LocalDate uebungBis,
             Long daysUntilExpiry,
-            String statusDot) {}
+            String statusDot,
+            boolean notified) {}
 
     public record CreateTerminRequest(
             LocalDate terminDatum, LocalTime terminZeit, String ort, int maxTeilnehmer, String bemerkung) {}

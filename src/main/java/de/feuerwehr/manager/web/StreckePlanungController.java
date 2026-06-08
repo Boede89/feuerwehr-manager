@@ -1,10 +1,14 @@
 package de.feuerwehr.manager.web;
 
+import de.feuerwehr.manager.atemschutz.StreckePlanungNotificationService;
+import de.feuerwehr.manager.atemschutz.StreckePlanungNotificationService.AusbilderOption;
+import de.feuerwehr.manager.atemschutz.StreckePlanungNotificationService.NotifyResult;
 import de.feuerwehr.manager.atemschutz.StreckePlanungService;
 import de.feuerwehr.manager.atemschutz.StreckePlanungService.AutoAssignResult;
 import de.feuerwehr.manager.atemschutz.StreckePlanungService.CreateTerminRequest;
 import de.feuerwehr.manager.atemschutz.StreckePlanungService.StreckePlanungView;
 import de.feuerwehr.manager.atemschutz.StreckePlanungService.UpdateTerminRequest;
+import de.feuerwehr.manager.mail.UnitMailService;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.UserPermissionService;
@@ -44,6 +48,8 @@ public class StreckePlanungController {
     private final AccessControlService accessControlService;
     private final UserPermissionService userPermissionService;
     private final StreckePlanungService streckePlanungService;
+    private final StreckePlanungNotificationService notificationService;
+    private final UnitMailService unitMailService;
 
     @GetMapping
     public String index(
@@ -61,6 +67,7 @@ public class StreckePlanungController {
             model.addAttribute("termine", view.termine());
             model.addAttribute("warnDays", view.warnDays());
             model.addAttribute("canWrite", canWrite(actor, unit.getId()));
+            model.addAttribute("canMail", unitMailService.canSendForUnit(unit.getId()));
             return "atemschutz/strecke-planung";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
@@ -127,6 +134,67 @@ public class StreckePlanungController {
             accessControlService.requireUnitAccess(actor, unit);
             streckePlanungService.deleteTermin(unit, id);
             return ActionResultDto.success("Termin gelöscht.");
+        } catch (IllegalArgumentException e) {
+            return ActionResultDto.failure(e.getMessage());
+        }
+    }
+
+    @GetMapping("/drucken")
+    public String drucken(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            Model model,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor, model);
+            requireModuleEnabled(unit.getId());
+            requireAtemschutzRead(actor, unit.getId());
+            StreckePlanungView view = streckePlanungService.loadView(unit.getId(), false);
+            model.addAttribute("unassignedCarriers", view.unassignedCarriers());
+            model.addAttribute("termine", view.termine());
+            model.addAttribute("warnDays", view.warnDays());
+            return "atemschutz/strecke-planung-druck";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return unitId != null ? "redirect:/atemschutz/strecke-planung?unit=" + unitId : "redirect:/";
+        }
+    }
+
+    @GetMapping("/api/ausbilder")
+    @ResponseBody
+    public List<AusbilderOption> listAusbilder(
+            @AuthenticationPrincipal AppUserDetails actor, @RequestParam long unit) {
+        requireModuleEnabled(unit);
+        requireAtemschutzWrite(actor, unit);
+        accessControlService.requireUnitAccess(actor, unit);
+        return notificationService.listAusbilder(unit);
+    }
+
+    @PostMapping("/api/email")
+    @ResponseBody
+    public ActionResultDto sendEmail(
+            @AuthenticationPrincipal AppUserDetails actor, @RequestParam long unit, @RequestBody EmailBody body) {
+        try {
+            requireModuleEnabled(unit);
+            requireAtemschutzWrite(actor, unit);
+            accessControlService.requireUnitAccess(actor, unit);
+            if (!unitMailService.canSendForUnit(unit)) {
+                throw new IllegalArgumentException(
+                        "SMTP der Einheit ist nicht konfiguriert (Admin → Einheit → Schnittstellen).");
+            }
+            if (body == null || body.action() == null) {
+                throw new IllegalArgumentException("Unbekannte Aktion.");
+            }
+            NotifyResult result =
+                    switch (body.action()) {
+                        case "einzeln_informieren" -> notificationService.notifyCarrier(
+                                unit, body.terminId(), body.carrierId());
+                        case "termin_informieren" -> notificationService.notifyTermin(unit, body.terminId());
+                        case "alle_informieren" -> notificationService.notifyAll(unit);
+                        case "ausbilder_informieren" -> notificationService.notifyAusbilder(unit, body.ausbilderIds());
+                        default -> throw new IllegalArgumentException("Unbekannte Aktion.");
+                    };
+            return result.ok() ? ActionResultDto.success(result.message()) : ActionResultDto.failure(result.message());
         } catch (IllegalArgumentException e) {
             return ActionResultDto.failure(e.getMessage());
         }
@@ -217,4 +285,6 @@ public class StreckePlanungController {
             String bemerkung) {}
 
     public record ZuordnungBody(String action, Long terminId, Long carrierId) {}
+
+    public record EmailBody(String action, Long terminId, Long carrierId, List<Long> ausbilderIds) {}
 }
