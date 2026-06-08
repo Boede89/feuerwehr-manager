@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('Benachrichtigungen', ~{::main})}">
+<main class="settings-page">
+  <div class="page-header page-header--toolbar">
+    <div>
+      <h2>Benachrichtigungen verwalten</h2>
+      <p>Deine persönlichen Einstellungen</p>
+    </div>
+    <a class="btn btn--outline btn--sm" th:href="@{/settings}">← Einstellungen</a>
+  </div>
+
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
+
+  <div class="card">
+    <div class="card__header">Kanäle</div>
+    <div class="card__body">
+      <p class="hint" style="margin-top:0;">
+        Lege fest, über welche Kanäle du Mitteilungen erhalten möchtest.
+        Weitere Kanäle (z.&nbsp;B. Push) können später ergänzt werden.
+        Ohne gespeicherte Einstellung sind alle Optionen aktiv.
+      </p>
+
+      <form method="post" th:action="@{/settings/notifications}">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <table class="data-table user-notification-table">
+          <thead>
+          <tr>
+            <th>Bereich</th>
+            <th th:each="channel : ${notificationChannels}" th:text="${channel.label()}">E-Mail</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="row : ${notificationTopics}">
+            <td>
+              <strong th:text="${row.topic().label()}">Atemschutz</strong>
+              <p class="hint text-sm" style="margin:0.25rem 0 0;" th:text="${row.topic().description()}">—</p>
+            </td>
+            <td th:each="channel : ${notificationChannels}">
+              <label class="checkbox-row user-notification-table__check">
+                <input type="checkbox"
+                       th:name="${'email_' + row.topic().paramKey()}"
+                       value="true"
+                       th:checked="${row.channels().get(channel)}"/>
+                <span class="sr-only" th:text="${row.topic().label() + ' per ' + channel.label()}">—</span>
+              </label>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+        <div class="btn-group settings-actions" style="margin-top:1rem;">
+          <button type="submit" class="btn btn--primary">Speichern</button>
+          <a class="btn btn--outline" th:href="@{/settings}">Abbrechen</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</main>
+</html>

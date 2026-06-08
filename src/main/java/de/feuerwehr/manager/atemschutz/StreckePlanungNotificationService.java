@@ -1,6 +1,8 @@
 package de.feuerwehr.manager.atemschutz;
 
 import de.feuerwehr.manager.mail.UnitMailService;
+import de.feuerwehr.manager.notification.UserNotificationPreferenceService;
+import de.feuerwehr.manager.notification.UserNotificationTopic;
 import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
@@ -35,6 +37,7 @@ public class StreckePlanungNotificationService {
     private final UnitMailService unitMailService;
     private final TestModeService testModeService;
     private final StreckePlanungService streckePlanungService;
+    private final UserNotificationPreferenceService userNotificationPreferenceService;
 
     @Transactional(readOnly = true)
     public List<AusbilderOption> listAusbilder(long unitId) {
@@ -54,6 +57,9 @@ public class StreckePlanungNotificationService {
     public NotifyResult notifyCarrier(long unitId, long terminId, long carrierId) {
         StreckeTermin termin = requireTermin(unitId, terminId);
         AtemschutzCarrier carrier = requireCarrier(unitId, carrierId);
+        if (!mayNotifyPerson(carrier.getPerson())) {
+            return NotifyResult.failure("Benutzer hat Atemschutz-E-Mails deaktiviert.");
+        }
         String email = resolvePersonEmail(carrier.getPerson());
         if (email == null) {
             return NotifyResult.failure("Keine E-Mail-Adresse hinterlegt.");
@@ -79,6 +85,9 @@ public class StreckePlanungNotificationService {
         List<String> errors = new ArrayList<>();
         for (StreckeZuordnung zuordnung : zuordnungen) {
             AtemschutzCarrier carrier = zuordnung.getCarrier();
+            if (!mayNotifyPerson(carrier.getPerson())) {
+                continue;
+            }
             String email = resolvePersonEmail(carrier.getPerson());
             if (email == null) {
                 failed++;
@@ -96,7 +105,7 @@ public class StreckePlanungNotificationService {
             }
         }
         if (sent == 0) {
-            String msg = failed > 0 ? "Keine E-Mail konnte gesendet werden." : "Keine E-Mail-Adressen hinterlegt.";
+            String msg = failed > 0 ? "Keine E-Mail konnte gesendet werden." : "Keine E-Mail-Adressen hinterlegt oder Benachrichtigungen deaktiviert.";
             if (!errors.isEmpty()) {
                 msg += " " + errors.get(0);
             }
@@ -134,6 +143,9 @@ public class StreckePlanungNotificationService {
                 continue;
             }
             AtemschutzCarrier carrier = zuordnung.getCarrier();
+            if (!mayNotifyPerson(carrier.getPerson())) {
+                continue;
+            }
             String email = resolvePersonEmail(carrier.getPerson());
             if (email == null) {
                 failed++;
@@ -150,7 +162,8 @@ public class StreckePlanungNotificationService {
             }
         }
         if (sent == 0) {
-            return NotifyResult.failure("Keine E-Mails gesendet. Prüfen Sie E-Mail-Adressen und SMTP-Einstellungen.");
+            return NotifyResult.failure(
+                    "Keine E-Mails gesendet. Prüfen Sie E-Mail-Adressen, Benachrichtigungseinstellungen und SMTP.");
         }
         String message = sent + " E-Mail(s) gesendet";
         if (failed > 0) {
@@ -167,14 +180,17 @@ public class StreckePlanungNotificationService {
         Unit unit = unitRepository
                 .findById(unitId)
                 .orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden."));
-        StreckePlanungService.StreckePlanungView view = streckePlanungService.loadView(unitId, false);
+        StreckePlanungService.StreckePlanungView view = streckePlanungService.loadView(unitId);
         String subject = "Übungsstrecke – Planungsübersicht";
         String body = buildAusbilderOverviewMail(unit.getName(), view);
         int sent = 0;
         int failed = 0;
         for (Long userId : userIds) {
             User user = userRepository.findById(userId).orElse(null);
-            if (user == null || user.getLoginEmail() == null || user.getLoginEmail().isBlank()) {
+            if (user == null
+                    || user.getLoginEmail() == null
+                    || user.getLoginEmail().isBlank()
+                    || !userNotificationPreferenceService.isEmailEnabledForUser(user, UserNotificationTopic.ATEMSCHUTZ)) {
                 failed++;
                 continue;
             }
@@ -220,6 +236,10 @@ public class StreckePlanungNotificationService {
             throw new IllegalArgumentException("Geräteträger gehört nicht zu dieser Einheit.");
         }
         return carrier;
+    }
+
+    private boolean mayNotifyPerson(Person person) {
+        return userNotificationPreferenceService.isEmailEnabledForPerson(person, UserNotificationTopic.ATEMSCHUTZ);
     }
 
     private static String resolvePersonEmail(Person person) {

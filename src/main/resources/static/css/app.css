@@ -2852,6 +2852,15 @@ span.required { color: var(--error); }
 .atemschutz-select-col input[type="checkbox"] {
   margin: 0;
 }
+.user-notification-table th:not(:first-child),
+.user-notification-table td:not(:first-child) {
+  width: 120px;
+  text-align: center;
+}
+.user-notification-table__check {
+  justify-content: center;
+  margin: 0;
+}
 .atemschutz-template-panel {
   margin-top: 14px;
 }

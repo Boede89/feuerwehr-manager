@@ -24,6 +24,14 @@
   </div>
 
   <div class="card mt-md">
+    <div class="card__header">Benachrichtigungen</div>
+    <div class="card__body">
+      <p class="hint">Lege fest, welche E-Mails du persönlich erhalten möchtest (z.&nbsp;B. Atemschutz-Erinnerungen).</p>
+      <a class="btn btn--outline" th:href="@{/settings/notifications}">Benachrichtigungen verwalten</a>
+    </div>
+  </div>
+
+  <div class="card mt-md">
     <div class="card__header" th:text="|Konto: ${settingsUsername}|">Konto</div>
     <div class="card__body">
       <form method="post" th:action="@{/settings/account}">

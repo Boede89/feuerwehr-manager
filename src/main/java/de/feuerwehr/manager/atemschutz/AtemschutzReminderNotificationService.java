@@ -3,6 +3,8 @@ package de.feuerwehr.manager.atemschutz;
 import de.feuerwehr.manager.atemschutz.AtemschutzService.CarrierOverview;
 import de.feuerwehr.manager.atemschutz.AtemschutzService.FitnessStatusView;
 import de.feuerwehr.manager.mail.UnitMailService;
+import de.feuerwehr.manager.notification.UserNotificationPreferenceService;
+import de.feuerwehr.manager.notification.UserNotificationTopic;
 import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.personal.PersonRepository;
 import de.feuerwehr.manager.settings.AppModule;
@@ -40,6 +42,7 @@ public class AtemschutzReminderNotificationService {
     private final UserRepository userRepository;
     private final PersonRepository personRepository;
     private final AtemschutzReminderLogRepository reminderLogRepository;
+    private final UserNotificationPreferenceService userNotificationPreferenceService;
 
     @Transactional
     public ReminderRunResult processAllUnits() {
@@ -160,16 +163,17 @@ public class AtemschutzReminderNotificationService {
         String subject = renderTemplate(template.getSubject(), person, validUntil);
         String body = textToHtml(renderTemplate(template.getBody(), person, validUntil));
 
-        String carrierEmail = notifyCarriers ? resolvePersonEmail(person) : null;
+        String carrierEmail = notifyCarriers && mayNotifyPerson(person) ? resolvePersonEmail(person) : null;
+        List<String> allowedStaff = staffEmails.stream().filter(this::mayNotifyEmail).toList();
         if (carrierEmail != null) {
-            List<String> cc = staffEmails.stream()
+            List<String> cc = allowedStaff.stream()
                     .filter(email -> !email.equalsIgnoreCase(carrierEmail))
                     .toList();
             return dispatchMail(unitId, carrierEmail, cc, subject, body, person, category);
         }
-        if (!staffEmails.isEmpty()) {
-            String to = staffEmails.get(0);
-            List<String> cc = staffEmails.size() > 1 ? staffEmails.subList(1, staffEmails.size()) : List.of();
+        if (!allowedStaff.isEmpty()) {
+            String to = allowedStaff.get(0);
+            List<String> cc = allowedStaff.size() > 1 ? allowedStaff.subList(1, allowedStaff.size()) : List.of();
             return dispatchMail(unitId, to, cc, subject, body, person, category);
         }
         return SendAttempt.SKIPPED;
@@ -200,7 +204,11 @@ public class AtemschutzReminderNotificationService {
         LinkedHashSet<String> emails = new LinkedHashSet<>();
         if (settingsService.isNotifyInstructors(settings, category)) {
             for (Long userId : settingsService.instructorUserIds(settings)) {
-                userRepository.findById(userId).map(this::resolveUserEmail).ifPresent(emails::add);
+                userRepository
+                        .findById(userId)
+                        .filter(user -> userNotificationPreferenceService.isEmailEnabled(userId, UserNotificationTopic.ATEMSCHUTZ))
+                        .map(this::resolveUserEmail)
+                        .ifPresent(emails::add);
             }
         }
         boolean testData = testModeService.isEnabled();
@@ -208,10 +216,25 @@ public class AtemschutzReminderNotificationService {
             personRepository
                     .findActiveById(personId, testData)
                     .filter(p -> p.getUnit().getId().equals(unitId))
+                    .filter(this::mayNotifyPerson)
                     .map(this::resolvePersonEmail)
                     .ifPresent(emails::add);
         }
         return new ArrayList<>(emails);
+    }
+
+    private boolean mayNotifyPerson(Person person) {
+        return userNotificationPreferenceService.isEmailEnabledForPerson(person, UserNotificationTopic.ATEMSCHUTZ);
+    }
+
+    private boolean mayNotifyEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return false;
+        }
+        return userRepository
+                .findByLoginEmailIgnoreCaseWithUnit(email.trim())
+                .map(user -> userNotificationPreferenceService.isEmailEnabledForUser(user, UserNotificationTopic.ATEMSCHUTZ))
+                .orElse(true);
     }
 
     private static String renderTemplate(String template, Person person, LocalDate validUntil) {

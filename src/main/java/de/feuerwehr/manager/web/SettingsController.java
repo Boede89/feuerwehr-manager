@@ -1,5 +1,8 @@
 package de.feuerwehr.manager.web;
 
+import de.feuerwehr.manager.notification.NotificationChannel;
+import de.feuerwehr.manager.notification.UserNotificationPreferenceService;
+import de.feuerwehr.manager.notification.UserNotificationTopic;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.TotpSessionKeys;
 import de.feuerwehr.manager.unit.UnitService;
@@ -9,6 +12,8 @@ import de.feuerwehr.manager.user.UserRepository;
 import de.feuerwehr.manager.user.UserTotpService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import java.util.EnumMap;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -32,6 +37,7 @@ public class SettingsController {
     private final UserManagementService userManagementService;
     private final UserRepository userRepository;
     private final UserTotpService userTotpService;
+    private final UserNotificationPreferenceService userNotificationPreferenceService;
 
     @GetMapping
     public String index(
@@ -55,6 +61,40 @@ public class SettingsController {
         }
         model.addAttribute("totpDisableActive", Boolean.TRUE.equals(totpDisable));
         return "settings";
+    }
+
+    @GetMapping("/notifications")
+    public String notifications(
+            @AuthenticationPrincipal AppUserDetails actor, Model model, RedirectAttributes redirectAttributes) {
+        try {
+            model.addAttribute("notificationTopics", userNotificationPreferenceService.buildSettingsView(actor.getUserId()));
+            model.addAttribute("notificationChannels", NotificationChannel.values());
+            return "settings/notifications";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return "redirect:/settings";
+        }
+    }
+
+    @PostMapping("/notifications")
+    public String saveNotifications(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam Map<String, String> params,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Map<UserNotificationTopic, Boolean> emailEnabled = new EnumMap<>(UserNotificationTopic.class);
+            for (UserNotificationTopic topic : UserNotificationTopic.values()) {
+                String key = "email_" + topic.paramKey();
+                emailEnabled.put(topic, "true".equalsIgnoreCase(params.get(key)));
+            }
+            userNotificationPreferenceService.saveEmailPreferences(actor.getUserId(), emailEnabled);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "Benachrichtigungseinstellungen gespeichert.");
+            return "redirect:/settings/notifications";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return "redirect:/settings/notifications";
+        }
     }
 
     @GetMapping("/totp/qr")

@@ -20,9 +20,9 @@
   <div th:replace="~{fragments/flash-messages :: alerts}"></div>
 
   <p class="hint hint--warn" th:if="${!agtCourseConfigured}">
-    Noch kein Lehrgang für Geräteträger konfiguriert.
+    Noch kein Lehrgang für den Geräteträger-Sync konfiguriert.
     <a th:if="${isAdmin}" th:href="@{/settings/atemschutz(unit=${unitId})}">
-      Lehrgang in den Atemschutz-Einstellungen wählen
+      Lehrgang in den Atemschutz-Einstellungen festlegen
     </a>
     <span th:unless="${isAdmin}">Bitte einen Administrator.</span>
   </p>
