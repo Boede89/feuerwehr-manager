@@ -3609,132 +3609,159 @@ span.required { color: var(--error); }
 /* Kräfte & Fahrzeuge — Drag & Drop Board */
 .einsatzbericht-form-page .incident-kraefte-board {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(300px, 360px);
-  gap: 20px;
+  grid-template-columns: 148px 148px minmax(0, 1fr);
+  gap: 14px;
   align-items: start;
-  min-height: 520px;
+}
+
+.einsatzbericht-form-page .incident-kraefte-col--manual,
+.einsatzbericht-form-page .incident-kraefte-col--divera {
+  min-width: 0;
 }
 
 .einsatzbericht-form-page .incident-kraefte-col__title {
-  margin: 0 0 6px;
-  font-size: 15px;
+  margin: 0 0 4px;
+  font-size: 12px;
   font-weight: 600;
+  color: var(--text-muted);
+}
+
+.einsatzbericht-form-page .incident-kraefte-col .hint.text-sm {
+  font-size: 11px;
+  line-height: 1.35;
+  margin-bottom: 8px;
 }
 
 .einsatzbericht-form-page .incident-person-pool {
-  min-height: 420px;
-  padding: 12px;
-  border: 1px dashed var(--border);
-  border-radius: 10px;
-  background: var(--bg-muted, #f8f9fb);
+  min-height: 360px;
+  max-height: 520px;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 5px;
 }
 
 .einsatzbericht-form-page .incident-person-pool--readonly {
-  background: var(--bg-card);
-  border-style: solid;
-  opacity: 0.92;
+  border-style: dashed;
 }
 
 .einsatzbericht-form-page .incident-crew-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 8px 12px;
-  border-radius: 8px;
+  display: block;
+  width: 100%;
+  padding: 5px 8px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
-  background: var(--bg-card);
-  font-size: 13px;
+  background: var(--bg-card-hover);
+  border-left: 3px solid var(--personal-c);
+  font-size: 12px;
   font-weight: 500;
+  line-height: 1.3;
   cursor: grab;
   user-select: none;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .einsatzbericht-form-page .incident-crew-chip--divera {
   cursor: default;
-  opacity: 0.85;
+  background: var(--lila-hell);
+  border-color: rgba(124, 58, 237, 0.3);
+  border-left-color: var(--lila);
 }
 
 .einsatzbericht-form-page .incident-crew-chip--dragging {
-  opacity: 0.55;
+  opacity: 0.5;
 }
 
 .einsatzbericht-form-page .incident-vehicle-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .einsatzbericht-form-page .incident-vehicle-card {
   border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--bg-card);
-  padding: 14px 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card-hover);
+  padding: 10px 12px;
+  min-width: 0;
 }
 
 .einsatzbericht-form-page .incident-vehicle-card__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   margin-bottom: 4px;
 }
 
 .einsatzbericht-form-page .incident-vehicle-card__name {
   margin: 0;
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.einsatzbericht-form-page .incident-vehicle-card__staerke {
   font-size: 14px;
   font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--bg-muted, #eef1f6);
-  border: 1px solid var(--border);
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.einsatzbericht-form-page .incident-vehicle-card__staerke-label {
-  margin: 0 0 10px;
+.einsatzbericht-form-page .incident-vehicle-card__staerke {
   font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.einsatzbericht-form-page .incident-vehicle-card__staerke-label {
+  margin: 0 0 8px;
+  font-size: 10px;
   color: var(--text-muted);
 }
 
 .einsatzbericht-form-page .incident-vehicle-dropzone {
-  min-height: 88px;
-  padding: 10px;
-  border: 2px dashed var(--border);
-  border-radius: 10px;
+  min-height: 72px;
+  padding: 6px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-direction: column;
+  gap: 5px;
   align-content: flex-start;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.einsatzbericht-form-page .incident-vehicle-dropzone .incident-crew-chip {
+  width: 100%;
 }
 
 .einsatzbericht-form-page .incident-vehicle-dropzone--active {
-  border-color: var(--primary, #c62828);
-  background: rgba(198, 40, 40, 0.06);
+  border-color: var(--rot);
+  background: var(--rot-subtle);
 }
 
 .einsatzbericht-form-page .incident-vehicle-dropzone-hint {
-  margin: 8px 0 0;
-  font-size: 12px;
+  margin: 6px 0 0;
+  font-size: 11px;
 }
 
 .einsatzbericht-form-page .incident-vehicle-card--wache {
   border-style: dashed;
-  background: var(--bg-muted, #f8f9fb);
+  background: var(--bg);
+  border-color: var(--text-subtle);
 }
 
 .einsatzbericht-form-page .incident-vehicle-card--wache .incident-vehicle-card__name {
-  font-size: 17px;
+  font-size: 14px;
 }
 
 /* Berichte-Einstellungen */
@@ -3781,11 +3808,30 @@ span.required { color: var(--error); }
   margin-top: 1.25rem;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1200px) {
+  .einsatzbericht-form-page .incident-vehicle-stack {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .einsatzbericht-form-page .incident-kraefte-board {
+    grid-template-columns: 1fr 1fr;
+  }
+  .einsatzbericht-form-page .incident-kraefte-col--vehicles {
+    grid-column: 1 / -1;
+  }
+  .einsatzbericht-form-page .incident-person-pool {
+    min-height: 200px;
+    max-height: 280px;
+  }
+}
+
+@media (max-width: 560px) {
   .einsatzbericht-form-page .incident-kraefte-board {
     grid-template-columns: 1fr;
   }
-  .einsatzbericht-form-page .incident-person-pool {
-    min-height: 180px;
+  .einsatzbericht-form-page .incident-vehicle-stack {
+    grid-template-columns: 1fr;
   }
 }
