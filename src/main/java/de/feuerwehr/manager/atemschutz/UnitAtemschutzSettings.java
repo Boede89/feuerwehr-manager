@@ -53,6 +53,15 @@ public class UnitAtemschutzSettings {
     @Column(name = "uebung_notify_instructors", nullable = false)
     private boolean uebungNotifyInstructors;
 
+    @Column(name = "g26_notify_carriers", nullable = false)
+    private boolean g26NotifyCarriers;
+
+    @Column(name = "strecke_notify_carriers", nullable = false)
+    private boolean streckeNotifyCarriers;
+
+    @Column(name = "uebung_notify_carriers", nullable = false)
+    private boolean uebungNotifyCarriers;
+
     @Column(name = "g26_cc_person_ids", columnDefinition = "TEXT")
     private String g26CcPersonIds;
 

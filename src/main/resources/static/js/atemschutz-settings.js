@@ -41,12 +41,44 @@
     });
   });
 
+  function initPersonSearch(modal) {
+    if (!modal) return;
+    var search = modal.querySelector('.atemschutz-person-search');
+    var picker = modal.querySelector('.user-picker');
+    var emptyHint = modal.querySelector('.atemschutz-person-search-empty');
+    if (!search || !picker) return;
+    search.addEventListener('input', function () {
+      var query = search.value.trim().toLowerCase();
+      var visible = 0;
+      picker.querySelectorAll('.user-picker__item').forEach(function (item) {
+        var haystack = (item.getAttribute('data-search') || '').toLowerCase();
+        var match = !query || haystack.indexOf(query) !== -1;
+        item.style.display = match ? '' : 'none';
+        if (match) visible++;
+      });
+      if (emptyHint) {
+        emptyHint.hidden = visible > 0;
+      }
+    });
+  }
+
   document.querySelectorAll('.atemschutz-open-cc').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var modalId = btn.getAttribute('data-modal');
-      openOverlay(document.getElementById(modalId));
+      var modal = document.getElementById(modalId);
+      openOverlay(modal);
+      if (modal) {
+        var search = modal.querySelector('.atemschutz-person-search');
+        if (search) {
+          search.value = '';
+          search.dispatchEvent(new Event('input'));
+          setTimeout(function () { search.focus(); }, 50);
+        }
+      }
     });
   });
+
+  document.querySelectorAll('.atemschutz-cc-modal').forEach(initPersonSearch);
 
   document.querySelectorAll('.atemschutz-close-cc').forEach(function (btn) {
     btn.addEventListener('click', function () {

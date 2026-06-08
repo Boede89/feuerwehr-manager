@@ -162,6 +162,9 @@ public class AtemschutzSettingsService {
             boolean g26NotifyInstructors,
             boolean streckeNotifyInstructors,
             boolean uebungNotifyInstructors,
+            boolean g26NotifyCarriers,
+            boolean streckeNotifyCarriers,
+            boolean uebungNotifyCarriers,
             List<Long> g26CcPersonIds,
             List<Long> streckeCcPersonIds,
             List<Long> uebungCcPersonIds,
@@ -178,6 +181,9 @@ public class AtemschutzSettingsService {
         settings.setG26NotifyInstructors(g26NotifyInstructors);
         settings.setStreckeNotifyInstructors(streckeNotifyInstructors);
         settings.setUebungNotifyInstructors(uebungNotifyInstructors);
+        settings.setG26NotifyCarriers(g26NotifyCarriers);
+        settings.setStreckeNotifyCarriers(streckeNotifyCarriers);
+        settings.setUebungNotifyCarriers(uebungNotifyCarriers);
         settings.setG26CcPersonIds(writeIds(validatePersonIds(unitId, g26CcPersonIds)));
         settings.setStreckeCcPersonIds(writeIds(validatePersonIds(unitId, streckeCcPersonIds)));
         settings.setUebungCcPersonIds(writeIds(validatePersonIds(unitId, uebungCcPersonIds)));
@@ -201,6 +207,7 @@ public class AtemschutzSettingsService {
                     category,
                     readWarnDays(settings, category),
                     readNotifyInstructors(settings, category),
+                    readNotifyCarriers(settings, category),
                     readCcPersonIds(settings, category),
                     requireTemplate(templatesByKey, category.getWarnungTemplateKey()),
                     requireTemplate(templatesByKey, category.getAbgelaufenTemplateKey())));
@@ -283,6 +290,39 @@ public class AtemschutzSettingsService {
             case G26 -> settings.isG26NotifyInstructors();
             case STRECKEN -> settings.isStreckeNotifyInstructors();
             case UEBUNG -> settings.isUebungNotifyInstructors();
+        };
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isNotifyCarriers(UnitAtemschutzSettings settings, AtemschutzNotificationCategory category) {
+        return readNotifyCarriers(settings, category);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isNotifyInstructors(UnitAtemschutzSettings settings, AtemschutzNotificationCategory category) {
+        return readNotifyInstructors(settings, category);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Long> ccPersonIds(UnitAtemschutzSettings settings, AtemschutzNotificationCategory category) {
+        return readCcPersonIds(settings, category);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Long> instructorUserIds(UnitAtemschutzSettings settings) {
+        return parseInstructorUserIds(settings);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<AtemschutzEmailTemplate> findEmailTemplate(long unitId, String templateKey) {
+        return emailTemplateRepository.findByUnitIdAndTemplateKey(unitId, templateKey);
+    }
+
+    private static boolean readNotifyCarriers(UnitAtemschutzSettings settings, AtemschutzNotificationCategory category) {
+        return switch (category) {
+            case G26 -> settings.isG26NotifyCarriers();
+            case STRECKEN -> settings.isStreckeNotifyCarriers();
+            case UEBUNG -> settings.isUebungNotifyCarriers();
         };
     }
 

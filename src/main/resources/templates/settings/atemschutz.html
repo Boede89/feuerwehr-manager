@@ -44,7 +44,8 @@
     <div class="card__body">
       <p class="hint" style="margin-top:0;">
         Erinnerungs- und Aufforderungs-Mails pro Nachweistyp. Platzhalter:
-        <code>{first_name}</code>, <code>{last_name}</code>, <code>{expiry_date}</code>
+        <code>{first_name}</code>, <code>{last_name}</code>, <code>{expiry_date}</code>.
+        Versand an Geräteträger erfolgt automatisch täglich um 7:00 Uhr, wenn die Option aktiv ist.
       </p>
 
       <form method="post" th:action="@{/settings/atemschutz/notifications}" id="form-notifications">
@@ -63,13 +64,22 @@
                        th:name="${section.category.warnDaysField}"
                        th:value="${section.warnDays}"/>
               </div>
-              <label class="checkbox-row atemschutz-notify-section__instructors">
-                <input type="checkbox"
-                       th:name="${section.category.notifyInstructorsField}"
-                       value="true"
-                       th:checked="${section.notifyInstructors}"/>
-                <span>Ausbilder benachrichtigen</span>
-              </label>
+              <div class="atemschutz-notify-section__checkboxes">
+                <label class="checkbox-row">
+                  <input type="checkbox"
+                         th:name="${section.category.notifyInstructorsField}"
+                         value="true"
+                         th:checked="${section.notifyInstructors}"/>
+                  <span>Ausbilder benachrichtigen</span>
+                </label>
+                <label class="checkbox-row">
+                  <input type="checkbox"
+                         th:name="${section.category.notifyCarriersField}"
+                         value="true"
+                         th:checked="${section.notifyCarriers}"/>
+                  <span>Geräteträger benachrichtigen</span>
+                </label>
+              </div>
               <button type="button" class="btn btn--outline btn--sm atemschutz-open-cc"
                       th:attr="data-modal=${'modal-cc-' + section.category.name()},
                                data-count=${#lists.size(section.ccPersonIds)}">

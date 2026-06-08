@@ -1,8 +1,12 @@
 <!DOCTYPE html>
 <html lang="de" xmlns:th="http://www.thymeleaf.org">
 <th:block th:fragment="picker(persons, paramName, selectedIds)">
-  <div class="user-picker" th:if="${!#lists.isEmpty(persons)}">
-    <label class="user-picker__item" th:each="p : ${persons}">
+  <div class="atemschutz-person-search-wrap" th:if="${!#lists.isEmpty(persons)}">
+    <input type="search" class="field atemschutz-person-search" placeholder="Name oder E-Mail suchen …" autocomplete="off"/>
+  </div>
+  <div class="user-picker user-picker--scroll" th:if="${!#lists.isEmpty(persons)}">
+    <label class="user-picker__item" th:each="p : ${persons}"
+           th:attr="data-search=${#strings.toLowerCase(p.displayName() + ' ' + (p.email != null ? p.email : '') + ' ' + (p.emailPrivate != null ? p.emailPrivate : ''))}">
       <input type="checkbox" th:name="${paramName}" th:value="${p.id}"
              th:checked="${selectedIds.contains(p.id)}"/>
       <span class="user-picker__text">
@@ -14,6 +18,7 @@
       </span>
     </label>
   </div>
+  <p class="hint atemschutz-person-search-empty" hidden style="margin:0;">Keine Treffer.</p>
   <p class="hint" th:if="${#lists.isEmpty(persons)}" style="margin:0;">Keine Personen in dieser Einheit.</p>
 </th:block>
 </html>

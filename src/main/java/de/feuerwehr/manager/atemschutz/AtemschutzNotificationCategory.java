@@ -13,6 +13,7 @@ public enum AtemschutzNotificationCategory {
             "g263_abgelaufen",
             "g26WarnDays",
             "g26NotifyInstructors",
+            "g26NotifyCarriers",
             "g26CcPersonIds"),
     STRECKEN(
             "Strecke",
@@ -21,6 +22,7 @@ public enum AtemschutzNotificationCategory {
             "strecke_abgelaufen",
             "streckeWarnDays",
             "streckeNotifyInstructors",
+            "streckeNotifyCarriers",
             "streckeCcPersonIds"),
     UEBUNG(
             "Übung / Einsatz",
@@ -29,6 +31,7 @@ public enum AtemschutzNotificationCategory {
             "uebung_abgelaufen",
             "uebungWarnDays",
             "uebungNotifyInstructors",
+            "uebungNotifyCarriers",
             "uebungCcPersonIds");
 
     private final String label;
@@ -37,5 +40,6 @@ public enum AtemschutzNotificationCategory {
     private final String abgelaufenTemplateKey;
     private final String warnDaysField;
     private final String notifyInstructorsField;
+    private final String notifyCarriersField;
     private final String ccPersonIdsField;
 }

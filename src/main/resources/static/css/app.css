@@ -2828,11 +2828,22 @@ span.required { color: var(--error); }
 .atemschutz-notify-section__warn input {
   width: 100%;
 }
-.atemschutz-notify-section__instructors {
-  margin: 0 0 4px;
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
+.atemschutz-notify-section__checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 220px;
+}
+.atemschutz-notify-section__checkboxes .checkbox-row {
+  margin: 0;
+  min-height: auto;
+}
+.atemschutz-person-search-wrap {
+  margin-bottom: 12px;
+}
+.user-picker--scroll {
+  max-height: 320px;
+  overflow-y: auto;
 }
 .atemschutz-template-panel {
   margin-top: 14px;

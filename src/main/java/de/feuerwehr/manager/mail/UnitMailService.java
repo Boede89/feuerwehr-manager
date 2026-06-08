@@ -2,6 +2,9 @@ package de.feuerwehr.manager.mail;
 
 import de.feuerwehr.manager.unit.UnitSmtpAccount;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
@@ -20,6 +23,12 @@ public class UnitMailService {
 
     /** @return leer bei Erfolg, sonst Fehlermeldung */
     public Optional<String> sendHtmlMail(long unitId, String toEmail, String subject, String htmlBody) {
+        return sendHtmlMail(unitId, toEmail, List.of(), subject, htmlBody);
+    }
+
+    /** @return leer bei Erfolg, sonst Fehlermeldung */
+    public Optional<String> sendHtmlMail(
+            long unitId, String toEmail, List<String> ccEmails, String subject, String htmlBody) {
         if (toEmail == null || toEmail.isBlank()) {
             return Optional.of("Keine E-Mail-Adresse hinterlegt.");
         }
@@ -42,6 +51,10 @@ public class UnitMailService {
                     : "Feuerwehr-Manager";
             helper.setFrom(account.getSmtpFromEmail(), fromName);
             helper.setTo(toEmail.trim());
+            List<String> cc = normalizeCc(ccEmails, toEmail);
+            if (!cc.isEmpty()) {
+                helper.setCc(cc.toArray(String[]::new));
+            }
             helper.setSubject(subject);
             helper.setText(htmlBody, true);
             sender.send(message);
@@ -49,5 +62,23 @@ public class UnitMailService {
         } catch (Exception e) {
             return Optional.of("E-Mail konnte nicht gesendet werden: " + e.getMessage());
         }
+    }
+
+    private static List<String> normalizeCc(List<String> ccEmails, String toEmail) {
+        if (ccEmails == null || ccEmails.isEmpty()) {
+            return List.of();
+        }
+        String to = toEmail != null ? toEmail.trim().toLowerCase() : "";
+        LinkedHashSet<String> unique = new LinkedHashSet<>();
+        for (String email : ccEmails) {
+            if (email == null || email.isBlank()) {
+                continue;
+            }
+            String trimmed = email.trim();
+            if (!trimmed.equalsIgnoreCase(to)) {
+                unique.add(trimmed);
+            }
+        }
+        return new ArrayList<>(unique);
     }
 }
