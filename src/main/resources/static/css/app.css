@@ -3668,7 +3668,7 @@ span.required { color: var(--error); }
 
 .einsatzbericht-form-page .incident-kraefte-layout {
   display: grid;
-  grid-template-columns: minmax(300px, 34%) 1fr;
+  grid-template-columns: minmax(320px, 36%) 1fr;
   gap: 18px;
   align-items: start;
 }
@@ -3709,64 +3709,80 @@ span.required { color: var(--error); }
   color: var(--text-muted);
 }
 
-.einsatzbericht-form-page .incident-kraefte-reserves {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
 .einsatzbericht-form-page .incident-reserve-panel {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--bg-card);
-  padding: 12px;
+  padding: 10px;
   min-width: 0;
-}
-
-.einsatzbericht-form-page .incident-reserve-panel--divera {
-  border-style: dashed;
-  border-color: color-mix(in srgb, var(--lila) 35%, var(--border));
-  background: color-mix(in srgb, var(--lila-hell) 40%, var(--bg-card));
 }
 
 .einsatzbericht-form-page .incident-reserve-panel__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 10px;
-  flex-wrap: wrap;
-}
-
-.einsatzbericht-form-page .incident-reserve-panel__title {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
   gap: 8px;
+  margin-bottom: 8px;
   flex-wrap: wrap;
 }
 
-.einsatzbericht-form-page .incident-reserve-panel__badge {
+.einsatzbericht-form-page .incident-reserve-panel__head .incident-kraefte-section__title {
+  margin: 0;
+}
+
+.einsatzbericht-form-page .incident-reserve-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.einsatzbericht-form-page .incident-reserve-tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.einsatzbericht-form-page .incident-reserve-tab:hover {
+  background: var(--bg-card-hover);
+  color: var(--text);
+}
+
+.einsatzbericht-form-page .incident-reserve-tab--active[data-reserve-tab="manual"] {
+  background: color-mix(in srgb, var(--personal-c) 12%, var(--bg-card));
+  border-color: color-mix(in srgb, var(--personal-c) 40%, var(--border));
+  color: var(--personal-c);
+}
+
+.einsatzbericht-form-page .incident-reserve-tab--active[data-reserve-tab="divera"] {
+  background: color-mix(in srgb, var(--lila) 10%, var(--bg-card));
+  border-color: color-mix(in srgb, var(--lila) 35%, var(--border));
+  color: var(--lila);
+}
+
+.einsatzbericht-form-page .incident-reserve-tab__count {
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 2px 8px;
+  min-width: 1.4em;
+  padding: 1px 6px;
   border-radius: var(--radius-pill);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
 }
 
-.einsatzbericht-form-page .incident-reserve-panel__badge--manual {
-  background: color-mix(in srgb, var(--personal-c) 18%, transparent);
-  color: var(--personal-c);
-  border: 1px solid color-mix(in srgb, var(--personal-c) 35%, var(--border));
-}
-
-.einsatzbericht-form-page .incident-reserve-panel__badge--divera {
-  background: color-mix(in srgb, var(--lila) 15%, transparent);
-  color: var(--lila);
-  border: 1px solid color-mix(in srgb, var(--lila) 35%, var(--border));
+.einsatzbericht-form-page .incident-reserve-tab--active .incident-reserve-tab__count {
+  background: var(--bg);
 }
 
 .einsatzbericht-form-page .incident-person-search {
@@ -3802,8 +3818,29 @@ span.required { color: var(--error); }
   gap: 6px;
 }
 
-.einsatzbericht-form-page .incident-person-pool--divera {
+.einsatzbericht-form-page .incident-person-pool--reserve {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  min-height: 36px;
+  max-height: min(32vh, 220px);
+  padding: 6px;
+  align-content: start;
+}
+
+.einsatzbericht-form-page .incident-person-pool--reserve.incident-person-pool--divera {
   border-style: dashed;
+  border-color: color-mix(in srgb, var(--lila) 30%, var(--border));
+}
+
+.einsatzbericht-form-page .incident-person-pool--reserve .incident-crew-chip--reserve {
+  width: 100%;
+  max-width: none;
+  padding: 3px 6px;
+  font-size: 11px;
+  line-height: 1.25;
+  border-left-width: 2px;
+  border-radius: var(--radius-sm, 6px);
 }
 
 .einsatzbericht-form-page .incident-person-pool-empty {
@@ -4077,6 +4114,9 @@ span.required { color: var(--error); }
 }
 
 @media (max-width: 560px) {
+  .einsatzbericht-form-page .incident-person-pool--reserve {
+    grid-template-columns: 1fr;
+  }
   .einsatzbericht-form-page .incident-virtual-slots {
     grid-template-columns: 1fr;
   }

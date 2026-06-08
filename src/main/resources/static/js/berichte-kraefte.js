@@ -35,16 +35,36 @@
     }
   }
 
-  function updatePoolEmptyState(pool) {
-    if (!pool) {
-      return;
-    }
-    var poolType = pool.dataset.pool;
-    var emptyHint = document.getElementById(poolType + '-pool-empty');
-    if (!emptyHint) {
-      return;
-    }
-    emptyHint.hidden = pool.querySelectorAll('.incident-crew-chip').length > 0;
+  function activeReserveTab() {
+    var active = document.querySelector('.incident-reserve-tab--active');
+    return active ? active.dataset.reserveTab : 'manual';
+  }
+
+  function poolForTab(tab) {
+    return document.getElementById(tab + '-person-pool');
+  }
+
+  function updatePoolCounts() {
+    ['manual', 'divera'].forEach(function (tab) {
+      var pool = poolForTab(tab);
+      var countEl = document.getElementById(tab + '-pool-count');
+      if (!pool || !countEl) {
+        return;
+      }
+      countEl.textContent = String(pool.querySelectorAll('.incident-crew-chip').length);
+    });
+  }
+
+  function updateActiveEmptyHint() {
+    ['manual', 'divera'].forEach(function (tab) {
+      var pool = poolForTab(tab);
+      var emptyHint = document.getElementById(tab + '-pool-empty');
+      if (!pool || !emptyHint) {
+        return;
+      }
+      var hasChips = pool.querySelectorAll('.incident-crew-chip').length > 0;
+      emptyHint.hidden = tab !== activeReserveTab() || hasChips;
+    });
   }
 
   function findChipByPersonId(personId) {
@@ -81,8 +101,8 @@
 
   function refreshBoard() {
     document.querySelectorAll('.incident-vehicle-card').forEach(updateVehicleStaerke);
-    updatePoolEmptyState(document.getElementById('manual-person-pool'));
-    updatePoolEmptyState(document.getElementById('divera-person-pool'));
+    updatePoolCounts();
+    updateActiveEmptyHint();
     syncHiddenJson();
   }
 
@@ -162,8 +182,8 @@
     }
   }
 
-  function filterManualPool(query) {
-    var pool = document.getElementById('manual-person-pool');
+  function filterReservePool(query) {
+    var pool = poolForTab(activeReserveTab());
     if (!pool) {
       return;
     }
@@ -172,6 +192,27 @@
       var name = (chip.dataset.personName || chip.textContent || '').trim().toLocaleLowerCase('de');
       chip.hidden = q.length > 0 && name.indexOf(q) === -1;
     });
+  }
+
+  function switchReserveTab(tab) {
+    document.querySelectorAll('.incident-reserve-tab').forEach(function (btn) {
+      var isActive = btn.dataset.reserveTab === tab;
+      btn.classList.toggle('incident-reserve-tab--active', isActive);
+      btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+    ['manual', 'divera'].forEach(function (poolTab) {
+      var pool = poolForTab(poolTab);
+      if (!pool) {
+        return;
+      }
+      pool.hidden = poolTab !== tab;
+      pool.classList.toggle('incident-person-pool--active', poolTab === tab);
+    });
+    var searchEl = document.getElementById('reserve-person-search');
+    if (searchEl) {
+      filterReservePool(searchEl.value);
+    }
+    updateActiveEmptyHint();
   }
 
   function homePoolForChip(chip) {
@@ -192,9 +233,9 @@
     }
     removePersonFromBoard(draggedChip.dataset.personId, draggedChip);
     insertChipSorted(pool, draggedChip);
-    if (pool.id === 'manual-person-pool') {
-      var searchEl = document.getElementById('manual-person-search');
-      filterManualPool(searchEl ? searchEl.value : '');
+    var searchEl = document.getElementById('reserve-person-search');
+    if (searchEl) {
+      filterReservePool(searchEl.value);
     }
     refreshBoard();
   }
@@ -227,10 +268,16 @@
       pool.addEventListener('drop', onDropPersonPool);
     });
 
-    var manualSearch = document.getElementById('manual-person-search');
-    if (manualSearch) {
-      manualSearch.addEventListener('input', function () {
-        filterManualPool(manualSearch.value);
+    document.querySelectorAll('.incident-reserve-tab').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        switchReserveTab(btn.dataset.reserveTab);
+      });
+    });
+
+    var reserveSearch = document.getElementById('reserve-person-search');
+    if (reserveSearch) {
+      reserveSearch.addEventListener('input', function () {
+        filterReservePool(reserveSearch.value);
       });
     }
 
