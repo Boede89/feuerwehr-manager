@@ -9,7 +9,8 @@ public record KraefteFahrzeugeState(
         KraefteVehicleView wache,
         List<KraefteVehicleView> vehicles) {
 
-    public record KraeftePersonView(long id, String displayName, String qualTier, int sortOrder) {}
+    public record KraeftePersonView(
+            long id, String displayName, String qualTier, int sortOrder, String vehicleRole) {}
 
     public record KraefteVehicleView(
             long vehicleId,
@@ -18,5 +19,7 @@ public record KraefteFahrzeugeState(
             String vehicleTypeLabel,
             List<Long> crewPersonIds,
             List<KraeftePersonView> crewPersons,
-            String besatzungsstaerke) {}
+            String besatzungsstaerke,
+            Long einheitsfuehrerPersonId,
+            Long maschinistPersonId) {}
 }

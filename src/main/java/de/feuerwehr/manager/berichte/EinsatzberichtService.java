@@ -88,6 +88,7 @@ public class EinsatzberichtService {
         List<Vehicle> unitVehicles = listVehiclesForForm(unitId);
 
         Map<Long, List<Long>> crewByVehicleId = new LinkedHashMap<>();
+        Map<Long, Map<Long, IncidentVehicleCrewRole>> roleByVehicleAndPerson = new LinkedHashMap<>();
         for (Vehicle vehicle : unitVehicles) {
             crewByVehicleId.put(vehicle.getId(), new ArrayList<>());
         }
@@ -113,6 +114,11 @@ public class EinsatzberichtService {
                 if (reportVehicle.getVehicle() != null) {
                     long vehicleId = reportVehicle.getVehicle().getId();
                     crewByVehicleId.computeIfAbsent(vehicleId, k -> new ArrayList<>()).add(person.getId());
+                    if (row.getVehicleRole() != null) {
+                        roleByVehicleAndPerson
+                                .computeIfAbsent(vehicleId, k -> new LinkedHashMap<>())
+                                .put(person.getId(), row.getVehicleRole());
+                    }
                     onVehiclePersonIds.add(person.getId());
                 } else if (reportVehicle.getVehicle() == null) {
                     String slotName = reportVehicle.getVehicleName();
@@ -150,13 +156,26 @@ public class EinsatzberichtService {
         List<KraefteFahrzeugeState.KraefteVehicleView> vehicles = new ArrayList<>();
         for (Vehicle vehicle : unitVehicles) {
             List<Long> crewIds = crewByVehicleId.getOrDefault(vehicle.getId(), List.of());
+            Map<Long, IncidentVehicleCrewRole> roles =
+                    roleByVehicleAndPerson.getOrDefault(vehicle.getId(), Map.of());
             List<Person> crew = crewIds.stream()
                     .map(personById::get)
                     .filter(Objects::nonNull)
                     .toList();
-            List<KraefteFahrzeugeState.KraeftePersonView> crewViews = crew.stream()
-                    .map(p -> toPersonView(p, sortOrderByPersonId))
+            List<KraefteFahrzeugeState.KraeftePersonView> crewViews = crewIds.stream()
+                    .map(personById::get)
+                    .filter(Objects::nonNull)
+                    .map(p -> toPersonView(p, sortOrderByPersonId, roles.get(p.getId())))
                     .toList();
+            Long einheitsfuehrerPersonId = null;
+            Long maschinistPersonId = null;
+            for (Map.Entry<Long, IncidentVehicleCrewRole> roleEntry : roles.entrySet()) {
+                if (roleEntry.getValue() == IncidentVehicleCrewRole.EINHEITSFUEHRER) {
+                    einheitsfuehrerPersonId = roleEntry.getKey();
+                } else if (roleEntry.getValue() == IncidentVehicleCrewRole.MASCHINIST) {
+                    maschinistPersonId = roleEntry.getKey();
+                }
+            }
             String typeKey = vehicle.getVehicleType();
             vehicles.add(new KraefteFahrzeugeState.KraefteVehicleView(
                     vehicle.getId(),
@@ -165,7 +184,9 @@ public class EinsatzberichtService {
                     VehicleTypes.labelFor(typeKey),
                     new ArrayList<>(crewIds),
                     crewViews,
-                    Besatzungsstaerke.format(crew)));
+                    Besatzungsstaerke.format(crew),
+                    einheitsfuehrerPersonId,
+                    maschinistPersonId));
         }
 
         List<Person> einsatzstelleCrew = einsatzstelleCrewIds.stream()
@@ -214,7 +235,11 @@ public class EinsatzberichtService {
                 List<Long> personIds = payload.personIds() != null
                         ? payload.personIds().stream().filter(Objects::nonNull).toList()
                         : List.of();
-                result.add(new CrewAssignment(payload.vehicleId(), personIds));
+                result.add(new CrewAssignment(
+                        payload.vehicleId(),
+                        personIds,
+                        payload.einheitsfuehrerPersonId(),
+                        payload.maschinistPersonId()));
             }
             return result;
         } catch (Exception e) {
@@ -436,6 +461,9 @@ public class EinsatzberichtService {
             if (reportVehicle == null) {
                 continue;
             }
+            Long einheitsfuehrerPersonId =
+                    assignment.vehicleId() > 0 ? assignment.einheitsfuehrerPersonId() : null;
+            Long maschinistPersonId = assignment.vehicleId() > 0 ? assignment.maschinistPersonId() : null;
             for (Long personId : assignment.personIds()) {
                 if (personId == null || !assignedPersons.add(personId)) {
                     continue;
@@ -447,6 +475,11 @@ public class EinsatzberichtService {
                 row.setIncidentReportVehicle(reportVehicle);
                 row.setDisplayName(person.anwesenheitDisplayName());
                 row.setSource(existingSources.getOrDefault(personId, IncidentPersonnelSource.MANUAL));
+                if (personId.equals(einheitsfuehrerPersonId)) {
+                    row.setVehicleRole(IncidentVehicleCrewRole.EINHEITSFUEHRER);
+                } else if (personId.equals(maschinistPersonId)) {
+                    row.setVehicleRole(IncidentVehicleCrewRole.MASCHINIST);
+                }
                 incidentReportPersonnelRepository.save(row);
             }
         }
@@ -488,15 +521,23 @@ public class EinsatzberichtService {
                 null,
                 new ArrayList<>(crewIds),
                 crew.stream().map(p -> toPersonView(p, sortOrderByPersonId)).toList(),
-                Besatzungsstaerke.format(crew));
+                Besatzungsstaerke.format(crew),
+                null,
+                null);
     }
 
     private KraefteFahrzeugeState.KraeftePersonView toPersonView(Person person, Map<Long, Integer> sortOrderByPersonId) {
+        return toPersonView(person, sortOrderByPersonId, null);
+    }
+
+    private KraefteFahrzeugeState.KraeftePersonView toPersonView(
+            Person person, Map<Long, Integer> sortOrderByPersonId, IncidentVehicleCrewRole vehicleRole) {
         return new KraefteFahrzeugeState.KraeftePersonView(
                 person.getId(),
                 person.anwesenheitDisplayName(),
                 Besatzungsstaerke.qualTier(person).name(),
-                sortOrderByPersonId.getOrDefault(person.getId(), 0));
+                sortOrderByPersonId.getOrDefault(person.getId(), 0),
+                vehicleRole != null ? vehicleRole.name() : null);
     }
 
     private Person resolvePersonForUnit(long personId, long unitId) {
@@ -777,5 +818,9 @@ public class EinsatzberichtService {
         return unitRepository.findById(unitId).orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden."));
     }
 
-    private record CrewAssignmentPayload(Long vehicleId, List<Long> personIds) {}
+    private record CrewAssignmentPayload(
+            Long vehicleId,
+            List<Long> personIds,
+            Long einheitsfuehrerPersonId,
+            Long maschinistPersonId) {}
 }

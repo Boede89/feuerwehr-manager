@@ -2,4 +2,10 @@ package de.feuerwehr.manager.berichte;
 
 import java.util.List;
 
-public record CrewAssignment(long vehicleId, List<Long> personIds) {}
+public record CrewAssignment(
+        long vehicleId, List<Long> personIds, Long einheitsfuehrerPersonId, Long maschinistPersonId) {
+
+    public CrewAssignment(long vehicleId, List<Long> personIds) {
+        this(vehicleId, personIds, null, null);
+    }
+}

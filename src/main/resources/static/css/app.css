@@ -3662,6 +3662,7 @@ span.required { color: var(--error); }
 
 /* Kräfte & Fahrzeuge — Board (links Personal/Slots, rechts Fahrzeuge) */
 .einsatzbericht-form-page .incident-kraefte-board {
+  position: relative;
   width: 100%;
   max-width: none;
 }
@@ -3885,6 +3886,104 @@ span.required { color: var(--error); }
 .einsatzbericht-form-page .incident-crew-chip--dragging {
   opacity: 0.5;
 }
+
+.einsatzbericht-form-page .incident-crew-chip--vehicle-role {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.einsatzbericht-form-page .incident-crew-chip--vehicle-role:hover {
+  filter: brightness(1.05);
+}
+
+.einsatzbericht-form-page .incident-crew-chip__role-badge {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 2px 5px;
+  border-radius: var(--radius-pill);
+  line-height: 1.2;
+}
+
+.einsatzbericht-form-page .incident-crew-chip--ef {
+  border-color: color-mix(in srgb, #ca8a04 45%, var(--border));
+  background: color-mix(in srgb, #ca8a04 14%, var(--bg-card-hover));
+  border-left-color: #ca8a04;
+}
+
+.einsatzbericht-form-page .incident-crew-chip--ef .incident-crew-chip__role-badge {
+  background: #ca8a04;
+  color: #fff;
+}
+
+.einsatzbericht-form-page .incident-crew-chip--maschinist {
+  border-color: color-mix(in srgb, #0284c7 45%, var(--border));
+  background: color-mix(in srgb, #0284c7 14%, var(--bg-card-hover));
+  border-left-color: #0284c7;
+}
+
+.einsatzbericht-form-page .incident-crew-chip--maschinist .incident-crew-chip__role-badge {
+  background: #0284c7;
+  color: #fff;
+}
+
+.einsatzbericht-form-page .incident-crew-chip__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.einsatzbericht-form-page .incident-crew-role-menu {
+  position: absolute;
+  z-index: 40;
+  min-width: 170px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-md, 0 8px 24px rgba(0, 0, 0, 0.18));
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.einsatzbericht-form-page .incident-crew-role-menu[hidden] {
+  display: none !important;
+}
+
+.einsatzbericht-form-page .incident-crew-role-menu__btn {
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border: none;
+  border-radius: var(--radius-sm, 6px);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.einsatzbericht-form-page .incident-crew-role-menu__btn:hover {
+  background: var(--bg-card-hover);
+}
+
+.einsatzbericht-form-page .incident-crew-role-menu__btn[data-role="EINHEITSFUEHRER"] {
+  color: #b45309;
+}
+
+.einsatzbericht-form-page .incident-crew-role-menu__btn[data-role="MASCHINIST"] {
+  color: #0369a1;
+}
+
+.einsatzbericht-form-page .incident-crew-role-menu__btn[hidden] {
+  display: none !important;
+}
+
 
 .einsatzbericht-form-page .incident-virtual-slots {
   display: grid;

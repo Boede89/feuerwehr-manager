@@ -241,7 +241,14 @@ public class BerichteController {
             }
             sb.append(ids.get(i));
         }
-        sb.append("]}");
+        sb.append(']');
+        if (vehicle.einheitsfuehrerPersonId() != null) {
+            sb.append(",\"einheitsfuehrerPersonId\":").append(vehicle.einheitsfuehrerPersonId());
+        }
+        if (vehicle.maschinistPersonId() != null) {
+            sb.append(",\"maschinistPersonId\":").append(vehicle.maschinistPersonId());
+        }
+        sb.append('}');
         return false;
     }
 

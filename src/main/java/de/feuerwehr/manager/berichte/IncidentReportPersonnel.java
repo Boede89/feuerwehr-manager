@@ -47,6 +47,10 @@ public class IncidentReportPersonnel {
     @Column(nullable = false, length = 16)
     private IncidentPersonnelSource source = IncidentPersonnelSource.MANUAL;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "vehicle_role", length = 24)
+    private IncidentVehicleCrewRole vehicleRole;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;
 }

@@ -2,6 +2,11 @@
   'use strict';
 
   var draggedChip = null;
+  var suppressChipClick = false;
+  var roleMenuChip = null;
+
+  var ROLE_EF = 'EINHEITSFUEHRER';
+  var ROLE_MA = 'MASCHINIST';
 
   function computeStaerke(chips) {
     var zf = 0;
@@ -79,6 +84,126 @@
     });
   }
 
+  function isRealVehicleCard(card) {
+    return card && Number(card.dataset.vehicleId) > 0;
+  }
+
+  function vehicleCardForChip(chip) {
+    return chip ? chip.closest('.incident-vehicle-card') : null;
+  }
+
+  function roleBadgeLabel(role) {
+    return role === ROLE_EF ? 'EF' : 'Ma';
+  }
+
+  function ensureChipNameElement(chip) {
+    if (!chip.querySelector('.incident-crew-chip__name')) {
+      var name = chip.dataset.personName || chip.textContent.trim();
+      chip.textContent = '';
+      var nameEl = document.createElement('span');
+      nameEl.className = 'incident-crew-chip__name';
+      nameEl.textContent = name;
+      chip.appendChild(nameEl);
+    }
+  }
+
+  function clearChipVehicleRole(chip) {
+    if (!chip) {
+      return;
+    }
+    delete chip.dataset.vehicleRole;
+    chip.classList.remove('incident-crew-chip--ef', 'incident-crew-chip--maschinist');
+    var badge = chip.querySelector('.incident-crew-chip__role-badge');
+    if (badge) {
+      badge.remove();
+    }
+  }
+
+  function applyChipVehicleRole(chip, role) {
+    if (!chip || !role) {
+      return;
+    }
+    ensureChipNameElement(chip);
+    clearChipVehicleRole(chip);
+    chip.dataset.vehicleRole = role;
+    chip.classList.add(role === ROLE_EF ? 'incident-crew-chip--ef' : 'incident-crew-chip--maschinist');
+    var badge = document.createElement('span');
+    badge.className = 'incident-crew-chip__role-badge';
+    badge.textContent = roleBadgeLabel(role);
+    chip.insertBefore(badge, chip.firstChild);
+  }
+
+  function findRoleChipInVehicle(card, role) {
+    if (!card) {
+      return null;
+    }
+    return card.querySelector('.incident-vehicle-dropzone .incident-crew-chip[data-vehicle-role="' + role + '"]');
+  }
+
+  function hideRoleMenu() {
+    var menu = document.getElementById('incident-crew-role-menu');
+    if (menu) {
+      menu.hidden = true;
+    }
+    roleMenuChip = null;
+  }
+
+  function showRoleMenu(chip) {
+    var card = vehicleCardForChip(chip);
+    var menu = document.getElementById('incident-crew-role-menu');
+    if (!isRealVehicleCard(card) || !menu) {
+      return;
+    }
+    var currentRole = chip.dataset.vehicleRole || '';
+    if (currentRole) {
+      clearChipVehicleRole(chip);
+      hideRoleMenu();
+      syncHiddenJson();
+      return;
+    }
+    var hasEf = !!findRoleChipInVehicle(card, ROLE_EF);
+    var hasMa = !!findRoleChipInVehicle(card, ROLE_MA);
+    menu.querySelectorAll('.incident-crew-role-menu__btn').forEach(function (btn) {
+      var role = btn.dataset.role;
+      btn.hidden = (role === ROLE_EF && hasEf) || (role === ROLE_MA && hasMa);
+    });
+    var visibleButtons = menu.querySelectorAll('.incident-crew-role-menu__btn:not([hidden])');
+    if (visibleButtons.length === 0) {
+      hideRoleMenu();
+      return;
+    }
+    roleMenuChip = chip;
+    menu.hidden = false;
+    var board = document.getElementById('incident-kraefte-board');
+    var rect = chip.getBoundingClientRect();
+    var boardRect = board ? board.getBoundingClientRect() : { left: 0, top: 0 };
+    var left = rect.left - boardRect.left;
+    var top = rect.bottom - boardRect.top + 6;
+    if (board) {
+      left = Math.max(4, Math.min(left, board.clientWidth - menu.offsetWidth - 4));
+    }
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+  }
+
+  function assignVehicleRole(role) {
+    if (!roleMenuChip || !role) {
+      return;
+    }
+    var card = vehicleCardForChip(roleMenuChip);
+    if (!isRealVehicleCard(card)) {
+      hideRoleMenu();
+      return;
+    }
+    var existing = findRoleChipInVehicle(card, role);
+    if (existing && existing !== roleMenuChip) {
+      clearChipVehicleRole(existing);
+    }
+    applyChipVehicleRole(roleMenuChip, role);
+    hideRoleMenu();
+    syncHiddenJson();
+  }
+
   function syncHiddenJson() {
     var hidden = document.getElementById('crewAssignmentsJson');
     if (!hidden) {
@@ -94,7 +219,18 @@
         .filter(function (id) {
           return !isNaN(id);
         });
-      assignments.push({ vehicleId: vehicleId, personIds: personIds });
+      var assignment = { vehicleId: vehicleId, personIds: personIds };
+      if (vehicleId > 0) {
+        var efChip = findRoleChipInVehicle(card, ROLE_EF);
+        var maChip = findRoleChipInVehicle(card, ROLE_MA);
+        if (efChip) {
+          assignment.einheitsfuehrerPersonId = Number(efChip.dataset.personId);
+        }
+        if (maChip) {
+          assignment.maschinistPersonId = Number(maChip.dataset.personId);
+        }
+      }
+      assignments.push(assignment);
     });
     hidden.value = JSON.stringify(assignments);
   }
@@ -111,6 +247,7 @@
     if (!chip || chip.getAttribute('draggable') !== 'true') {
       return;
     }
+    hideRoleMenu();
     draggedChip = chip;
     chip.classList.add('incident-crew-chip--dragging');
     e.dataTransfer.effectAllowed = 'move';
@@ -122,6 +259,10 @@
       draggedChip.classList.remove('incident-crew-chip--dragging');
     }
     draggedChip = null;
+    suppressChipClick = true;
+    window.setTimeout(function () {
+      suppressChipClick = false;
+    }, 120);
     document.querySelectorAll('.incident-vehicle-dropzone--active').forEach(function (zone) {
       zone.classList.remove('incident-vehicle-dropzone--active');
     });
@@ -152,8 +293,15 @@
       return;
     }
     var personId = draggedChip.dataset.personId;
+    var targetCard = zone.closest('.incident-vehicle-card');
     removePersonFromBoard(personId, draggedChip);
+    clearChipVehicleRole(draggedChip);
     zone.appendChild(draggedChip);
+    if (isRealVehicleCard(targetCard)) {
+      draggedChip.classList.add('incident-crew-chip--vehicle-role');
+    } else {
+      draggedChip.classList.remove('incident-crew-chip--vehicle-role');
+    }
     refreshBoard();
   }
 
@@ -232,6 +380,8 @@
       return;
     }
     removePersonFromBoard(draggedChip.dataset.personId, draggedChip);
+    clearChipVehicleRole(draggedChip);
+    draggedChip.classList.remove('incident-crew-chip--vehicle-role');
     insertChipSorted(pool, draggedChip);
     var searchEl = document.getElementById('reserve-person-search');
     if (searchEl) {
@@ -248,6 +398,37 @@
 
     board.addEventListener('dragstart', onDragStart);
     board.addEventListener('dragend', onDragEnd);
+
+    board.addEventListener('click', function (e) {
+      if (suppressChipClick) {
+        return;
+      }
+      var chip = e.target.closest('.incident-crew-chip--vehicle-role');
+      if (!chip || !chip.closest('.incident-vehicle-dropzone')) {
+        return;
+      }
+      if (!isRealVehicleCard(vehicleCardForChip(chip))) {
+        return;
+      }
+      e.stopPropagation();
+      showRoleMenu(chip);
+    });
+
+    var roleMenu = document.getElementById('incident-crew-role-menu');
+    if (roleMenu) {
+      roleMenu.querySelectorAll('.incident-crew-role-menu__btn').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          assignVehicleRole(btn.dataset.role);
+        });
+      });
+    }
+
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest('#incident-crew-role-menu') && !e.target.closest('.incident-crew-chip--vehicle-role')) {
+        hideRoleMenu();
+      }
+    });
 
     board.querySelectorAll('.incident-vehicle-dropzone').forEach(function (zone) {
       zone.addEventListener('dragover', onDragOverDropzone);
