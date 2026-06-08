@@ -411,6 +411,10 @@ public class AtemschutzService {
         int warnDays = atemschutzSettingsService.warnDays(
                 record.getCarrier().getUnit().getId(), record.getRecordType());
         AtemschutzFitnessLevel level = computeLevel(record.getValidUntil(), warnDays, LocalDate.now());
+        Long incidentReportId = null;
+        if (FITNESS_SOURCE_INCIDENT_REPORT.equals(record.getSourceRefType()) && record.getSourceRefId() != null) {
+            incidentReportId = record.getSourceRefId();
+        }
         return new FitnessRecordView(
                 record.getId(),
                 record.getRecordType(),
@@ -418,7 +422,8 @@ public class AtemschutzService {
                 record.getValidFrom(),
                 record.getValidUntil(),
                 formatCreatedBy(record),
-                blankToNull(record.getSourceLabel()));
+                blankToNull(record.getSourceLabel()),
+                incidentReportId);
     }
 
     private static String formatCreatedBy(AtemschutzFitnessRecord record) {
@@ -609,5 +614,6 @@ public class AtemschutzService {
             LocalDate validFrom,
             LocalDate validUntil,
             String createdByDisplay,
-            String sourceLabel) {}
+            String sourceLabel,
+            Long incidentReportId) {}
 }

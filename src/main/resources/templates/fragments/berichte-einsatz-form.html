@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="de" xmlns:th="http://www.thymeleaf.org">
 <th:block th:fragment="form">
+  <div th:classappend="${formMode == 'view' ? ' einsatzbericht-form--view' : ''}">
   <nav class="tab-bar incident-form-tabs" aria-label="Einsatzbericht-Bereiche">
     <button type="button" class="tab-btn incident-tab tab-btn--active" data-tab="0">Basisdaten</button>
     <button type="button" class="tab-btn incident-tab" data-tab="1">Kräfte &amp; Fahrzeuge</button>
@@ -22,22 +23,24 @@
       </div>
       <div class="form-group">
         <label for="incidentDate">Datum <span class="required">*</span></label>
-        <input id="incidentDate" name="incidentDate" type="date" required th:value="${form.incidentDate}"/>
+        <input id="incidentDate" name="incidentDate" type="date" th:required="${formMode != 'view'}"
+               th:readonly="${formMode == 'view'}" th:value="${form.incidentDate}"/>
       </div>
       <div class="form-group">
         <label for="alarmTime">Alarmzeit</label>
-        <input id="alarmTime" name="alarmTime" type="time"
+        <input id="alarmTime" name="alarmTime" type="time" th:readonly="${formMode == 'view'}"
                th:value="${form.alarmTime != null ? #temporals.format(form.alarmTime, 'HH:mm') : ''}"/>
       </div>
       <div class="form-group">
         <label for="endTime">Einsatzende</label>
-        <input id="endTime" name="endTime" type="time"
+        <input id="endTime" name="endTime" type="time" th:readonly="${formMode == 'view'}"
                th:value="${form.endTime != null ? #temporals.format(form.endTime, 'HH:mm') : ''}"/>
       </div>
       <div class="form-group">
         <label for="stichwort">Stichwort <span class="required">*</span></label>
         <div class="combo-suggest" data-combo-suggest data-combo-min="1">
-          <input id="stichwort" name="stichwort" type="text" maxlength="255" required
+          <input id="stichwort" name="stichwort" type="text" maxlength="255" th:required="${formMode != 'view'}"
+                 th:readonly="${formMode == 'view'}"
                  class="combo-suggest__input" autocomplete="off"
                  placeholder="Stichwort eingeben …" th:value="${form.stichwort}"/>
           <ul class="combo-suggest__list" role="listbox" hidden>
@@ -45,54 +48,63 @@
                 th:attr="data-value=${s}" th:text="${s}">Stichwort</li>
           </ul>
         </div>
-        <p class="hint text-sm" style="margin:0;">Tippen zum Filtern bekannter Stichworte; auch manuell oder aus DIVERA.</p>
+        <p class="hint text-sm" style="margin:0;" th:if="${formMode != 'view'}">Tippen zum Filtern bekannter Stichworte; auch manuell oder aus DIVERA.</p>
       </div>
       <div class="form-group">
         <label for="alarmierungDurch">Alarmierung durch</label>
         <input id="alarmierungDurch" name="alarmierungDurch" type="text" maxlength="512"
+               th:readonly="${formMode == 'view'}"
                placeholder="z. B. Leitstelle, Verband …" th:value="${form.alarmierungDurch}"/>
-        <p class="hint text-sm" style="margin:0;">Aus DIVERA-Gruppen; Zuordnung unter Schnittstellen → Empfänger-Gruppen.</p>
+        <p class="hint text-sm" style="margin:0;" th:if="${formMode != 'view'}">Aus DIVERA-Gruppen; Zuordnung unter Schnittstellen → Empfänger-Gruppen.</p>
       </div>
       <div class="form-group form-group--full">
         <label for="nachrichtLeitstelle">Nachricht Leitstelle</label>
         <textarea id="nachrichtLeitstelle" name="nachrichtLeitstelle" rows="3"
+                  th:readonly="${formMode == 'view'}"
                   placeholder="Meldung der Leitstelle aus DIVERA …"
                   th:text="${form.nachrichtLeitstelle}"></textarea>
       </div>
       <div class="form-group form-group--full">
         <label for="location">Einsatzort <span class="required">*</span></label>
-        <input id="location" name="location" type="text" maxlength="300" required
+        <input id="location" name="location" type="text" maxlength="300" th:required="${formMode != 'view'}"
+               th:readonly="${formMode == 'view'}"
                placeholder="Ortsname / Gemeinde" th:value="${form.location}"/>
       </div>
       <div class="form-group">
         <label for="postalCode">PLZ</label>
-        <input id="postalCode" name="postalCode" type="text" maxlength="10" th:value="${form.postalCode}"/>
+        <input id="postalCode" name="postalCode" type="text" maxlength="10" th:readonly="${formMode == 'view'}"
+               th:value="${form.postalCode}"/>
       </div>
       <div class="form-group">
         <label for="district">Ortsteil</label>
-        <input id="district" name="district" type="text" maxlength="128"
+        <input id="district" name="district" type="text" maxlength="128" th:readonly="${formMode == 'view'}"
                placeholder="z. B. Amern" th:value="${form.district}"/>
       </div>
       <div class="form-group">
         <label for="street">Straße</label>
-        <input id="street" name="street" type="text" maxlength="255" th:value="${form.street}"/>
+        <input id="street" name="street" type="text" maxlength="255" th:readonly="${formMode == 'view'}"
+               th:value="${form.street}"/>
       </div>
       <div class="form-group">
         <label for="houseNumber">Hausnummer</label>
-        <input id="houseNumber" name="houseNumber" type="text" maxlength="20" th:value="${form.houseNumber}"/>
+        <input id="houseNumber" name="houseNumber" type="text" maxlength="20" th:readonly="${formMode == 'view'}"
+               th:value="${form.houseNumber}"/>
       </div>
       <div class="form-group">
         <label for="objekt">Objekt</label>
-        <input id="objekt" name="objekt" type="text" maxlength="255" th:value="${form.objekt}"/>
+        <input id="objekt" name="objekt" type="text" maxlength="255" th:readonly="${formMode == 'view'}"
+               th:value="${form.objekt}"/>
       </div>
       <div class="form-group">
         <label for="eigentuemer">Eigentümer</label>
-        <input id="eigentuemer" name="eigentuemer" type="text" maxlength="255" th:value="${form.eigentuemer}"/>
+        <input id="eigentuemer" name="eigentuemer" type="text" maxlength="255" th:readonly="${formMode == 'view'}"
+               th:value="${form.eigentuemer}"/>
       </div>
       <div class="form-group form-group--full">
         <label for="incidentCommander">Einsatzleiter</label>
         <div class="combo-suggest" data-combo-suggest data-combo-min="1">
           <input id="incidentCommander" name="incidentCommander" type="text" maxlength="255"
+                 th:readonly="${formMode == 'view'}"
                  class="combo-suggest__input" autocomplete="off"
                  placeholder="Name eingeben …" th:value="${form.incidentCommander}"/>
           <ul class="combo-suggest__list" role="listbox" hidden>
@@ -104,25 +116,28 @@
       </div>
       <div class="form-group">
         <label for="reporterName">Meldender</label>
-        <input id="reporterName" name="reporterName" type="text" maxlength="255" th:value="${form.reporterName}"/>
+        <input id="reporterName" name="reporterName" type="text" maxlength="255" th:readonly="${formMode == 'view'}"
+               th:value="${form.reporterName}"/>
       </div>
       <div class="form-group">
         <label for="reporterPhone">Telefon Melder</label>
-        <input id="reporterPhone" name="reporterPhone" type="text" maxlength="64" th:value="${form.reporterPhone}"/>
+        <input id="reporterPhone" name="reporterPhone" type="text" maxlength="64" th:readonly="${formMode == 'view'}"
+               th:value="${form.reporterPhone}"/>
       </div>
     </div>
   </div>
 
   <!-- Tab 1: Kräfte & Fahrzeuge -->
   <div class="incident-tab-panel" data-panel="1" hidden>
-    <input type="hidden" name="crewAssignmentsJson" id="crewAssignmentsJson" th:value="${form.crewAssignmentsJson}"/>
+    <input type="hidden" name="crewAssignmentsJson" id="crewAssignmentsJson" th:if="${formMode != 'view'}"
+           th:value="${form.crewAssignmentsJson}"/>
     <div class="incident-kraefte-board" id="incident-kraefte-board"
-         th:attr="data-initial=${kraefteInitialJson}">
+         th:attr="data-initial=${kraefteInitialJson},data-readonly=${formMode == 'view' ? 'true' : null}">
 
-      <div class="incident-kraefte-layout">
+      <div class="incident-kraefte-layout" th:classappend="${formMode == 'view' ? ' incident-kraefte-layout--view' : ''}">
         <div class="incident-kraefte-col incident-kraefte-col--left">
 
-          <section class="incident-kraefte-section incident-kraefte-section--reserves">
+          <section class="incident-kraefte-section incident-kraefte-section--reserves" th:if="${formMode != 'view'}">
             <article class="incident-reserve-panel">
               <div class="incident-reserve-panel__head">
                 <h3 class="incident-kraefte-section__title">Verfügbares Personal</h3>
@@ -180,7 +195,7 @@
                         th:text="${scene.besatzungsstaerke()}">0/0/0/0</span>
                 </header>
                 <div class="incident-vehicle-dropzone" th:attr="data-vehicle-id=${scene.vehicleId()}">
-                  <div class="incident-crew-chip" draggable="true"
+                  <div class="incident-crew-chip" th:attr="draggable=${formMode != 'view'}"
                        th:each="person : ${scene.crewPersons()}"
                        th:classappend="${(person.poolSource() == 'divera' ? ' incident-crew-chip--divera' : '') + (person.usesPa() ? ' incident-crew-chip--pa' : '')}"
                        th:attr="data-person-id=${person.id()}, data-qual-tier=${person.qualTier()}, data-person-name=${person.displayName()}, data-sort-order=${person.sortOrder()}, data-pool-source=${person.poolSource()}, data-pa=${person.usesPa() ? 'true' : null}">
@@ -188,7 +203,7 @@
                     <span class="incident-crew-chip__name" th:text="${person.displayName()}">Name</span>
                   </div>
                 </div>
-                <p class="hint incident-vehicle-dropzone-hint">Vor Ort, kein Fahrzeug</p>
+                <p class="hint incident-vehicle-dropzone-hint" th:if="${formMode != 'view'}">Vor Ort, kein Fahrzeug</p>
               </article>
 
               <article class="incident-vehicle-card incident-vehicle-card--compact incident-vehicle-card--wache"
@@ -199,7 +214,7 @@
                         th:text="${wache.besatzungsstaerke()}">0/0/0/0</span>
                 </header>
                 <div class="incident-vehicle-dropzone" th:attr="data-vehicle-id=${wache.vehicleId()}">
-                  <div class="incident-crew-chip" draggable="true"
+                  <div class="incident-crew-chip" th:attr="draggable=${formMode != 'view'}"
                        th:each="person : ${wache.crewPersons()}"
                        th:classappend="${(person.poolSource() == 'divera' ? ' incident-crew-chip--divera' : '') + (person.usesPa() ? ' incident-crew-chip--pa' : '')}"
                        th:attr="data-person-id=${person.id()}, data-qual-tier=${person.qualTier()}, data-person-name=${person.displayName()}, data-sort-order=${person.sortOrder()}, data-pool-source=${person.poolSource()}, data-pa=${person.usesPa() ? 'true' : null}">
@@ -207,7 +222,7 @@
                     <span class="incident-crew-chip__name" th:text="${person.displayName()}">Name</span>
                   </div>
                 </div>
-                <p class="hint incident-vehicle-dropzone-hint">Nur an der Wache</p>
+                <p class="hint incident-vehicle-dropzone-hint" th:if="${formMode != 'view'}">Nur an der Wache</p>
               </article>
             </div>
           </section>
@@ -219,7 +234,8 @@
             <header class="incident-kraefte-section__head">
               <div>
                 <h3 class="incident-kraefte-section__title">Fahrzeugbesetzung</h3>
-                <p class="hint text-sm">ZF / GF / M / Gesamt — Person anklicken für Einheitsführer, Maschinist oder PA</p>
+                <p class="hint text-sm" th:if="${formMode != 'view'}">ZF / GF / M / Gesamt — Person anklicken für Einheitsführer, Maschinist oder PA</p>
+                <p class="hint text-sm" th:if="${formMode == 'view'}">ZF / GF / M / Gesamt — EF = Einheitsführer, Ma = Maschinist, PA = Atemschutz</p>
               </div>
             </header>
             <div class="incident-vehicle-stack" id="incident-vehicle-stack">
@@ -237,7 +253,7 @@
                         th:text="${v.besatzungsstaerke()}">0/0/0/0</span>
                 </header>
                 <div class="incident-vehicle-dropzone" th:attr="data-vehicle-id=${v.vehicleId()}">
-                  <div class="incident-crew-chip incident-crew-chip--vehicle-role" draggable="true"
+                  <div class="incident-crew-chip incident-crew-chip--vehicle-role" th:attr="draggable=${formMode != 'view'}"
                        th:each="person : ${v.crewPersons()}"
                        th:classappend="${(person.poolSource() == 'divera' ? ' incident-crew-chip--divera' : '') + (person.vehicleRole() == 'EINHEITSFUEHRER' ? ' incident-crew-chip--ef' : (person.vehicleRole() == 'MASCHINIST' ? ' incident-crew-chip--maschinist' : '')) + (person.usesPa() ? ' incident-crew-chip--pa' : '')}"
                        th:attr="data-person-id=${person.id()}, data-qual-tier=${person.qualTier()}, data-person-name=${person.displayName()}, data-sort-order=${person.sortOrder()}, data-vehicle-role=${person.vehicleRole()}, data-pool-source=${person.poolSource()}, data-pa=${person.usesPa() ? 'true' : null}">
@@ -249,7 +265,7 @@
                     <span class="incident-crew-chip__name" th:text="${person.displayName()}">Name</span>
                   </div>
                 </div>
-                <p class="hint incident-vehicle-dropzone-hint">Hier ablegen</p>
+                <p class="hint incident-vehicle-dropzone-hint" th:if="${formMode != 'view'}">Hier ablegen</p>
               </article>
             </div>
             <p class="hint" th:if="${#lists.isEmpty(kraefteState.vehicles())}">Keine Fahrzeuge in dieser Einheit.</p>
@@ -257,7 +273,7 @@
         </div>
       </div>
 
-      <div id="incident-crew-role-menu" class="incident-crew-role-menu" hidden role="menu">
+      <div id="incident-crew-role-menu" class="incident-crew-role-menu" hidden role="menu" th:if="${formMode != 'view'}">
         <button type="button" class="incident-crew-role-menu__btn" data-role="EINHEITSFUEHRER" role="menuitem">
           Einheitsführer
         </button>
@@ -283,10 +299,11 @@
     <div class="form-group">
       <label for="einsatzkurzbericht">Einsatzkurzbericht</label>
       <textarea id="einsatzkurzbericht" name="einsatzkurzbericht" rows="16"
-                class="incident-kurzbericht-field"
+                class="incident-kurzbericht-field" th:readonly="${formMode == 'view'}"
                 placeholder="Kurzbericht zum Einsatz …"
                 th:text="${form.einsatzkurzbericht}"></textarea>
     </div>
+  </div>
   </div>
 </th:block>
 </html>

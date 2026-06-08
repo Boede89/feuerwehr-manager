@@ -4009,6 +4009,21 @@ span.required { color: var(--error); }
   display: none !important;
 }
 
+.einsatzbericht-form-page .einsatzbericht-form--view .combo-suggest__list {
+  display: none !important;
+}
+
+.einsatzbericht-form-page .einsatzbericht-form--view .incident-crew-chip {
+  cursor: default;
+}
+
+.einsatzbericht-form-page .incident-kraefte-layout--view {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+}
+
+.einsatzbericht-view-page .page-header .page-back {
+  margin-bottom: 0.5rem;
+}
 
 .einsatzbericht-form-page .incident-virtual-slots {
   display: grid;

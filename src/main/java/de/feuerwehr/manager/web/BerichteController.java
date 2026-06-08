@@ -81,13 +81,46 @@ public class BerichteController {
             Unit unit = resolveUnit(unitId, actor, model);
             requireModuleEnabled(unit.getId());
             requireBerichteWrite(actor, unit.getId());
-            populateEinsatzFormModel(model, unit.getId(), null, einsatzberichtService.newForm(unit.getId()));
+            populateEinsatzFormModel(model, unit.getId(), null, einsatzberichtService.newForm(unit.getId()), false);
             model.addAttribute("formMode", "create");
             model.addAttribute("pageTitle", "Neuer Einsatzbericht");
             model.addAttribute("pageSubtitle", "Entwurf — wird nach dem Speichern zur Freigabe vorgelegt");
             return "berichte/einsatzbericht-form";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectBerichte(unitId, "einsatz");
+        }
+    }
+
+    @GetMapping("/einsatzberichte/{id}")
+    public String viewEinsatzbericht(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "returnUrl", required = false) String returnUrl,
+            @PathVariable long id,
+            Model model,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor, model);
+            requireModuleEnabled(unit.getId());
+            requireBerichteRead(actor, unit.getId());
+            IncidentReport report = einsatzberichtService.requireReport(unit.getId(), id);
+            EinsatzberichtForm form = EinsatzberichtForm.fromReport(report);
+            populateEinsatzFormModel(model, unit.getId(), report, form, false);
+            model.addAttribute("formMode", "view");
+            model.addAttribute("canWrite", canWrite(actor, unit.getId()));
+            model.addAttribute("returnUrl", sanitizeReturnUrl(returnUrl));
+            model.addAttribute("pageTitle", "Einsatzbericht");
+            model.addAttribute(
+                    "pageSubtitle",
+                    report.getIncidentNumber() != null ? report.getIncidentNumber() : "Anzeige");
+            return "berichte/einsatzbericht-view";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            String safeReturn = sanitizeReturnUrl(returnUrl);
+            if (safeReturn != null) {
+                return "redirect:" + safeReturn;
+            }
             return redirectBerichte(unitId, "einsatz");
         }
     }
@@ -105,7 +138,7 @@ public class BerichteController {
             requireBerichteWrite(actor, unit.getId());
             IncidentReport report = einsatzberichtService.requireReport(unit.getId(), id);
             EinsatzberichtForm form = EinsatzberichtForm.fromReport(report);
-            populateEinsatzFormModel(model, unit.getId(), report, form);
+            populateEinsatzFormModel(model, unit.getId(), report, form, true);
             model.addAttribute("formMode", "edit");
             model.addAttribute("pageTitle", "Einsatzbericht bearbeiten");
             model.addAttribute("pageSubtitle", report.getIncidentNumber() != null ? report.getIncidentNumber() : "Entwurf");
@@ -196,9 +229,10 @@ public class BerichteController {
         }
     }
 
-    private void populateEinsatzFormModel(Model model, long unitId, IncidentReport report, EinsatzberichtForm form) {
+    private void populateEinsatzFormModel(
+            Model model, long unitId, IncidentReport report, EinsatzberichtForm form, boolean refreshDivera) {
         Long reportId = report != null ? report.getId() : null;
-        if (reportId != null && report.getDiveraAlarmId() != null) {
+        if (refreshDivera && reportId != null && report.getDiveraAlarmId() != null) {
             einsatzberichtService.refreshDiveraFromLatestAlarmData(unitId, reportId);
             report = einsatzberichtService.requireReport(unitId, reportId);
             form.setIncidentDate(report.getIncidentDate());
@@ -317,5 +351,16 @@ public class BerichteController {
             return "redirect:/berichte?unit=" + unitId + "&tab=" + tab;
         }
         return "redirect:/berichte?tab=" + tab;
+    }
+
+    private static String sanitizeReturnUrl(String returnUrl) {
+        if (returnUrl == null || returnUrl.isBlank()) {
+            return null;
+        }
+        String trimmed = returnUrl.trim();
+        if (!trimmed.startsWith("/") || trimmed.startsWith("//")) {
+            return null;
+        }
+        return trimmed;
     }
 }

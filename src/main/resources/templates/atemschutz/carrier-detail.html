@@ -84,7 +84,13 @@
         <tbody>
         <tr th:each="rec : ${detail.records}">
           <td th:text="${rec.type.label()}">G26</td>
-          <td th:text="${rec.sourceLabel != null ? rec.sourceLabel : '—'}">—</td>
+          <td>
+            <a th:if="${rec.incidentReportId != null}"
+               th:href="@{/berichte/einsatzberichte/{id}(id=${rec.incidentReportId},unit=${unitId},returnUrl=|/atemschutz/carriers/${carrier.id}?unit=${unitId}|)}"
+               th:text="${rec.sourceLabel != null ? rec.sourceLabel : 'Einsatzbericht'}">Einsatzbericht</a>
+            <span th:unless="${rec.incidentReportId != null}"
+                  th:text="${rec.sourceLabel != null ? rec.sourceLabel : '—'}">—</span>
+          </td>
           <td>
             <span th:class="${rec.level.validityBadgeClass()}"
                   th:text="${rec.level.label()}">OK</span>
