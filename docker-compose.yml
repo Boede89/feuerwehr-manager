@@ -25,6 +25,7 @@ services:
     ports:
       - "8080:8080"
     environment:
+      TZ: Europe/Berlin
       MYSQL_HOST: mysql
       MYSQL_PORT: "3306"
       MYSQL_DATABASE: feuerwehr_manager

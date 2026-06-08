@@ -3,12 +3,16 @@ package de.feuerwehr.manager.divera;
 import de.feuerwehr.manager.unit.UnitDiveraSettings;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.ZoneId;
 
 public final class DiveraIntegrationSupport {
 
     private DiveraIntegrationSupport() {}
 
     public static final String DEFAULT_API_BASE = "https://app.divera247.com";
+
+    /** DIVERA-Zeitstempel sind Unix-UTC; Anzeige in deutscher Ortszeit (MESZ/MEZ). */
+    public static final ZoneId DIVERA_ZONE = ZoneId.of("Europe/Berlin");
 
     public static String buildWebhookUrl(String appBaseUrl, long unitId, String webhookSecret) {
         String base = normalizeBase(appBaseUrl);

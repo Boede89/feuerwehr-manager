@@ -199,7 +199,10 @@ public class BerichteController {
     private void populateEinsatzFormModel(Model model, long unitId, IncidentReport report, EinsatzberichtForm form) {
         Long reportId = report != null ? report.getId() : null;
         if (reportId != null && report.getDiveraAlarmId() != null) {
-            einsatzberichtService.refreshDiveraPersonnelFromLatestAlarmData(unitId, reportId);
+            einsatzberichtService.refreshDiveraFromLatestAlarmData(unitId, reportId);
+            report = einsatzberichtService.requireReport(unitId, reportId);
+            form.setIncidentDate(report.getIncidentDate());
+            form.setAlarmTime(report.getAlarmTime());
         }
         KraefteFahrzeugeState kraefteState = einsatzberichtService.buildKraefteFahrzeugeState(unitId, reportId);
         model.addAttribute("report", report);

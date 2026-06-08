@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.feuerwehr.manager.divera.DiveraAlarmDetailsMapper.DiveraAlarmDetails;
 import de.feuerwehr.manager.divera.DiveraApiClient;
+import static de.feuerwehr.manager.divera.DiveraIntegrationSupport.DIVERA_ZONE;
+
 import de.feuerwehr.manager.divera.DiveraIntegrationSupport;
 import de.feuerwehr.manager.divera.DiveraService;
 import de.feuerwehr.manager.unit.UnitDiveraSettings;
@@ -22,7 +24,6 @@ import de.feuerwehr.manager.user.UserRepository;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -258,13 +259,17 @@ public class EinsatzberichtService {
     }
 
     @Transactional
-    public void refreshDiveraPersonnelFromLatestAlarmData(long unitId, long reportId) {
+    public void refreshDiveraFromLatestAlarmData(long unitId, long reportId) {
         IncidentReport report = requireReport(unitId, reportId);
         Long alarmId = report.getDiveraAlarmId();
         if (alarmId == null || alarmId <= 0) {
             return;
         }
-        diveraService.findAlarmDetailsById(unitId, alarmId).ifPresent(details -> refreshDiveraPersonnelFromDetails(unitId, details));
+        diveraService.findAlarmDetailsById(unitId, alarmId).ifPresent(details -> {
+            applyDiveraAlarmDateTime(report, details);
+            incidentReportRepository.save(report);
+            refreshDiveraPersonnelFromDetails(unitId, details);
+        });
     }
 
     @Transactional
@@ -494,18 +499,10 @@ public class EinsatzberichtService {
     }
 
     private void applyDiveraDetails(IncidentReport report, DiveraAlarmDetails details, long unitId) {
-        ZoneId zone = ZoneId.systemDefault();
-        long dateEpoch = details.dateEpochSeconds();
-        long createEpoch = details.tsCreateSeconds();
-        LocalDate incidentDate = LocalDate.now();
-        if (dateEpoch > 0) {
-            incidentDate = Instant.ofEpochSecond(dateEpoch).atZone(zone).toLocalDate();
-        } else if (createEpoch > 0) {
-            incidentDate = Instant.ofEpochSecond(createEpoch).atZone(zone).toLocalDate();
+        applyDiveraAlarmDateTime(report, details);
+        if (report.getIncidentDate() == null) {
+            report.setIncidentDate(LocalDate.now(DIVERA_ZONE));
         }
-        report.setIncidentDate(incidentDate);
-        long alarmTimeEpoch = createEpoch > 0 ? createEpoch : dateEpoch;
-        report.setAlarmTime(toLocalTime(alarmTimeEpoch));
         report.setDepartureTime(toLocalTime(details.tsDepartureSeconds()));
         report.setArrivalTime(toLocalTime(details.tsArrivalSeconds()));
         report.setEndTime(null);
@@ -688,11 +685,27 @@ public class EinsatzberichtService {
         }
     }
 
+    private static void applyDiveraAlarmDateTime(IncidentReport report, DiveraAlarmDetails details) {
+        long alarmEpoch = resolveAlarmEpochSeconds(details);
+        if (alarmEpoch <= 0) {
+            return;
+        }
+        var zoned = Instant.ofEpochSecond(alarmEpoch).atZone(DIVERA_ZONE);
+        report.setIncidentDate(zoned.toLocalDate());
+        report.setAlarmTime(zoned.toLocalTime());
+    }
+
+    private static long resolveAlarmEpochSeconds(DiveraAlarmDetails details) {
+        long dateEpoch = details.dateEpochSeconds();
+        long createEpoch = details.tsCreateSeconds();
+        return dateEpoch > 0 ? dateEpoch : createEpoch;
+    }
+
     private static LocalTime toLocalTime(long epochSeconds) {
         if (epochSeconds <= 0) {
             return null;
         }
-        return Instant.ofEpochSecond(epochSeconds).atZone(ZoneId.systemDefault()).toLocalTime();
+        return Instant.ofEpochSecond(epochSeconds).atZone(DIVERA_ZONE).toLocalTime();
     }
 
     private static String firstNonBlank(String... values) {

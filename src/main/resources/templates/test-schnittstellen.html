@@ -51,7 +51,8 @@
     <div class="card__header">GET /api/v2/alarms — komplette Antwort</div>
     <div class="card__body">
       <p class="hint">
-        Alle nicht archivierten Alarmierungen inkl. <code>ucr_answered</code>, <code>ucr_adressed</code>, Zeitstempel usw.
+        Alle nicht archivierten Alarmierungen inkl. <code>ucr_answered</code>, <code>ucr_addressed</code>, Zeitstempel usw.
+        <strong>Alarmzeit</strong> steckt in <code>date</code> bzw. <code>ts_create</code> (Unix-Sekunden, Ortszeit Deutschland).
       </p>
       <div class="form-group form-group--full">
         <textarea id="schnittstellen-alarms-json" class="field api-json-view" rows="22" readonly
