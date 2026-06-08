@@ -109,7 +109,7 @@ public class BerichteController {
             populateEinsatzFormModel(model, unit.getId(), report, form, false);
             model.addAttribute("formMode", "view");
             model.addAttribute("canWrite", canWrite(actor, unit.getId()));
-            model.addAttribute("returnUrl", sanitizeReturnUrl(returnUrl));
+            model.addAttribute("backUrl", buildBackUrl(sanitizeReturnUrl(returnUrl), unit.getId()));
             model.addAttribute("pageTitle", "Einsatzbericht");
             model.addAttribute(
                     "pageSubtitle",
@@ -362,5 +362,12 @@ public class BerichteController {
             return null;
         }
         return trimmed;
+    }
+
+    private static String buildBackUrl(String returnPath, long unitId) {
+        if (returnPath == null) {
+            return null;
+        }
+        return returnPath + (returnPath.contains("?") ? "&" : "?") + "unit=" + unitId;
     }
 }

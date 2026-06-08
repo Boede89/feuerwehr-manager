@@ -4,8 +4,9 @@
 <main class="einsatzbericht-form-page einsatzbericht-view-page">
   <div class="page-header">
     <div>
-      <a class="btn btn--outline btn--sm page-back"
-         th:href="${returnUrl != null ? returnUrl : @{/berichte(unit=${unitId}, tab='einsatz')}}">← Zurück</a>
+      <a class="btn btn--outline btn--sm page-back" th:if="${backUrl != null}" th:href="${backUrl}">← Zurück</a>
+      <a class="btn btn--outline btn--sm page-back" th:unless="${backUrl != null}"
+         th:href="@{/berichte(unit=${unitId}, tab='einsatz')}">← Zurück</a>
       <h2 th:text="${pageTitle}">Einsatzbericht</h2>
       <p th:text="${pageSubtitle}">Anzeige</p>
     </div>

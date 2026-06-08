@@ -132,7 +132,8 @@
     <input type="hidden" name="crewAssignmentsJson" id="crewAssignmentsJson" th:if="${formMode != 'view'}"
            th:value="${form.crewAssignmentsJson}"/>
     <div class="incident-kraefte-board" id="incident-kraefte-board"
-         th:attr="data-initial=${kraefteInitialJson},data-readonly=${formMode == 'view' ? 'true' : null}">
+         th:data-initial="${kraefteInitialJson}"
+         th:data-readonly="${formMode == 'view' ? 'true' : null}">
 
       <div class="incident-kraefte-layout" th:classappend="${formMode == 'view' ? ' incident-kraefte-layout--view' : ''}">
         <div class="incident-kraefte-col incident-kraefte-col--left">
