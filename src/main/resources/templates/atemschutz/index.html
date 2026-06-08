@@ -90,7 +90,7 @@
         </tr>
         </thead>
         <tbody>
-        <tr th:each="row : ${carriers}" class="carrier-row" role="link" tabindex="0"
+        <tr th:each="row : ${carriers}" class="carrier-row member-row" role="link" tabindex="0"
             th:attr="data-search=${row.carrier.person.lastName + ' ' + row.carrier.person.firstName},
                      data-status=${row.carrier.status.name()},
                      data-tauglichkeit=${row.tauglichkeit.name()},
