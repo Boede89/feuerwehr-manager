@@ -35,7 +35,7 @@ public class DiveraEinsatzberichtSyncService {
         int created = 0;
         int skipped = 0;
         for (DiveraAlarmSummary alarm : response.alarms()) {
-            if (ensureDraftIfMissing(unitId, alarm, response.rawJsonByAlarmId())) {
+            if (ensureDraftAndSyncPersonnel(unitId, alarm, response.rawJsonByAlarmId())) {
                 created++;
             } else {
                 skipped++;
@@ -62,7 +62,11 @@ public class DiveraEinsatzberichtSyncService {
         try {
             JsonNode root = objectMapper.readTree(rawBody);
             return DiveraAlarmDetailsMapper.fromWebhookJson(root)
-                    .map(details -> einsatzberichtService.createDraftFromDiveraIfMissing(unitId, details))
+                    .map(details -> {
+                        boolean created = einsatzberichtService.createDraftFromDiveraIfMissing(unitId, details);
+                        einsatzberichtService.refreshDiveraPersonnelFromDetails(unitId, details);
+                        return created;
+                    })
                     .orElse(false);
         } catch (Exception e) {
             log.warn("[Divera→Berichte] Webhook-Sync fehlgeschlagen unit={}: {}", unitId, e.getMessage());
@@ -70,7 +74,7 @@ public class DiveraEinsatzberichtSyncService {
         }
     }
 
-    private boolean ensureDraftIfMissing(
+    private boolean ensureDraftAndSyncPersonnel(
             long unitId, DiveraAlarmSummary alarm, Map<Long, String> rawJsonByAlarmId) {
         JsonNode root = null;
         String raw = rawJsonByAlarmId != null ? rawJsonByAlarmId.get(alarm.id()) : null;
@@ -82,7 +86,11 @@ public class DiveraEinsatzberichtSyncService {
             }
         }
         return DiveraAlarmDetailsMapper.fromSummary(alarm, root)
-                .map(details -> einsatzberichtService.createDraftFromDiveraIfMissing(unitId, details))
+                .map(details -> {
+                    boolean created = einsatzberichtService.createDraftFromDiveraIfMissing(unitId, details);
+                    einsatzberichtService.refreshDiveraPersonnelFromDetails(unitId, details);
+                    return created;
+                })
                 .orElse(false);
     }
 }

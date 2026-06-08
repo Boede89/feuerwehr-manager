@@ -1,13 +1,16 @@
 package de.feuerwehr.manager.divera;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import de.feuerwehr.manager.divera.DiveraAlarmDetailsMapper.DiveraAlarmDetails;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -103,6 +106,34 @@ public class DiveraService {
             rawJsonByAlarmId.put(alarm.getAlarmId(), buildTestAlarmPayload(alarm));
         }
         return DiveraAlarmsResponse.ok(alarms, rawJsonByAlarmId);
+    }
+
+    /** Aktuelle DIVERA-Alarmdetails inkl. ucr_answered (für Personal-Nachzug). */
+    @Transactional(readOnly = true)
+    public Optional<DiveraAlarmDetails> findAlarmDetailsById(long unitId, long alarmId) {
+        if (alarmId <= 0) {
+            return Optional.empty();
+        }
+        DiveraAlarmsResponse response = fetchAllAlarmsForBerichteSync(unitId);
+        if (!response.success()) {
+            return Optional.empty();
+        }
+        for (DiveraAlarmSummary summary : response.alarms()) {
+            if (summary.id() != alarmId) {
+                continue;
+            }
+            JsonNode root = null;
+            String raw = response.rawJsonByAlarmId() != null ? response.rawJsonByAlarmId().get(alarmId) : null;
+            if (raw != null && !raw.isBlank()) {
+                try {
+                    root = objectMapper.readTree(raw);
+                } catch (Exception ignored) {
+                    root = null;
+                }
+            }
+            return DiveraAlarmDetailsMapper.fromSummary(summary, root);
+        }
+        return Optional.empty();
     }
 
     private String buildTestAlarmPayload(TestDiveraAlarm alarm) {

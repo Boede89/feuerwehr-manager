@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import de.feuerwehr.manager.divera.DiveraAlarmDetailsMapper.DiveraAlarmDetails;
 import de.feuerwehr.manager.divera.DiveraApiClient;
 import de.feuerwehr.manager.divera.DiveraIntegrationSupport;
+import de.feuerwehr.manager.divera.DiveraService;
 import de.feuerwehr.manager.unit.UnitDiveraSettings;
 import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
 import de.feuerwehr.manager.personal.Person;
@@ -34,11 +35,13 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class EinsatzberichtService {
 
     private static final TypeReference<List<CrewAssignmentPayload>> CREW_ASSIGNMENT_LIST =
@@ -55,6 +58,7 @@ public class EinsatzberichtService {
     private final TestModeService testModeService;
     private final BerichteSettingsService berichteSettingsService;
     private final DiveraApiClient diveraApiClient;
+    private final DiveraService diveraService;
     private final UnitDiveraSettingsRepository diveraSettingsRepository;
     private final ObjectMapper objectMapper;
 
@@ -251,6 +255,30 @@ public class EinsatzberichtService {
         incidentReportPersonnelRepository.deleteByIncidentReportId(id);
         incidentReportVehicleRepository.deleteByIncidentReportId(id);
         incidentReportRepository.delete(report);
+    }
+
+    @Transactional
+    public void refreshDiveraPersonnelFromLatestAlarmData(long unitId, long reportId) {
+        IncidentReport report = requireReport(unitId, reportId);
+        Long alarmId = report.getDiveraAlarmId();
+        if (alarmId == null || alarmId <= 0) {
+            return;
+        }
+        diveraService.findAlarmDetailsById(unitId, alarmId).ifPresent(details -> refreshDiveraPersonnelFromDetails(unitId, details));
+    }
+
+    @Transactional
+    public void refreshDiveraPersonnelFromDetails(long unitId, DiveraAlarmDetails details) {
+        if (details == null || details.alarmId() <= 0) {
+            return;
+        }
+        UnitBerichteSettings settings = berichteSettingsService.ensureSettings(unitId);
+        if (!settings.isImportPersonnelFromDivera()) {
+            return;
+        }
+        incidentReportRepository
+                .findByUnitIdAndDiveraAlarmId(unitId, details.alarmId())
+                .ifPresent(report -> importDiveraPersonnel(report, details, unitId));
     }
 
     @Transactional
@@ -526,25 +554,52 @@ public class EinsatzberichtService {
         Map<Long, Integer> statusByUcr = loadDiveraUserStatuses(unitId);
         Set<Long> targetUcrIds = resolveTargetUcrIds(details, allowedStatusIds, statusByUcr);
         if (targetUcrIds.isEmpty()) {
+            log.debug(
+                    "[Divera→Personal] unit={} alarm={} report={} — keine UCR-IDs (ucr_answered leer?)",
+                    unitId,
+                    details.alarmId(),
+                    report.getId());
             return;
         }
         boolean testData = testModeService.isEnabled();
-        Set<Long> assigned = new HashSet<>();
+        Set<Long> alreadyPresent = incidentReportPersonnelRepository.findByIncidentReportId(report.getId()).stream()
+                .map(IncidentReportPersonnel::getPerson)
+                .filter(Objects::nonNull)
+                .map(Person::getId)
+                .collect(Collectors.toCollection(HashSet::new));
+        Set<Long> assigned = new HashSet<>(alreadyPresent);
+        int added = 0;
+        int unmatched = 0;
         for (Long ucrId : targetUcrIds) {
-            resolvePersonForDiveraUcr(unitId, ucrId, testData).ifPresent(person -> {
-                if (!assigned.add(person.getId())) {
-                    return;
-                }
-                IncidentReportPersonnel row = new IncidentReportPersonnel();
-                row.setIncidentReport(report);
-                row.setPerson(person);
-                row.setIncidentReportVehicle(null);
-                row.setDisplayName(person.anwesenheitDisplayName());
-                row.setSource(IncidentPersonnelSource.DIVERA);
-                incidentReportPersonnelRepository.save(row);
-            });
+            Optional<Person> personOpt = resolvePersonForDiveraUcr(unitId, ucrId, testData);
+            if (personOpt.isEmpty()) {
+                unmatched++;
+                continue;
+            }
+            Person person = personOpt.get();
+            if (!assigned.add(person.getId())) {
+                continue;
+            }
+            IncidentReportPersonnel row = new IncidentReportPersonnel();
+            row.setIncidentReport(report);
+            row.setPerson(person);
+            row.setIncidentReportVehicle(null);
+            row.setDisplayName(person.anwesenheitDisplayName());
+            row.setSource(IncidentPersonnelSource.DIVERA);
+            incidentReportPersonnelRepository.save(row);
+            added++;
         }
         report.setStrengthCrew(assigned.size());
+        if (added > 0 || unmatched > 0) {
+            log.info(
+                    "[Divera→Personal] unit={} alarm={} report={} ucr={} neu={} ohneZuordnung={}",
+                    unitId,
+                    details.alarmId(),
+                    report.getId(),
+                    targetUcrIds.size(),
+                    added,
+                    unmatched);
+        }
     }
 
     private Set<Long> resolveTargetUcrIds(

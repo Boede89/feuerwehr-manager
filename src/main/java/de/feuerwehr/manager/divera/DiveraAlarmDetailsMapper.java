@@ -102,7 +102,7 @@ public final class DiveraAlarmDetailsMapper {
         AddressParts structured = parseAddress(parsed.address());
         AddressParts merged = mergeAddress(structured, alarm);
         List<DiveraPersonnelHit> personnel = collectPersonnel(alarm);
-        List<Long> answeredUcrIds = parseUcrIdArray(alarm, "ucr_answered", "ucr_adressed", "user_cluster_relation");
+        List<Long> answeredUcrIds = parseUcrIdArray(alarm, "ucr_answered");
         return new DiveraAlarmDetails(
                 parsed.alarmId(),
                 blankToNull(parsed.externalId()),

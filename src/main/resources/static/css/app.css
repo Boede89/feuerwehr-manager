@@ -3650,9 +3650,9 @@ span.required { color: var(--error); }
 /* Kräfte & Fahrzeuge — Drag & Drop Board */
 .einsatzbericht-form-page .incident-kraefte-board {
   display: grid;
-  grid-template-columns: 190px 190px minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
+  grid-template-columns: minmax(180px, 14%) minmax(180px, 14%) minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
   width: 100%;
   max-width: none;
 }
@@ -3697,6 +3697,7 @@ span.required { color: var(--error); }
 
 .einsatzbericht-form-page .incident-kraefte-col--vehicles {
   min-width: 0;
+  width: 100%;
 }
 
 .einsatzbericht-form-page .incident-person-pool {
@@ -3733,7 +3734,7 @@ span.required { color: var(--error); }
 }
 
 .einsatzbericht-form-page .incident-crew-chip--divera {
-  cursor: default;
+  cursor: grab;
   background: var(--lila-hell);
   border-color: rgba(124, 58, 237, 0.3);
   border-left-color: var(--lila);
@@ -3745,8 +3746,8 @@ span.required { color: var(--error); }
 
 .einsatzbericht-form-page .incident-vehicle-stack {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
   width: 100%;
 }
 
@@ -3876,12 +3877,6 @@ span.required { color: var(--error); }
   margin-top: 1.25rem;
 }
 
-@media (min-width: 1200px) {
-  .einsatzbericht-form-page .incident-vehicle-stack {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  }
-}
-
 @media (max-width: 900px) {
   .einsatzbericht-form-page .incident-kraefte-board {
     grid-template-columns: 1fr 1fr;
@@ -3892,6 +3887,9 @@ span.required { color: var(--error); }
   .einsatzbericht-form-page .incident-person-pool {
     min-height: 200px;
     max-height: 280px;
+  }
+  .einsatzbericht-form-page .incident-vehicle-stack {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
