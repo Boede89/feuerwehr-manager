@@ -120,38 +120,38 @@
               </div>
               <div class="incident-reserve-tabs" role="tablist" aria-label="Personalquelle">
                 <button type="button" class="incident-reserve-tab incident-reserve-tab--active"
-                        role="tab" aria-selected="true" data-reserve-tab="manual" id="reserve-tab-manual">
-                  <span class="incident-reserve-tab__label">Manuell</span>
-                  <span class="incident-reserve-tab__count" id="manual-pool-count"
-                        th:text="${#lists.size(kraefteState.manualPersons())}">0</span>
-                </button>
-                <button type="button" class="incident-reserve-tab"
-                        role="tab" aria-selected="false" data-reserve-tab="divera" id="reserve-tab-divera">
+                        role="tab" aria-selected="true" data-reserve-tab="divera" id="reserve-tab-divera">
                   <span class="incident-reserve-tab__label">DIVERA</span>
                   <span class="incident-reserve-tab__count" id="divera-pool-count"
                         th:text="${#lists.size(kraefteState.diveraPersons())}">0</span>
                 </button>
+                <button type="button" class="incident-reserve-tab"
+                        role="tab" aria-selected="false" data-reserve-tab="manual" id="reserve-tab-manual">
+                  <span class="incident-reserve-tab__label">Manuell</span>
+                  <span class="incident-reserve-tab__count" id="manual-pool-count"
+                        th:text="${#lists.size(kraefteState.manualPersons())}">0</span>
+                </button>
               </div>
               <div class="incident-reserve-pools">
-                <div class="incident-person-pool incident-person-pool--reserve incident-person-pool--active"
-                     id="manual-person-pool" data-pool="manual" role="tabpanel" aria-labelledby="reserve-tab-manual">
-                  <div class="incident-crew-chip incident-crew-chip--reserve" draggable="true"
-                       th:each="p : ${kraefteState.manualPersons()}"
-                       th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}, data-sort-order=${p.sortOrder()}"
-                       th:text="${p.displayName()}">Name</div>
-                </div>
-                <div class="incident-person-pool incident-person-pool--reserve incident-person-pool--divera"
-                     id="divera-person-pool" data-pool="divera" role="tabpanel" aria-labelledby="reserve-tab-divera" hidden>
+                <div class="incident-person-pool incident-person-pool--reserve incident-person-pool--divera incident-person-pool--active"
+                     id="divera-person-pool" data-pool="divera" role="tabpanel" aria-labelledby="reserve-tab-divera">
                   <div class="incident-crew-chip incident-crew-chip--reserve incident-crew-chip--divera" draggable="true"
                        th:each="p : ${kraefteState.diveraPersons()}"
                        th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}, data-sort-order=${p.sortOrder()}"
                        th:text="${p.displayName()}">Name</div>
                 </div>
+                <div class="incident-person-pool incident-person-pool--reserve"
+                     id="manual-person-pool" data-pool="manual" role="tabpanel" aria-labelledby="reserve-tab-manual" hidden>
+                  <div class="incident-crew-chip incident-crew-chip--reserve" draggable="true"
+                       th:each="p : ${kraefteState.manualPersons()}"
+                       th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}, data-sort-order=${p.sortOrder()}"
+                       th:text="${p.displayName()}">Name</div>
+                </div>
               </div>
-              <p class="hint incident-person-pool-empty" id="manual-pool-empty"
-                 th:hidden="${!#lists.isEmpty(kraefteState.manualPersons())}">Alle zugewiesen.</p>
               <p class="hint incident-person-pool-empty" id="divera-pool-empty"
                  th:hidden="${!#lists.isEmpty(kraefteState.diveraPersons())}">Noch keine DIVERA-Rückmeldungen.</p>
+              <p class="hint incident-person-pool-empty" id="manual-pool-empty" hidden
+                 th:hidden="${!#lists.isEmpty(kraefteState.manualPersons())}">Alle zugewiesen.</p>
             </article>
           </section>
 

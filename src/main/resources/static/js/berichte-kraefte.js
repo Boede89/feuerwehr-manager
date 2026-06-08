@@ -37,7 +37,7 @@
 
   function activeReserveTab() {
     var active = document.querySelector('.incident-reserve-tab--active');
-    return active ? active.dataset.reserveTab : 'manual';
+    return active ? active.dataset.reserveTab : 'divera';
   }
 
   function poolForTab(tab) {
@@ -288,6 +288,7 @@
       });
     }
 
+    switchReserveTab('divera');
     refreshBoard();
   }
 

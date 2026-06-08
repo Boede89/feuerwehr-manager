@@ -3818,14 +3818,22 @@ span.required { color: var(--error); }
   gap: 6px;
 }
 
+.einsatzbericht-form-page .incident-reserve-pools {
+  position: relative;
+}
+
 .einsatzbericht-form-page .incident-person-pool--reserve {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px;
+  gap: 5px;
   min-height: 36px;
   max-height: min(32vh, 220px);
   padding: 6px;
   align-content: start;
+}
+
+.einsatzbericht-form-page .incident-person-pool--reserve[hidden] {
+  display: none !important;
 }
 
 .einsatzbericht-form-page .incident-person-pool--reserve.incident-person-pool--divera {
@@ -3836,10 +3844,11 @@ span.required { color: var(--error); }
 .einsatzbericht-form-page .incident-person-pool--reserve .incident-crew-chip--reserve {
   width: 100%;
   max-width: none;
-  padding: 3px 6px;
-  font-size: 11px;
-  line-height: 1.25;
-  border-left-width: 2px;
+  padding: 5px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  border-left-width: 3px;
   border-radius: var(--radius-sm, 6px);
 }
 
