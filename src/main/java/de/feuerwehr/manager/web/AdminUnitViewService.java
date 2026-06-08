@@ -18,6 +18,7 @@ import de.feuerwehr.manager.unit.UnitCalendarAccount;
 import de.feuerwehr.manager.unit.UnitDiveraSettings;
 import de.feuerwehr.manager.unit.UnitSmtpAccount;
 import de.feuerwehr.manager.divera.DiveraIntegrationSupport;
+import de.feuerwehr.manager.divera.DiveraMappingService;
 import de.feuerwehr.manager.settings.GlobalSettingsService;
 import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
 import de.feuerwehr.manager.unit.UnitRole;
@@ -47,6 +48,7 @@ public class AdminUnitViewService {
     private final PersonalService personalService;
     private final UnitVehicleTypeService unitVehicleTypeService;
     private final VehicleChecklistService vehicleChecklistService;
+    private final DiveraMappingService diveraMappingService;
 
     public void populateKonfiguration(Model model, Unit unit) {
         model.addAttribute("unit", unit);
@@ -84,6 +86,8 @@ public class AdminUnitViewService {
         String appBase = globalSettingsService.get().getAppUrl();
         model.addAttribute("appBaseUrl", appBase != null ? appBase : "");
         populateDivera(model, unitId);
+        model.addAttribute("diveraRecipientGroups", diveraMappingService.listRecipientGroups(unitId));
+        model.addAttribute("diveraStatusIds", diveraMappingService.listStatusIds(unitId));
     }
 
     public void populateModule(Model model, long unitId) {

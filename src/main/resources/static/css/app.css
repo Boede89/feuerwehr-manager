@@ -3728,6 +3728,59 @@ span.required { color: var(--error); }
   font-size: 12px;
 }
 
+.einsatzbericht-form-page .incident-vehicle-card--wache {
+  border-style: dashed;
+  background: var(--bg-muted, #f8f9fb);
+}
+
+.einsatzbericht-form-page .incident-vehicle-card--wache .incident-vehicle-card__name {
+  font-size: 17px;
+}
+
+/* Berichte-Einstellungen */
+.berichte-settings-page .berichte-settings-tabs {
+  margin-top: 1rem;
+}
+
+.berichte-settings-page .berichte-settings-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.berichte-settings-page .toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+}
+
+.berichte-settings-page .toggle-row__label {
+  font-weight: 500;
+}
+
+.berichte-settings-page .berichte-status-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.berichte-settings-page .berichte-status-picker__item {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+}
+
+.berichte-settings-page .berichte-settings-form__actions {
+  margin-top: 1.25rem;
+}
+
 @media (max-width: 1100px) {
   .einsatzbericht-form-page .incident-kraefte-board {
     grid-template-columns: 1fr;

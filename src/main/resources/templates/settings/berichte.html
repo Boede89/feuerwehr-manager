@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('Berichte-Einstellungen', ~{::main})}">
+<main class="berichte-settings-page">
+  <div class="page-header page-header--toolbar">
+    <div>
+      <h2>Berichte-Einstellungen</h2>
+      <p th:text="${currentUnitName}">Einheit</p>
+    </div>
+    <div class="toolbar-actions">
+      <a class="btn btn--outline btn--sm" th:href="@{/admin(scope='einheit', tab='module', unit=${unitId})}">← Module</a>
+    </div>
+  </div>
+
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
+
+  <nav class="tab-bar berichte-settings-tabs" aria-label="Berichtstypen">
+    <a class="tab-btn"
+       th:each="t : ${berichteTabs}"
+       th:classappend="${berichteTab == t.key()} ? ' tab-btn--active' : ''"
+       th:href="@{/settings/berichte(unit=${unitId}, tab=${t.key()})}"
+       th:text="${t.label()}">Bericht</a>
+  </nav>
+
+  <div class="card mt-md" th:if="${berichteTab == 'einsatz'}">
+    <div class="card__header">Einsatzberichte — Divera-Anbindung</div>
+    <div class="card__body">
+      <p class="hint" style="margin-top:0;">
+        Status-Bezeichnungen werden unter Admin → Schnittstellen → DIVERA 24/7 → Status-ID gepflegt.
+        Nur Personal mit den ausgewählten Rückmeldungen wird später automatisch in den Bericht übernommen.
+      </p>
+      <form method="post" th:action="@{/settings/berichte/einsatz}" class="berichte-settings-form">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+
+        <div class="berichte-settings-toggles">
+          <label class="toggle-row">
+            <span class="toggle-row__label">Einsatzdaten aus Divera übernehmen</span>
+            <span class="toggle-switch">
+              <input type="checkbox" name="importIncidentDataFromDivera" value="true"
+                     th:checked="${settings.importIncidentDataFromDivera}"/>
+              <span class="toggle-switch__track"></span>
+            </span>
+          </label>
+          <label class="toggle-row">
+            <span class="toggle-row__label">Personal aus Divera übernehmen</span>
+            <span class="toggle-switch">
+              <input type="checkbox" name="importPersonnelFromDivera" value="true"
+                     th:checked="${settings.importPersonnelFromDivera}"/>
+              <span class="toggle-switch__track"></span>
+            </span>
+          </label>
+        </div>
+
+        <div class="form-group form-group--full" style="margin-top:1.25rem;">
+          <label>Berücksichtigte Status-IDs für Personal</label>
+          <p class="hint">Mehrfachauswahl — nur diese Rückmeldungen werden für die automatische Personal-Übernahme genutzt.</p>
+          <div class="berichte-status-picker" th:if="${!#lists.isEmpty(diveraStatusOptions)}">
+            <label class="checkbox-row berichte-status-picker__item" th:each="s : ${diveraStatusOptions}">
+              <input type="checkbox" name="personnelStatusIds" th:value="${s.statusId}"
+                     th:checked="${selectedPersonnelStatusIds.contains(s.statusId)}"/>
+              <span>
+                <strong th:text="${s.label}">Status</strong>
+                <span class="text-muted text-sm"> (ID: <span th:text="${s.statusId}">1</span>)</span>
+              </span>
+            </label>
+          </div>
+          <p class="hint hint--warn" th:if="${#lists.isEmpty(diveraStatusOptions)}">
+            Noch keine Status-IDs hinterlegt — zuerst unter Admin → Schnittstellen → DIVERA → Status-ID anlegen.
+          </p>
+        </div>
+
+        <div class="berichte-settings-form__actions">
+          <button type="submit" class="btn btn--primary">Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card mt-md" th:unless="${berichteTab == 'einsatz'}">
+    <div class="card__body">
+      <p class="hint" style="margin:0;">Einstellungen für diesen Berichtstyp folgen in einer späteren Version.</p>
+    </div>
+  </div>
+</main>
+</html>

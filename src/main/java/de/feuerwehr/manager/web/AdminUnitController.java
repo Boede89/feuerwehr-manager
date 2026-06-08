@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.web;
 
+import de.feuerwehr.manager.divera.DiveraMappingService;
 import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.technik.UnitVehicleTypeService;
 import de.feuerwehr.manager.technik.VehicleChecklistService;
@@ -40,6 +41,7 @@ public class AdminUnitController {
     private final PersonalService personalService;
     private final UnitVehicleTypeService unitVehicleTypeService;
     private final VehicleChecklistService vehicleChecklistService;
+    private final DiveraMappingService diveraMappingService;
 
     @PostMapping("/config")
     public String saveConfig(
@@ -236,6 +238,56 @@ public class AdminUnitController {
             unitAdminService.deleteCalendarAccount(unit, calendarAccountId);
             redirectAttributes.addFlashAttribute("message", "Kalender gelöscht.");
         });
+    }
+
+    @PostMapping("/divera/recipient-groups")
+    public String createDiveraRecipientGroup(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam String groupId,
+            @RequestParam String label,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(actor, unit, redirectAttributes, "schnittstellen", () -> {
+            diveraMappingService.createRecipientGroup(unit, groupId, label);
+            redirectAttributes.addFlashAttribute("message", "Empfänger-Gruppe gespeichert.");
+        }, "openModal=divera-recipient-groups");
+    }
+
+    @PostMapping("/divera/recipient-groups/delete")
+    public String deleteDiveraRecipientGroup(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam long recipientGroupId,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(actor, unit, redirectAttributes, "schnittstellen", () -> {
+            diveraMappingService.deleteRecipientGroup(unit, recipientGroupId);
+            redirectAttributes.addFlashAttribute("message", "Empfänger-Gruppe gelöscht.");
+        }, "openModal=divera-recipient-groups");
+    }
+
+    @PostMapping("/divera/status-ids")
+    public String createDiveraStatusId(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam String statusId,
+            @RequestParam String label,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(actor, unit, redirectAttributes, "schnittstellen", () -> {
+            diveraMappingService.createStatusId(unit, statusId, label);
+            redirectAttributes.addFlashAttribute("message", "Status-ID gespeichert.");
+        }, "openModal=divera-status-ids");
+    }
+
+    @PostMapping("/divera/status-ids/delete")
+    public String deleteDiveraStatusId(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam long diveraStatusRowId,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(actor, unit, redirectAttributes, "schnittstellen", () -> {
+            diveraMappingService.deleteStatusId(unit, diveraStatusRowId);
+            redirectAttributes.addFlashAttribute("message", "Status-ID gelöscht.");
+        }, "openModal=divera-status-ids");
     }
 
     @PostMapping("/divera")

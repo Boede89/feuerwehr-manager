@@ -24,6 +24,14 @@ public interface IncidentReportVehicleRepository extends JpaRepository<IncidentR
     Optional<IncidentReportVehicle> findByIncidentReportIdAndVehicleId(
             @Param("reportId") long reportId, @Param("vehicleId") long vehicleId);
 
+    @Query("""
+            SELECT v FROM IncidentReportVehicle v
+            WHERE v.incidentReport.id = :reportId AND v.vehicle IS NULL
+              AND v.vehicleName = :vehicleName
+            """)
+    Optional<IncidentReportVehicle> findVirtualByIncidentReportIdAndName(
+            @Param("reportId") long reportId, @Param("vehicleName") String vehicleName);
+
     @Modifying
     @Query("DELETE FROM IncidentReportVehicle v WHERE v.incidentReport.id = :reportId")
     void deleteByIncidentReportId(@Param("reportId") long reportId);

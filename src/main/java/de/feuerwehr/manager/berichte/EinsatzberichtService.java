@@ -72,6 +72,7 @@ public class EinsatzberichtService {
         for (Vehicle vehicle : unitVehicles) {
             crewByVehicleId.put(vehicle.getId(), new ArrayList<>());
         }
+        List<Long> wacheCrewIds = new ArrayList<>();
 
         Set<Long> diveraPersonIds = new HashSet<>();
         Set<Long> onVehiclePersonIds = new HashSet<>();
@@ -86,9 +87,15 @@ public class EinsatzberichtService {
                     diveraPersonIds.add(person.getId());
                 }
                 IncidentReportVehicle reportVehicle = row.getIncidentReportVehicle();
-                if (reportVehicle != null && reportVehicle.getVehicle() != null) {
+                if (reportVehicle == null) {
+                    continue;
+                }
+                if (reportVehicle.getVehicle() != null) {
                     long vehicleId = reportVehicle.getVehicle().getId();
                     crewByVehicleId.computeIfAbsent(vehicleId, k -> new ArrayList<>()).add(person.getId());
+                    onVehiclePersonIds.add(person.getId());
+                } else if (IncidentCrewSupport.WACHE_VEHICLE_NAME.equals(reportVehicle.getVehicleName())) {
+                    wacheCrewIds.add(person.getId());
                     onVehiclePersonIds.add(person.getId());
                 }
             }
@@ -124,6 +131,17 @@ public class EinsatzberichtService {
                     crewViews,
                     Besatzungsstaerke.format(crew)));
         }
+
+        List<Person> wacheCrew = wacheCrewIds.stream()
+                .map(personById::get)
+                .filter(Objects::nonNull)
+                .toList();
+        vehicles.add(new KraefteFahrzeugeState.KraefteVehicleView(
+                IncidentCrewSupport.WACHE_VEHICLE_ID,
+                IncidentCrewSupport.WACHE_VEHICLE_NAME,
+                new ArrayList<>(wacheCrewIds),
+                wacheCrew.stream().map(this::toPersonView).toList(),
+                Besatzungsstaerke.format(wacheCrew)));
 
         return new KraefteFahrzeugeState(manualPersons, diveraPersons, vehicles);
     }
@@ -296,8 +314,22 @@ public class EinsatzberichtService {
         List<CrewAssignment> assignments =
                 form.crewAssignments() != null ? form.crewAssignments() : List.of();
 
+        IncidentReportVehicle wacheVehicle = null;
+
         for (CrewAssignment assignment : assignments) {
-            IncidentReportVehicle reportVehicle = reportVehicleByUnitVehicleId.get(assignment.vehicleId());
+            IncidentReportVehicle reportVehicle;
+            if (assignment.vehicleId() == IncidentCrewSupport.WACHE_VEHICLE_ID) {
+                if (wacheVehicle == null) {
+                    wacheVehicle = new IncidentReportVehicle();
+                    wacheVehicle.setIncidentReport(report);
+                    wacheVehicle.setVehicle(null);
+                    wacheVehicle.setVehicleName(IncidentCrewSupport.WACHE_VEHICLE_NAME);
+                    wacheVehicle = incidentReportVehicleRepository.save(wacheVehicle);
+                }
+                reportVehicle = wacheVehicle;
+            } else {
+                reportVehicle = reportVehicleByUnitVehicleId.get(assignment.vehicleId());
+            }
             if (reportVehicle == null) {
                 continue;
             }

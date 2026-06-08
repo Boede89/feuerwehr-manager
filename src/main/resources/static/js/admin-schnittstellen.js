@@ -200,6 +200,23 @@
     });
   });
 
+  function reopenModalIfRequested(openModalKey, modalId) {
+    var urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('openModal') !== openModalKey) return;
+    var modal = document.getElementById(modalId);
+    if (modal) {
+      modal.classList.add('active');
+      document.body.classList.add('modal-open');
+    }
+    urlParams.delete('openModal');
+    var qs = urlParams.toString();
+    var next = window.location.pathname + (qs ? '?' + qs : '');
+    window.history.replaceState({}, '', next);
+  }
+
+  reopenModalIfRequested('divera-recipient-groups', 'modal-divera-recipient-groups');
+  reopenModalIfRequested('divera-status-ids', 'modal-divera-status-ids');
+
   document.getElementById('btn-test-global-smtp')?.addEventListener('click', function () {
     var btn = document.getElementById('btn-test-global-smtp');
     if (btn) btn.disabled = true;

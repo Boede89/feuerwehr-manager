@@ -122,7 +122,9 @@
       <div class="incident-kraefte-col incident-kraefte-col--vehicles">
         <h4 class="incident-kraefte-col__title">Fahrzeuge</h4>
         <div class="incident-vehicle-stack" id="incident-vehicle-stack">
-          <article class="incident-vehicle-card" th:each="v : ${kraefteState.vehicles()}"
+          <article class="incident-vehicle-card"
+                   th:each="v : ${kraefteState.vehicles()}"
+                   th:classappend="${v.vehicleId() == -1} ? ' incident-vehicle-card--wache' : ''"
                    th:attr="data-vehicle-id=${v.vehicleId()}">
             <header class="incident-vehicle-card__head">
               <h5 class="incident-vehicle-card__name" th:text="${v.name()}">HLF 20</h5>
