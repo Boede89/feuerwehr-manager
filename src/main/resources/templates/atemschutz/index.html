@@ -2,11 +2,12 @@
 <html lang="de" xmlns:th="http://www.thymeleaf.org"
       th:replace="~{fragments/layout :: layout('Atemschutz', ~{::main})}">
 <main>
-  <div class="page-header">
+  <div class="page-header page-header--toolbar">
     <div>
       <h2>Atemschutz</h2>
       <p>Geräteträger und Tauglichkeiten · <strong th:text="${currentUnitName}">—</strong></p>
     </div>
+    <a class="btn btn--outline" th:href="@{/atemschutz/uebung-planen(unit=${unitId})}">Übung planen</a>
   </div>
 
   <div th:replace="~{fragments/testmode-banner :: banner}"></div>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('PA-Träger Suchergebnisse', ~{::main})}">
+<main>
+  <div class="page-header page-header--toolbar">
+    <div>
+      <h2>PA-Träger Suchergebnisse</h2>
+      <p>Gefundene Geräteträger für Ihre Übung · <strong th:text="${currentUnitName}">—</strong></p>
+    </div>
+    <a class="btn btn--outline" th:href="@{/atemschutz/uebung-planen(unit=${unitId})}">Neue Suche</a>
+  </div>
+
+  <div th:replace="~{fragments/testmode-banner :: banner}"></div>
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
+
+  <div class="atemschutz-plan-summary card">
+    <div class="card__body">
+      <div class="atemschutz-plan-summary__grid">
+        <div>
+          <span class="atemschutz-plan-summary__label">Übungsdatum</span>
+          <strong th:text="${#temporals.format(planResult.uebungsDatum(), 'dd.MM.yyyy')}">—</strong>
+        </div>
+        <div>
+          <span class="atemschutz-plan-summary__label">Anzahl</span>
+          <strong th:text="${anzahlLabel}">—</strong>
+        </div>
+        <div>
+          <span class="atemschutz-plan-summary__label">Status</span>
+          <strong>
+            <span th:each="status, stat : ${planResult.statusFilter()}"
+                  th:text="${status.label() + (stat.last ? '' : ', ')}">Tauglich</span>
+          </strong>
+        </div>
+        <div>
+          <span class="atemschutz-plan-summary__label">Gefunden</span>
+          <strong class="text-success" th:text="${planResult.carriers().size() + ' von ' + planResult.totalMatches()}">0</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" th:if="${!#lists.isEmpty(planResult.carriers())}">
+    <div class="card__header"
+         th:text="'Gefundene PA-Träger (' + ${planResult.carriers().size()} + ')'">Gefundene PA-Träger</div>
+    <div class="card__body card__body--flush">
+      <table class="data-table">
+        <thead>
+        <tr>
+          <th>#</th>
+          <th>Name</th>
+          <th>Status</th>
+          <th>Strecke</th>
+          <th>G26</th>
+          <th>Übung/Einsatz</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="row, stat : ${planResult.carriers()}"
+            class="carrier-row" role="link" tabindex="0"
+            th:attr="data-href=@{/atemschutz/carriers/{id}(id=${row.overview().carrier().id},unit=${unitId})}">
+          <td th:text="${stat.count}">1</td>
+          <td>
+            <strong th:text="${row.overview().carrier().person.displayName()}">Name</strong>
+          </td>
+          <td>
+            <span th:class="${row.planStatus().badgeClass()}"
+                  th:text="${row.planStatus().label()}">Tauglich</span>
+          </td>
+          <td>
+            <th:block th:with="view=${row.overview().summaries().get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).STRECKEN)}">
+              <div th:replace="~{fragments/atemschutz-fitness-badge :: validityDate(${view})}"></div>
+            </th:block>
+          </td>
+          <td>
+            <div th:replace="~{fragments/atemschutz-fitness-badge :: validityDate(${row.overview().g26()})}"></div>
+          </td>
+          <td>
+            <th:block th:with="view=${row.overview().summaries().get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).UEBUNG)}">
+              <div th:replace="~{fragments/atemschutz-fitness-badge :: validityDate(${view})}"></div>
+            </th:block>
+          </td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" th:if="${#lists.isEmpty(planResult.carriers())}">
+    <div class="card__body">
+      <p class="hint" style="margin:0;">
+        Keine passenden PA-Träger gefunden. Erweitern Sie den Status-Filter oder passen Sie die Anzahl an.
+      </p>
+      <a class="btn btn--primary mt-md" th:href="@{/atemschutz/uebung-planen(unit=${unitId})}">Neue Suche</a>
+    </div>
+  </div>
+
+  <script th:src="@{/js/atemschutz-plan-results.js}" defer></script>
+</main>
+</html>

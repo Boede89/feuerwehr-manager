@@ -14,6 +14,7 @@ import java.time.Period;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -393,6 +394,78 @@ public class AtemschutzService {
         return carriers;
     }
 
+    @Transactional(readOnly = true)
+    public UebungPlanResult planUebung(
+            long unitId,
+            boolean includeHealthDetails,
+            LocalDate uebungsDatum,
+            Set<AtemschutzPlanStatus> statusFilter,
+            int limit) {
+        if (uebungsDatum == null) {
+            throw new IllegalArgumentException("Bitte ein Übungsdatum angeben.");
+        }
+        Set<AtemschutzPlanStatus> effectiveFilter = statusFilter == null || statusFilter.isEmpty()
+                ? EnumSet.copyOf(AtemschutzPlanStatus.DEFAULT_SELECTED.entrySet().stream()
+                        .filter(Map.Entry::getValue)
+                        .map(Map.Entry::getKey)
+                        .collect(Collectors.toSet()))
+                : EnumSet.copyOf(statusFilter);
+
+        CarrierListResult allCarriers = listCarrierOverviews(unitId, includeHealthDetails, "all");
+        List<UebungPlanRow> matches = new ArrayList<>();
+        for (CarrierOverview row : allCarriers.carriers()) {
+            if (row.carrier().getStatus() != AtemschutzCarrierStatus.ACTIVE) {
+                continue;
+            }
+            AtemschutzPlanStatus planStatus = computePlanStatus(row.summaries());
+            if (!effectiveFilter.contains(planStatus)) {
+                continue;
+            }
+            matches.add(new UebungPlanRow(row, planStatus));
+        }
+
+        matches.sort(Comparator.comparing(
+                row -> row.overview().summaries().get(AtemschutzFitnessType.UEBUNG),
+                Comparator.comparing(
+                        view -> view != null && view.validUntil() != null ? view.validUntil() : LocalDate.MAX)));
+
+        int effectiveLimit = limit > 0 ? limit : matches.size();
+        List<UebungPlanRow> limited = matches.size() <= effectiveLimit ? matches : matches.subList(0, effectiveLimit);
+
+        return new UebungPlanResult(uebungsDatum, limit, effectiveFilter, limited, matches.size());
+    }
+
+    public static AtemschutzPlanStatus computePlanStatus(Map<AtemschutzFitnessType, FitnessStatusView> summaries) {
+        boolean streckeExpired = isPlanExpired(summaries.get(AtemschutzFitnessType.STRECKEN));
+        boolean g26Expired = isPlanExpired(summaries.get(AtemschutzFitnessType.G26_UNTERSUCHUNG));
+        boolean uebungExpired = isPlanExpired(summaries.get(AtemschutzFitnessType.UEBUNG));
+        boolean streckeWarn = isPlanWarn(summaries.get(AtemschutzFitnessType.STRECKEN));
+        boolean g26Warn = isPlanWarn(summaries.get(AtemschutzFitnessType.G26_UNTERSUCHUNG));
+        boolean uebungWarn = isPlanWarn(summaries.get(AtemschutzFitnessType.UEBUNG));
+
+        if (streckeExpired || g26Expired || uebungExpired) {
+            if (uebungExpired && !streckeExpired && !g26Expired) {
+                return AtemschutzPlanStatus.UEBUNG_ABGELAUFEN;
+            }
+            return AtemschutzPlanStatus.ABGELAUFEN;
+        }
+        if (streckeWarn || g26Warn || uebungWarn) {
+            return AtemschutzPlanStatus.WARNUNG;
+        }
+        return AtemschutzPlanStatus.TAUGLICH;
+    }
+
+    private static boolean isPlanExpired(FitnessStatusView view) {
+        if (view == null) {
+            return true;
+        }
+        return view.level() == AtemschutzFitnessLevel.OVERDUE || view.level() == AtemschutzFitnessLevel.MISSING;
+    }
+
+    private static boolean isPlanWarn(FitnessStatusView view) {
+        return view != null && view.level() == AtemschutzFitnessLevel.WARN;
+    }
+
     private static CarrierListStats computeStats(List<CarrierOverview> carriers) {
         int tauglich = (int) carriers.stream()
                 .filter(row -> row.tauglichkeit() == CarrierTauglichkeitStatus.TAUGLICH)
@@ -405,6 +478,15 @@ public class AtemschutzService {
                 .count();
         return new CarrierListStats(carriers.size(), tauglich, uebungAbgelaufen, nichtTauglich);
     }
+
+    public record UebungPlanResult(
+            LocalDate uebungsDatum,
+            int requestedLimit,
+            Set<AtemschutzPlanStatus> statusFilter,
+            List<UebungPlanRow> carriers,
+            int totalMatches) {}
+
+    public record UebungPlanRow(CarrierOverview overview, AtemschutzPlanStatus planStatus) {}
 
     public record CarrierListResult(
             List<CarrierOverview> carriers,

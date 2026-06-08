@@ -2910,6 +2910,54 @@ span.required { color: var(--error); }
   }
 }
 
+.atemschutz-plan-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.atemschutz-plan-action-card {
+  grid-column: 1 / -1;
+}
+
+.atemschutz-plan-action-card__title {
+  margin: 0 0 0.5rem;
+  font-size: var(--fs-lg);
+}
+
+.atemschutz-plan-status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.atemschutz-plan-status {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+}
+
+.atemschutz-plan-summary__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+}
+
+.atemschutz-plan-summary__label {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+@media (max-width: 900px) {
+  .atemschutz-plan-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
