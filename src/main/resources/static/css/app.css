@@ -2720,6 +2720,9 @@ span.required { color: var(--error); }
 .data-table tbody tr { border-bottom: 1px solid var(--border); }
 .data-table tbody tr:last-child { border-bottom: none; }
 .data-table tbody tr.carrier-row { transition: background var(--transition-fast); }
+#atemschutz-table tbody tr.member-row:nth-child(even) { background: transparent; }
+#atemschutz-table tbody tr.carrier-row.carrier-row--alt { background: var(--bg-card-hover); }
+#atemschutz-table tbody tr.carrier-row:hover { background: var(--rot-subtle); }
 .data-row:nth-child(even) { background: var(--bg-card-hover); }
 .data-row:hover { background: var(--rot-subtle); }
 .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }

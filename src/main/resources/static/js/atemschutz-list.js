@@ -55,6 +55,20 @@
     if (kpiNicht) kpiNicht.textContent = String(counts.nicht);
   }
 
+  function applyRowStripes() {
+    var visibleIndex = 0;
+    table.querySelectorAll('.carrier-row').forEach(function (row) {
+      row.classList.remove('carrier-row--alt');
+      if (row.style.display === 'none') {
+        return;
+      }
+      if (visibleIndex % 2 === 1) {
+        row.classList.add('carrier-row--alt');
+      }
+      visibleIndex++;
+    });
+  }
+
   function applyTableFilters() {
     var q = search ? search.value.trim().toLowerCase() : '';
     var includePausedRows = includePaused();
@@ -66,8 +80,10 @@
       var searchVisible = !q || text.indexOf(q) !== -1;
       var visible = statusVisible && searchVisible;
       row.style.display = visible ? '' : 'none';
+      row.classList.remove('carrier-row--alt');
       if (visible) count++;
     });
+    applyRowStripes();
     if (visibleCount) {
       visibleCount.textContent = String(count);
     }
