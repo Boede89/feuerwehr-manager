@@ -5,14 +5,9 @@
     @page { size: A4; margin: 12mm; }
     * { box-sizing: border-box; }
     body { font-family: Arial, Helvetica, sans-serif; font-size: 10pt; color: #222; margin: 0; padding: 0; }
-    .pdf-logo-banner { width: 100%; text-align: center; margin: 0 0 14px 0; }
-    .pdf-logo-banner img {
-      display: block;
-      width: 100%;
-      max-height: 110px;
-      object-fit: contain;
-      margin: 0 auto;
-    }
+    .pdf-logo-banner { width: 100%; border-collapse: collapse; margin: 0 0 14px 0; }
+    .pdf-logo-banner td { border: none; padding: 0; text-align: center; }
+    .pdf-logo-banner img { max-height: 110px; max-width: 100%; }
     h1 { font-size: 16pt; margin: 0 0 6px; text-align: center; font-weight: bold; }
     .pdf-meta { color: #555; margin: 0 0 18px; text-align: center; font-size: 9pt; line-height: 1.4; }
     h2 { font-size: 12pt; margin: 18px 0 8px; border-bottom: 2px solid #667eea; padding-bottom: 4px; }
@@ -27,9 +22,13 @@
   </style>
 </th:block>
 <th:block th:fragment="header">
-  <div class="pdf-logo-banner" th:if="${unitLogoBase64 != null and !#strings.isEmpty(unitLogoBase64)}">
-    <img th:src="${unitLogoBase64}" alt=""/>
-  </div>
+  <table class="pdf-logo-banner" th:if="${unitLogoBase64 != null and !#strings.isEmpty(unitLogoBase64)}">
+    <tr>
+      <td align="center">
+        <img th:src="${unitLogoBase64}" alt=""/>
+      </td>
+    </tr>
+  </table>
   <h1 th:text="${printTitle}">Titel</h1>
   <p class="pdf-meta" th:if="${printSubtitle != null}" th:text="${printSubtitle}">Untertitel</p>
 </th:block>
