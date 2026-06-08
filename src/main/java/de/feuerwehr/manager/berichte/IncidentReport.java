@@ -63,6 +63,9 @@ public class IncidentReport {
     @Column(length = 255)
     private String stichwort;
 
+    @Column(name = "alarmierung_durch", length = 512)
+    private String alarmierungDurch;
+
     @Column(nullable = false, length = 300)
     private String location;
 

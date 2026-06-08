@@ -2,7 +2,11 @@ package de.feuerwehr.manager.divera;
 
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +27,42 @@ public class DiveraMappingService {
     @Transactional(readOnly = true)
     public List<UnitDiveraStatusId> listStatusIds(long unitId) {
         return statusIdRepository.findByUnitIdOrderBySortOrderAscLabelAsc(unitId);
+    }
+
+    /**
+     * DIVERA {@code group}-IDs → Bezeichnungen aus Empfänger-Gruppen.
+     * Mindestens ein Treffer: nur Bezeichnungen (unbekannte IDs werden ignoriert).
+     * Kein Treffer: Gruppen-Nummern.
+     */
+    @Transactional(readOnly = true)
+    public String formatAlarmierungDurch(long unitId, List<Long> groupIds) {
+        if (groupIds == null || groupIds.isEmpty()) {
+            return null;
+        }
+        Map<String, String> labelByGroupId = new HashMap<>();
+        for (UnitDiveraRecipientGroup row : listRecipientGroups(unitId)) {
+            if (row.getGroupId() != null && !row.getGroupId().isBlank()) {
+                labelByGroupId.put(row.getGroupId().trim(), row.getLabel());
+            }
+        }
+        LinkedHashSet<String> labels = new LinkedHashSet<>();
+        List<String> unknownIds = new ArrayList<>();
+        for (Long groupId : groupIds) {
+            if (groupId == null) {
+                continue;
+            }
+            String key = String.valueOf(groupId);
+            String label = labelByGroupId.get(key);
+            if (label != null) {
+                labels.add(label);
+            } else {
+                unknownIds.add(key);
+            }
+        }
+        if (!labels.isEmpty()) {
+            return String.join(", ", labels);
+        }
+        return unknownIds.isEmpty() ? null : String.join(", ", unknownIds);
     }
 
     @Transactional

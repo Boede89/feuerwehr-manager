@@ -34,7 +34,7 @@
         <input id="endTime" name="endTime" type="time"
                th:value="${form.endTime != null ? #temporals.format(form.endTime, 'HH:mm') : ''}"/>
       </div>
-      <div class="form-group form-group--full">
+      <div class="form-group">
         <label for="stichwort">Stichwort <span class="required">*</span></label>
         <div class="combo-suggest" data-combo-suggest data-combo-min="1">
           <input id="stichwort" name="stichwort" type="text" maxlength="255" required
@@ -46,6 +46,12 @@
           </ul>
         </div>
         <p class="hint text-sm" style="margin:0;">Tippen zum Filtern bekannter Stichworte; auch manuell oder aus DIVERA.</p>
+      </div>
+      <div class="form-group">
+        <label for="alarmierungDurch">Alarmierung durch</label>
+        <input id="alarmierungDurch" name="alarmierungDurch" type="text" maxlength="512"
+               placeholder="z. B. Leitstelle, Verband …" th:value="${form.alarmierungDurch}"/>
+        <p class="hint text-sm" style="margin:0;">Aus DIVERA-Gruppen; Zuordnung unter Schnittstellen → Empfänger-Gruppen.</p>
       </div>
       <div class="form-group form-group--full">
         <label for="nachrichtLeitstelle">Nachricht Leitstelle</label>

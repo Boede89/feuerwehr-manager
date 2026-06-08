@@ -27,6 +27,7 @@ public class EinsatzberichtForm {
     @DateTimeFormat(iso = DateTimeFormat.ISO.TIME)
     private LocalTime endTime;
     private String stichwort;
+    private String alarmierungDurch;
     private String nachrichtLeitstelle;
     private String location;
     private String postalCode;
@@ -70,6 +71,7 @@ public class EinsatzberichtForm {
         form.setArrivalTime(report.getArrivalTime());
         form.setEndTime(report.getEndTime());
         form.setStichwort(report.getStichwort() != null ? report.getStichwort() : report.getIncidentTypeLabel());
+        form.setAlarmierungDurch(report.getAlarmierungDurch());
         form.setNachrichtLeitstelle(report.getSituation());
         form.setLocation(report.getLocation());
         form.setPostalCode(report.getPostalCode());
@@ -114,6 +116,7 @@ public class EinsatzberichtForm {
                 arrivalTime,
                 endTime,
                 stichwort,
+                alarmierungDurch,
                 nachrichtLeitstelle,
                 location,
                 postalCode,

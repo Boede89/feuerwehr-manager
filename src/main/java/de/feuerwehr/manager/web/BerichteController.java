@@ -208,6 +208,7 @@ public class BerichteController {
             form.setDistrict(report.getDistrict());
             form.setStreet(report.getStreet());
             form.setHouseNumber(report.getHouseNumber());
+            form.setAlarmierungDurch(report.getAlarmierungDurch());
         }
         KraefteFahrzeugeState kraefteState = einsatzberichtService.buildKraefteFahrzeugeState(unitId, reportId);
         model.addAttribute("report", report);

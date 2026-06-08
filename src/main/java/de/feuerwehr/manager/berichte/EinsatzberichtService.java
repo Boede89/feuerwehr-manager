@@ -7,6 +7,7 @@ import de.feuerwehr.manager.divera.DiveraApiClient;
 import static de.feuerwehr.manager.divera.DiveraIntegrationSupport.DIVERA_ZONE;
 
 import de.feuerwehr.manager.divera.DiveraIntegrationSupport;
+import de.feuerwehr.manager.divera.DiveraMappingService;
 import de.feuerwehr.manager.divera.DiveraService;
 import de.feuerwehr.manager.unit.UnitDiveraSettings;
 import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
@@ -61,6 +62,7 @@ public class EinsatzberichtService {
     private final BerichteSettingsService berichteSettingsService;
     private final DiveraApiClient diveraApiClient;
     private final DiveraService diveraService;
+    private final DiveraMappingService diveraMappingService;
     private final UnitDiveraSettingsRepository diveraSettingsRepository;
     private final ObjectMapper objectMapper;
 
@@ -321,6 +323,7 @@ public class EinsatzberichtService {
         diveraService.findAlarmDetailsById(unitId, alarmId).ifPresent(details -> {
             applyDiveraAlarmDateTime(report, details);
             applyDiveraAddressFields(report, details);
+            applyDiveraAlarmierungDurch(report, details, unitId);
             incidentReportRepository.save(report);
             refreshDiveraPersonnelFromDetails(unitId, details);
         });
@@ -378,6 +381,7 @@ public class EinsatzberichtService {
         report.setArrivalTime(null);
         report.setEndTime(form.endTime());
         report.setStichwort(stichwort);
+        report.setAlarmierungDurch(trimToNull(form.alarmierungDurch()));
         report.setIncidentTypeKey("SONSTIGES");
         report.setIncidentTypeLabel(stichwort.isEmpty() ? "Sonstiges" : stichwort);
         report.setSituation(trimToNull(form.nachrichtLeitstelle()));
@@ -594,6 +598,13 @@ public class EinsatzberichtService {
         return datePrefix + String.format("%02d", next);
     }
 
+    private void applyDiveraAlarmierungDurch(IncidentReport report, DiveraAlarmDetails details, long unitId) {
+        String alarmierung = diveraMappingService.formatAlarmierungDurch(unitId, details.groupIds());
+        if (alarmierung != null && !alarmierung.isBlank()) {
+            report.setAlarmierungDurch(alarmierung);
+        }
+    }
+
     private void applyDiveraAddressFields(IncidentReport report, DiveraAlarmDetails details) {
         if (details.city() != null && !details.city().isBlank()) {
             report.setLocation(details.city());
@@ -625,6 +636,7 @@ public class EinsatzberichtService {
         report.setStichwort(stichwort);
         report.setIncidentTypeKey("SONSTIGES");
         report.setIncidentTypeLabel(stichwort);
+        applyDiveraAlarmierungDurch(report, details, unitId);
 
         String location = firstNonBlank(details.city(), details.address(), "DIVERA-Einsatz");
         report.setLocation(location);

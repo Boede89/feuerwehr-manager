@@ -46,6 +46,7 @@ public final class DiveraAlarmDetailsMapper {
             String measures,
             boolean falseAlarm,
             boolean maliciousAlarm,
+            List<Long> groupIds,
             List<Long> answeredUcrIds,
             List<DiveraPersonnelHit> answeredHits,
             List<DiveraPersonnelHit> personnelHits) {}
@@ -87,6 +88,7 @@ public final class DiveraAlarmDetailsMapper {
                 null,
                 false,
                 false,
+                root != null ? parseGroupIds(extractAlarmNode(root)) : List.of(),
                 List.of(),
                 List.of(),
                 List.of()));
@@ -138,6 +140,7 @@ public final class DiveraAlarmDetailsMapper {
                 textOrNull(alarm, "measures", "massnahme", "massnahmen", "action", "Actions"),
                 boolOrFalse(alarm, "false_alarm", "fehlalarm", "FalseAlarm"),
                 boolOrFalse(alarm, "malicious_alarm", "boeswillig", "boewillig", "MaliciousAlarm"),
+                parseGroupIds(alarm),
                 answeredUcrIds,
                 answeredHits,
                 personnel);
@@ -204,6 +207,45 @@ public final class DiveraAlarmDetailsMapper {
             }
         }
         return result;
+    }
+
+    private static List<Long> parseGroupIds(JsonNode alarm) {
+        if (alarm == null || alarm.isNull()) {
+            return List.of();
+        }
+        JsonNode group = alarm.get("group");
+        if (group == null || group.isNull()) {
+            group = alarm.get("Group");
+        }
+        if (group == null || !group.isArray()) {
+            return List.of();
+        }
+        List<Long> result = new ArrayList<>();
+        Set<Long> seen = new LinkedHashSet<>();
+        for (JsonNode item : group) {
+            long id = extractNumericId(item);
+            if (id > 0 && seen.add(id)) {
+                result.add(id);
+            }
+        }
+        return result;
+    }
+
+    private static long extractNumericId(JsonNode item) {
+        if (item == null || item.isNull()) {
+            return 0;
+        }
+        if (item.isNumber()) {
+            return item.asLong(0);
+        }
+        if (item.isTextual()) {
+            try {
+                return Long.parseLong(item.asText("").trim());
+            } catch (NumberFormatException ignored) {
+                return 0;
+            }
+        }
+        return 0;
     }
 
     private static List<Long> parseUcrIdArray(JsonNode alarm, String... keys) {
