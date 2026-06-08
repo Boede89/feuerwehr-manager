@@ -8,7 +8,6 @@
       <p th:text="${currentUnitName}">Einheit</p>
     </div>
     <div class="toolbar-actions">
-      <button type="button" class="btn btn--outline btn--sm" id="open-instructors-modal">Ausbilder festlegen</button>
       <a class="btn btn--outline btn--sm" th:href="@{/admin(scope='einheit', tab='module', unit=${unitId})}">← Module</a>
     </div>
   </div>
@@ -140,6 +139,7 @@
         </div>
 
         <div class="atemschutz-settings-form__actions mt-md">
+          <button type="button" class="btn btn--outline" id="open-instructors-modal">Ausbilder festlegen</button>
           <button type="submit" class="btn btn--primary">Benachrichtigungen speichern</button>
         </div>
       </form>
