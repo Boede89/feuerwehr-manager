@@ -42,10 +42,10 @@
     </thead>
     <tbody>
       <tr th:each="termin : ${termine}" th:if="${!termin.vergangen}">
-        <td th:text="${#temporals.format(termin.datum, 'dd.MM.yyyy')}">—</td>
-        <td th:text="|${#temporals.format(termin.zeit, 'HH:mm')} Uhr|">—</td>
-        <td th:text="${termin.ort != null and !#strings.isEmpty(termin.ort) ? termin.ort : '—'}">—</td>
-        <td th:text="|${termin.aktuelleTeilnehmer}/${termin.maxTeilnehmer}|">—</td>
+        <td th:text="${termin.datumAnzeige}">—</td>
+        <td th:text="${termin.zeitAnzeige}">—</td>
+        <td th:text="${!#strings.isEmpty(termin.ort) ? termin.ort : '—'}">—</td>
+        <td th:text="${termin.aktuelleTeilnehmer + '/' + termin.maxTeilnehmer}">—</td>
         <td>
           <span th:if="${#lists.isEmpty(termin.teilnehmer)}">—</span>
           <span th:each="teilnehmer, stat : ${termin.teilnehmer}">
@@ -61,8 +61,8 @@
   <ul th:if="${!#lists.isEmpty(unassignedCarriers)}">
     <li th:each="carrier : ${unassignedCarriers}">
       <span th:text="${carrier.name}">Name</span>
-      <span th:if="${carrier.streckeBis != null}">
-        – Strecke bis <span th:text="${#temporals.format(carrier.streckeBis, 'dd.MM.yyyy')}">—</span>
+      <span th:if="${!#strings.isEmpty(carrier.metaText)}">
+        – Strecke bis <span th:text="${carrier.metaText}">—</span>
       </span>
     </li>
   </ul>

@@ -3036,8 +3036,10 @@ span.required { color: var(--error); }
   margin-top: 16px;
 }
 
-.strecke-termin-card {
+.strecke-termin-card,
+.card--flush {
   overflow: hidden;
+  padding: 0;
 }
 
 .strecke-termin-card__header {

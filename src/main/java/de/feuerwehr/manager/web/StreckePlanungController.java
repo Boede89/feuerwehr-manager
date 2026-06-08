@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.web;
 
+import de.feuerwehr.manager.atemschutz.StreckePlanungDisplayMapper;
 import de.feuerwehr.manager.atemschutz.StreckePlanungNotificationService;
 import de.feuerwehr.manager.atemschutz.StreckePlanungNotificationService.AusbilderOption;
 import de.feuerwehr.manager.atemschutz.StreckePlanungNotificationService.NotifyResult;
@@ -63,8 +64,8 @@ public class StreckePlanungController {
             requireAtemschutzRead(actor, unit.getId());
             boolean includeHealth = actor.getRole().isAdminLevel();
             StreckePlanungView view = streckePlanungService.loadView(unit.getId(), includeHealth);
-            model.addAttribute("unassignedCarriers", view.unassignedCarriers());
-            model.addAttribute("termine", view.termine());
+            model.addAttribute("unassignedCarriers", StreckePlanungDisplayMapper.toPoolBadges(view, view.warnDays()));
+            model.addAttribute("termine", StreckePlanungDisplayMapper.toTerminCards(view));
             model.addAttribute("warnDays", view.warnDays());
             model.addAttribute("canWrite", canWrite(actor, unit.getId()));
             model.addAttribute("canMail", unitMailService.canSendForUnit(unit.getId()));
@@ -150,8 +151,8 @@ public class StreckePlanungController {
             requireModuleEnabled(unit.getId());
             requireAtemschutzRead(actor, unit.getId());
             StreckePlanungView view = streckePlanungService.loadView(unit.getId(), false);
-            model.addAttribute("unassignedCarriers", view.unassignedCarriers());
-            model.addAttribute("termine", view.termine());
+            model.addAttribute("unassignedCarriers", StreckePlanungDisplayMapper.toPoolBadges(view, view.warnDays()));
+            model.addAttribute("termine", StreckePlanungDisplayMapper.toTerminCards(view));
             model.addAttribute("warnDays", view.warnDays());
             return "atemschutz/strecke-planung-druck";
         } catch (IllegalArgumentException e) {

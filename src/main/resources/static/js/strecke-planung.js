@@ -40,6 +40,33 @@
     }
   }
 
+  function openModal(id) {
+    var overlay = document.getElementById(id);
+    if (!overlay) return;
+    overlay.classList.add('active');
+    document.body.classList.add('modal-open');
+  }
+
+  function closeModal(overlay) {
+    if (!overlay) return;
+    overlay.classList.remove('active');
+    if (!document.querySelector('.modal-overlay.active')) {
+      document.body.classList.remove('modal-open');
+    }
+  }
+
+  document.querySelectorAll('[data-close-modal]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      closeModal(btn.closest('.modal-overlay'));
+    });
+  });
+
+  document.querySelectorAll('.modal-overlay').forEach(function (overlay) {
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) closeModal(overlay);
+    });
+  });
+
   function initDragDrop() {
     document.querySelectorAll('.strecke-carrier-badge[draggable="true"]').forEach(function (badge) {
       badge.addEventListener('dragstart', function (e) {
@@ -114,10 +141,16 @@
   }
 
   function resetTerminModal() {
-    document.getElementById('strecke-edit-termin-id').value = '';
-    document.getElementById('strecke-termin-ort').value = '';
-    document.getElementById('strecke-termin-bemerkung').value = '';
-    document.getElementById('strecke-termin-modal-title').textContent = 'Neue Termine erstellen';
+    var editId = document.getElementById('strecke-edit-termin-id');
+    var ort = document.getElementById('strecke-termin-ort');
+    var bemerkung = document.getElementById('strecke-termin-bemerkung');
+    var title = document.getElementById('strecke-termin-modal-title');
+    if (!editId || !ort || !bemerkung || !title) return;
+
+    editId.value = '';
+    ort.value = '';
+    bemerkung.value = '';
+    title.textContent = 'Neue Termine erstellen';
     var rows = document.getElementById('strecke-termin-rows');
     if (rows) rows.innerHTML = '';
     addTerminRow(null);
@@ -125,12 +158,23 @@
     if (addBtn) addBtn.style.display = '';
   }
 
+  function openCreateTerminModal() {
+    resetTerminModal();
+    openModal('modal-strecke-termin');
+  }
+
   function openEditModal(btn) {
     resetTerminModal();
-    document.getElementById('strecke-edit-termin-id').value = btn.getAttribute('data-termin-id');
-    document.getElementById('strecke-termin-ort').value = btn.getAttribute('data-ort') || '';
-    document.getElementById('strecke-termin-bemerkung').value = btn.getAttribute('data-bemerkung') || '';
-    document.getElementById('strecke-termin-modal-title').textContent = 'Termin bearbeiten';
+    var editId = document.getElementById('strecke-edit-termin-id');
+    var ort = document.getElementById('strecke-termin-ort');
+    var bemerkung = document.getElementById('strecke-termin-bemerkung');
+    var title = document.getElementById('strecke-termin-modal-title');
+    if (!editId || !ort || !bemerkung || !title) return;
+
+    editId.value = btn.getAttribute('data-termin-id');
+    ort.value = btn.getAttribute('data-ort') || '';
+    bemerkung.value = btn.getAttribute('data-bemerkung') || '';
+    title.textContent = 'Termin bearbeiten';
     var rows = document.getElementById('strecke-termin-rows');
     if (rows) rows.innerHTML = '';
     addTerminRow({
@@ -140,11 +184,7 @@
     });
     var addBtn = document.getElementById('strecke-add-termin-row');
     if (addBtn) addBtn.style.display = 'none';
-    var overlay = document.getElementById('modal-strecke-termin');
-    if (overlay) {
-      overlay.classList.add('active');
-      document.body.classList.add('modal-open');
-    }
+    openModal('modal-strecke-termin');
   }
 
   function collectTerminRows() {
@@ -165,9 +205,14 @@
   }
 
   function saveTermin() {
-    var editId = document.getElementById('strecke-edit-termin-id').value;
-    var ort = document.getElementById('strecke-termin-ort').value;
-    var bemerkung = document.getElementById('strecke-termin-bemerkung').value;
+    var editIdEl = document.getElementById('strecke-edit-termin-id');
+    var ortEl = document.getElementById('strecke-termin-ort');
+    var bemerkungEl = document.getElementById('strecke-termin-bemerkung');
+    if (!editIdEl || !ortEl || !bemerkungEl) return;
+
+    var editId = editIdEl.value;
+    var ort = ortEl.value;
+    var bemerkung = bemerkungEl.value;
     var rows = collectTerminRows();
     if (!rows.length) {
       if (typeof toast === 'function') toast('Bitte mindestens ein Datum angeben.', 'warning');
@@ -200,10 +245,11 @@
     }).then(notifyResult);
   }
 
-  document.querySelectorAll('[data-open-modal="modal-strecke-termin"]').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      resetTerminModal();
-    });
+  ['strecke-open-termin-modal', 'strecke-open-termin-modal-empty'].forEach(function (id) {
+    var btn = document.getElementById(id);
+    if (btn) {
+      btn.addEventListener('click', openCreateTerminModal);
+    }
   });
 
   var addRowBtn = document.getElementById('strecke-add-termin-row');
@@ -316,8 +362,7 @@
     var list = document.getElementById('strecke-ausbilder-list');
     if (!overlay || !list) return;
     list.innerHTML = '<p class="hint">Lade Ausbilder …</p>';
-    overlay.classList.add('active');
-    document.body.classList.add('modal-open');
+    openModal('modal-strecke-ausbilder');
     fetch('/atemschutz/strecke-planung/api/ausbilder?unit=' + unitId)
       .then(function (res) { return res.json(); })
       .then(function (items) {
@@ -365,8 +410,5 @@
     });
   }
 
-  if (canWrite) {
-    resetTerminModal();
-  }
   initDragDrop();
 })();
