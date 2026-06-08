@@ -555,10 +555,12 @@ public class EinsatzberichtService {
         Set<Long> targetUcrIds = resolveTargetUcrIds(details, allowedStatusIds, statusByUcr);
         if (targetUcrIds.isEmpty()) {
             log.debug(
-                    "[Divera→Personal] unit={} alarm={} report={} — keine UCR-IDs (ucr_answered leer?)",
+                    "[Divera→Personal] unit={} alarm={} report={} — keine UCR-IDs "
+                            + "(ucr_answered leer oder keine passende Status-ID? hits={})",
                     unitId,
                     details.alarmId(),
-                    report.getId());
+                    report.getId(),
+                    details.answeredHits() != null ? details.answeredHits().size() : 0);
             return;
         }
         boolean testData = testModeService.isEnabled();
@@ -604,31 +606,40 @@ public class EinsatzberichtService {
 
     private Set<Long> resolveTargetUcrIds(
             DiveraAlarmDetails details, List<String> allowedStatusIds, Map<Long, Integer> statusByUcr) {
-        Set<Long> answered = new LinkedHashSet<>();
-        if (details.answeredUcrIds() != null) {
-            for (Long ucrId : details.answeredUcrIds()) {
-                if (ucrId != null && ucrId > 0) {
-                    answered.add(ucrId);
-                }
-            }
-        }
-        if (details.personnelHits() != null) {
-            for (var hit : details.personnelHits()) {
+        Set<Long> fromAnswered = new LinkedHashSet<>();
+        if (details.answeredHits() != null) {
+            for (var hit : details.answeredHits()) {
                 if (hit.ucrId() == null || hit.ucrId().isBlank()) {
                     continue;
+                }
+                if (!allowedStatusIds.isEmpty()) {
+                    String statusId = hit.statusId() != null ? hit.statusId().trim() : "";
+                    if (statusId.isEmpty() || !allowedStatusIds.contains(statusId)) {
+                        continue;
+                    }
                 }
                 try {
                     long ucrId = Long.parseLong(hit.ucrId().trim());
                     if (ucrId > 0) {
-                        answered.add(ucrId);
+                        fromAnswered.add(ucrId);
                     }
                 } catch (NumberFormatException ignored) {
                     // ignore malformed UCR
                 }
             }
         }
-        if (!answered.isEmpty()) {
-            return answered;
+        if (!fromAnswered.isEmpty()) {
+            return fromAnswered;
+        }
+        if (details.answeredUcrIds() != null) {
+            for (Long ucrId : details.answeredUcrIds()) {
+                if (ucrId != null && ucrId > 0) {
+                    fromAnswered.add(ucrId);
+                }
+            }
+        }
+        if (!fromAnswered.isEmpty()) {
+            return fromAnswered;
         }
         if (allowedStatusIds.isEmpty()) {
             return Set.of();

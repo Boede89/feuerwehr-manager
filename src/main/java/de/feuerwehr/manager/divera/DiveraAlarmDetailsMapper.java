@@ -47,6 +47,7 @@ public final class DiveraAlarmDetailsMapper {
             boolean falseAlarm,
             boolean maliciousAlarm,
             List<Long> answeredUcrIds,
+            List<DiveraPersonnelHit> answeredHits,
             List<DiveraPersonnelHit> personnelHits) {}
 
     public static Optional<DiveraAlarmDetails> fromSummary(DiveraAlarmSummary summary, JsonNode root) {
@@ -87,6 +88,7 @@ public final class DiveraAlarmDetailsMapper {
                 false,
                 false,
                 List.of(),
+                List.of(),
                 List.of()));
     }
 
@@ -102,7 +104,11 @@ public final class DiveraAlarmDetailsMapper {
         AddressParts structured = parseAddress(parsed.address());
         AddressParts merged = mergeAddress(structured, alarm);
         List<DiveraPersonnelHit> personnel = collectPersonnel(alarm);
-        List<Long> answeredUcrIds = parseUcrIdArray(alarm, "ucr_answered");
+        List<DiveraPersonnelHit> answeredHits = parseUcrAnswered(alarm);
+        List<Long> answeredUcrIds = flattenAnsweredUcrIds(answeredHits);
+        if (answeredUcrIds.isEmpty()) {
+            answeredUcrIds = parseUcrIdArray(alarm, "ucr_answered");
+        }
         return new DiveraAlarmDetails(
                 parsed.alarmId(),
                 blankToNull(parsed.externalId()),
@@ -130,7 +136,71 @@ public final class DiveraAlarmDetailsMapper {
                 boolOrFalse(alarm, "false_alarm", "fehlalarm", "FalseAlarm"),
                 boolOrFalse(alarm, "malicious_alarm", "boeswillig", "boewillig", "MaliciousAlarm"),
                 answeredUcrIds,
+                answeredHits,
                 personnel);
+    }
+
+    /**
+     * DIVERA liefert {@code ucr_answered} als Objekt: Status-ID → UCR-ID → {@code {ts, note}}.
+     * Beispiel: {@code "44986": {"230073": {"ts": 1780784431, "note": ""}}}.
+     */
+    private static List<DiveraPersonnelHit> parseUcrAnswered(JsonNode alarm) {
+        List<DiveraPersonnelHit> hits = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+        JsonNode node = alarm.path("ucr_answered");
+        if (node.isObject() && !node.isEmpty()) {
+            node.fields().forEachRemaining(statusEntry -> {
+                String statusId = statusEntry.getKey();
+                JsonNode ucrMap = statusEntry.getValue();
+                if (!ucrMap.isObject()) {
+                    return;
+                }
+                ucrMap.fields().forEachRemaining(ucrEntry -> {
+                    String ucrId = ucrEntry.getKey();
+                    if (ucrId == null || !ucrId.matches("\\d+")) {
+                        return;
+                    }
+                    String dedupe = statusId + "|" + ucrId;
+                    if (seen.add(dedupe)) {
+                        hits.add(new DiveraPersonnelHit(ucrId, statusId, null));
+                    }
+                });
+            });
+        }
+        if (hits.isEmpty() && node.isArray()) {
+            for (JsonNode item : node) {
+                long id = extractUcrId(item);
+                if (id > 0) {
+                    String ucr = String.valueOf(id);
+                    if (seen.add("|" + ucr)) {
+                        hits.add(new DiveraPersonnelHit(ucr, null, null));
+                    }
+                }
+            }
+        }
+        return hits;
+    }
+
+    private static List<Long> flattenAnsweredUcrIds(List<DiveraPersonnelHit> hits) {
+        if (hits == null || hits.isEmpty()) {
+            return List.of();
+        }
+        Set<Long> seen = new LinkedHashSet<>();
+        List<Long> result = new ArrayList<>();
+        for (DiveraPersonnelHit hit : hits) {
+            if (hit.ucrId() == null || hit.ucrId().isBlank()) {
+                continue;
+            }
+            try {
+                long ucrId = Long.parseLong(hit.ucrId().trim());
+                if (ucrId > 0 && seen.add(ucrId)) {
+                    result.add(ucrId);
+                }
+            } catch (NumberFormatException ignored) {
+                // ignore
+            }
+        }
+        return result;
     }
 
     private static List<Long> parseUcrIdArray(JsonNode alarm, String... keys) {
