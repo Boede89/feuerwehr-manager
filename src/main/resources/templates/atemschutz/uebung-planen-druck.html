@@ -4,36 +4,35 @@
   <meta charset="UTF-8"/>
   <title>PA-Träger Suchergebnisse</title>
   <th:block th:replace="~{fragments/atemschutz-print-header :: styles}"></th:block>
-  <style>
-    .summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 24px; margin-bottom: 16px; }
-    .summary-label { color: #555; font-size: 10pt; display: block; }
-  </style>
 </head>
 <body>
-  <th:block th:replace="~{fragments/atemschutz-print-header :: actions}"></th:block>
   <th:block th:replace="~{fragments/atemschutz-print-header :: header}"></th:block>
 
-  <div class="summary-grid">
-    <div>
-      <span class="summary-label">Übungsdatum</span>
-      <strong th:text="${#temporals.format(planResult.uebungsDatum(), 'dd.MM.yyyy')}">—</strong>
-    </div>
-    <div>
-      <span class="summary-label">Anzahl</span>
-      <strong th:text="${anzahlLabel}">—</strong>
-    </div>
-    <div>
-      <span class="summary-label">Status-Filter</span>
-      <strong>
-        <span th:each="status, stat : ${planResult.statusFilter()}"
-              th:text="${status.label() + (stat.last ? '' : ', ')}">—</span>
-      </strong>
-    </div>
-    <div>
-      <span class="summary-label">Gefunden</span>
-      <strong th:text="${planResult.carriers().size() + ' von ' + planResult.totalMatches()}">0</strong>
-    </div>
-  </div>
+  <table class="summary-grid">
+    <tr>
+      <td>
+        <span class="summary-label">Übungsdatum</span>
+        <strong th:text="${#temporals.format(planResult.uebungsDatum(), 'dd.MM.yyyy')}">—</strong>
+      </td>
+      <td>
+        <span class="summary-label">Anzahl</span>
+        <strong th:text="${anzahlLabel}">—</strong>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <span class="summary-label">Status-Filter</span>
+        <strong>
+          <span th:each="status, stat : ${planResult.statusFilter()}"
+                th:text="${status.label() + (stat.last ? '' : ', ')}">—</span>
+        </strong>
+      </td>
+      <td>
+        <span class="summary-label">Gefunden</span>
+        <strong th:text="${planResult.carriers().size() + ' von ' + planResult.totalMatches()}">0</strong>
+      </td>
+    </tr>
+  </table>
 
   <table th:if="${!#lists.isEmpty(planResult.carriers())}">
     <thead>
@@ -75,6 +74,6 @@
     </tr>
     </tbody>
   </table>
-  <p th:if="${#lists.isEmpty(planResult.carriers())}" class="print-meta">Keine passenden PA-Träger gefunden.</p>
+  <p th:if="${#lists.isEmpty(planResult.carriers())}" class="pdf-meta">Keine passenden PA-Träger gefunden.</p>
 </body>
 </html>

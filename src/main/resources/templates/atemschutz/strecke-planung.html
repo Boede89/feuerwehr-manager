@@ -15,7 +15,7 @@
       <button type="button" class="btn btn--outline" th:if="${canWrite}" id="strecke-clear-zuordnungen">Zuordnungen löschen</button>
       <button type="button" class="btn btn--outline" th:if="${canWrite and canMail}" id="strecke-notify-all">Alle informieren</button>
       <button type="button" class="btn btn--outline" th:if="${canWrite and canMail}" id="strecke-notify-ausbilder">Ausbilder informieren</button>
-      <a class="btn btn--outline" th:href="@{/atemschutz/strecke-planung/drucken(unit=${unitId})}" target="_blank" rel="noopener">PDF drucken</a>
+      <a class="btn btn--outline" th:href="@{/atemschutz/strecke-planung/drucken(unit=${unitId})}">PDF herunterladen</a>
     </div>
   </div>
 

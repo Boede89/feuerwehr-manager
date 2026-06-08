@@ -8,9 +8,9 @@
       <p>Gefundene Geräteträger für Ihre Übung · <strong th:text="${currentUnitName}">—</strong></p>
     </div>
     <div class="toolbar-actions">
-      <a class="btn btn--outline" target="_blank" rel="noopener"
+      <a class="btn btn--outline"
          th:href="@{/atemschutz/uebung-planen/drucken(unit=${unitId}, uebungsDatum=${uebungsDatum}, anzahlPaTraeger=${anzahlPaTraeger}, statusFilter=${selectedStatusParams})}">
-        PDF exportieren
+        PDF herunterladen
       </a>
       <a class="btn btn--outline" th:href="@{/atemschutz/uebung-planen(unit=${unitId})}">Neue Suche</a>
     </div>

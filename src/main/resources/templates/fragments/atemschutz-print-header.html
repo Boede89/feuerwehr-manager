@@ -2,39 +2,35 @@
 <html lang="de" xmlns:th="http://www.thymeleaf.org">
 <th:block th:fragment="styles">
   <style>
-    @page { size: A4; margin: 15mm; }
+    @page { size: A4; margin: 12mm; }
     * { box-sizing: border-box; }
-    body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #222; margin: 0; padding: 16px; }
-    .print-actions { margin-bottom: 16px; }
-    .print-header { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
-    .print-logo { max-height: 56px; max-width: 120px; object-fit: contain; }
-    .print-header__text h1 { font-size: 18pt; margin: 0 0 4px; }
-    .print-meta { color: #555; margin: 0 0 16px; }
-    h2 { font-size: 13pt; margin: 20px 0 8px; border-bottom: 2px solid #667eea; padding-bottom: 4px; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 10pt; color: #222; margin: 0; padding: 0; }
+    .pdf-logo-banner { width: 100%; text-align: center; margin: 0 0 14px 0; }
+    .pdf-logo-banner img {
+      display: block;
+      width: 100%;
+      max-height: 110px;
+      object-fit: contain;
+      margin: 0 auto;
+    }
+    h1 { font-size: 16pt; margin: 0 0 6px; text-align: center; font-weight: bold; }
+    .pdf-meta { color: #555; margin: 0 0 18px; text-align: center; font-size: 9pt; line-height: 1.4; }
+    h2 { font-size: 12pt; margin: 18px 0 8px; border-bottom: 2px solid #667eea; padding-bottom: 4px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
     th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; vertical-align: top; }
-    th { background: #667eea; color: #fff; }
+    th { background: #667eea; color: #fff; font-size: 9pt; }
     tr:nth-child(even) { background: #f7f7f7; }
-    .badge-ok { color: #166534; font-weight: 600; }
-    .badge-warn { color: #b45309; font-weight: 600; }
-    .badge-overdue { color: #b91c1c; font-weight: 600; }
-    .badge-missing { color: #6b7280; }
-    @media print { .print-actions { display: none; } }
+    ul { margin: 0; padding-left: 18px; }
+    .summary-grid { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+    .summary-grid td { border: none; padding: 4px 12px 4px 0; vertical-align: top; width: 50%; }
+    .summary-label { color: #555; font-size: 9pt; display: block; margin-bottom: 2px; }
   </style>
 </th:block>
-<th:block th:fragment="actions">
-  <div class="print-actions">
-    <button type="button" onclick="window.print()">Drucken / Als PDF speichern</button>
-  </div>
-</th:block>
 <th:block th:fragment="header">
-  <div class="print-header">
-    <img th:if="${unitLogoBase64 != null and !#strings.isEmpty(unitLogoBase64)}"
-         th:src="${unitLogoBase64}" alt="" class="print-logo"/>
-    <div class="print-header__text">
-      <h1 th:text="${printTitle}">Titel</h1>
-      <p class="print-meta" th:if="${printSubtitle != null}" th:text="${printSubtitle}">Untertitel</p>
-    </div>
+  <div class="pdf-logo-banner" th:if="${unitLogoBase64 != null and !#strings.isEmpty(unitLogoBase64)}">
+    <img th:src="${unitLogoBase64}" alt=""/>
   </div>
+  <h1 th:text="${printTitle}">Titel</h1>
+  <p class="pdf-meta" th:if="${printSubtitle != null}" th:text="${printSubtitle}">Untertitel</p>
 </th:block>
 </html>

@@ -9,6 +9,8 @@ import de.feuerwehr.manager.atemschutz.AtemschutzService.CarrierDetailView;
 import de.feuerwehr.manager.atemschutz.AtemschutzService.CarrierListResult;
 import de.feuerwehr.manager.atemschutz.AtemschutzService.CarrierOverview;
 import de.feuerwehr.manager.atemschutz.AtemschutzService.UebungPlanResult;
+import de.feuerwehr.manager.pdf.HtmlPdfService;
+import de.feuerwehr.manager.pdf.PdfDownloadResponse;
 import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
@@ -52,6 +54,7 @@ public class AtemschutzController {
     private final AccessControlService accessControlService;
     private final UserPermissionService userPermissionService;
     private final AtemschutzService atemschutzService;
+    private final HtmlPdfService htmlPdfService;
 
     @GetMapping
     public String index(
@@ -76,7 +79,7 @@ public class AtemschutzController {
     }
 
     @GetMapping("/drucken")
-    public String printList(
+    public Object downloadListPdf(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
             @RequestParam(name = "filter", defaultValue = "all") String filter,
@@ -106,8 +109,12 @@ public class AtemschutzController {
             model.addAttribute("activeFilter", normalizedFilter);
             model.addAttribute("includePaused", includePaused);
             model.addAttribute("filterLabel", filterLabel(normalizedFilter));
-            return "atemschutz/liste-druck";
+            byte[] pdf = htmlPdfService.renderPdf("atemschutz/liste-druck", model);
+            return PdfDownloadResponse.attachment("Atemschutz_Geraetetraeger.pdf", pdf);
         } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return unitId != null ? "redirect:/atemschutz?unit=" + unitId : redirectHome(unitId);
+        } catch (IllegalStateException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return unitId != null ? "redirect:/atemschutz?unit=" + unitId : redirectHome(unitId);
         }
@@ -167,7 +174,7 @@ public class AtemschutzController {
     }
 
     @GetMapping("/uebung-planen/drucken")
-    public String printUebungPlan(
+    public Object downloadUebungPlanPdf(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam long unit,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate uebungsDatum,
@@ -196,8 +203,12 @@ public class AtemschutzController {
                     resolved.getName() + " · Stand: " + printTimestamp());
             model.addAttribute("planResult", result);
             model.addAttribute("anzahlLabel", formatAnzahlLabel(anzahlPaTraeger));
-            return "atemschutz/uebung-planen-druck";
+            byte[] pdf = htmlPdfService.renderPdf("atemschutz/uebung-planen-druck", model);
+            return PdfDownloadResponse.attachment("Atemschutz_Uebung_Planung.pdf", pdf);
         } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return "redirect:/atemschutz/uebung-planen?unit=" + unit;
+        } catch (IllegalStateException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return "redirect:/atemschutz/uebung-planen?unit=" + unit;
         }

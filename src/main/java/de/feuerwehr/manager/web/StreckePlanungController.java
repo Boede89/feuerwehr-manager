@@ -10,6 +10,8 @@ import de.feuerwehr.manager.atemschutz.StreckePlanungService.CreateTerminRequest
 import de.feuerwehr.manager.atemschutz.StreckePlanungService.StreckePlanungView;
 import de.feuerwehr.manager.atemschutz.StreckePlanungService.UpdateTerminRequest;
 import de.feuerwehr.manager.mail.UnitMailService;
+import de.feuerwehr.manager.pdf.HtmlPdfService;
+import de.feuerwehr.manager.pdf.PdfDownloadResponse;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.UserPermissionService;
@@ -57,6 +59,7 @@ public class StreckePlanungController {
     private final StreckePlanungService streckePlanungService;
     private final StreckePlanungNotificationService notificationService;
     private final UnitMailService unitMailService;
+    private final HtmlPdfService htmlPdfService;
 
     @GetMapping
     public String index(
@@ -146,7 +149,7 @@ public class StreckePlanungController {
     }
 
     @GetMapping("/drucken")
-    public String drucken(
+    public Object downloadPdf(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
             Model model,
@@ -164,8 +167,12 @@ public class StreckePlanungController {
             model.addAttribute("unassignedCarriers", StreckePlanungDisplayMapper.toPoolBadges(view, view.warnDays()));
             model.addAttribute("termine", StreckePlanungDisplayMapper.toTerminCards(view));
             model.addAttribute("warnDays", view.warnDays());
-            return "atemschutz/strecke-planung-druck";
+            byte[] pdf = htmlPdfService.renderPdf("atemschutz/strecke-planung-druck", model);
+            return PdfDownloadResponse.attachment("Atemschutz_Strecke_Planung.pdf", pdf);
         } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return unitId != null ? "redirect:/atemschutz/strecke-planung?unit=" + unitId : "redirect:/";
+        } catch (IllegalStateException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return unitId != null ? "redirect:/atemschutz/strecke-planung?unit=" + unitId : "redirect:/";
         }

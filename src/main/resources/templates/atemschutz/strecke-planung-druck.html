@@ -9,7 +9,6 @@
   </style>
 </head>
 <body>
-  <th:block th:replace="~{fragments/atemschutz-print-header :: actions}"></th:block>
   <th:block th:replace="~{fragments/atemschutz-print-header :: header}"></th:block>
 
   <h2>Geplante Termine</h2>
@@ -38,7 +37,7 @@
       </tr>
     </tbody>
   </table>
-  <p th:if="${#lists.isEmpty(termine)}" class="print-meta"><em>Keine Termine vorhanden.</em></p>
+  <p th:if="${#lists.isEmpty(termine)}" class="pdf-meta"><em>Keine Termine vorhanden.</em></p>
 
   <h2>Nicht zugeordnete Geräteträger (<span th:text="${#lists.size(unassignedCarriers)}">0</span>)</h2>
   <ul th:if="${!#lists.isEmpty(unassignedCarriers)}">
@@ -49,6 +48,6 @@
       </span>
     </li>
   </ul>
-  <p th:if="${#lists.isEmpty(unassignedCarriers)}" class="print-meta"><em>Alle Geräteträger sind zugeordnet.</em></p>
+  <p th:if="${#lists.isEmpty(unassignedCarriers)}" class="pdf-meta"><em>Alle Geräteträger sind zugeordnet.</em></p>
 </body>
 </html>

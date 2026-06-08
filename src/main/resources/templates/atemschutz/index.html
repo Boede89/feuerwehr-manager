@@ -8,9 +8,9 @@
       <p>Geräteträger und Tauglichkeiten · <strong th:text="${currentUnitName}">—</strong></p>
     </div>
     <div class="toolbar-actions">
-      <a class="btn btn--outline" id="atemschutz-pdf-link" target="_blank" rel="noopener"
+      <a class="btn btn--outline" id="atemschutz-pdf-link"
          th:attr="data-unit-id=${unitId}, data-filter=${activeFilter}"
-         th:href="@{/atemschutz/drucken(unit=${unitId}, filter=${activeFilter}, paused=false)}">PDF exportieren</a>
+         th:href="@{/atemschutz/drucken(unit=${unitId}, filter=${activeFilter}, paused=false)}">PDF herunterladen</a>
       <a class="btn btn--outline" th:href="@{/atemschutz/strecke-planung(unit=${unitId})}">Strecke – Terminplanung</a>
       <a class="btn btn--outline" th:href="@{/atemschutz/uebung-planen(unit=${unitId})}">Übung planen</a>
     </div>

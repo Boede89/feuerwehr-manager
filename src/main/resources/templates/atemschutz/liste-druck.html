@@ -6,7 +6,6 @@
   <th:block th:replace="~{fragments/atemschutz-print-header :: styles}"></th:block>
 </head>
 <body>
-  <th:block th:replace="~{fragments/atemschutz-print-header :: actions}"></th:block>
   <th:block th:replace="~{fragments/atemschutz-print-header :: header}"></th:block>
 
   <table th:if="${!#lists.isEmpty(carriers)}">
@@ -49,6 +48,6 @@
     </tr>
     </tbody>
   </table>
-  <p th:if="${#lists.isEmpty(carriers)}" class="print-meta">Keine Geräteträger für diese Auswahl.</p>
+  <p th:if="${#lists.isEmpty(carriers)}" class="pdf-meta">Keine Geräteträger für diese Auswahl.</p>
 </body>
 </html>
