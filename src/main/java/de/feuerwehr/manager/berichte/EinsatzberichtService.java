@@ -1,5 +1,7 @@
 package de.feuerwehr.manager.berichte;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.security.AppUserDetails;
@@ -11,11 +13,17 @@ import de.feuerwehr.manager.unit.UnitRepository;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +31,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class EinsatzberichtService {
+
+    private static final TypeReference<List<CrewAssignmentPayload>> CREW_ASSIGNMENT_LIST =
+            new TypeReference<>() {};
 
     private final IncidentReportRepository incidentReportRepository;
     private final IncidentReportPersonnelRepository incidentReportPersonnelRepository;
@@ -32,6 +43,7 @@ public class EinsatzberichtService {
     private final PersonalService personalService;
     private final VehicleRepository vehicleRepository;
     private final TestModeService testModeService;
+    private final ObjectMapper objectMapper;
 
     public List<IncidentReport> listByUnit(long unitId) {
         return incidentReportRepository.findByUnitIdOrderByDateDesc(unitId);
@@ -50,20 +62,100 @@ public class EinsatzberichtService {
         return incidentReportRepository.findDistinctStichworteByUnitId(unitId);
     }
 
-    public List<Long> selectedPersonnelIds(long reportId) {
-        return incidentReportPersonnelRepository.findByIncidentReportId(reportId).stream()
-                .map(IncidentReportPersonnel::getPerson)
-                .filter(Objects::nonNull)
-                .map(Person::getId)
-                .toList();
+    public KraefteFahrzeugeState buildKraefteFahrzeugeState(long unitId, Long reportId) {
+        List<Person> allPersons = listPersonsForForm(unitId);
+        Map<Long, Person> personById =
+                allPersons.stream().collect(Collectors.toMap(Person::getId, p -> p, (a, b) -> a, LinkedHashMap::new));
+        List<Vehicle> unitVehicles = listVehiclesForForm(unitId);
+
+        Map<Long, List<Long>> crewByVehicleId = new LinkedHashMap<>();
+        for (Vehicle vehicle : unitVehicles) {
+            crewByVehicleId.put(vehicle.getId(), new ArrayList<>());
+        }
+
+        Set<Long> diveraPersonIds = new HashSet<>();
+        Set<Long> onVehiclePersonIds = new HashSet<>();
+
+        if (reportId != null) {
+            for (IncidentReportPersonnel row : incidentReportPersonnelRepository.findByIncidentReportId(reportId)) {
+                Person person = row.getPerson();
+                if (person == null) {
+                    continue;
+                }
+                if (row.getSource() == IncidentPersonnelSource.DIVERA) {
+                    diveraPersonIds.add(person.getId());
+                }
+                IncidentReportVehicle reportVehicle = row.getIncidentReportVehicle();
+                if (reportVehicle != null && reportVehicle.getVehicle() != null) {
+                    long vehicleId = reportVehicle.getVehicle().getId();
+                    crewByVehicleId.computeIfAbsent(vehicleId, k -> new ArrayList<>()).add(person.getId());
+                    onVehiclePersonIds.add(person.getId());
+                }
+            }
+        }
+
+        List<KraefteFahrzeugeState.KraeftePersonView> manualPersons = new ArrayList<>();
+        List<KraefteFahrzeugeState.KraeftePersonView> diveraPersons = new ArrayList<>();
+
+        for (Person person : allPersons) {
+            KraefteFahrzeugeState.KraeftePersonView view = toPersonView(person);
+            if (diveraPersonIds.contains(person.getId())) {
+                if (!onVehiclePersonIds.contains(person.getId())) {
+                    diveraPersons.add(view);
+                }
+            } else if (!onVehiclePersonIds.contains(person.getId())) {
+                manualPersons.add(view);
+            }
+        }
+
+        List<KraefteFahrzeugeState.KraefteVehicleView> vehicles = new ArrayList<>();
+        for (Vehicle vehicle : unitVehicles) {
+            List<Long> crewIds = crewByVehicleId.getOrDefault(vehicle.getId(), List.of());
+            List<Person> crew = crewIds.stream()
+                    .map(personById::get)
+                    .filter(Objects::nonNull)
+                    .toList();
+            List<KraefteFahrzeugeState.KraeftePersonView> crewViews =
+                    crew.stream().map(this::toPersonView).toList();
+            vehicles.add(new KraefteFahrzeugeState.KraefteVehicleView(
+                    vehicle.getId(),
+                    vehicle.getName(),
+                    new ArrayList<>(crewIds),
+                    crewViews,
+                    Besatzungsstaerke.format(crew)));
+        }
+
+        return new KraefteFahrzeugeState(manualPersons, diveraPersons, vehicles);
     }
 
-    public List<Long> selectedVehicleIds(long reportId) {
-        return incidentReportVehicleRepository.findByIncidentReportId(reportId).stream()
-                .map(IncidentReportVehicle::getVehicle)
-                .filter(Objects::nonNull)
-                .map(Vehicle::getId)
-                .toList();
+    public String serializeKraefteFahrzeugeState(KraefteFahrzeugeState state) {
+        try {
+            return objectMapper.writeValueAsString(state);
+        } catch (Exception e) {
+            return "{}";
+        }
+    }
+
+    public List<CrewAssignment> parseCrewAssignments(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            List<CrewAssignmentPayload> payloads = objectMapper.readValue(json, CREW_ASSIGNMENT_LIST);
+            List<CrewAssignment> result = new ArrayList<>();
+            for (CrewAssignmentPayload payload : payloads) {
+                if (payload == null || payload.vehicleId() == null) {
+                    continue;
+                }
+                List<Long> personIds = payload.personIds() != null
+                        ? payload.personIds().stream().filter(Objects::nonNull).toList()
+                        : List.of();
+                result.add(new CrewAssignment(payload.vehicleId(), personIds));
+            }
+            return result;
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 
     public IncidentReport requireReport(long unitId, long reportId) {
@@ -110,7 +202,7 @@ public class EinsatzberichtService {
         report.setIncidentNumber(resolveIncidentNumber(unitId, form.incidentDate()));
         applyCreator(report, actor);
         IncidentReport saved = incidentReportRepository.save(report);
-        saveAssignments(saved, form, unitId);
+        saveCrewAssignments(saved, form, unitId);
         return saved;
     }
 
@@ -120,7 +212,7 @@ public class EinsatzberichtService {
         IncidentReport report = requireReport(unitId, reportId);
         applyForm(report, form, unitId);
         IncidentReport saved = incidentReportRepository.save(report);
-        saveAssignments(saved, form, unitId);
+        saveCrewAssignments(saved, form, unitId);
         return saved;
     }
 
@@ -151,7 +243,7 @@ public class EinsatzberichtService {
         applyCommander(report, form, unitId);
         report.setReporterName(trimToNull(form.reporterName()));
         report.setReporterPhone(trimToNull(form.reporterPhone()));
-        int personnelCount = form.personnelPersonIds() != null ? form.personnelPersonIds().size() : 0;
+        int personnelCount = countAssignedPersons(form.crewAssignments());
         report.setStrengthLeadership(0);
         report.setStrengthSub(0);
         report.setStrengthCrew(personnelCount);
@@ -172,55 +264,87 @@ public class EinsatzberichtService {
     }
 
     private void applyCommander(IncidentReport report, EinsatzberichtFormData form, long unitId) {
-        Long commanderId = form.commanderPersonId();
-        if (commanderId == null) {
-            report.setCommanderPerson(null);
-            report.setIncidentCommander(trimToNull(form.incidentCommander()));
+        String commanderName = trimToNull(form.incidentCommander());
+        report.setIncidentCommander(commanderName);
+        report.setCommanderPerson(null);
+        if (commanderName == null) {
             return;
         }
-        Person commander = resolvePersonForUnit(commanderId, unitId);
-        report.setCommanderPerson(commander);
-        report.setIncidentCommander(commander.anwesenheitDisplayName());
+        listPersonsForForm(unitId).stream()
+                .filter(p -> commanderName.equalsIgnoreCase(p.anwesenheitDisplayName()))
+                .findFirst()
+                .ifPresent(report::setCommanderPerson);
     }
 
-    private void saveAssignments(IncidentReport report, EinsatzberichtFormData form, long unitId) {
+    private void saveCrewAssignments(IncidentReport report, EinsatzberichtFormData form, long unitId) {
         long reportId = report.getId();
+        Map<Long, IncidentPersonnelSource> existingSources = loadExistingSources(reportId);
         incidentReportPersonnelRepository.deleteByIncidentReportId(reportId);
         incidentReportVehicleRepository.deleteByIncidentReportId(reportId);
 
-        Set<Long> personIds = new LinkedHashSet<>();
-        if (form.personnelPersonIds() != null) {
-            personIds.addAll(form.personnelPersonIds());
-        }
-        for (Long personId : personIds) {
-            if (personId == null) {
-                continue;
-            }
-            Person person = resolvePersonForUnit(personId, unitId);
-            IncidentReportPersonnel row = new IncidentReportPersonnel();
-            row.setIncidentReport(report);
-            row.setPerson(person);
-            row.setDisplayName(person.anwesenheitDisplayName());
-            incidentReportPersonnelRepository.save(row);
-        }
-
-        Set<Long> vehicleIdSet = new LinkedHashSet<>();
-        if (form.vehicleIds() != null) {
-            vehicleIdSet.addAll(form.vehicleIds());
-        }
-        for (Long vehicleId : vehicleIdSet) {
-            if (vehicleId == null) {
-                continue;
-            }
-            Vehicle vehicle = vehicleRepository
-                    .findByIdAndUnitId(vehicleId, unitId)
-                    .orElseThrow(() -> new IllegalArgumentException("Fahrzeug nicht gefunden."));
+        Map<Long, IncidentReportVehicle> reportVehicleByUnitVehicleId = new HashMap<>();
+        for (Vehicle vehicle : listVehiclesForForm(unitId)) {
             IncidentReportVehicle row = new IncidentReportVehicle();
             row.setIncidentReport(report);
             row.setVehicle(vehicle);
             row.setVehicleName(vehicle.getName());
-            incidentReportVehicleRepository.save(row);
+            IncidentReportVehicle saved = incidentReportVehicleRepository.save(row);
+            reportVehicleByUnitVehicleId.put(vehicle.getId(), saved);
         }
+
+        Set<Long> assignedPersons = new HashSet<>();
+        List<CrewAssignment> assignments =
+                form.crewAssignments() != null ? form.crewAssignments() : List.of();
+
+        for (CrewAssignment assignment : assignments) {
+            IncidentReportVehicle reportVehicle = reportVehicleByUnitVehicleId.get(assignment.vehicleId());
+            if (reportVehicle == null) {
+                continue;
+            }
+            for (Long personId : assignment.personIds()) {
+                if (personId == null || !assignedPersons.add(personId)) {
+                    continue;
+                }
+                Person person = resolvePersonForUnit(personId, unitId);
+                IncidentReportPersonnel row = new IncidentReportPersonnel();
+                row.setIncidentReport(report);
+                row.setPerson(person);
+                row.setIncidentReportVehicle(reportVehicle);
+                row.setDisplayName(person.anwesenheitDisplayName());
+                row.setSource(existingSources.getOrDefault(personId, IncidentPersonnelSource.MANUAL));
+                incidentReportPersonnelRepository.save(row);
+            }
+        }
+    }
+
+    private Map<Long, IncidentPersonnelSource> loadExistingSources(long reportId) {
+        Map<Long, IncidentPersonnelSource> sources = new HashMap<>();
+        for (IncidentReportPersonnel row : incidentReportPersonnelRepository.findByIncidentReportId(reportId)) {
+            if (row.getPerson() != null) {
+                sources.put(row.getPerson().getId(), row.getSource());
+            }
+        }
+        return sources;
+    }
+
+    private int countAssignedPersons(List<CrewAssignment> assignments) {
+        if (assignments == null) {
+            return 0;
+        }
+        Set<Long> ids = new LinkedHashSet<>();
+        for (CrewAssignment assignment : assignments) {
+            if (assignment.personIds() != null) {
+                assignment.personIds().stream().filter(Objects::nonNull).forEach(ids::add);
+            }
+        }
+        return ids.size();
+    }
+
+    private KraefteFahrzeugeState.KraeftePersonView toPersonView(Person person) {
+        return new KraefteFahrzeugeState.KraeftePersonView(
+                person.getId(),
+                person.anwesenheitDisplayName(),
+                Besatzungsstaerke.qualTier(person).name());
     }
 
     private Person resolvePersonForUnit(long personId, long unitId) {
@@ -281,4 +405,6 @@ public class EinsatzberichtService {
     private Unit requireUnit(long unitId) {
         return unitRepository.findById(unitId).orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden."));
     }
+
+    private record CrewAssignmentPayload(Long vehicleId, List<Long> personIds) {}
 }

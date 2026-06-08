@@ -2,7 +2,6 @@ package de.feuerwehr.manager.berichte;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
@@ -32,12 +31,10 @@ public class EinsatzberichtForm {
     private boolean bfInvolved;
     private boolean violenceAgainstCrew;
     private int violenceCount;
-    private Long commanderPersonId;
     private String incidentCommander;
     private String reporterName;
     private String reporterPhone;
-    private List<Long> personnelPersonIds = new ArrayList<>();
-    private List<Long> vehicleIds = new ArrayList<>();
+    private String crewAssignmentsJson;
     private String einsatzkurzbericht;
     private int personsRescued;
     private int personsEvacuated;
@@ -53,8 +50,7 @@ public class EinsatzberichtForm {
     private String vehicleDamage;
     private String equipmentDamage;
 
-    public static EinsatzberichtForm fromReport(
-            IncidentReport report, List<Long> personnelIds, List<Long> vehicleIds) {
+    public static EinsatzberichtForm fromReport(IncidentReport report) {
         EinsatzberichtForm form = new EinsatzberichtForm();
         form.setIncidentNumber(report.getIncidentNumber());
         form.setIncidentDate(report.getIncidentDate());
@@ -77,14 +73,9 @@ public class EinsatzberichtForm {
         form.setBfInvolved(report.isBfInvolved());
         form.setViolenceAgainstCrew(report.isViolenceAgainstCrew());
         form.setViolenceCount(report.getViolenceCount());
-        if (report.getCommanderPerson() != null) {
-            form.setCommanderPersonId(report.getCommanderPerson().getId());
-        }
         form.setIncidentCommander(report.getIncidentCommander());
         form.setReporterName(report.getReporterName());
         form.setReporterPhone(report.getReporterPhone());
-        form.setPersonnelPersonIds(new ArrayList<>(personnelIds));
-        form.setVehicleIds(new ArrayList<>(vehicleIds));
         form.setEinsatzkurzbericht(report.getNotes());
         form.setPersonsRescued(report.getPersonsRescued());
         form.setPersonsEvacuated(report.getPersonsEvacuated());
@@ -102,7 +93,7 @@ public class EinsatzberichtForm {
         return form;
     }
 
-    public EinsatzberichtFormData toData() {
+    public EinsatzberichtFormData toData(List<CrewAssignment> crewAssignments) {
         return new EinsatzberichtFormData(
                 incidentNumber,
                 incidentDate,
@@ -125,12 +116,10 @@ public class EinsatzberichtForm {
                 bfInvolved,
                 violenceAgainstCrew,
                 violenceCount,
-                commanderPersonId,
                 incidentCommander,
                 reporterName,
                 reporterPhone,
-                personnelPersonIds != null ? personnelPersonIds : List.of(),
-                vehicleIds != null ? vehicleIds : List.of(),
+                crewAssignments != null ? crewAssignments : List.of(),
                 einsatzkurzbericht,
                 personsRescued,
                 personsEvacuated,

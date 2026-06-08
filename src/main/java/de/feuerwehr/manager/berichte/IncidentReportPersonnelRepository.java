@@ -11,6 +11,8 @@ public interface IncidentReportPersonnelRepository extends JpaRepository<Inciden
     @Query("""
             SELECT p FROM IncidentReportPersonnel p
             LEFT JOIN FETCH p.person
+            LEFT JOIN FETCH p.incidentReportVehicle irv
+            LEFT JOIN FETCH irv.vehicle
             WHERE p.incidentReport.id = :reportId
             ORDER BY p.displayName
             """)

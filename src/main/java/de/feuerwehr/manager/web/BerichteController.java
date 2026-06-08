@@ -1,9 +1,11 @@
 package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.berichte.BerichteTab;
+import de.feuerwehr.manager.berichte.CrewAssignment;
 import de.feuerwehr.manager.berichte.EinsatzberichtForm;
 import de.feuerwehr.manager.berichte.EinsatzberichtService;
 import de.feuerwehr.manager.berichte.IncidentReport;
+import de.feuerwehr.manager.berichte.KraefteFahrzeugeState;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.UserPermissionService;
@@ -11,6 +13,7 @@ import de.feuerwehr.manager.settings.AppModule;
 import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
@@ -92,10 +95,7 @@ public class BerichteController {
             requireModuleEnabled(unit.getId());
             requireBerichteWrite(actor, unit.getId());
             IncidentReport report = einsatzberichtService.requireReport(unit.getId(), id);
-            EinsatzberichtForm form = EinsatzberichtForm.fromReport(
-                    report,
-                    einsatzberichtService.selectedPersonnelIds(id),
-                    einsatzberichtService.selectedVehicleIds(id));
+            EinsatzberichtForm form = EinsatzberichtForm.fromReport(report);
             populateEinsatzFormModel(model, unit.getId(), report, form);
             model.addAttribute("formMode", "edit");
             model.addAttribute("pageTitle", "Einsatzbericht bearbeiten");
@@ -117,7 +117,8 @@ public class BerichteController {
             Unit unit = resolveUnit(unitId, actor);
             requireModuleEnabled(unit.getId());
             requireBerichteWrite(actor, unit.getId());
-            einsatzberichtService.create(unit.getId(), form.toData(), actor);
+            List<CrewAssignment> crewAssignments = einsatzberichtService.parseCrewAssignments(form.getCrewAssignmentsJson());
+            einsatzberichtService.create(unit.getId(), form.toData(crewAssignments), actor);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Einsatzbericht wurde gespeichert.");
             return redirectBerichte(unit.getId(), "einsatz");
@@ -138,7 +139,8 @@ public class BerichteController {
             Unit unit = resolveUnit(unitId, actor);
             requireModuleEnabled(unit.getId());
             requireBerichteWrite(actor, unit.getId());
-            einsatzberichtService.update(unit.getId(), id, form.toData(), actor);
+            List<CrewAssignment> crewAssignments = einsatzberichtService.parseCrewAssignments(form.getCrewAssignmentsJson());
+            einsatzberichtService.update(unit.getId(), id, form.toData(crewAssignments), actor);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Einsatzbericht wurde aktualisiert.");
             return redirectBerichte(unit.getId(), "einsatz");
@@ -167,13 +169,39 @@ public class BerichteController {
     }
 
     private void populateEinsatzFormModel(Model model, long unitId, IncidentReport report, EinsatzberichtForm form) {
+        Long reportId = report != null ? report.getId() : null;
+        KraefteFahrzeugeState kraefteState = einsatzberichtService.buildKraefteFahrzeugeState(unitId, reportId);
         model.addAttribute("report", report);
         model.addAttribute("form", form);
         model.addAttribute("unitPersons", einsatzberichtService.listPersonsForForm(unitId));
-        model.addAttribute("unitVehicles", einsatzberichtService.listVehiclesForForm(unitId));
         model.addAttribute("knownStichworte", einsatzberichtService.listKnownStichworte(unitId));
-        model.addAttribute("selectedPersonnelIds", form.getPersonnelPersonIds());
-        model.addAttribute("selectedVehicleIds", form.getVehicleIds());
+        model.addAttribute("kraefteState", kraefteState);
+        model.addAttribute("kraefteInitialJson", einsatzberichtService.serializeKraefteFahrzeugeState(kraefteState));
+        if (form.getCrewAssignmentsJson() == null || form.getCrewAssignmentsJson().isBlank()) {
+            form.setCrewAssignmentsJson(buildCrewJson(kraefteState));
+        }
+    }
+
+    private static String buildCrewJson(KraefteFahrzeugeState state) {
+        StringBuilder sb = new StringBuilder("[");
+        boolean first = true;
+        for (KraefteFahrzeugeState.KraefteVehicleView vehicle : state.vehicles()) {
+            if (!first) {
+                sb.append(',');
+            }
+            first = false;
+            sb.append("{\"vehicleId\":").append(vehicle.vehicleId()).append(",\"personIds\":[");
+            List<Long> ids = vehicle.crewPersonIds();
+            for (int i = 0; i < ids.size(); i++) {
+                if (i > 0) {
+                    sb.append(',');
+                }
+                sb.append(ids.get(i));
+            }
+            sb.append("]}");
+        }
+        sb.append(']');
+        return sb.toString();
     }
 
     private Unit resolveUnit(Long unitId, AppUserDetails actor, Model model) {
