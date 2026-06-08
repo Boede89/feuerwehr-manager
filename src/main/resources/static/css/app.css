@@ -3387,3 +3387,50 @@ span.required { color: var(--error); }
 .att-stats--5 .att-stat { flex: 1; min-width: 72px; }
 .att-stat--quote .att-stat__value { font-size: 1.35rem; }
 .att-stats-hint { margin: 1rem 0 0; text-align: center; max-width: 36rem; margin-left: auto; margin-right: auto; }
+
+/* ── Berichte / Einsatzbericht-Formular ───────────────────────────────────── */
+.form-grid--3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.form-grid--4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+@media (max-width: 900px) {
+  .form-grid--3, .form-grid--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .form-grid--3, .form-grid--4 { grid-template-columns: 1fr; }
+}
+.einsatzbericht-section-title {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.einsatzbericht-flags-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+@media (max-width: 640px) {
+  .einsatzbericht-flags-grid { grid-template-columns: 1fr; }
+}
+.einsatzbericht-flag-card {
+  padding: 0.75rem 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.einsatzbericht-resources-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+.berichte-module-tabs { margin-bottom: 1rem; }
+.berichte-module-panel { margin-top: 0.25rem; }

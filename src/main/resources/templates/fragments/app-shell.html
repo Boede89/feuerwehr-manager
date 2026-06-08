@@ -40,6 +40,9 @@
     <a class="topnav__item topnav__item--test" th:if="${testModeEnabled and isAdmin}"
        th:classappend="${activeNav == 'test-alarm'} ? ' active' : ''"
        th:href="@{/test-alarm(unit=${unitId})}" title="Nur Testmodus — simuliert DIVERA-Webhooks lokal">Testalarm</a>
+    <a class="topnav__item" th:if="${navBerichte == 'link'}"
+       th:classappend="${activeNav == 'berichte'} ? ' active' : ''"
+       th:href="@{/berichte(unit=${unitId})}">Berichte</a>
     <span class="topnav__item topnav__item--soon" th:if="${navBerichte == 'soon'}" title="Modul folgt später">Berichte</span>
     <span class="topnav__item topnav__item--soon" th:if="${navAuswertung == 'soon'}" title="Modul folgt später">Auswertung</span>
     <div class="topnav__spacer"></div>

@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<th:block th:fragment="form">
+  <nav class="tab-bar einsatzbericht-form-tabs" aria-label="Einsatzbericht-Bereiche" style="padding:0 1.25rem;">
+    <button type="button" class="tab-btn einsatzbericht-tab tab-btn--active" data-tab="0">Basisdaten</button>
+    <button type="button" class="tab-btn einsatzbericht-tab" data-tab="1">Flags</button>
+    <button type="button" class="tab-btn einsatzbericht-tab" data-tab="2">Kräfte &amp; Schäden</button>
+    <button type="button" class="tab-btn einsatzbericht-tab" data-tab="3">Bericht</button>
+    <button type="button" class="tab-btn einsatzbericht-tab" data-tab="4">Einsatzmittel</button>
+    <button type="button" class="tab-btn einsatzbericht-tab" data-tab="5">Polizei</button>
+  </nav>
+
+  <input type="hidden" id="incidentTypeLabel" name="incidentTypeLabel" th:value="${form.incidentTypeLabel}"/>
+
+  <!-- Tab 0: Basisdaten -->
+  <div class="einsatzbericht-tab-panel" data-panel="0" style="padding:1.25rem;">
+    <div class="form-grid form-grid--2">
+      <div class="form-group">
+        <label for="incidentNumber">Einsatznummer</label>
+        <input id="incidentNumber" name="incidentNumber" type="text" maxlength="32"
+               placeholder="wird automatisch vergeben" th:value="${form.incidentNumber}"/>
+      </div>
+      <div class="form-group">
+        <label for="incidentDate">Datum <span class="required">*</span></label>
+        <input id="incidentDate" name="incidentDate" type="date" required th:value="${form.incidentDate}"/>
+      </div>
+      <div class="form-group">
+        <label for="alarmTime">Alarmzeit</label>
+        <input id="alarmTime" name="alarmTime" type="time" th:value="${form.alarmTime}"/>
+      </div>
+      <div class="form-group">
+        <label for="departureTime">Ausrückzeit</label>
+        <input id="departureTime" name="departureTime" type="time" th:value="${form.departureTime}"/>
+      </div>
+      <div class="form-group">
+        <label for="arrivalTime">Eintreffzeit</label>
+        <input id="arrivalTime" name="arrivalTime" type="time" th:value="${form.arrivalTime}"/>
+      </div>
+      <div class="form-group">
+        <label for="endTime">Einsatzende</label>
+        <input id="endTime" name="endTime" type="time" th:value="${form.endTime}"/>
+      </div>
+      <div class="form-group form-group--full">
+        <label for="incidentTypeKey">Einsatzart <span class="required">*</span></label>
+        <select id="incidentTypeKey" name="incidentTypeKey" required>
+          <optgroup th:each="cat : ${incidentTypeCategories}" th:label="${cat}">
+            <option th:each="t : ${incidentTypes}"
+                    th:if="${t.category == cat}"
+                    th:value="${t.typeKey}"
+                    th:text="${t.label}"
+                    th:selected="${form.incidentTypeKey == t.typeKey}">Art</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="form-group form-group--full">
+        <label for="location">Einsatzort <span class="required">*</span></label>
+        <input id="location" name="location" type="text" maxlength="300" required
+               placeholder="Ortsname / Gemeinde" th:value="${form.location}"/>
+      </div>
+      <div class="form-group">
+        <label for="postalCode">PLZ</label>
+        <input id="postalCode" name="postalCode" type="text" maxlength="10" th:value="${form.postalCode}"/>
+      </div>
+      <div class="form-group">
+        <label for="district">Ortsteil</label>
+        <input id="district" name="district" type="text" maxlength="128" th:value="${form.district}"/>
+      </div>
+      <div class="form-group">
+        <label for="street">Straße</label>
+        <input id="street" name="street" type="text" maxlength="255" th:value="${form.street}"/>
+      </div>
+      <div class="form-group">
+        <label for="houseNumber">Hausnummer</label>
+        <input id="houseNumber" name="houseNumber" type="text" maxlength="20" th:value="${form.houseNumber}"/>
+      </div>
+      <div class="form-group form-group--full">
+        <label for="incidentCommander">Einsatzleiter</label>
+        <input id="incidentCommander" name="incidentCommander" type="text" maxlength="255" th:value="${form.incidentCommander}"/>
+      </div>
+      <div class="form-group">
+        <label for="reporterName">Meldender</label>
+        <input id="reporterName" name="reporterName" type="text" maxlength="255" th:value="${form.reporterName}"/>
+      </div>
+      <div class="form-group">
+        <label for="reporterPhone">Telefon Melder</label>
+        <input id="reporterPhone" name="reporterPhone" type="text" maxlength="64" th:value="${form.reporterPhone}"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 1: Flags -->
+  <div class="einsatzbericht-tab-panel" data-panel="1" hidden style="padding:1.25rem;">
+    <div class="einsatzbericht-flags-grid">
+      <label class="einsatzbericht-flag-card checkbox-row">
+        <input type="checkbox" name="extinguishedBeforeArrival" value="true"
+               th:checked="${form.extinguishedBeforeArrival}"/>
+        <span>Vor Ankunft gelöscht</span>
+      </label>
+      <label class="einsatzbericht-flag-card checkbox-row">
+        <input type="checkbox" name="maliciousAlarm" value="true" th:checked="${form.maliciousAlarm}"/>
+        <span>Böswilliger Alarm</span>
+      </label>
+      <label class="einsatzbericht-flag-card checkbox-row">
+        <input type="checkbox" name="falseAlarm" value="true" th:checked="${form.falseAlarm}"/>
+        <span>Blinder Alarm</span>
+      </label>
+      <label class="einsatzbericht-flag-card checkbox-row">
+        <input type="checkbox" name="supraregional" value="true" th:checked="${form.supraregional}"/>
+        <span>Überregionaler Einsatz</span>
+      </label>
+      <label class="einsatzbericht-flag-card checkbox-row">
+        <input type="checkbox" name="bfInvolved" value="true" th:checked="${form.bfInvolved}"/>
+        <span>BF beteiligt</span>
+      </label>
+      <label class="einsatzbericht-flag-card checkbox-row">
+        <input type="checkbox" name="violenceAgainstCrew" value="true" th:checked="${form.violenceAgainstCrew}"/>
+        <span>Gewalt gegen Einsatzkräfte</span>
+      </label>
+    </div>
+    <div class="form-group" style="margin-top:1rem;max-width:16rem;">
+      <label for="violenceCount">Anzahl betroffener Einsatzkräfte (Gewalt)</label>
+      <input id="violenceCount" name="violenceCount" type="number" min="0" th:value="${form.violenceCount}"/>
+    </div>
+  </div>
+
+  <!-- Tab 2: Kräfte & Schäden -->
+  <div class="einsatzbericht-tab-panel" data-panel="2" hidden style="padding:1.25rem;">
+    <h4 class="einsatzbericht-section-title">Kräftestärke (eigene)</h4>
+    <div class="form-grid form-grid--3" style="margin-bottom:1.5rem;">
+      <div class="form-group">
+        <label for="strengthLeadership">Führung</label>
+        <input id="strengthLeadership" name="strengthLeadership" type="number" min="0" th:value="${form.strengthLeadership}"/>
+      </div>
+      <div class="form-group">
+        <label for="strengthSub">Unterführung</label>
+        <input id="strengthSub" name="strengthSub" type="number" min="0" th:value="${form.strengthSub}"/>
+      </div>
+      <div class="form-group">
+        <label for="strengthCrew">Mannschaft</label>
+        <input id="strengthCrew" name="strengthCrew" type="number" min="0" th:value="${form.strengthCrew}"/>
+      </div>
+    </div>
+
+    <h4 class="einsatzbericht-section-title">Personenschäden</h4>
+    <div class="form-grid form-grid--3" style="margin-bottom:1.5rem;">
+      <div class="form-group"><label for="personsRescued">Gerettet</label>
+        <input id="personsRescued" name="personsRescued" type="number" min="0" th:value="${form.personsRescued}"/></div>
+      <div class="form-group"><label for="personsEvacuated">Evakuiert</label>
+        <input id="personsEvacuated" name="personsEvacuated" type="number" min="0" th:value="${form.personsEvacuated}"/></div>
+      <div class="form-group"><label for="personsInjured">Verletzt</label>
+        <input id="personsInjured" name="personsInjured" type="number" min="0" th:value="${form.personsInjured}"/></div>
+      <div class="form-group"><label for="personsInjuredOwn">davon eigene EK</label>
+        <input id="personsInjuredOwn" name="personsInjuredOwn" type="number" min="0" th:value="${form.personsInjuredOwn}"/></div>
+      <div class="form-group"><label for="personsRecovered">Geborgen</label>
+        <input id="personsRecovered" name="personsRecovered" type="number" min="0" th:value="${form.personsRecovered}"/></div>
+      <div class="form-group"><label for="personsDead">Tot</label>
+        <input id="personsDead" name="personsDead" type="number" min="0" th:value="${form.personsDead}"/></div>
+      <div class="form-group"><label for="personsDeadOwn">davon eigene EK</label>
+        <input id="personsDeadOwn" name="personsDeadOwn" type="number" min="0" th:value="${form.personsDeadOwn}"/></div>
+    </div>
+
+    <h4 class="einsatzbericht-section-title">Tierschäden</h4>
+    <div class="form-grid form-grid--4" style="margin-bottom:1.5rem;">
+      <div class="form-group"><label for="animalsRescued">Gerettet</label>
+        <input id="animalsRescued" name="animalsRescued" type="number" min="0" th:value="${form.animalsRescued}"/></div>
+      <div class="form-group"><label for="animalsInjured">Verletzt</label>
+        <input id="animalsInjured" name="animalsInjured" type="number" min="0" th:value="${form.animalsInjured}"/></div>
+      <div class="form-group"><label for="animalsRecovered">Geborgen</label>
+        <input id="animalsRecovered" name="animalsRecovered" type="number" min="0" th:value="${form.animalsRecovered}"/></div>
+      <div class="form-group"><label for="animalsDead">Tot</label>
+        <input id="animalsDead" name="animalsDead" type="number" min="0" th:value="${form.animalsDead}"/></div>
+    </div>
+
+    <h4 class="einsatzbericht-section-title">Sachschäden</h4>
+    <div class="form-grid form-grid--2">
+      <div class="form-group">
+        <label for="vehicleDamage">Fahrzeugschäden</label>
+        <textarea id="vehicleDamage" name="vehicleDamage" rows="3" th:text="${form.vehicleDamage}"></textarea>
+      </div>
+      <div class="form-group">
+        <label for="equipmentDamage">Ausrüstungsschäden</label>
+        <textarea id="equipmentDamage" name="equipmentDamage" rows="3" th:text="${form.equipmentDamage}"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 3: Bericht -->
+  <div class="einsatzbericht-tab-panel" data-panel="3" hidden style="padding:1.25rem;">
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="fireObject">Brandobjekt / Hilfeleistungsart</label>
+        <input id="fireObject" name="fireObject" type="text" maxlength="512" th:value="${form.fireObject}"/>
+      </div>
+      <div class="form-group">
+        <label for="situation">Lage bei Eintreffen</label>
+        <textarea id="situation" name="situation" rows="4" th:text="${form.situation}"></textarea>
+      </div>
+      <div class="form-group">
+        <label for="measures">Durchgeführte Maßnahmen</label>
+        <textarea id="measures" name="measures" rows="4" th:text="${form.measures}"></textarea>
+      </div>
+      <div class="form-group">
+        <label for="notes">Besonderheiten / Kurzbeschreibung</label>
+        <textarea id="notes" name="notes" rows="3" th:text="${form.notes}"></textarea>
+      </div>
+      <div class="form-grid form-grid--2">
+        <div class="form-group">
+          <label for="weatherInfluence">Einfluss der Wetterlage</label>
+          <input id="weatherInfluence" name="weatherInfluence" type="text" maxlength="255" th:value="${form.weatherInfluence}"/>
+        </div>
+        <div class="form-group">
+          <label for="handoverTo">Übergabe an</label>
+          <input id="handoverTo" name="handoverTo" type="text" maxlength="255" th:value="${form.handoverTo}"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="handoverNotes">Bemerkung zur Übergabe</label>
+        <textarea id="handoverNotes" name="handoverNotes" rows="2" th:text="${form.handoverNotes}"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 4: Einsatzmittel -->
+  <div class="einsatzbericht-tab-panel" data-panel="4" hidden style="padding:1.25rem;">
+    <div class="einsatzbericht-resources-grid">
+      <div class="form-group" th:each="field : ${resourceFields}">
+        <label th:for="${'res-' + field.key()}">
+          <span th:text="${field.label()}">Feld</span>
+          <span class="text-muted text-xs" th:text="'(' + ${field.unit()} + ')'"></span>
+        </label>
+        <input th:id="${'res-' + field.key()}"
+               th:name="${'res_' + field.key()}"
+               th:type="${field.unit() == 'hh:mm' ? 'text' : 'number'}"
+               min="0"
+               placeholder="0"
+               th:value="${resourceValues[field.key()]}"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 5: Polizei -->
+  <div class="einsatzbericht-tab-panel" data-panel="5" hidden style="padding:1.25rem;">
+    <div class="form-grid form-grid--2" style="max-width:40rem;">
+      <div class="form-group form-group--full">
+        <label for="policeCaseNumber">Tgb.-Nr.</label>
+        <input id="policeCaseNumber" name="policeCaseNumber" type="text" maxlength="128" th:value="${form.policeCaseNumber}"/>
+      </div>
+      <div class="form-group">
+        <label for="policeStation">Revier</label>
+        <input id="policeStation" name="policeStation" type="text" maxlength="255" th:value="${form.policeStation}"/>
+      </div>
+      <div class="form-group">
+        <label for="policeOfficer">Name Beamter</label>
+        <input id="policeOfficer" name="policeOfficer" type="text" maxlength="255" th:value="${form.policeOfficer}"/>
+      </div>
+    </div>
+  </div>
+</th:block>
+</html>

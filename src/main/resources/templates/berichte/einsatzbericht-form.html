@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout(${pageTitle}, ~{::main})}">
+<main class="einsatzbericht-form-page">
+  <div class="page-header page-header--toolbar">
+    <div>
+      <h2 th:text="${pageTitle}">Neuer Einsatzbericht</h2>
+      <p th:text="${pageSubtitle}">Entwurf</p>
+    </div>
+    <div class="toolbar-actions">
+      <a class="btn btn--outline" th:href="@{/berichte(unit=${unitId}, tab='einsatz')}">Abbrechen</a>
+      <button type="submit" class="btn btn--primary" form="einsatzbericht-form">Speichern</button>
+    </div>
+  </div>
+
+  <div th:replace="~{fragments/testmode-banner :: banner}"></div>
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
+
+  <div class="card">
+    <div class="card__body card__body--flush">
+      <form id="einsatzbericht-form" method="post"
+            th:action="${formMode == 'edit'} ? @{/berichte/einsatzberichte/{id}(id=${report.id},unit=${unitId})} : @{/berichte/einsatzberichte(unit=${unitId})}">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <th:block th:replace="~{fragments/berichte-einsatz-form :: form}"></th:block>
+      </form>
+    </div>
+  </div>
+
+  <script th:src="@{/js/berichte-einsatz-form.js}" defer></script>
+</main>
+</html>
