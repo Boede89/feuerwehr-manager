@@ -2,12 +2,12 @@
 <html lang="de" xmlns:th="http://www.thymeleaf.org"
       th:replace="~{fragments/layout :: layout(${pageTitle}, ~{::main})}">
 <main class="einsatzbericht-form-page">
-  <div class="page-header page-header--toolbar">
+  <div class="page-header">
     <div>
       <h2 th:text="${pageTitle}">Neuer Einsatzbericht</h2>
       <p th:text="${pageSubtitle}">Entwurf</p>
     </div>
-    <div class="toolbar-actions">
+    <div class="einsatzbericht-form-actions">
       <a class="btn btn--outline" th:href="@{/berichte(unit=${unitId}, tab='einsatz')}">Abbrechen</a>
       <button type="submit" class="btn btn--primary" form="einsatzbericht-form">Speichern</button>
     </div>

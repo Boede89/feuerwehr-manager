@@ -2,10 +2,10 @@
   'use strict';
 
   function switchTab(idx) {
-    document.querySelectorAll('.einsatzbericht-tab').forEach(function (btn) {
+    document.querySelectorAll('.incident-tab').forEach(function (btn) {
       btn.classList.toggle('tab-btn--active', Number(btn.dataset.tab) === idx);
     });
-    document.querySelectorAll('.einsatzbericht-tab-panel').forEach(function (panel) {
+    document.querySelectorAll('.incident-tab-panel').forEach(function (panel) {
       var active = Number(panel.dataset.panel) === idx;
       panel.hidden = !active;
     });
@@ -20,7 +20,7 @@
   }
 
   document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('.einsatzbericht-tab').forEach(function (btn) {
+    document.querySelectorAll('.incident-tab').forEach(function (btn) {
       btn.addEventListener('click', function () {
         switchTab(Number(btn.dataset.tab));
       });
