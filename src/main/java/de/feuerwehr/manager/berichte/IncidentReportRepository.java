@@ -23,7 +23,7 @@ public interface IncidentReportRepository extends JpaRepository<IncidentReport, 
 
     @Query("""
             SELECT MAX(r.incidentNumber) FROM IncidentReport r
-            WHERE r.unit.id = :unitId AND r.incidentNumber LIKE CONCAT(:yearPrefix, '%')
+            WHERE r.unit.id = :unitId AND r.incidentNumber LIKE CONCAT(:datePrefix, '%')
             """)
-    Optional<String> findMaxIncidentNumberForYear(@Param("unitId") long unitId, @Param("yearPrefix") String yearPrefix);
+    Optional<String> findMaxIncidentNumberForDate(@Param("unitId") long unitId, @Param("datePrefix") String datePrefix);
 }

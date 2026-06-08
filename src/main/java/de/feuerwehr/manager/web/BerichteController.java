@@ -76,7 +76,7 @@ public class BerichteController {
             Unit unit = resolveUnit(unitId, actor, model);
             requireModuleEnabled(unit.getId());
             requireBerichteWrite(actor, unit.getId());
-            populateEinsatzFormModel(model, unit.getId(), einsatzberichtService.newDraft(unit.getId()), new EinsatzberichtForm(), Map.of());
+            populateEinsatzFormModel(model, unit.getId(), einsatzberichtService.newDraft(unit.getId()), einsatzberichtService.newForm(unit.getId()), Map.of());
             model.addAttribute("formMode", "create");
             model.addAttribute("pageTitle", "Neuer Einsatzbericht");
             model.addAttribute("pageSubtitle", "Entwurf — wird nach dem Speichern zur Freigabe vorgelegt");

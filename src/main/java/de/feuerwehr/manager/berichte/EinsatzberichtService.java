@@ -44,7 +44,28 @@ public class EinsatzberichtService {
                 .orElseThrow(() -> new IllegalArgumentException("Einsatzbericht nicht gefunden."));
     }
 
-    public IncidentReport newDraft(long unitId) {
+    public EinsatzberichtForm newForm(long unitId) {
+        Unit unit = requireUnit(unitId);
+        LocalDate today = LocalDate.now();
+        UnitPostalCity.Parts address = UnitPostalCity.fromUnit(unit);
+        EinsatzberichtForm form = new EinsatzberichtForm();
+        form.setIncidentDate(today);
+        form.setIncidentNumber(suggestIncidentNumber(unitId, today));
+        form.setLocation(address.city());
+        form.setPostalCode(address.postalCode());
+        form.setIncidentTypeKey("SONSTIGES");
+        form.setIncidentTypeLabel("Sonstiges");
+        return form;
+    }
+
+    public String suggestIncidentNumber(long unitId, LocalDate date) {
+        if (date == null) {
+            date = LocalDate.now();
+        }
+        return resolveIncidentNumber(unitId, date);
+    }
+
+    private IncidentReport newDraft(long unitId) {
         IncidentReport report = new IncidentReport();
         report.setUnit(requireUnit(unitId));
         report.setIncidentDate(LocalDate.now());
@@ -60,7 +81,7 @@ public class EinsatzberichtService {
         IncidentReport report = newDraft(unitId);
         applyForm(report, form);
         report.setStatus(IncidentReportStatus.ENTWURF);
-        report.setIncidentNumber(resolveIncidentNumber(unitId, form.incidentNumber()));
+        report.setIncidentNumber(resolveIncidentNumber(unitId, form.incidentDate()));
         applyCreator(report, actor);
         return incidentReportRepository.save(report);
     }
@@ -70,11 +91,6 @@ public class EinsatzberichtService {
         validateRequired(form);
         IncidentReport report = requireReport(unitId, reportId);
         applyForm(report, form);
-        if (form.incidentNumber() != null && !form.incidentNumber().isBlank()) {
-            report.setIncidentNumber(form.incidentNumber().trim());
-        } else if (report.getIncidentNumber() == null || report.getIncidentNumber().isBlank()) {
-            report.setIncidentNumber(resolveIncidentNumber(unitId, null));
-        }
         return incidentReportRepository.save(report);
     }
 
@@ -104,14 +120,14 @@ public class EinsatzberichtService {
     private void applyForm(IncidentReport report, EinsatzberichtFormData form) {
         report.setIncidentDate(form.incidentDate());
         report.setAlarmTime(form.alarmTime());
-        report.setDepartureTime(form.departureTime());
-        report.setArrivalTime(form.arrivalTime());
+        report.setDepartureTime(null);
+        report.setArrivalTime(null);
         report.setEndTime(form.endTime());
         report.setIncidentTypeKey(form.incidentTypeKey());
         report.setIncidentTypeLabel(form.incidentTypeLabel());
         report.setLocation(form.location().trim());
         report.setPostalCode(trimToNull(form.postalCode()));
-        report.setDistrict(trimToNull(form.district()));
+        report.setDistrict(null);
         report.setStreet(trimToNull(form.street()));
         report.setHouseNumber(trimToNull(form.houseNumber()));
         report.setExtinguishedBeforeArrival(form.extinguishedBeforeArrival());
@@ -162,23 +178,22 @@ public class EinsatzberichtService {
         report.setCreatedByName(actor.getDisplayName());
     }
 
-    private String resolveIncidentNumber(long unitId, String requested) {
-        if (requested != null && !requested.isBlank()) {
-            return requested.trim();
-        }
-        int year = LocalDate.now().getYear();
-        String prefix = year + "-";
+    private String resolveIncidentNumber(long unitId, LocalDate date) {
+        String datePrefix = date + "-";
         int next = 1;
-        Optional<String> max = incidentReportRepository.findMaxIncidentNumberForYear(unitId, prefix);
-        if (max.isPresent() && max.get().startsWith(prefix)) {
-            String suffix = max.get().substring(prefix.length());
-            try {
-                next = Integer.parseInt(suffix) + 1;
-            } catch (NumberFormatException ignored) {
-                next = 1;
+        Optional<String> max = incidentReportRepository.findMaxIncidentNumberForDate(unitId, datePrefix);
+        if (max.isPresent()) {
+            String number = max.get();
+            if (number.startsWith(datePrefix)) {
+                String suffix = number.substring(datePrefix.length());
+                try {
+                    next = Integer.parseInt(suffix) + 1;
+                } catch (NumberFormatException ignored) {
+                    next = 1;
+                }
             }
         }
-        return prefix + String.format("%03d", next);
+        return datePrefix + String.format("%02d", next);
     }
 
     private void validateRequired(EinsatzberichtFormData form) {
@@ -189,7 +204,7 @@ public class EinsatzberichtService {
             throw new IllegalArgumentException("Einsatzort ist Pflichtfeld.");
         }
         if (form.incidentTypeKey() == null || form.incidentTypeKey().isBlank()) {
-            throw new IllegalArgumentException("Einsatzart ist Pflichtfeld.");
+            throw new IllegalArgumentException("Stichwort ist Pflichtfeld.");
         }
     }
 

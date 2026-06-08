@@ -3461,6 +3461,12 @@ span.required { color: var(--error); }
   color: var(--text-subtle);
 }
 
+.einsatzbericht-form-page .form-group input[readonly] {
+  background: var(--bg-card-hover, #f8fafc);
+  color: var(--text-muted);
+  cursor: default;
+}
+
 .einsatzbericht-form-page .form-group label {
   font-size: 11px;
   font-weight: 600;

@@ -32,6 +32,16 @@
       syncIncidentTypeLabel();
     }
 
+    var dateInput = document.getElementById('incidentDate');
+    var numberInput = document.getElementById('incidentNumber');
+    if (dateInput && numberInput && numberInput.dataset.autoNumber === 'true') {
+      dateInput.addEventListener('change', function () {
+        if (dateInput.value) {
+          numberInput.value = dateInput.value + '-01';
+        }
+      });
+    }
+
     switchTab(0);
   });
 })();

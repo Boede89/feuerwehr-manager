@@ -3,11 +3,10 @@
 <th:block th:fragment="form">
   <nav class="tab-bar incident-form-tabs" aria-label="Einsatzbericht-Bereiche">
     <button type="button" class="tab-btn incident-tab tab-btn--active" data-tab="0">Basisdaten</button>
-    <button type="button" class="tab-btn incident-tab" data-tab="1">Flags</button>
-    <button type="button" class="tab-btn incident-tab" data-tab="2">Kräfte &amp; Schäden</button>
-    <button type="button" class="tab-btn incident-tab" data-tab="3">Bericht</button>
-    <button type="button" class="tab-btn incident-tab" data-tab="4">Einsatzmittel</button>
-    <button type="button" class="tab-btn incident-tab" data-tab="5">Polizei</button>
+    <button type="button" class="tab-btn incident-tab" data-tab="1">Kräfte &amp; Schäden</button>
+    <button type="button" class="tab-btn incident-tab" data-tab="2">Bericht</button>
+    <button type="button" class="tab-btn incident-tab" data-tab="3">Einsatzmittel</button>
+    <button type="button" class="tab-btn incident-tab" data-tab="4">Polizei</button>
   </nav>
 
   <input type="hidden" id="incidentTypeLabel" name="incidentTypeLabel" th:value="${form.incidentTypeLabel}"/>
@@ -17,8 +16,13 @@
     <div class="incident-form-grid-2">
       <div class="form-group">
         <label for="incidentNumber">Einsatznummer</label>
-        <input id="incidentNumber" name="incidentNumber" type="text" maxlength="32"
-               placeholder="wird automatisch vergeben" th:value="${form.incidentNumber}"/>
+        <input id="incidentNumber" name="incidentNumber" type="text" maxlength="32" readonly
+               th:readonly="${formMode == 'create'}"
+               th:attr="data-auto-number=${formMode == 'create' ? 'true' : null}"
+               th:value="${form.incidentNumber}"/>
+        <p class="hint text-sm" th:if="${formMode == 'create'}" style="margin:0;">
+          Format: Datum-01, bei mehreren Einsätzen am selben Tag hochgezählt.
+        </p>
       </div>
       <div class="form-group">
         <label for="incidentDate">Datum <span class="required">*</span></label>
@@ -29,19 +33,11 @@
         <input id="alarmTime" name="alarmTime" type="time" th:value="${form.alarmTime}"/>
       </div>
       <div class="form-group">
-        <label for="departureTime">Ausrückzeit</label>
-        <input id="departureTime" name="departureTime" type="time" th:value="${form.departureTime}"/>
-      </div>
-      <div class="form-group">
-        <label for="arrivalTime">Eintreffzeit</label>
-        <input id="arrivalTime" name="arrivalTime" type="time" th:value="${form.arrivalTime}"/>
-      </div>
-      <div class="form-group">
         <label for="endTime">Einsatzende</label>
         <input id="endTime" name="endTime" type="time" th:value="${form.endTime}"/>
       </div>
       <div class="form-group form-group--full">
-        <label for="incidentTypeKey">Einsatzart <span class="required">*</span></label>
+        <label for="incidentTypeKey">Stichwort <span class="required">*</span></label>
         <select id="incidentTypeKey" name="incidentTypeKey" required>
           <optgroup th:each="cat : ${incidentTypeCategories}" th:label="${cat}">
             <option th:each="t : ${incidentTypes}"
@@ -60,10 +56,6 @@
       <div class="form-group">
         <label for="postalCode">PLZ</label>
         <input id="postalCode" name="postalCode" type="text" maxlength="10" th:value="${form.postalCode}"/>
-      </div>
-      <div class="form-group">
-        <label for="district">Ortsteil</label>
-        <input id="district" name="district" type="text" maxlength="128" th:value="${form.district}"/>
       </div>
       <div class="form-group">
         <label for="street">Straße</label>
@@ -88,43 +80,8 @@
     </div>
   </div>
 
-  <!-- Tab 1: Flags -->
+  <!-- Tab 1: Kräfte & Schäden -->
   <div class="incident-tab-panel" data-panel="1" hidden>
-    <div class="incident-flags-grid">
-      <label class="incident-flag-card">
-        <input type="checkbox" name="extinguishedBeforeArrival" value="true"
-               th:checked="${form.extinguishedBeforeArrival}"/>
-        <span>Vor Ankunft gelöscht</span>
-      </label>
-      <label class="incident-flag-card">
-        <input type="checkbox" name="maliciousAlarm" value="true" th:checked="${form.maliciousAlarm}"/>
-        <span>Böswilliger Alarm</span>
-      </label>
-      <label class="incident-flag-card">
-        <input type="checkbox" name="falseAlarm" value="true" th:checked="${form.falseAlarm}"/>
-        <span>Blinder Alarm</span>
-      </label>
-      <label class="incident-flag-card">
-        <input type="checkbox" name="supraregional" value="true" th:checked="${form.supraregional}"/>
-        <span>Überregionaler Einsatz</span>
-      </label>
-      <label class="incident-flag-card">
-        <input type="checkbox" name="bfInvolved" value="true" th:checked="${form.bfInvolved}"/>
-        <span>BF beteiligt</span>
-      </label>
-      <label class="incident-flag-card">
-        <input type="checkbox" name="violenceAgainstCrew" value="true" th:checked="${form.violenceAgainstCrew}"/>
-        <span>Gewalt gegen Einsatzkräfte</span>
-      </label>
-    </div>
-    <div class="form-group incident-violence-count">
-      <label for="violenceCount">Anzahl betroffener Einsatzkräfte (Gewalt)</label>
-      <input id="violenceCount" name="violenceCount" type="number" min="0" th:value="${form.violenceCount}"/>
-    </div>
-  </div>
-
-  <!-- Tab 2: Kräfte & Schäden -->
-  <div class="incident-tab-panel" data-panel="2" hidden>
     <h4 class="incident-section-title">Kräftestärke (eigene)</h4>
     <div class="incident-form-grid-3 incident-section-block">
       <div class="form-group">
@@ -184,8 +141,8 @@
     </div>
   </div>
 
-  <!-- Tab 3: Bericht -->
-  <div class="incident-tab-panel" data-panel="3" hidden>
+  <!-- Tab 2: Bericht -->
+  <div class="incident-tab-panel" data-panel="2" hidden>
     <div class="incident-form-stack">
       <div class="form-group">
         <label for="fireObject">Brandobjekt / Hilfeleistungsart</label>
@@ -220,8 +177,8 @@
     </div>
   </div>
 
-  <!-- Tab 4: Einsatzmittel -->
-  <div class="incident-tab-panel" data-panel="4" hidden>
+  <!-- Tab 3: Einsatzmittel -->
+  <div class="incident-tab-panel" data-panel="3" hidden>
     <div class="incident-resources-grid" id="resources-grid">
       <div class="form-group" th:each="field : ${resourceFields}">
         <label th:for="${'res-' + field.key()}" class="incident-res-label">
@@ -239,8 +196,8 @@
     </div>
   </div>
 
-  <!-- Tab 5: Polizei -->
-  <div class="incident-tab-panel" data-panel="5" hidden>
+  <!-- Tab 4: Polizei -->
+  <div class="incident-tab-panel" data-panel="4" hidden>
     <div class="incident-form-police">
       <div class="form-group form-group--full">
         <label for="policeCaseNumber">Tgb.-Nr.</label>
