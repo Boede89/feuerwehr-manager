@@ -33,7 +33,7 @@ public class StreckePlanungService {
     private final UserRepository userRepository;
     private final TestModeService testModeService;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public StreckePlanungView loadView(long unitId, boolean includeHealthDetails) {
         boolean testData = testModeService.isEnabled();
         int warnDays = atemschutzService.warnDays(unitId);

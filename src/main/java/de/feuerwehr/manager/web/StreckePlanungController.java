@@ -61,6 +61,10 @@ public class StreckePlanungController {
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return unitId != null ? "redirect:/atemschutz?unit=" + unitId : "redirect:/";
+        } catch (RuntimeException e) {
+            redirectAttributes.addFlashAttribute(
+                    "error", "Strecke-Terminplanung konnte nicht geladen werden: " + e.getMessage());
+            return unitId != null ? "redirect:/atemschutz?unit=" + unitId : "redirect:/";
         }
     }
 

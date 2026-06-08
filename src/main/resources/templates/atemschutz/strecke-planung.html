@@ -32,11 +32,10 @@
                      data-strecke-bis=${c.streckeBis()},
                      data-g26-bis=${c.g26Bis()},
                      data-uebung-bis=${c.uebungBis()}">
-        <span th:class="'strecke-status-dot strecke-status-dot--' + ${c.statusDot()}"></span>
+        <span th:class="|strecke-status-dot strecke-status-dot--${c.statusDot()}|"></span>
         <span class="strecke-carrier-badge__name" th:text="${c.name()}">Name</span>
         <span class="strecke-carrier-badge__meta" th:if="${c.streckeBis() != null}"
-              th:classappend="${c.daysUntilExpiry() != null and c.daysUntilExpiry() < 0} ? 'strecke-carrier-badge__meta--danger' : ''"
-              th:classappend="${c.daysUntilExpiry() != null and c.daysUntilExpiry() >= 0 and c.daysUntilExpiry() <= planung.warnDays()} ? 'strecke-carrier-badge__meta--warn' : ''">
+              th:classappend="${c.daysUntilExpiry() != null and c.daysUntilExpiry() < 0} ? 'strecke-carrier-badge__meta--danger' : (c.daysUntilExpiry() != null and c.daysUntilExpiry() <= planung.warnDays() ? 'strecke-carrier-badge__meta--warn' : '')">
           <span th:if="${c.daysUntilExpiry() != null and c.daysUntilExpiry() < 0}">abgelaufen</span>
           <span th:unless="${c.daysUntilExpiry() != null and c.daysUntilExpiry() < 0}"
                 th:text="${#temporals.format(c.streckeBis(), 'dd.MM.yyyy')}">01.01.2026</span>
@@ -49,8 +48,7 @@
     <div class="strecke-termin-card card" th:each="t : ${planung.termine()}"
          th:attr="data-termin-id=${t.id()}">
       <div class="strecke-termin-card__header"
-           th:classappend="${t.vergangen()} ? 'strecke-termin-card__header--past' : ''"
-           th:classappend="${!t.vergangen() and t.voll()} ? 'strecke-termin-card__header--full' : ''">
+           th:classappend="${t.vergangen()} ? 'strecke-termin-card__header--past' : (t.voll() ? 'strecke-termin-card__header--full' : '')">
         <div>
           <h3 th:text="${#temporals.format(t.datum(), 'dd.MM.yyyy')}">01.01.2026</h3>
           <p th:text="${#temporals.format(t.zeit(), 'HH:mm') + ' Uhr'}">09:00 Uhr</p>
@@ -83,7 +81,7 @@
                        data-g26-bis=${c.g26Bis()},
                        data-uebung-bis=${c.uebungBis()},
                        data-termin-id=${t.id()}">
-          <span th:class="'strecke-status-dot strecke-status-dot--' + ${c.statusDot()}"></span>
+          <span th:class="|strecke-status-dot strecke-status-dot--${c.statusDot()}|"></span>
           <span class="strecke-carrier-badge__name" th:text="${c.name()}">Name</span>
           <span class="strecke-carrier-badge__meta" th:if="${c.streckeBis() != null}">
             <span th:if="${c.daysUntilExpiry() != null and c.daysUntilExpiry() < 0}">abgelaufen</span>
