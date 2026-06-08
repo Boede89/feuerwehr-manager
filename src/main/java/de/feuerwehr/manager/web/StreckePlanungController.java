@@ -62,8 +62,7 @@ public class StreckePlanungController {
             Unit unit = resolveUnit(unitId, actor, model);
             requireModuleEnabled(unit.getId());
             requireAtemschutzRead(actor, unit.getId());
-            boolean includeHealth = actor.getRole().isAdminLevel();
-            StreckePlanungView view = streckePlanungService.loadView(unit.getId(), includeHealth);
+            StreckePlanungView view = streckePlanungService.loadView(unit.getId());
             model.addAttribute("unassignedCarriers", StreckePlanungDisplayMapper.toPoolBadges(view, view.warnDays()));
             model.addAttribute("termine", StreckePlanungDisplayMapper.toTerminCards(view));
             model.addAttribute("warnDays", view.warnDays());
@@ -148,9 +147,10 @@ public class StreckePlanungController {
             RedirectAttributes redirectAttributes) {
         try {
             Unit unit = resolveUnit(unitId, actor, model);
+            addUnitLogo(unit, model);
             requireModuleEnabled(unit.getId());
             requireAtemschutzRead(actor, unit.getId());
-            StreckePlanungView view = streckePlanungService.loadView(unit.getId(), false);
+            StreckePlanungView view = streckePlanungService.loadView(unit.getId());
             model.addAttribute("unassignedCarriers", StreckePlanungDisplayMapper.toPoolBadges(view, view.warnDays()));
             model.addAttribute("termine", StreckePlanungDisplayMapper.toTerminCards(view));
             model.addAttribute("warnDays", view.warnDays());
@@ -245,6 +245,12 @@ public class StreckePlanungController {
         model.addAttribute("unitId", unit.getId());
         model.addAttribute("currentUnitName", unit.getName());
         return unit;
+    }
+
+    private static void addUnitLogo(Unit unit, Model model) {
+        if (unit.getLogoBase64() != null && !unit.getLogoBase64().isBlank()) {
+            model.addAttribute("unitLogoBase64", unit.getLogoBase64());
+        }
     }
 
     private void requireModuleEnabled(long unitId) {

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<th:block th:fragment="styles">
+  <style>
+    @page { size: A4; margin: 15mm; }
+    * { box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #222; margin: 0; padding: 16px; }
+    .print-actions { margin-bottom: 16px; }
+    .print-header { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
+    .print-logo { max-height: 56px; max-width: 120px; object-fit: contain; }
+    .print-header__text h1 { font-size: 18pt; margin: 0 0 4px; }
+    .print-meta { color: #555; margin: 0 0 16px; }
+    h2 { font-size: 13pt; margin: 20px 0 8px; border-bottom: 2px solid #667eea; padding-bottom: 4px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+    th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; vertical-align: top; }
+    th { background: #667eea; color: #fff; }
+    tr:nth-child(even) { background: #f7f7f7; }
+    .badge-ok { color: #166534; font-weight: 600; }
+    .badge-warn { color: #b45309; font-weight: 600; }
+    .badge-overdue { color: #b91c1c; font-weight: 600; }
+    .badge-missing { color: #6b7280; }
+    @media print { .print-actions { display: none; } }
+  </style>
+</th:block>
+<th:block th:fragment="actions">
+  <div class="print-actions">
+    <button type="button" onclick="window.print()">Drucken / Als PDF speichern</button>
+  </div>
+</th:block>
+<th:block th:fragment="header(title, subtitle)">
+  <div class="print-header">
+    <img th:if="${unitLogoBase64 != null and !#strings.isEmpty(unitLogoBase64)}"
+         th:src="${unitLogoBase64}" alt="" class="print-logo"/>
+    <div class="print-header__text">
+      <h1 th:text="${title}">Titel</h1>
+      <p class="print-meta" th:if="${subtitle != null}" th:text="${subtitle}">Untertitel</p>
+    </div>
+  </div>
+</th:block>
+</html>

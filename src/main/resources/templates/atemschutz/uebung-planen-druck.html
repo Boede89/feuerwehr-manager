@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <title>PA-Träger Suchergebnisse</title>
+  <th:block th:replace="~{fragments/atemschutz-print-header :: styles}"></th:block>
+  <style>
+    .summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 24px; margin-bottom: 16px; }
+    .summary-label { color: #555; font-size: 10pt; display: block; }
+  </style>
+</head>
+<body>
+  <th:block th:replace="~{fragments/atemschutz-print-header :: actions}"></th:block>
+  <th:block th:replace="~{fragments/atemschutz-print-header :: header('PA-Träger Suchergebnisse', ${currentUnitName + ' · Stand: ' + #temporals.format(T(java.time.LocalDateTime).now(), 'dd.MM.yyyy HH:mm') + ' Uhr'})}"></th:block>
+
+  <div class="summary-grid">
+    <div>
+      <span class="summary-label">Übungsdatum</span>
+      <strong th:text="${#temporals.format(planResult.uebungsDatum(), 'dd.MM.yyyy')}">—</strong>
+    </div>
+    <div>
+      <span class="summary-label">Anzahl</span>
+      <strong th:text="${anzahlLabel}">—</strong>
+    </div>
+    <div>
+      <span class="summary-label">Status-Filter</span>
+      <strong>
+        <span th:each="status, stat : ${planResult.statusFilter()}"
+              th:text="${status.label() + (stat.last ? '' : ', ')}">—</span>
+      </strong>
+    </div>
+    <div>
+      <span class="summary-label">Gefunden</span>
+      <strong th:text="${planResult.carriers().size() + ' von ' + planResult.totalMatches()}">0</strong>
+    </div>
+  </div>
+
+  <table th:if="${!#lists.isEmpty(planResult.carriers())}">
+    <thead>
+    <tr>
+      <th>#</th>
+      <th>Name</th>
+      <th>Status</th>
+      <th>Strecke</th>
+      <th>G26</th>
+      <th>Übung/Einsatz</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="row, stat : ${planResult.carriers()}">
+      <td th:text="${stat.count}">1</td>
+      <td th:text="${row.overview().carrier().person.displayName()}">Name</td>
+      <td th:text="${row.planStatus().label()}">—</td>
+      <td>
+        <th:block th:with="view=${row.overview().summaries().get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).STRECKEN)}">
+          <span th:if="${view == null or view.validUntil == null}">—</span>
+          <span th:if="${view != null and view.validUntil != null}"
+                th:text="${#temporals.format(view.validUntil, 'dd.MM.yyyy')}">—</span>
+        </th:block>
+      </td>
+      <td>
+        <th:block th:with="view=${row.overview().g26()}">
+          <span th:if="${view == null or view.validUntil == null}">—</span>
+          <span th:if="${view != null and view.validUntil != null}"
+                th:text="${#temporals.format(view.validUntil, 'dd.MM.yyyy')}">—</span>
+        </th:block>
+      </td>
+      <td>
+        <th:block th:with="view=${row.overview().summaries().get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).UEBUNG)}">
+          <span th:if="${view == null or view.validUntil == null}">—</span>
+          <span th:if="${view != null and view.validUntil != null}"
+                th:text="${#temporals.format(view.validUntil, 'dd.MM.yyyy')}">—</span>
+        </th:block>
+      </td>
+    </tr>
+    </tbody>
+  </table>
+  <p th:if="${#lists.isEmpty(planResult.carriers())}" class="print-meta">Keine passenden PA-Träger gefunden.</p>
+</body>
+</html>

@@ -71,14 +71,16 @@ public class AtemschutzReminderNotificationService {
         int skipped = 0;
         int failed = 0;
         List<CarrierOverview> carriers = atemschutzService
-                .listCarrierOverviews(unitId, false, "all")
+                .listCarrierOverviews(unitId, "all")
                 .carriers()
                 .stream()
                 .filter(row -> row.carrier().getStatus() == AtemschutzCarrierStatus.ACTIVE)
                 .toList();
         for (CarrierOverview overview : carriers) {
             for (AtemschutzNotificationCategory category : AtemschutzNotificationCategory.values()) {
-                if (!settingsService.isNotifyCarriers(settings, category)) {
+                boolean notifyCarriers = settingsService.isNotifyCarriers(settings, category);
+                List<String> staffEmails = collectStaffEmails(unitId, settings, category);
+                if (!notifyCarriers && staffEmails.isEmpty()) {
                     continue;
                 }
                 FitnessStatusView fitness = overview.summaries().get(category.getFitnessType());
@@ -104,7 +106,13 @@ public class AtemschutzReminderNotificationService {
                     continue;
                 }
                 SendAttempt attempt = sendReminder(
-                        unitId, settings, category, mailKind, overview.carrier().getPerson(), fitness.validUntil());
+                        unitId,
+                        category,
+                        mailKind,
+                        overview.carrier().getPerson(),
+                        fitness.validUntil(),
+                        notifyCarriers,
+                        staffEmails);
                 if (attempt == SendAttempt.SENT) {
                     logReminder(overview, category, mailKind, fitness.validUntil());
                     sent++;
@@ -133,15 +141,12 @@ public class AtemschutzReminderNotificationService {
 
     private SendAttempt sendReminder(
             long unitId,
-            UnitAtemschutzSettings settings,
             AtemschutzNotificationCategory category,
             AtemschutzReminderMailKind mailKind,
             Person person,
-            LocalDate validUntil) {
-        String toEmail = resolvePersonEmail(person);
-        if (toEmail == null) {
-            return SendAttempt.SKIPPED;
-        }
+            LocalDate validUntil,
+            boolean notifyCarriers,
+            List<String> staffEmails) {
         String templateKey =
                 mailKind == AtemschutzReminderMailKind.WARNUNG
                         ? category.getWarnungTemplateKey()
@@ -154,8 +159,31 @@ public class AtemschutzReminderNotificationService {
         }
         String subject = renderTemplate(template.getSubject(), person, validUntil);
         String body = textToHtml(renderTemplate(template.getBody(), person, validUntil));
-        List<String> cc = collectCcEmails(unitId, settings, category);
-        Optional<String> error = unitMailService.sendHtmlMail(unitId, toEmail, cc, subject, body);
+
+        String carrierEmail = notifyCarriers ? resolvePersonEmail(person) : null;
+        if (carrierEmail != null) {
+            List<String> cc = staffEmails.stream()
+                    .filter(email -> !email.equalsIgnoreCase(carrierEmail))
+                    .toList();
+            return dispatchMail(unitId, carrierEmail, cc, subject, body, person, category);
+        }
+        if (!staffEmails.isEmpty()) {
+            String to = staffEmails.get(0);
+            List<String> cc = staffEmails.size() > 1 ? staffEmails.subList(1, staffEmails.size()) : List.of();
+            return dispatchMail(unitId, to, cc, subject, body, person, category);
+        }
+        return SendAttempt.SKIPPED;
+    }
+
+    private SendAttempt dispatchMail(
+            long unitId,
+            String toEmail,
+            List<String> ccEmails,
+            String subject,
+            String body,
+            Person person,
+            AtemschutzNotificationCategory category) {
+        Optional<String> error = unitMailService.sendHtmlMail(unitId, toEmail, ccEmails, subject, body);
         if (error.isPresent()) {
             log.warn(
                     "Atemschutz-Erinnerung fehlgeschlagen (unit={}, person={}, type={}): {}",
@@ -168,7 +196,7 @@ public class AtemschutzReminderNotificationService {
         return SendAttempt.SENT;
     }
 
-    private List<String> collectCcEmails(long unitId, UnitAtemschutzSettings settings, AtemschutzNotificationCategory category) {
+    private List<String> collectStaffEmails(long unitId, UnitAtemschutzSettings settings, AtemschutzNotificationCategory category) {
         LinkedHashSet<String> emails = new LinkedHashSet<>();
         if (settingsService.isNotifyInstructors(settings, category)) {
             for (Long userId : settingsService.instructorUserIds(settings)) {

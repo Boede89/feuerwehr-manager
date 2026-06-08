@@ -13,7 +13,4 @@ public enum AtemschutzFitnessType {
         };
     }
 
-    public boolean healthData() {
-        return this == G26_UNTERSUCHUNG;
-    }
 }

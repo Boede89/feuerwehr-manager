@@ -34,7 +34,7 @@ public class StreckePlanungService {
     private final TestModeService testModeService;
 
     @Transactional
-    public StreckePlanungView loadView(long unitId, boolean includeHealthDetails) {
+    public StreckePlanungView loadView(long unitId) {
         boolean testData = testModeService.isEnabled();
         int warnDays = atemschutzService.warnDays(unitId);
         LocalDate today = LocalDate.now();
@@ -47,7 +47,7 @@ public class StreckePlanungService {
                         .collect(Collectors.groupingBy(z -> z.getTermin().getId()));
 
         Map<Long, CarrierOverview> carrierById = atemschutzService
-                .listCarrierOverviews(unitId, includeHealthDetails, "all")
+                .listCarrierOverviews(unitId, "all")
                 .carriers()
                 .stream()
                 .filter(row -> row.carrier().getStatus() == AtemschutzCarrierStatus.ACTIVE)
@@ -240,7 +240,7 @@ public class StreckePlanungService {
         Map<Long, Long> assignedCarrierIds = zuordnungRepository.findByTerminIdsOrEmpty(recentTerminIds).stream()
                 .collect(Collectors.toMap(z -> z.getCarrier().getId(), z -> z.getTermin().getId(), (a, b) -> a));
 
-        return atemschutzService.listCarrierOverviews(unitId, false, "all").carriers().stream()
+        return atemschutzService.listCarrierOverviews(unitId, "all").carriers().stream()
                 .filter(row -> row.carrier().getStatus() == AtemschutzCarrierStatus.ACTIVE)
                 .filter(row -> !assignedCarrierIds.containsKey(row.carrier().getId()))
                 .sorted(Comparator.comparing(row -> validUntil(row, AtemschutzFitnessType.STRECKEN),

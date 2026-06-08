@@ -7,7 +7,13 @@
       <h2>PA-Träger Suchergebnisse</h2>
       <p>Gefundene Geräteträger für Ihre Übung · <strong th:text="${currentUnitName}">—</strong></p>
     </div>
-    <a class="btn btn--outline" th:href="@{/atemschutz/uebung-planen(unit=${unitId})}">Neue Suche</a>
+    <div class="toolbar-actions">
+      <a class="btn btn--outline" target="_blank" rel="noopener"
+         th:href="@{/atemschutz/uebung-planen/drucken(unit=${unitId}, uebungsDatum=${uebungsDatum}, anzahlPaTraeger=${anzahlPaTraeger}, statusFilter=${selectedStatusParams})}">
+        PDF exportieren
+      </a>
+      <a class="btn btn--outline" th:href="@{/atemschutz/uebung-planen(unit=${unitId})}">Neue Suche</a>
+    </div>
   </div>
 
   <div th:replace="~{fragments/testmode-banner :: banner}"></div>

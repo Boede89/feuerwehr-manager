@@ -3,7 +3,6 @@ package de.feuerwehr.manager.atemschutz;
 import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.personal.PersonCourseCompletionRepository;
 import de.feuerwehr.manager.personal.PersonalService;
-import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
@@ -45,7 +44,7 @@ public class AtemschutzService {
     }
 
     @Transactional
-    public CarrierListResult listCarrierOverviews(long unitId, boolean includeHealthDetails, String filter) {
+    public CarrierListResult listCarrierOverviews(long unitId, String filter) {
         atemschutzSettingsService.ensureSettings(unitId);
         syncCarriersFromAgt(unitId);
         boolean testData = testModeService.isEnabled();
@@ -75,22 +74,19 @@ public class AtemschutzService {
                     toFitnessView(
                             latestG26.get(carrier.getId()),
                             atemschutzSettingsService.warnDays(unitId, AtemschutzFitnessType.G26_UNTERSUCHUNG),
-                            today,
-                            includeHealthDetails));
+                            today));
             summaries.put(
                     AtemschutzFitnessType.UEBUNG,
                     toFitnessView(
                             latestUebung.get(carrier.getId()),
                             atemschutzSettingsService.warnDays(unitId, AtemschutzFitnessType.UEBUNG),
-                            today,
-                            includeHealthDetails));
+                            today));
             summaries.put(
                     AtemschutzFitnessType.STRECKEN,
                     toFitnessView(
                             latestStrecke.get(carrier.getId()),
                             atemschutzSettingsService.warnDays(unitId, AtemschutzFitnessType.STRECKEN),
-                            today,
-                            includeHealthDetails));
+                            today));
             CarrierTauglichkeitStatus tauglichkeit = computeTauglichkeit(summaries, carrier.getStatus());
             all.add(new CarrierOverview(
                     carrier,
@@ -119,7 +115,7 @@ public class AtemschutzService {
     }
 
     @Transactional(readOnly = true)
-    public CarrierDetailView loadCarrierDetail(long carrierId, boolean includeHealthDetails) {
+    public CarrierDetailView loadCarrierDetail(long carrierId) {
         AtemschutzCarrier carrier = requireCarrier(carrierId);
         boolean testData = testModeService.isEnabled();
         List<AtemschutzFitnessRecord> records = fitnessRecordRepository.findByCarrierId(carrierId, testData);
@@ -134,12 +130,9 @@ public class AtemschutzService {
                     .orElse(null);
             summaries.put(
                     type,
-                    toFitnessView(
-                            latest, atemschutzSettingsService.warnDays(unitId, type), today, includeHealthDetails));
+                    toFitnessView(latest, atemschutzSettingsService.warnDays(unitId, type), today));
         }
-        List<FitnessRecordView> recordViews = records.stream()
-                .map(r -> toRecordView(r, includeHealthDetails))
-                .toList();
+        List<FitnessRecordView> recordViews = records.stream().map(this::toRecordView).toList();
         return new CarrierDetailView(carrier, summaries, recordViews);
     }
 
@@ -218,6 +211,40 @@ public class AtemschutzService {
         return fitnessRecordRepository.save(record);
     }
 
+    @Transactional
+    public int bulkAddFitnessRecords(
+            long unitId,
+            List<Long> carrierIds,
+            AtemschutzFitnessType type,
+            LocalDate validFrom,
+            long createdByUserId) {
+        if (carrierIds == null || carrierIds.isEmpty()) {
+            throw new IllegalArgumentException("Bitte mindestens einen Geräteträger auswählen.");
+        }
+        if (type == null) {
+            throw new IllegalArgumentException("Nachweis-Typ fehlt.");
+        }
+        if (validFrom == null) {
+            throw new IllegalArgumentException("Datum ist erforderlich.");
+        }
+        int saved = 0;
+        for (Long carrierId : carrierIds) {
+            if (carrierId == null || carrierId <= 0) {
+                continue;
+            }
+            AtemschutzCarrier carrier = requireCarrier(carrierId);
+            if (carrier.getUnit().getId() != unitId) {
+                throw new IllegalArgumentException("Geräteträger gehört nicht zu dieser Einheit.");
+            }
+            addFitnessRecord(carrierId, type, validFrom, createdByUserId);
+            saved++;
+        }
+        if (saved == 0) {
+            throw new IllegalArgumentException("Keine gültigen Geräteträger ausgewählt.");
+        }
+        return saved;
+    }
+
     public static LocalDate computeValidUntil(
             AtemschutzFitnessType type, LocalDate validFrom, LocalDate birthdate) {
         if (validFrom == null) {
@@ -245,19 +272,6 @@ public class AtemschutzService {
         fitnessRecordRepository.delete(record);
     }
 
-    public boolean canViewHealthData(AppUserDetails actor, Person person) {
-        if (actor == null || person == null) {
-            return false;
-        }
-        if (actor.getRole().isAdminLevel()) {
-            return true;
-        }
-        if (person.getUser() != null && person.getUser().getId().equals(actor.getUserId())) {
-            return true;
-        }
-        return false;
-    }
-
     public static AtemschutzFitnessLevel computeLevel(LocalDate validUntil, int warnDays, LocalDate today) {
         if (validUntil == null) {
             return AtemschutzFitnessLevel.MISSING;
@@ -283,49 +297,25 @@ public class AtemschutzService {
         return result;
     }
 
-    private FitnessStatusView toFitnessView(
-            AtemschutzFitnessRecord record, int warnDays, LocalDate today, boolean includeHealthDetails) {
+    private FitnessStatusView toFitnessView(AtemschutzFitnessRecord record, int warnDays, LocalDate today) {
         if (record == null) {
-            return new FitnessStatusView(AtemschutzFitnessLevel.MISSING, null, null, null, null);
+            return new FitnessStatusView(AtemschutzFitnessLevel.MISSING, null, null);
         }
         AtemschutzFitnessLevel level = computeLevel(record.getValidUntil(), warnDays, today);
-        if (!includeHealthDetails) {
-            return new FitnessStatusView(level, record.getValidUntil(), null, null, null);
-        }
-        return new FitnessStatusView(
-                level,
-                record.getValidUntil(),
-                record.getValidFrom(),
-                record.getPhysician(),
-                record.getResultNotes());
+        return new FitnessStatusView(level, record.getValidUntil(), record.getValidFrom());
     }
 
-    private FitnessRecordView toRecordView(AtemschutzFitnessRecord record, boolean includeHealthDetails) {
+    private FitnessRecordView toRecordView(AtemschutzFitnessRecord record) {
         int warnDays = atemschutzSettingsService.warnDays(
                 record.getCarrier().getUnit().getId(), record.getRecordType());
         AtemschutzFitnessLevel level = computeLevel(record.getValidUntil(), warnDays, LocalDate.now());
-        String createdByDisplay = formatCreatedBy(record);
-        if (!includeHealthDetails && record.getRecordType().healthData()) {
-            return new FitnessRecordView(
-                    record.getId(),
-                    record.getRecordType(),
-                    level,
-                    record.getValidFrom(),
-                    record.getValidUntil(),
-                    null,
-                    null,
-                    createdByDisplay,
-                    blankToNull(record.getSourceLabel()));
-        }
         return new FitnessRecordView(
                 record.getId(),
                 record.getRecordType(),
                 level,
                 record.getValidFrom(),
                 record.getValidUntil(),
-                record.getPhysician(),
-                record.getResultNotes(),
-                createdByDisplay,
+                formatCreatedBy(record),
                 blankToNull(record.getSourceLabel()));
     }
 
@@ -395,7 +385,6 @@ public class AtemschutzService {
     @Transactional(readOnly = true)
     public UebungPlanResult planUebung(
             long unitId,
-            boolean includeHealthDetails,
             LocalDate uebungsDatum,
             Set<AtemschutzPlanStatus> statusFilter,
             int limit) {
@@ -409,7 +398,7 @@ public class AtemschutzService {
                         .collect(Collectors.toSet()))
                 : EnumSet.copyOf(statusFilter);
 
-        CarrierListResult allCarriers = listCarrierOverviews(unitId, includeHealthDetails, "all");
+        CarrierListResult allCarriers = listCarrierOverviews(unitId, "all");
         List<UebungPlanRow> matches = new ArrayList<>();
         for (CarrierOverview row : allCarriers.carriers()) {
             if (row.carrier().getStatus() != AtemschutzCarrierStatus.ACTIVE) {
@@ -509,12 +498,7 @@ public class AtemschutzService {
             Map<AtemschutzFitnessType, FitnessStatusView> summaries,
             List<FitnessRecordView> records) {}
 
-    public record FitnessStatusView(
-            AtemschutzFitnessLevel level,
-            LocalDate validUntil,
-            LocalDate validFrom,
-            String physician,
-            String resultNotes) {}
+    public record FitnessStatusView(AtemschutzFitnessLevel level, LocalDate validUntil, LocalDate validFrom) {}
 
     public record FitnessRecordView(
             long id,
@@ -522,8 +506,6 @@ public class AtemschutzService {
             AtemschutzFitnessLevel level,
             LocalDate validFrom,
             LocalDate validUntil,
-            String physician,
-            String resultNotes,
             String createdByDisplay,
             String sourceLabel) {}
 }

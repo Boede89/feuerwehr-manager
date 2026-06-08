@@ -9,6 +9,12 @@
   var kpiWarnung = document.getElementById('kpi-value-warnung');
   var kpiUebung = document.getElementById('kpi-value-uebung');
   var kpiNicht = document.getElementById('kpi-value-nicht');
+  var pdfLink = document.getElementById('atemschutz-pdf-link');
+  var selectAll = document.getElementById('atemschutz-select-all');
+  var bulkOpen = document.getElementById('atemschutz-bulk-open');
+  var bulkModal = document.getElementById('modal-atemschutz-bulk');
+  var bulkCount = document.getElementById('atemschutz-bulk-count');
+  var bulkInputs = document.getElementById('atemschutz-bulk-carrier-inputs');
   if (!table) return;
 
   table.querySelectorAll('.carrier-row').forEach(function (row) {
@@ -17,7 +23,7 @@
       if (href) window.location.href = href;
     }
     row.addEventListener('click', function (e) {
-      if (e.target.closest('button, a, form, input')) return;
+      if (e.target.closest('button, a, form, input, label')) return;
       go();
     });
     row.addEventListener('keydown', function (e) {
@@ -55,6 +61,17 @@
     if (kpiNicht) kpiNicht.textContent = String(counts.nicht);
   }
 
+  function updatePdfLink() {
+    if (!pdfLink) return;
+    var unitId = pdfLink.getAttribute('data-unit-id');
+    var filter = pdfLink.getAttribute('data-filter') || 'all';
+    if (!unitId) return;
+    var paused = includePaused();
+    pdfLink.href = '/atemschutz/drucken?unit=' + encodeURIComponent(unitId)
+      + '&filter=' + encodeURIComponent(filter)
+      + '&paused=' + (paused ? 'true' : 'false');
+  }
+
   function applyRowStripes() {
     var visibleIndex = 0;
     table.querySelectorAll('.carrier-row').forEach(function (row) {
@@ -67,6 +84,38 @@
       }
       visibleIndex++;
     });
+  }
+
+  function visibleRows() {
+    return Array.prototype.filter.call(table.querySelectorAll('.carrier-row'), function (row) {
+      return row.style.display !== 'none';
+    });
+  }
+
+  function selectedCarrierIds() {
+    var ids = [];
+    table.querySelectorAll('.atemschutz-row-select:checked').forEach(function (cb) {
+      if (cb.closest('.carrier-row') && cb.closest('.carrier-row').style.display !== 'none') {
+        ids.push(cb.value);
+      }
+    });
+    return ids;
+  }
+
+  function updateBulkState() {
+    var count = selectedCarrierIds().length;
+    if (bulkOpen) {
+      bulkOpen.disabled = count === 0;
+    }
+    if (selectAll) {
+      var rows = visibleRows();
+      var checkedVisible = rows.filter(function (row) {
+        var cb = row.querySelector('.atemschutz-row-select');
+        return cb && cb.checked;
+      }).length;
+      selectAll.checked = rows.length > 0 && checkedVisible === rows.length;
+      selectAll.indeterminate = checkedVisible > 0 && checkedVisible < rows.length;
+    }
   }
 
   function applyTableFilters() {
@@ -87,6 +136,8 @@
     if (visibleCount) {
       visibleCount.textContent = String(count);
     }
+    updatePdfLink();
+    updateBulkState();
   }
 
   function onPausedToggle() {
@@ -99,6 +150,63 @@
   }
   if (showPaused) {
     showPaused.addEventListener('change', onPausedToggle);
+  }
+
+  if (selectAll) {
+    selectAll.addEventListener('change', function () {
+      var checked = selectAll.checked;
+      visibleRows().forEach(function (row) {
+        var cb = row.querySelector('.atemschutz-row-select');
+        if (cb) cb.checked = checked;
+      });
+      updateBulkState();
+    });
+  }
+
+  table.querySelectorAll('.atemschutz-row-select').forEach(function (cb) {
+    cb.addEventListener('change', updateBulkState);
+  });
+
+  if (bulkOpen && bulkModal) {
+    bulkOpen.addEventListener('click', function () {
+      var ids = selectedCarrierIds();
+      if (ids.length === 0) return;
+      if (bulkCount) bulkCount.textContent = String(ids.length);
+      if (bulkInputs) {
+        bulkInputs.innerHTML = '';
+        ids.forEach(function (id) {
+          var input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'carrierIds';
+          input.value = id;
+          bulkInputs.appendChild(input);
+        });
+      }
+      bulkModal.classList.add('active');
+      document.body.classList.add('modal-open');
+      var dateInput = document.getElementById('bulk-record-valid-from');
+      if (dateInput && !dateInput.value) {
+        var today = new Date();
+        dateInput.value = today.getFullYear() + '-'
+          + String(today.getMonth() + 1).padStart(2, '0') + '-'
+          + String(today.getDate()).padStart(2, '0');
+      }
+    });
+  }
+
+  var bulkType = document.getElementById('bulk-record-type');
+  var bulkFrom = document.getElementById('bulk-record-valid-from');
+  var bulkUntil = document.getElementById('bulk-record-valid-until');
+  if (bulkType && bulkFrom && bulkUntil) {
+    bulkFrom.addEventListener('change', function () {
+      bulkUntil.value = '';
+      bulkUntil.placeholder = 'wird pro Person berechnet';
+    });
+    bulkType.addEventListener('change', function () {
+      bulkUntil.value = '';
+      bulkUntil.placeholder = 'wird pro Person berechnet';
+    });
+    bulkUntil.placeholder = 'wird pro Person berechnet';
   }
 
   applyTableFilters();

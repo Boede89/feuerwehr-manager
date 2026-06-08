@@ -45,7 +45,7 @@
       <p class="hint" style="margin-top:0;">
         Erinnerungs- und Aufforderungs-Mails pro Nachweistyp. Platzhalter:
         <code>{first_name}</code>, <code>{last_name}</code>, <code>{expiry_date}</code>.
-        Versand an Geräteträger erfolgt automatisch täglich um 7:00 Uhr, wenn die Option aktiv ist.
+        Versand erfolgt automatisch täglich um 7:00 Uhr. Ausbilder und CC-Empfänger erhalten die Mail auch ohne aktive Geräteträger-Benachrichtigung.
       </p>
 
       <form method="post" th:action="@{/settings/atemschutz/notifications}" id="form-notifications">

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Atemschutz – Geräteträgerliste</title>
+  <th:block th:replace="~{fragments/atemschutz-print-header :: styles}"></th:block>
+</head>
+<body>
+  <th:block th:replace="~{fragments/atemschutz-print-header :: actions}"></th:block>
+  <th:block th:replace="~{fragments/atemschutz-print-header :: header('Atemschutz – Geräteträgerliste', ${currentUnitName + ' · Filter: ' + filterLabel + (includePaused ? ' · inkl. Pausierte' : '') + ' · Stand: ' + #temporals.format(T(java.time.LocalDateTime).now(), 'dd.MM.yyyy HH:mm') + ' Uhr'})}"></th:block>
+
+  <table th:if="${!#lists.isEmpty(carriers)}">
+    <thead>
+    <tr>
+      <th>Name</th>
+      <th>Status</th>
+      <th>Tauglichkeit</th>
+      <th>G26</th>
+      <th>Übung/Einsatz</th>
+      <th>Strecke</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="row : ${carriers}">
+      <td th:text="${row.carrier.person.displayName()}">Name</td>
+      <td th:text="${row.carrier.status.label()}">Aktiv</td>
+      <td th:text="${row.tauglichkeit.label()}">—</td>
+      <td>
+        <th:block th:with="view=${row.g26}">
+          <span th:if="${view == null or view.validUntil == null}" class="badge-missing">—</span>
+          <span th:if="${view != null and view.validUntil != null}"
+                th:classappend="${view.level.name() == 'OK' ? 'badge-ok' : (view.level.name() == 'WARN' ? 'badge-warn' : (view.level.name() == 'OVERDUE' ? 'badge-overdue' : 'badge-missing'))}"
+                th:text="${#temporals.format(view.validUntil, 'dd.MM.yyyy')}">—</span>
+        </th:block>
+      </td>
+      <td>
+        <th:block th:with="view=${row.summaries.get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).UEBUNG)}">
+          <span th:if="${view == null or view.validUntil == null}" class="badge-missing">—</span>
+          <span th:if="${view != null and view.validUntil != null}"
+                th:classappend="${view.level.name() == 'OK' ? 'badge-ok' : (view.level.name() == 'WARN' ? 'badge-warn' : (view.level.name() == 'OVERDUE' ? 'badge-overdue' : 'badge-missing'))}"
+                th:text="${#temporals.format(view.validUntil, 'dd.MM.yyyy')}">—</span>
+        </th:block>
+      </td>
+      <td>
+        <th:block th:with="view=${row.summaries.get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).STRECKEN)}">
+          <span th:if="${view == null or view.validUntil == null}" class="badge-missing">—</span>
+          <span th:if="${view != null and view.validUntil != null}"
+                th:classappend="${view.level.name() == 'OK' ? 'badge-ok' : (view.level.name() == 'WARN' ? 'badge-warn' : (view.level.name() == 'OVERDUE' ? 'badge-overdue' : 'badge-missing'))}"
+                th:text="${#temporals.format(view.validUntil, 'dd.MM.yyyy')}">—</span>
+        </th:block>
+      </td>
+    </tr>
+    </tbody>
+  </table>
+  <p th:if="${#lists.isEmpty(carriers)}" class="print-meta">Keine Geräteträger für diese Auswahl.</p>
+</body>
+</html>

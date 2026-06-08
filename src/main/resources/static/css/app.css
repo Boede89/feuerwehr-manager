@@ -2845,6 +2845,13 @@ span.required { color: var(--error); }
   max-height: 320px;
   overflow-y: auto;
 }
+.atemschutz-select-col {
+  width: 40px;
+  text-align: center;
+}
+.atemschutz-select-col input[type="checkbox"] {
+  margin: 0;
+}
 .atemschutz-template-panel {
   margin-top: 14px;
 }

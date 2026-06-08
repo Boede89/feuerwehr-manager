@@ -7,6 +7,7 @@ import de.feuerwehr.manager.atemschutz.AtemschutzPlanStatus;
 import de.feuerwehr.manager.atemschutz.AtemschutzService;
 import de.feuerwehr.manager.atemschutz.AtemschutzService.CarrierDetailView;
 import de.feuerwehr.manager.atemschutz.AtemschutzService.CarrierListResult;
+import de.feuerwehr.manager.atemschutz.AtemschutzService.CarrierOverview;
 import de.feuerwehr.manager.atemschutz.AtemschutzService.UebungPlanResult;
 import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.security.AccessControlService;
@@ -19,6 +20,7 @@ import de.feuerwehr.manager.unit.UnitService;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -56,22 +58,45 @@ public class AtemschutzController {
             Unit unit = resolveUnit(unitId, actor, model);
             requireModuleEnabled(unit.getId());
             requireAtemschutzRead(actor, unit.getId());
-            boolean includeHealth = actor.getRole().isAdminLevel();
-            CarrierListResult result =
-                    atemschutzService.listCarrierOverviews(unit.getId(), includeHealth, filter);
-            model.addAttribute("carriers", result.carriers());
-            model.addAttribute("carrierCount", result.carriers().size());
-            model.addAttribute("stats", result.stats());
-            model.addAttribute("statsAll", result.statsAll());
-            model.addAttribute("activeFilter", normalizeFilter(filter));
-            model.addAttribute("agtCourseName", result.agtCourseName());
-            model.addAttribute("agtCourseConfigured", result.agtCourseConfigured());
+            CarrierListResult result = atemschutzService.listCarrierOverviews(unit.getId(), filter);
+            populateListModel(model, result, filter);
             model.addAttribute("canWrite", canWrite(actor, unit.getId()));
             model.addAttribute("warnDays", atemschutzService.warnDays(unit.getId()));
             return "atemschutz/index";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return redirectHome(unitId);
+        }
+    }
+
+    @GetMapping("/drucken")
+    public String printList(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "filter", defaultValue = "all") String filter,
+            @RequestParam(name = "paused", defaultValue = "false") boolean includePaused,
+            Model model,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor, model);
+            addUnitLogo(unit, model);
+            requireModuleEnabled(unit.getId());
+            requireAtemschutzRead(actor, unit.getId());
+            CarrierListResult result = atemschutzService.listCarrierOverviews(unit.getId(), filter);
+            List<CarrierOverview> carriers = result.carriers();
+            if (!includePaused) {
+                carriers = carriers.stream()
+                        .filter(row -> row.carrier().getStatus() == AtemschutzCarrierStatus.ACTIVE)
+                        .toList();
+            }
+            model.addAttribute("carriers", carriers);
+            model.addAttribute("activeFilter", normalizeFilter(filter));
+            model.addAttribute("includePaused", includePaused);
+            model.addAttribute("filterLabel", filterLabel(normalizeFilter(filter)));
+            return "atemschutz/liste-druck";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return unitId != null ? "redirect:/atemschutz?unit=" + unitId : redirectHome(unitId);
         }
     }
 
@@ -113,13 +138,48 @@ public class AtemschutzController {
             }
 
             int limit = parseCarrierLimit(anzahlPaTraeger);
-            boolean includeHealth = actor.getRole().isAdminLevel();
-            UebungPlanResult result = atemschutzService.planUebung(
-                    resolved.getId(), includeHealth, uebungsDatum, selectedStatuses, limit);
+            UebungPlanResult result =
+                    atemschutzService.planUebung(resolved.getId(), uebungsDatum, selectedStatuses, limit);
 
             model.addAttribute("planResult", result);
             model.addAttribute("anzahlLabel", formatAnzahlLabel(anzahlPaTraeger));
+            model.addAttribute("anzahlPaTraeger", anzahlPaTraeger);
+            model.addAttribute("uebungsDatum", uebungsDatum);
+            model.addAttribute("selectedStatusParams", statusFilter != null ? statusFilter : new String[0]);
             return "atemschutz/uebung-planen-ergebnisse";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return "redirect:/atemschutz/uebung-planen?unit=" + unit;
+        }
+    }
+
+    @GetMapping("/uebung-planen/drucken")
+    public String printUebungPlan(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate uebungsDatum,
+            @RequestParam(name = "anzahlPaTraeger", defaultValue = "alle") String anzahlPaTraeger,
+            @RequestParam(name = "statusFilter", required = false) String[] statusFilter,
+            Model model,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit resolved = resolveUnit(unit, actor, model);
+            addUnitLogo(resolved, model);
+            requireModuleEnabled(resolved.getId());
+            requireAtemschutzRead(actor, resolved.getId());
+
+            Set<AtemschutzPlanStatus> selectedStatuses = parsePlanStatuses(statusFilter);
+            if (selectedStatuses.isEmpty()) {
+                throw new IllegalArgumentException("Bitte mindestens einen Status auswählen.");
+            }
+
+            int limit = parseCarrierLimit(anzahlPaTraeger);
+            UebungPlanResult result =
+                    atemschutzService.planUebung(resolved.getId(), uebungsDatum, selectedStatuses, limit);
+
+            model.addAttribute("planResult", result);
+            model.addAttribute("anzahlLabel", formatAnzahlLabel(anzahlPaTraeger));
+            return "atemschutz/uebung-planen-druck";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return "redirect:/atemschutz/uebung-planen?unit=" + unit;
@@ -134,27 +194,47 @@ public class AtemschutzController {
             Model model,
             RedirectAttributes redirectAttributes) {
         try {
-        Unit unit = resolveUnit(unitId, actor, model);
-        requireModuleEnabled(unit.getId());
-        requireAtemschutzRead(actor, unit.getId());
-        AtemschutzCarrier carrier = atemschutzService.requireCarrier(id);
-        accessControlService.requireUnitAccess(actor, carrier.getUnit().getId());
-        Person person = carrier.getPerson();
-        boolean includeHealth = atemschutzService.canViewHealthData(actor, person);
-        CarrierDetailView detail = atemschutzService.loadCarrierDetail(id, includeHealth);
-        model.addAttribute("carrier", carrier);
-        model.addAttribute("person", person);
-        model.addAttribute("detail", detail);
-        model.addAttribute("canWrite", canWrite(actor, unit.getId()));
-        model.addAttribute("canViewHealthData", includeHealth);
-        model.addAttribute("fitnessTypes", AtemschutzFitnessType.values());
-        model.addAttribute("carrierStatuses", AtemschutzCarrierStatus.values());
+            Unit unit = resolveUnit(unitId, actor, model);
+            requireModuleEnabled(unit.getId());
+            requireAtemschutzRead(actor, unit.getId());
+            AtemschutzCarrier carrier = atemschutzService.requireCarrier(id);
+            accessControlService.requireUnitAccess(actor, carrier.getUnit().getId());
+            Person person = carrier.getPerson();
+            CarrierDetailView detail = atemschutzService.loadCarrierDetail(id);
+            model.addAttribute("carrier", carrier);
+            model.addAttribute("person", person);
+            model.addAttribute("detail", detail);
+            model.addAttribute("canWrite", canWrite(actor, unit.getId()));
+            model.addAttribute("fitnessTypes", AtemschutzFitnessType.values());
+            model.addAttribute("carrierStatuses", AtemschutzCarrierStatus.values());
             model.addAttribute("warnDays", atemschutzService.warnDays(unit.getId()));
-        return "atemschutz/carrier-detail";
+            return "atemschutz/carrier-detail";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return unitId != null ? "redirect:/atemschutz?unit=" + unitId : redirectHome(unitId);
         }
+    }
+
+    @PostMapping("/bulk-records")
+    public String bulkAddRecords(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam(name = "carrierIds") Long[] carrierIds,
+            @RequestParam AtemschutzFitnessType recordType,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validFrom,
+            RedirectAttributes redirectAttributes) {
+        try {
+            requireModuleEnabled(unit);
+            requireAtemschutzWrite(actor, unit);
+            accessControlService.requireUnitAccess(actor, unit);
+            int count = atemschutzService.bulkAddFitnessRecords(
+                    unit, carrierIds != null ? Arrays.asList(carrierIds) : List.of(), recordType, validFrom, actor.getUserId());
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", count + " Nachweis(e) gespeichert.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/atemschutz?unit=" + unit;
     }
 
     @PostMapping("/carriers/{id}")
@@ -243,6 +323,16 @@ public class AtemschutzController {
         return "redirect:/atemschutz/carriers/" + id + "?unit=" + unit;
     }
 
+    private void populateListModel(Model model, CarrierListResult result, String filter) {
+        model.addAttribute("carriers", result.carriers());
+        model.addAttribute("carrierCount", result.carriers().size());
+        model.addAttribute("stats", result.stats());
+        model.addAttribute("statsAll", result.statsAll());
+        model.addAttribute("activeFilter", normalizeFilter(filter));
+        model.addAttribute("agtCourseName", result.agtCourseName());
+        model.addAttribute("agtCourseConfigured", result.agtCourseConfigured());
+    }
+
     private Unit resolveUnit(Long unitId, AppUserDetails actor, Model model) {
         Unit unit = unitService
                 .resolveActiveUnit(unitId, actor)
@@ -251,6 +341,12 @@ public class AtemschutzController {
         model.addAttribute("unitId", unit.getId());
         model.addAttribute("currentUnitName", unit.getName());
         return unit;
+    }
+
+    private static void addUnitLogo(Unit unit, Model model) {
+        if (unit.getLogoBase64() != null && !unit.getLogoBase64().isBlank()) {
+            model.addAttribute("unitLogoBase64", unit.getLogoBase64());
+        }
     }
 
     private void requireModuleEnabled(long unitId) {
@@ -336,5 +432,15 @@ public class AtemschutzController {
             return "nicht_tauglich";
         }
         return "all";
+    }
+
+    private static String filterLabel(String filter) {
+        return switch (filter) {
+            case "tauglich" -> "Tauglich";
+            case "warnung" -> "Warnung";
+            case "uebung_abgelaufen" -> "Übung abgelaufen";
+            case "nicht_tauglich" -> "Nicht tauglich";
+            default -> "Alle";
+        };
     }
 }

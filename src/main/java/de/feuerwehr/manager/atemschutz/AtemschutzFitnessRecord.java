@@ -43,12 +43,6 @@ public class AtemschutzFitnessRecord {
     @Column(name = "valid_until", nullable = false)
     private LocalDate validUntil;
 
-    @Column(length = 255)
-    private String physician;
-
-    @Column(name = "result_notes", length = 1024)
-    private String resultNotes;
-
     @Column(name = "test_data", nullable = false)
     private boolean testData;
 
