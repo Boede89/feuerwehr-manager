@@ -51,7 +51,7 @@
             <label class="checkbox-row atemschutz-plan-status" th:each="status : ${planStatuses}">
               <input type="checkbox" name="statusFilter" th:value="${status.name()}"
                      th:checked="${selectedPlanStatuses.contains(status)}"/>
-              <span th:class="${status.badgeClass()}" th:text="${status.label()}">Status</span>
+              <span th:class="${status.filterChipClass()}" th:text="${status.label()}">Status</span>
             </label>
           </div>
         </div>

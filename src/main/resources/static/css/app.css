@@ -2937,18 +2937,45 @@ span.required { color: var(--error); }
 }
 
 .atemschutz-plan-status {
+  align-items: center;
+  min-height: 40px;
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--bg-card);
 }
 
-.atemschutz-plan-status .badge {
-  display: inline-block;
-  font-size: var(--fs-xs);
+.atemschutz-plan-status-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
   font-weight: 600;
-  padding: 3px 10px;
+  padding: 4px 10px;
   border-radius: var(--radius-pill);
+  line-height: 1.2;
+  min-height: 22px;
+  white-space: nowrap;
+}
+
+.atemschutz-plan-status-chip--tauglich {
+  background: var(--gruen-hell);
+  color: var(--gruen);
+}
+
+.atemschutz-plan-status-chip--warnung {
+  background: var(--orange-hell, rgba(251, 191, 36, 0.2));
+  color: var(--gelb, #b45309);
+}
+
+.atemschutz-plan-status-chip--abgelaufen {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--error);
+}
+
+.atemschutz-plan-status-chip--uebung_abgelaufen {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--error);
 }
 
 .atemschutz-plan-summary__grid {

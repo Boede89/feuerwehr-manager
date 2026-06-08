@@ -26,6 +26,11 @@ public enum AtemschutzPlanStatus {
         };
     }
 
+    public String filterChipClass() {
+        return "atemschutz-plan-status-chip atemschutz-plan-status-chip--"
+                + name().toLowerCase(Locale.ROOT);
+    }
+
     public static AtemschutzPlanStatus fromParam(String value) {
         if (value == null || value.isBlank()) {
             return null;

@@ -42,8 +42,9 @@ public class StreckePlanungService {
 
         List<StreckeTermin> termine = terminRepository.findRecentByUnit(unitId, since, testData);
         List<Long> terminIds = termine.stream().map(StreckeTermin::getId).toList();
-        Map<Long, List<StreckeZuordnung>> zuordnungenByTermin = zuordnungRepository.findByTerminIds(terminIds).stream()
-                .collect(Collectors.groupingBy(z -> z.getTermin().getId()));
+        Map<Long, List<StreckeZuordnung>> zuordnungenByTermin =
+                zuordnungRepository.findByTerminIdsOrEmpty(terminIds).stream()
+                        .collect(Collectors.groupingBy(z -> z.getTermin().getId()));
 
         Map<Long, CarrierOverview> carrierById = atemschutzService
                 .listCarrierOverviews(unitId, includeHealthDetails, "all")
@@ -231,11 +232,12 @@ public class StreckePlanungService {
 
     private List<CarrierOverview> loadUnassignedCarriers(long unitId) {
         boolean testData = testModeService.isEnabled();
-        Map<Long, Long> assignedCarrierIds = zuordnungRepository.findByTerminIds(
-                        terminRepository.findRecentByUnit(unitId, LocalDate.now().minusDays(30), testData).stream()
-                                .map(StreckeTermin::getId)
-                                .toList())
+        List<Long> recentTerminIds = terminRepository
+                .findRecentByUnit(unitId, LocalDate.now().minusDays(30), testData)
                 .stream()
+                .map(StreckeTermin::getId)
+                .toList();
+        Map<Long, Long> assignedCarrierIds = zuordnungRepository.findByTerminIdsOrEmpty(recentTerminIds).stream()
                 .collect(Collectors.toMap(z -> z.getCarrier().getId(), z -> z.getTermin().getId(), (a, b) -> a));
 
         return atemschutzService.listCarrierOverviews(unitId, false, "all").carriers().stream()

@@ -18,6 +18,13 @@ public interface StreckeZuordnungRepository extends JpaRepository<StreckeZuordnu
             """)
     List<StreckeZuordnung> findByTerminIds(@Param("terminIds") List<Long> terminIds);
 
+    default List<StreckeZuordnung> findByTerminIdsOrEmpty(List<Long> terminIds) {
+        if (terminIds == null || terminIds.isEmpty()) {
+            return List.of();
+        }
+        return findByTerminIds(terminIds);
+    }
+
     @Query("""
             SELECT z FROM StreckeZuordnung z
             JOIN FETCH z.termin t
