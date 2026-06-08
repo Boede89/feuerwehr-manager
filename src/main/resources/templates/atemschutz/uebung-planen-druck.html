@@ -11,7 +11,7 @@
 </head>
 <body>
   <th:block th:replace="~{fragments/atemschutz-print-header :: actions}"></th:block>
-  <th:block th:replace="~{fragments/atemschutz-print-header :: header('PA-Träger Suchergebnisse', ${currentUnitName + ' · Stand: ' + #temporals.format(T(java.time.LocalDateTime).now(), 'dd.MM.yyyy HH:mm') + ' Uhr'})}"></th:block>
+  <th:block th:replace="~{fragments/atemschutz-print-header :: header}"></th:block>
 
   <div class="summary-grid">
     <div>

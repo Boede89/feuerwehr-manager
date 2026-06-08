@@ -7,7 +7,7 @@
 </head>
 <body>
   <th:block th:replace="~{fragments/atemschutz-print-header :: actions}"></th:block>
-  <th:block th:replace="~{fragments/atemschutz-print-header :: header('Atemschutz – Geräteträgerliste', ${currentUnitName + ' · Filter: ' + filterLabel + (includePaused ? ' · inkl. Pausierte' : '') + ' · Stand: ' + #temporals.format(T(java.time.LocalDateTime).now(), 'dd.MM.yyyy HH:mm') + ' Uhr'})}"></th:block>
+  <th:block th:replace="~{fragments/atemschutz-print-header :: header}"></th:block>
 
   <table th:if="${!#lists.isEmpty(carriers)}">
     <thead>
@@ -27,25 +27,22 @@
       <td th:text="${row.tauglichkeit.label()}">—</td>
       <td>
         <th:block th:with="view=${row.g26}">
-          <span th:if="${view == null or view.validUntil == null}" class="badge-missing">—</span>
+          <span th:if="${view == null or view.validUntil == null}">—</span>
           <span th:if="${view != null and view.validUntil != null}"
-                th:classappend="${view.level.name() == 'OK' ? 'badge-ok' : (view.level.name() == 'WARN' ? 'badge-warn' : (view.level.name() == 'OVERDUE' ? 'badge-overdue' : 'badge-missing'))}"
                 th:text="${#temporals.format(view.validUntil, 'dd.MM.yyyy')}">—</span>
         </th:block>
       </td>
       <td>
         <th:block th:with="view=${row.summaries.get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).UEBUNG)}">
-          <span th:if="${view == null or view.validUntil == null}" class="badge-missing">—</span>
+          <span th:if="${view == null or view.validUntil == null}">—</span>
           <span th:if="${view != null and view.validUntil != null}"
-                th:classappend="${view.level.name() == 'OK' ? 'badge-ok' : (view.level.name() == 'WARN' ? 'badge-warn' : (view.level.name() == 'OVERDUE' ? 'badge-overdue' : 'badge-missing'))}"
                 th:text="${#temporals.format(view.validUntil, 'dd.MM.yyyy')}">—</span>
         </th:block>
       </td>
       <td>
         <th:block th:with="view=${row.summaries.get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).STRECKEN)}">
-          <span th:if="${view == null or view.validUntil == null}" class="badge-missing">—</span>
+          <span th:if="${view == null or view.validUntil == null}">—</span>
           <span th:if="${view != null and view.validUntil != null}"
-                th:classappend="${view.level.name() == 'OK' ? 'badge-ok' : (view.level.name() == 'WARN' ? 'badge-warn' : (view.level.name() == 'OVERDUE' ? 'badge-overdue' : 'badge-missing'))}"
                 th:text="${#temporals.format(view.validUntil, 'dd.MM.yyyy')}">—</span>
         </th:block>
       </td>

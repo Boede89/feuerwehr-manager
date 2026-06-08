@@ -27,13 +27,13 @@
     <button type="button" onclick="window.print()">Drucken / Als PDF speichern</button>
   </div>
 </th:block>
-<th:block th:fragment="header(title, subtitle)">
+<th:block th:fragment="header">
   <div class="print-header">
     <img th:if="${unitLogoBase64 != null and !#strings.isEmpty(unitLogoBase64)}"
          th:src="${unitLogoBase64}" alt="" class="print-logo"/>
     <div class="print-header__text">
-      <h1 th:text="${title}">Titel</h1>
-      <p class="print-meta" th:if="${subtitle != null}" th:text="${subtitle}">Untertitel</p>
+      <h1 th:text="${printTitle}">Titel</h1>
+      <p class="print-meta" th:if="${printSubtitle != null}" th:text="${printSubtitle}">Untertitel</p>
     </div>
   </div>
 </th:block>

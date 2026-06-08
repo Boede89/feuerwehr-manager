@@ -18,7 +18,10 @@ import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +43,9 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @RequestMapping("/atemschutz")
 @RequiredArgsConstructor
 public class AtemschutzController {
+
+    private static final DateTimeFormatter PRINT_STAMP_FMT =
+            DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm", Locale.GERMANY);
 
     private final UnitService unitService;
     private final ModuleSettingsService moduleSettingsService;
@@ -79,7 +85,6 @@ public class AtemschutzController {
             RedirectAttributes redirectAttributes) {
         try {
             Unit unit = resolveUnit(unitId, actor, model);
-            addUnitLogo(unit, model);
             requireModuleEnabled(unit.getId());
             requireAtemschutzRead(actor, unit.getId());
             CarrierListResult result = atemschutzService.listCarrierOverviews(unit.getId(), filter);
@@ -89,10 +94,18 @@ public class AtemschutzController {
                         .filter(row -> row.carrier().getStatus() == AtemschutzCarrierStatus.ACTIVE)
                         .toList();
             }
+            String normalizedFilter = normalizeFilter(filter);
+            String subtitle = unit.getName()
+                    + " · Filter: "
+                    + filterLabel(normalizedFilter)
+                    + (includePaused ? " · inkl. Pausierte" : "")
+                    + " · Stand: "
+                    + printTimestamp();
+            addPrintPageHeader(model, unit, "Atemschutz – Geräteträgerliste", subtitle);
             model.addAttribute("carriers", carriers);
-            model.addAttribute("activeFilter", normalizeFilter(filter));
+            model.addAttribute("activeFilter", normalizedFilter);
             model.addAttribute("includePaused", includePaused);
-            model.addAttribute("filterLabel", filterLabel(normalizeFilter(filter)));
+            model.addAttribute("filterLabel", filterLabel(normalizedFilter));
             return "atemschutz/liste-druck";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
@@ -164,7 +177,6 @@ public class AtemschutzController {
             RedirectAttributes redirectAttributes) {
         try {
             Unit resolved = resolveUnit(unit, actor, model);
-            addUnitLogo(resolved, model);
             requireModuleEnabled(resolved.getId());
             requireAtemschutzRead(actor, resolved.getId());
 
@@ -177,6 +189,11 @@ public class AtemschutzController {
             UebungPlanResult result =
                     atemschutzService.planUebung(resolved.getId(), uebungsDatum, selectedStatuses, limit);
 
+            addPrintPageHeader(
+                    model,
+                    resolved,
+                    "PA-Träger Suchergebnisse",
+                    resolved.getName() + " · Stand: " + printTimestamp());
             model.addAttribute("planResult", result);
             model.addAttribute("anzahlLabel", formatAnzahlLabel(anzahlPaTraeger));
             return "atemschutz/uebung-planen-druck";
@@ -343,10 +360,16 @@ public class AtemschutzController {
         return unit;
     }
 
-    private static void addUnitLogo(Unit unit, Model model) {
+    private static void addPrintPageHeader(Model model, Unit unit, String title, String subtitle) {
         if (unit.getLogoBase64() != null && !unit.getLogoBase64().isBlank()) {
             model.addAttribute("unitLogoBase64", unit.getLogoBase64());
         }
+        model.addAttribute("printTitle", title);
+        model.addAttribute("printSubtitle", subtitle);
+    }
+
+    private static String printTimestamp() {
+        return PRINT_STAMP_FMT.format(LocalDateTime.now()) + " Uhr";
     }
 
     private void requireModuleEnabled(long unitId) {
