@@ -9,6 +9,14 @@
     </div>
     <div class="einsatzbericht-form-actions">
       <a class="btn btn--outline" th:href="@{/berichte(unit=${unitId}, tab='einsatz')}">Abbrechen</a>
+      <form th:if="${formMode == 'edit'}" method="post"
+            th:action="@{/berichte/einsatzberichte/{id}/delete(id=${report.id})}"
+            class="bar-form"
+            onsubmit="return confirm('Einsatzbericht wirklich löschen?');">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <button type="submit" class="btn btn--danger">Löschen</button>
+      </form>
       <button type="submit" class="btn btn--primary" form="einsatzbericht-form">Speichern</button>
     </div>
   </div>

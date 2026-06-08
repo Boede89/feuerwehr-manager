@@ -5,6 +5,7 @@ import de.feuerwehr.manager.berichte.CrewAssignment;
 import de.feuerwehr.manager.berichte.EinsatzberichtForm;
 import de.feuerwehr.manager.berichte.EinsatzberichtService;
 import de.feuerwehr.manager.berichte.IncidentReport;
+import de.feuerwehr.manager.divera.DiveraEinsatzberichtSyncService;
 import de.feuerwehr.manager.berichte.KraefteFahrzeugeState;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
@@ -36,6 +37,7 @@ public class BerichteController {
     private final AccessControlService accessControlService;
     private final UserPermissionService userPermissionService;
     private final EinsatzberichtService einsatzberichtService;
+    private final DiveraEinsatzberichtSyncService diveraEinsatzberichtSyncService;
 
     @GetMapping
     public String index(
@@ -53,6 +55,13 @@ public class BerichteController {
             model.addAttribute("berichteTabs", BerichteTab.values());
             model.addAttribute("canWrite", canWrite(actor, unit.getId()));
             if (berichteTab == BerichteTab.EINSATZ) {
+                DiveraEinsatzberichtSyncService.SyncResult sync =
+                        diveraEinsatzberichtSyncService.syncAlarmsForUnit(unit.getId());
+                if (sync.success() && sync.created() > 0) {
+                    model.addAttribute(
+                            "message",
+                            sync.created() + " Einsatzbericht/Einsatzberichte aus DIVERA als Entwurf übernommen.");
+                }
                 model.addAttribute("einsatzberichte", einsatzberichtService.listByUnit(unit.getId()));
             }
             return "berichte/index";
@@ -143,6 +152,25 @@ public class BerichteController {
             einsatzberichtService.update(unit.getId(), id, form.toData(crewAssignments), actor);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Einsatzbericht wurde aktualisiert.");
+            return redirectBerichte(unit.getId(), "einsatz");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectBerichte(unitId, "einsatz");
+        }
+    }
+
+    @PostMapping("/einsatzberichte/{id}/delete")
+    public String deleteEinsatzbericht(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @PathVariable long id,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor);
+            requireModuleEnabled(unit.getId());
+            requireBerichteWrite(actor, unit.getId());
+            einsatzberichtService.delete(unit.getId(), id);
+            redirectAttributes.addFlashAttribute("message", "Einsatzbericht wurde gelöscht.");
             return redirectBerichte(unit.getId(), "einsatz");
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());

@@ -34,4 +34,6 @@ public interface IncidentReportRepository extends JpaRepository<IncidentReport, 
             ORDER BY r.stichwort
             """)
     List<String> findDistinctStichworteByUnitId(@Param("unitId") long unitId);
+
+    Optional<IncidentReport> findByUnitIdAndDiveraAlarmId(long unitId, long diveraAlarmId);
 }

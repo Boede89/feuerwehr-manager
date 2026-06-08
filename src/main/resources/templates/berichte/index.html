@@ -37,6 +37,7 @@
             <th>Stichwort</th>
             <th>Einsatzort</th>
             <th>Status</th>
+            <th>Quelle</th>
             <th th:if="${canWrite}"></th>
           </tr>
           </thead>
@@ -49,9 +50,20 @@
             <td>
               <span class="badge" th:text="${r.status.label()}">Entwurf</span>
             </td>
-            <td th:if="${canWrite}">
+            <td>
+              <span class="badge badge-muted" th:if="${r.diveraAlarmId != null}">DIVERA</span>
+              <span class="text-muted" th:if="${r.diveraAlarmId == null}">Manuell</span>
+            </td>
+            <td th:if="${canWrite}" class="table-actions">
               <a class="btn btn--outline btn--sm"
                  th:href="@{/berichte/einsatzberichte/{id}/bearbeiten(id=${r.id},unit=${unitId})}">Bearbeiten</a>
+              <form method="post" th:action="@{/berichte/einsatzberichte/{id}/delete(id=${r.id})}"
+                    class="table-inline-form"
+                    onsubmit="return confirm('Einsatzbericht wirklich löschen?');">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <input type="hidden" name="unit" th:value="${unitId}"/>
+                <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
+              </form>
             </td>
           </tr>
           </tbody>

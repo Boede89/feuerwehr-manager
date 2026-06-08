@@ -71,4 +71,14 @@ public interface PersonRepository extends JpaRepository<Person, Long> {
     @Modifying
     @Query("DELETE FROM Person p WHERE p.testData = true")
     void deleteAllByTestDataTrue();
+
+    @Query("""
+            SELECT p FROM Person p
+            WHERE p.unit.id = :unitId AND p.diveraUcrId = :diveraUcrId
+              AND p.anonymizedAt IS NULL AND p.testData = :testData
+            """)
+    Optional<Person> findByUnitIdAndDiveraUcrId(
+            @Param("unitId") long unitId,
+            @Param("diveraUcrId") String diveraUcrId,
+            @Param("testData") boolean testData);
 }

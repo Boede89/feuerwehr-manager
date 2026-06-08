@@ -223,6 +223,12 @@ public class IncidentReport {
     @Column(name = "test_data", nullable = false)
     private boolean testData;
 
+    @Column(name = "divera_alarm_id")
+    private Long diveraAlarmId;
+
+    @Column(name = "divera_foreign_id", length = 128)
+    private String diveraForeignId;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;
 

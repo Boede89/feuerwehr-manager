@@ -1,8 +1,13 @@
 package de.feuerwehr.manager.divera;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +20,9 @@ public class DiveraService {
     private final UnitDiveraSettingsRepository diveraSettingsRepository;
     private final TestDiveraAlarmService testDiveraAlarmService;
     private final DiveraAlarmSampleService diveraAlarmSampleService;
+    private final TestDiveraAlarmRepository testDiveraAlarmRepository;
+    private final DiveraAlarmRawJson diveraAlarmRawJson;
+    private final ObjectMapper objectMapper;
     private final TestModeService testModeService;
 
     @Transactional(readOnly = true)
@@ -65,5 +73,58 @@ public class DiveraService {
     @Transactional(readOnly = true)
     public List<DiveraAlarmSummary> getOpenAlarmsForUnit(long unitId) {
         return getAlarmsForUnit(unitId).alarms().stream().filter(a -> !a.closed()).toList();
+    }
+
+    /** Alle DIVERA-Einsätze (auch geschlossene) für Einsatzbericht-Sync. */
+    @Transactional(readOnly = true)
+    public DiveraAlarmsResponse fetchAllAlarmsForBerichteSync(long unitId) {
+        if (testModeService.isEnabled()) {
+            return fetchAllTestAlarmsForSync(unitId);
+        }
+        return diveraSettingsRepository
+                .findByUnitId(unitId)
+                .map(cfg -> diveraApiClient.fetchAlarms(cfg.getApiBaseUrl(), cfg.getAccessKey()))
+                .orElse(DiveraAlarmsResponse.fail("Keine Divera-Einstellungen für diese Einheit"));
+    }
+
+    private DiveraAlarmsResponse fetchAllTestAlarmsForSync(long unitId) {
+        List<DiveraAlarmSummary> alarms = new ArrayList<>();
+        Map<Long, String> rawJsonByAlarmId = new LinkedHashMap<>();
+        for (TestDiveraAlarm alarm : testDiveraAlarmRepository.findByUnitIdOrderByCreatedAtDesc(unitId)) {
+            alarms.add(DiveraAlarmSummary.fromTestAlarm(
+                    alarm.getAlarmId(),
+                    alarm.getId(),
+                    alarm.getTitle(),
+                    alarm.getAlarmText(),
+                    alarm.getAddress(),
+                    alarm.getDateEpochSeconds(),
+                    alarm.getTsCreateSeconds(),
+                    alarm.isClosed()));
+            rawJsonByAlarmId.put(alarm.getAlarmId(), buildTestAlarmPayload(alarm));
+        }
+        return DiveraAlarmsResponse.ok(alarms, rawJsonByAlarmId);
+    }
+
+    private String buildTestAlarmPayload(TestDiveraAlarm alarm) {
+        try {
+            ObjectNode root = objectMapper.createObjectNode();
+            ObjectNode data = root.putObject("data");
+            data.put("id", alarm.getAlarmId());
+            if (alarm.getExternalId() != null) {
+                data.put("foreign_id", alarm.getExternalId());
+            }
+            data.put("title", alarm.getTitle() != null ? alarm.getTitle() : "");
+            if (alarm.getAlarmText() != null) {
+                data.put("text", alarm.getAlarmText());
+            }
+            if (alarm.getAddress() != null) {
+                data.put("address", alarm.getAddress());
+            }
+            data.put("ts_create", alarm.getTsCreateSeconds());
+            data.put("closed", alarm.isClosed());
+            return diveraAlarmRawJson.serializeWebhookBody(root.toString());
+        } catch (Exception e) {
+            return "{}";
+        }
     }
 }

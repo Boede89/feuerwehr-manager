@@ -18,6 +18,7 @@ public class DiveraWebhookService {
     private final UnitDiveraSettingsRepository diveraSettingsRepository;
     private final TestDiveraAlarmService testDiveraAlarmService;
     private final DiveraAlarmSampleService diveraAlarmSampleService;
+    private final DiveraEinsatzberichtSyncService einsatzberichtSyncService;
     private final TestModeService testModeService;
     private final ObjectMapper objectMapper;
 
@@ -68,10 +69,13 @@ public class DiveraWebhookService {
             if (testModeService.isEnabled()) {
                 sampleSaved = diveraAlarmSampleService.captureFromWebhook(unitId, rawBody);
             }
+            boolean draftCreated = einsatzberichtSyncService.syncFromWebhook(unitId, rawBody);
             String externalId = extractExternalId(root);
             String message = sampleSaved
-                    ? "Webhook empfangen — Beispiel-Einsatz im Testmodus gespeichert"
-                    : "Webhook empfangen";
+                    ? (draftCreated
+                            ? "Webhook empfangen — Beispiel gespeichert, Einsatzbericht-Entwurf angelegt"
+                            : "Webhook empfangen — Beispiel-Einsatz im Testmodus gespeichert")
+                    : (draftCreated ? "Webhook empfangen — Einsatzbericht-Entwurf angelegt" : "Webhook empfangen");
             return new WebhookOutcome(WebhookStatus.ACCEPTED, externalId, message);
         } catch (Exception e) {
             log.error("[Divera-Webhook] JSON-Fehler unit={}: {}", unitId, e.getMessage());
