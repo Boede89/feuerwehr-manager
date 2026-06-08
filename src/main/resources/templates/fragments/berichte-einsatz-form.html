@@ -4,8 +4,7 @@
   <nav class="tab-bar incident-form-tabs" aria-label="Einsatzbericht-Bereiche">
     <button type="button" class="tab-btn incident-tab tab-btn--active" data-tab="0">Basisdaten</button>
     <button type="button" class="tab-btn incident-tab" data-tab="1">Kräfte &amp; Fahrzeuge</button>
-    <button type="button" class="tab-btn incident-tab" data-tab="2">Schäden</button>
-    <button type="button" class="tab-btn incident-tab" data-tab="3">Bericht</button>
+    <button type="button" class="tab-btn incident-tab" data-tab="2">Bericht</button>
   </nav>
 
   <!-- Tab 0: Basisdaten -->
@@ -108,36 +107,60 @@
     <input type="hidden" name="crewAssignmentsJson" id="crewAssignmentsJson" th:value="${form.crewAssignmentsJson}"/>
     <div class="incident-kraefte-board" id="incident-kraefte-board"
          th:attr="data-initial=${kraefteInitialJson}">
-      <div class="incident-kraefte-col incident-kraefte-col--manual">
-        <h4 class="incident-kraefte-col__title">Personal (manuell)</h4>
-        <p class="hint text-sm">Personen per Drag &amp; Drop auf ein Fahrzeug ziehen.</p>
-        <input type="search" id="manual-person-search" class="incident-person-search field"
-               placeholder="Personal suchen …" autocomplete="off" aria-label="Personal suchen"/>
-        <div class="incident-person-pool" id="manual-person-pool" data-pool="manual">
-          <div class="incident-crew-chip" draggable="true"
-               th:each="p : ${kraefteState.manualPersons()}"
-               th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}, data-sort-order=${p.sortOrder()}"
-               th:text="${p.displayName()}">Name</div>
-        </div>
-        <p class="hint incident-person-pool-empty" id="manual-pool-empty"
-           th:hidden="${!#lists.isEmpty(kraefteState.manualPersons())}">Alle Personen sind zugewiesen.</p>
-      </div>
 
-      <div class="incident-kraefte-col incident-kraefte-col--divera">
-        <h4 class="incident-kraefte-col__title">Personal (Divera)</h4>
-        <p class="hint text-sm">Automatisch aus DIVERA-Rückmeldungen — per Drag &amp; Drop auf Fahrzeuge zuweisen.</p>
-        <div class="incident-person-pool incident-person-pool--divera" id="divera-person-pool" data-pool="divera">
-          <div class="incident-crew-chip incident-crew-chip--divera" draggable="true"
-               th:each="p : ${kraefteState.diveraPersons()}"
-               th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}, data-sort-order=${p.sortOrder()}"
-               th:text="${p.displayName()}">Name</div>
-        </div>
-        <p class="hint incident-person-pool-empty" id="divera-pool-empty"
-           th:hidden="${!#lists.isEmpty(kraefteState.diveraPersons())}">Noch keine Divera-Rückmeldungen.</p>
-      </div>
+      <section class="incident-kraefte-section incident-kraefte-section--reserves">
+        <header class="incident-kraefte-section__head">
+          <div>
+            <h3 class="incident-kraefte-section__title">Verfügbares Personal</h3>
+            <p class="hint text-sm">Personen auf die Fahrzeuge unten ziehen — zurückziehen in die passende Liste.</p>
+          </div>
+        </header>
+        <div class="incident-kraefte-reserves">
+          <article class="incident-reserve-panel incident-reserve-panel--manual">
+            <div class="incident-reserve-panel__head">
+              <h4 class="incident-reserve-panel__title">
+                <span class="incident-reserve-panel__badge incident-reserve-panel__badge--manual">Manuell</span>
+                Einheit
+              </h4>
+              <input type="search" id="manual-person-search" class="incident-person-search field"
+                     placeholder="Suchen …" autocomplete="off" aria-label="Personal suchen"/>
+            </div>
+            <div class="incident-person-pool" id="manual-person-pool" data-pool="manual">
+              <div class="incident-crew-chip" draggable="true"
+                   th:each="p : ${kraefteState.manualPersons()}"
+                   th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}, data-sort-order=${p.sortOrder()}"
+                   th:text="${p.displayName()}">Name</div>
+            </div>
+            <p class="hint incident-person-pool-empty" id="manual-pool-empty"
+               th:hidden="${!#lists.isEmpty(kraefteState.manualPersons())}">Alle zugewiesen.</p>
+          </article>
 
-      <div class="incident-kraefte-col incident-kraefte-col--vehicles">
-        <h4 class="incident-kraefte-col__title">Fahrzeuge</h4>
+          <article class="incident-reserve-panel incident-reserve-panel--divera">
+            <div class="incident-reserve-panel__head">
+              <h4 class="incident-reserve-panel__title">
+                <span class="incident-reserve-panel__badge incident-reserve-panel__badge--divera">DIVERA</span>
+                Rückmeldungen
+              </h4>
+            </div>
+            <div class="incident-person-pool incident-person-pool--divera" id="divera-person-pool" data-pool="divera">
+              <div class="incident-crew-chip incident-crew-chip--divera" draggable="true"
+                   th:each="p : ${kraefteState.diveraPersons()}"
+                   th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}, data-sort-order=${p.sortOrder()}"
+                   th:text="${p.displayName()}">Name</div>
+            </div>
+            <p class="hint incident-person-pool-empty" id="divera-pool-empty"
+               th:hidden="${!#lists.isEmpty(kraefteState.diveraPersons())}">Noch keine DIVERA-Rückmeldungen.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="incident-kraefte-section incident-kraefte-section--vehicles">
+        <header class="incident-kraefte-section__head">
+          <div>
+            <h3 class="incident-kraefte-section__title">Fahrzeugbesetzung</h3>
+            <p class="hint text-sm">Besatzungsstärke: ZF / GF / M / Gesamt</p>
+          </div>
+        </header>
         <div class="incident-vehicle-stack" id="incident-vehicle-stack">
           <article class="incident-vehicle-card"
                    th:each="v : ${kraefteState.vehicles()}"
@@ -148,68 +171,22 @@
               <span class="incident-vehicle-card__staerke" th:attr="data-staerke-badge=${v.vehicleId()}"
                     th:text="${v.besatzungsstaerke()}">0/0/0/0</span>
             </header>
-            <p class="incident-vehicle-card__staerke-label">Besatzungsstärke (ZF/GF/M/Σ)</p>
             <div class="incident-vehicle-dropzone" th:attr="data-vehicle-id=${v.vehicleId()}">
               <div class="incident-crew-chip" draggable="true"
                    th:each="person : ${v.crewPersons()}"
                    th:attr="data-person-id=${person.id()}, data-qual-tier=${person.qualTier()}, data-person-name=${person.displayName()}, data-sort-order=${person.sortOrder()}"
                    th:text="${person.displayName()}">Name</div>
             </div>
-            <p class="hint incident-vehicle-dropzone-hint">Person hierher ziehen</p>
+            <p class="hint incident-vehicle-dropzone-hint">Hier ablegen</p>
           </article>
         </div>
         <p class="hint" th:if="${#lists.isEmpty(kraefteState.vehicles())}">Keine Fahrzeuge in dieser Einheit.</p>
-      </div>
+      </section>
     </div>
   </div>
 
-  <!-- Tab 2: Schäden -->
+  <!-- Tab 2: Bericht -->
   <div class="incident-tab-panel" data-panel="2" hidden>
-    <h4 class="incident-section-title">Personenschäden</h4>
-    <div class="incident-form-grid-3 incident-section-block">
-      <div class="form-group"><label for="personsRescued">Gerettet</label>
-        <input id="personsRescued" name="personsRescued" type="number" min="0" th:value="${form.personsRescued}"/></div>
-      <div class="form-group"><label for="personsEvacuated">Evakuiert</label>
-        <input id="personsEvacuated" name="personsEvacuated" type="number" min="0" th:value="${form.personsEvacuated}"/></div>
-      <div class="form-group"><label for="personsInjured">Verletzt</label>
-        <input id="personsInjured" name="personsInjured" type="number" min="0" th:value="${form.personsInjured}"/></div>
-      <div class="form-group"><label for="personsInjuredOwn">davon eigene EK</label>
-        <input id="personsInjuredOwn" name="personsInjuredOwn" type="number" min="0" th:value="${form.personsInjuredOwn}"/></div>
-      <div class="form-group"><label for="personsRecovered">Geborgen</label>
-        <input id="personsRecovered" name="personsRecovered" type="number" min="0" th:value="${form.personsRecovered}"/></div>
-      <div class="form-group"><label for="personsDead">Tot</label>
-        <input id="personsDead" name="personsDead" type="number" min="0" th:value="${form.personsDead}"/></div>
-      <div class="form-group"><label for="personsDeadOwn">davon eigene EK</label>
-        <input id="personsDeadOwn" name="personsDeadOwn" type="number" min="0" th:value="${form.personsDeadOwn}"/></div>
-    </div>
-
-    <h4 class="incident-section-title">Tierschäden</h4>
-    <div class="incident-form-grid-4 incident-section-block">
-      <div class="form-group"><label for="animalsRescued">Gerettet</label>
-        <input id="animalsRescued" name="animalsRescued" type="number" min="0" th:value="${form.animalsRescued}"/></div>
-      <div class="form-group"><label for="animalsInjured">Verletzt</label>
-        <input id="animalsInjured" name="animalsInjured" type="number" min="0" th:value="${form.animalsInjured}"/></div>
-      <div class="form-group"><label for="animalsRecovered">Geborgen</label>
-        <input id="animalsRecovered" name="animalsRecovered" type="number" min="0" th:value="${form.animalsRecovered}"/></div>
-      <div class="form-group"><label for="animalsDead">Tot</label>
-        <input id="animalsDead" name="animalsDead" type="number" min="0" th:value="${form.animalsDead}"/></div>
-    </div>
-
-    <h4 class="incident-section-title">Sachschäden</h4>
-    <div class="incident-form-grid-2">
-      <div class="form-group">
-        <label for="vehicleDamage">Fahrzeugschäden</label>
-        <textarea id="vehicleDamage" name="vehicleDamage" rows="3" th:text="${form.vehicleDamage}"></textarea>
-      </div>
-      <div class="form-group">
-        <label for="equipmentDamage">Ausrüstungsschäden</label>
-        <textarea id="equipmentDamage" name="equipmentDamage" rows="3" th:text="${form.equipmentDamage}"></textarea>
-      </div>
-    </div>
-  </div>
-
-  <!-- Tab 3: Bericht -->
-  <div class="incident-tab-panel" data-panel="3" hidden>
     <div class="form-group">
       <label for="einsatzkurzbericht">Einsatzkurzbericht</label>
       <textarea id="einsatzkurzbericht" name="einsatzkurzbericht" rows="16"
