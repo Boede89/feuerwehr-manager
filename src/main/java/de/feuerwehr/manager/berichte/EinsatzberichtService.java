@@ -97,6 +97,7 @@ public class EinsatzberichtService {
 
         Set<Long> diveraPersonIds = new HashSet<>();
         Set<Long> onVehiclePersonIds = new HashSet<>();
+        Map<Long, IncidentPersonnelSource> sourceByPersonId = new LinkedHashMap<>();
 
         if (reportId != null) {
             for (IncidentReportPersonnel row : incidentReportPersonnelRepository.findByIncidentReportId(reportId)) {
@@ -104,6 +105,7 @@ public class EinsatzberichtService {
                 if (person == null) {
                     continue;
                 }
+                sourceByPersonId.put(person.getId(), row.getSource());
                 if (row.getSource() == IncidentPersonnelSource.DIVERA) {
                     diveraPersonIds.add(person.getId());
                 }
@@ -143,13 +145,12 @@ public class EinsatzberichtService {
         List<KraefteFahrzeugeState.KraeftePersonView> diveraPersons = new ArrayList<>();
 
         for (Person person : allPersons) {
-            KraefteFahrzeugeState.KraeftePersonView view = toPersonView(person, sortOrderByPersonId);
             if (diveraPersonIds.contains(person.getId())) {
                 if (!onVehiclePersonIds.contains(person.getId())) {
-                    diveraPersons.add(view);
+                    diveraPersons.add(toPersonView(person, sortOrderByPersonId, null, "divera"));
                 }
             } else if (!onVehiclePersonIds.contains(person.getId())) {
-                manualPersons.add(view);
+                manualPersons.add(toPersonView(person, sortOrderByPersonId, null, "manual"));
             }
         }
 
@@ -165,7 +166,11 @@ public class EinsatzberichtService {
             List<KraefteFahrzeugeState.KraeftePersonView> crewViews = crewIds.stream()
                     .map(personById::get)
                     .filter(Objects::nonNull)
-                    .map(p -> toPersonView(p, sortOrderByPersonId, roles.get(p.getId())))
+                    .map(p -> toPersonView(
+                            p,
+                            sortOrderByPersonId,
+                            roles.get(p.getId()),
+                            poolSourceFor(sourceByPersonId.get(p.getId()))))
                     .toList();
             Long einheitsfuehrerPersonId = null;
             Long maschinistPersonId = null;
@@ -198,7 +203,8 @@ public class EinsatzberichtService {
                 IncidentCrewSupport.EINSATZSTELLE_VEHICLE_NAME,
                 einsatzstelleCrewIds,
                 einsatzstelleCrew,
-                sortOrderByPersonId);
+                sortOrderByPersonId,
+                sourceByPersonId);
         List<Person> wacheCrew = wacheCrewIds.stream()
                 .map(personById::get)
                 .filter(Objects::nonNull)
@@ -208,7 +214,8 @@ public class EinsatzberichtService {
                 IncidentCrewSupport.WACHE_VEHICLE_NAME,
                 wacheCrewIds,
                 wacheCrew,
-                sortOrderByPersonId);
+                sortOrderByPersonId,
+                sourceByPersonId);
 
         return new KraefteFahrzeugeState(manualPersons, diveraPersons, einsatzstelle, wache, vehicles);
     }
@@ -313,6 +320,7 @@ public class EinsatzberichtService {
         }
         diveraService.findAlarmDetailsById(unitId, alarmId).ifPresent(details -> {
             applyDiveraAlarmDateTime(report, details);
+            applyDiveraAddressFields(report, details);
             incidentReportRepository.save(report);
             refreshDiveraPersonnelFromDetails(unitId, details);
         });
@@ -375,7 +383,7 @@ public class EinsatzberichtService {
         report.setSituation(trimToNull(form.nachrichtLeitstelle()));
         report.setLocation(form.location().trim());
         report.setPostalCode(trimToNull(form.postalCode()));
-        report.setDistrict(null);
+        report.setDistrict(trimToNull(form.district()));
         report.setStreet(trimToNull(form.street()));
         report.setHouseNumber(trimToNull(form.houseNumber()));
         report.setObjekt(trimToNull(form.objekt()));
@@ -513,31 +521,42 @@ public class EinsatzberichtService {
             String slotName,
             List<Long> crewIds,
             List<Person> crew,
-            Map<Long, Integer> sortOrderByPersonId) {
+            Map<Long, Integer> sortOrderByPersonId,
+            Map<Long, IncidentPersonnelSource> sourceByPersonId) {
         return new KraefteFahrzeugeState.KraefteVehicleView(
                 slotId,
                 slotName,
                 null,
                 null,
                 new ArrayList<>(crewIds),
-                crew.stream().map(p -> toPersonView(p, sortOrderByPersonId)).toList(),
+                crew.stream()
+                        .map(p -> toPersonView(
+                                p,
+                                sortOrderByPersonId,
+                                null,
+                                poolSourceFor(sourceByPersonId.get(p.getId()))))
+                        .toList(),
                 Besatzungsstaerke.format(crew),
                 null,
                 null);
     }
 
-    private KraefteFahrzeugeState.KraeftePersonView toPersonView(Person person, Map<Long, Integer> sortOrderByPersonId) {
-        return toPersonView(person, sortOrderByPersonId, null);
+    private static String poolSourceFor(IncidentPersonnelSource source) {
+        return source == IncidentPersonnelSource.DIVERA ? "divera" : "manual";
     }
 
     private KraefteFahrzeugeState.KraeftePersonView toPersonView(
-            Person person, Map<Long, Integer> sortOrderByPersonId, IncidentVehicleCrewRole vehicleRole) {
+            Person person,
+            Map<Long, Integer> sortOrderByPersonId,
+            IncidentVehicleCrewRole vehicleRole,
+            String poolSource) {
         return new KraefteFahrzeugeState.KraeftePersonView(
                 person.getId(),
                 person.anwesenheitDisplayName(),
                 Besatzungsstaerke.qualTier(person).name(),
                 sortOrderByPersonId.getOrDefault(person.getId(), 0),
-                vehicleRole != null ? vehicleRole.name() : null);
+                vehicleRole != null ? vehicleRole.name() : null,
+                poolSource);
     }
 
     private Person resolvePersonForUnit(long personId, long unitId) {
@@ -573,6 +592,24 @@ public class EinsatzberichtService {
             }
         }
         return datePrefix + String.format("%02d", next);
+    }
+
+    private void applyDiveraAddressFields(IncidentReport report, DiveraAlarmDetails details) {
+        if (details.city() != null && !details.city().isBlank()) {
+            report.setLocation(details.city());
+        }
+        if (details.postalCode() != null && !details.postalCode().isBlank()) {
+            report.setPostalCode(details.postalCode());
+        }
+        if (details.district() != null && !details.district().isBlank()) {
+            report.setDistrict(details.district());
+        }
+        if (details.street() != null && !details.street().isBlank()) {
+            report.setStreet(details.street());
+        }
+        if (details.houseNumber() != null && !details.houseNumber().isBlank()) {
+            report.setHouseNumber(details.houseNumber());
+        }
     }
 
     private void applyDiveraDetails(IncidentReport report, DiveraAlarmDetails details, long unitId) {

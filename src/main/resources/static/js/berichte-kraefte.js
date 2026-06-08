@@ -364,25 +364,38 @@
   }
 
   function homePoolForChip(chip) {
-    if (chip.classList.contains('incident-crew-chip--divera')) {
-      return document.getElementById('divera-person-pool');
+    var source = chip.dataset.poolSource;
+    if (source === 'divera') {
+      return poolForTab('divera');
     }
-    return document.getElementById('manual-person-pool');
+    if (source === 'manual') {
+      return poolForTab('manual');
+    }
+    if (chip.classList.contains('incident-crew-chip--divera')) {
+      return poolForTab('divera');
+    }
+    return poolForTab('manual');
   }
 
   function onDropPersonPool(e) {
     e.preventDefault();
-    var pool = e.currentTarget;
-    if (!draggedChip || draggedChip.parentElement === pool) {
+    if (!draggedChip) {
       return;
     }
-    if (homePoolForChip(draggedChip) !== pool) {
+    var homePool = homePoolForChip(draggedChip);
+    if (!homePool || draggedChip.parentElement === homePool) {
       return;
     }
     removePersonFromBoard(draggedChip.dataset.personId, draggedChip);
     clearChipVehicleRole(draggedChip);
     draggedChip.classList.remove('incident-crew-chip--vehicle-role');
-    insertChipSorted(pool, draggedChip);
+    if (homePool.dataset.pool === 'divera') {
+      draggedChip.classList.add('incident-crew-chip--divera');
+    } else {
+      draggedChip.classList.remove('incident-crew-chip--divera');
+    }
+    insertChipSorted(homePool, draggedChip);
+    switchReserveTab(homePool.dataset.pool);
     var searchEl = document.getElementById('reserve-person-search');
     if (searchEl) {
       filterReservePool(searchEl.value);
@@ -442,7 +455,7 @@
         return;
       }
       pool.addEventListener('dragover', function (e) {
-        if (draggedChip && homePoolForChip(draggedChip) === pool) {
+        if (draggedChip) {
           e.preventDefault();
         }
       });

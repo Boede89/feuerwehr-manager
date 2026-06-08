@@ -63,6 +63,11 @@
         <input id="postalCode" name="postalCode" type="text" maxlength="10" th:value="${form.postalCode}"/>
       </div>
       <div class="form-group">
+        <label for="district">Ortsteil</label>
+        <input id="district" name="district" type="text" maxlength="128"
+               placeholder="z. B. Amern" th:value="${form.district}"/>
+      </div>
+      <div class="form-group">
         <label for="street">Straße</label>
         <input id="street" name="street" type="text" maxlength="255" th:value="${form.street}"/>
       </div>
@@ -137,14 +142,14 @@
                      id="divera-person-pool" data-pool="divera" role="tabpanel" aria-labelledby="reserve-tab-divera">
                   <div class="incident-crew-chip incident-crew-chip--reserve incident-crew-chip--divera" draggable="true"
                        th:each="p : ${kraefteState.diveraPersons()}"
-                       th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}, data-sort-order=${p.sortOrder()}"
+                       th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}, data-sort-order=${p.sortOrder()}, data-pool-source=${p.poolSource()}"
                        th:text="${p.displayName()}">Name</div>
                 </div>
                 <div class="incident-person-pool incident-person-pool--reserve"
                      id="manual-person-pool" data-pool="manual" role="tabpanel" aria-labelledby="reserve-tab-manual" hidden>
                   <div class="incident-crew-chip incident-crew-chip--reserve" draggable="true"
                        th:each="p : ${kraefteState.manualPersons()}"
-                       th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}, data-sort-order=${p.sortOrder()}"
+                       th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}, data-sort-order=${p.sortOrder()}, data-pool-source=${p.poolSource()}"
                        th:text="${p.displayName()}">Name</div>
                 </div>
               </div>
@@ -171,7 +176,8 @@
                 <div class="incident-vehicle-dropzone" th:attr="data-vehicle-id=${scene.vehicleId()}">
                   <div class="incident-crew-chip" draggable="true"
                        th:each="person : ${scene.crewPersons()}"
-                       th:attr="data-person-id=${person.id()}, data-qual-tier=${person.qualTier()}, data-person-name=${person.displayName()}, data-sort-order=${person.sortOrder()}"
+                       th:classappend="${person.poolSource() == 'divera' ? ' incident-crew-chip--divera' : ''}"
+                       th:attr="data-person-id=${person.id()}, data-qual-tier=${person.qualTier()}, data-person-name=${person.displayName()}, data-sort-order=${person.sortOrder()}, data-pool-source=${person.poolSource()}"
                        th:text="${person.displayName()}">Name</div>
                 </div>
                 <p class="hint incident-vehicle-dropzone-hint">Vor Ort, kein Fahrzeug</p>
@@ -187,7 +193,8 @@
                 <div class="incident-vehicle-dropzone" th:attr="data-vehicle-id=${wache.vehicleId()}">
                   <div class="incident-crew-chip" draggable="true"
                        th:each="person : ${wache.crewPersons()}"
-                       th:attr="data-person-id=${person.id()}, data-qual-tier=${person.qualTier()}, data-person-name=${person.displayName()}, data-sort-order=${person.sortOrder()}"
+                       th:classappend="${person.poolSource() == 'divera' ? ' incident-crew-chip--divera' : ''}"
+                       th:attr="data-person-id=${person.id()}, data-qual-tier=${person.qualTier()}, data-person-name=${person.displayName()}, data-sort-order=${person.sortOrder()}, data-pool-source=${person.poolSource()}"
                        th:text="${person.displayName()}">Name</div>
                 </div>
                 <p class="hint incident-vehicle-dropzone-hint">Nur an der Wache</p>
@@ -222,8 +229,8 @@
                 <div class="incident-vehicle-dropzone" th:attr="data-vehicle-id=${v.vehicleId()}">
                   <div class="incident-crew-chip incident-crew-chip--vehicle-role" draggable="true"
                        th:each="person : ${v.crewPersons()}"
-                       th:classappend="${person.vehicleRole() == 'EINHEITSFUEHRER' ? ' incident-crew-chip--ef' : (person.vehicleRole() == 'MASCHINIST' ? ' incident-crew-chip--maschinist' : '')}"
-                       th:attr="data-person-id=${person.id()}, data-qual-tier=${person.qualTier()}, data-person-name=${person.displayName()}, data-sort-order=${person.sortOrder()}, data-vehicle-role=${person.vehicleRole()}">
+                       th:classappend="${(person.poolSource() == 'divera' ? ' incident-crew-chip--divera' : '') + (person.vehicleRole() == 'EINHEITSFUEHRER' ? ' incident-crew-chip--ef' : (person.vehicleRole() == 'MASCHINIST' ? ' incident-crew-chip--maschinist' : ''))}"
+                       th:attr="data-person-id=${person.id()}, data-qual-tier=${person.qualTier()}, data-person-name=${person.displayName()}, data-sort-order=${person.sortOrder()}, data-vehicle-role=${person.vehicleRole()}, data-pool-source=${person.poolSource()}">
                     <span class="incident-crew-chip__role-badge"
                           th:if="${person.vehicleRole() == 'EINHEITSFUEHRER'}">EF</span>
                     <span class="incident-crew-chip__role-badge"

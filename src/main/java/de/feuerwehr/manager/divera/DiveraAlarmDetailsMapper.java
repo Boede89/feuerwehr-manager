@@ -77,7 +77,7 @@ public final class DiveraAlarmDetailsMapper {
                 address.street(),
                 address.houseNumber(),
                 address.city(),
-                null,
+                address.ortsteil(),
                 null,
                 null,
                 null,
@@ -125,7 +125,10 @@ public final class DiveraAlarmDetailsMapper {
                 merged.street(),
                 merged.houseNumber(),
                 merged.city(),
-                textOrNull(alarm, "district", "kreis", "District", "county"),
+                firstNonBlank(
+                        textOrNull(alarm, "ortsteil", "Ortsteil", "suburb", "stadtteil"),
+                        merged.ortsteil(),
+                        textOrNull(alarm, "district", "kreis", "District", "county")),
                 textOrNull(alarm, "object", "objekt", "object_name", "Object", "Objekt"),
                 textOrNull(alarm, "owner", "eigentuemer", "eigentümer", "Owner", "Eigentuemer"),
                 textOrNull(alarm, "caller", "melder", "reporter", "reporter_name", "caller_name", "Melder"),
@@ -260,12 +263,15 @@ public final class DiveraAlarmDetailsMapper {
         String city = firstNonBlank(
                 textOrNull(alarm, "city", "ort", "locality", "gemeinde", "City", "Ort"),
                 fromAddress.city());
-        return new AddressParts(postalCode, street, houseNumber, city);
+        String ortsteil = firstNonBlank(
+                textOrNull(alarm, "ortsteil", "Ortsteil", "suburb", "stadtteil", "district"),
+                fromAddress.ortsteil());
+        return new AddressParts(postalCode, street, houseNumber, city, ortsteil);
     }
 
     private static AddressParts parseAddress(String address) {
         if (address == null || address.isBlank()) {
-            return new AddressParts(null, null, null, null);
+            return new AddressParts(null, null, null, null, null);
         }
         String trimmed = address.trim();
         String postalCode = null;
@@ -305,7 +311,28 @@ public final class DiveraAlarmDetailsMapper {
         if (city != null && city.isBlank()) {
             city = null;
         }
-        return new AddressParts(postalCode, street, houseNumber, city);
+        String ortsteil = null;
+        if (city != null) {
+            String[] cityOrtsteil = splitCityAndOrtsteil(city);
+            city = cityOrtsteil[0];
+            ortsteil = cityOrtsteil[1];
+        }
+        return new AddressParts(postalCode, street, houseNumber, city, ortsteil);
+    }
+
+    /** „41366 Schwalmtal Amern“ → Gemeinde Schwalmtal, Ortsteil Amern. */
+    private static String[] splitCityAndOrtsteil(String cityPart) {
+        if (cityPart == null || cityPart.isBlank()) {
+            return new String[] {null, null};
+        }
+        String normalized = cityPart.trim().replaceAll("\\s+", " ");
+        String[] tokens = normalized.split(" ");
+        if (tokens.length < 2) {
+            return new String[] {normalized, null};
+        }
+        String ortsteil = tokens[tokens.length - 1];
+        String city = String.join(" ", java.util.Arrays.copyOf(tokens, tokens.length - 1));
+        return new String[] {city, ortsteil};
     }
 
     private static String parseStreetLine(String line) {
@@ -459,5 +486,5 @@ public final class DiveraAlarmDetailsMapper {
         return value.trim();
     }
 
-    private record AddressParts(String postalCode, String street, String houseNumber, String city) {}
+    private record AddressParts(String postalCode, String street, String houseNumber, String city, String ortsteil) {}
 }

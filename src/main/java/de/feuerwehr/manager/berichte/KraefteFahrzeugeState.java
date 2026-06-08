@@ -10,7 +10,12 @@ public record KraefteFahrzeugeState(
         List<KraefteVehicleView> vehicles) {
 
     public record KraeftePersonView(
-            long id, String displayName, String qualTier, int sortOrder, String vehicleRole) {}
+            long id,
+            String displayName,
+            String qualTier,
+            int sortOrder,
+            String vehicleRole,
+            String poolSource) {}
 
     public record KraefteVehicleView(
             long vehicleId,

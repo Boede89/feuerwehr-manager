@@ -203,6 +203,11 @@ public class BerichteController {
             report = einsatzberichtService.requireReport(unitId, reportId);
             form.setIncidentDate(report.getIncidentDate());
             form.setAlarmTime(report.getAlarmTime());
+            form.setLocation(report.getLocation());
+            form.setPostalCode(report.getPostalCode());
+            form.setDistrict(report.getDistrict());
+            form.setStreet(report.getStreet());
+            form.setHouseNumber(report.getHouseNumber());
         }
         KraefteFahrzeugeState kraefteState = einsatzberichtService.buildKraefteFahrzeugeState(unitId, reportId);
         model.addAttribute("report", report);
