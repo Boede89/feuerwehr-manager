@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.berichte;
 
+import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.user.User;
 import jakarta.persistence.Column;
@@ -59,6 +60,9 @@ public class IncidentReport {
     @Column(name = "incident_type_label", nullable = false)
     private String incidentTypeLabel = "Sonstiges";
 
+    @Column(length = 255)
+    private String stichwort;
+
     @Column(nullable = false, length = 300)
     private String location;
 
@@ -73,6 +77,12 @@ public class IncidentReport {
 
     @Column(name = "house_number", length = 20)
     private String houseNumber;
+
+    @Column(length = 255)
+    private String objekt;
+
+    @Column(length = 255)
+    private String eigentuemer;
 
     @Column(name = "extinguished_before_arrival", nullable = false)
     private boolean extinguishedBeforeArrival;
@@ -97,6 +107,10 @@ public class IncidentReport {
 
     @Column(name = "incident_commander")
     private String incidentCommander;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "commander_person_id")
+    private Person commanderPerson;
 
     @Column(name = "reporter_name")
     private String reporterName;

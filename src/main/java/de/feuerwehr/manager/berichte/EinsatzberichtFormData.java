@@ -2,6 +2,7 @@ package de.feuerwehr.manager.berichte;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 import java.util.Map;
 
 public record EinsatzberichtFormData(
@@ -11,13 +12,14 @@ public record EinsatzberichtFormData(
         LocalTime departureTime,
         LocalTime arrivalTime,
         LocalTime endTime,
-        String incidentTypeKey,
-        String incidentTypeLabel,
+        String stichwort,
         String location,
         String postalCode,
         String district,
         String street,
         String houseNumber,
+        String objekt,
+        String eigentuemer,
         boolean extinguishedBeforeArrival,
         boolean maliciousAlarm,
         boolean falseAlarm,
@@ -25,12 +27,12 @@ public record EinsatzberichtFormData(
         boolean bfInvolved,
         boolean violenceAgainstCrew,
         int violenceCount,
+        Long commanderPersonId,
         String incidentCommander,
         String reporterName,
         String reporterPhone,
-        int strengthLeadership,
-        int strengthSub,
-        int strengthCrew,
+        List<Long> personnelPersonIds,
+        List<Long> vehicleIds,
         String fireObject,
         String situation,
         String measures,

@@ -5,7 +5,6 @@ import de.feuerwehr.manager.berichte.EinsatzberichtForm;
 import de.feuerwehr.manager.berichte.EinsatzberichtService;
 import de.feuerwehr.manager.berichte.IncidentReport;
 import de.feuerwehr.manager.berichte.IncidentResourceField;
-import de.feuerwehr.manager.berichte.IncidentType;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.UserPermissionService;
@@ -102,7 +101,11 @@ public class BerichteController {
             Map<String, Object> resources = einsatzberichtService.parseResources(report);
             Map<String, String> resourceStrings = resources.entrySet().stream()
                     .collect(Collectors.toMap(Map.Entry::getKey, e -> String.valueOf(e.getValue()), (a, b) -> a, HashMap::new));
-            EinsatzberichtForm form = EinsatzberichtForm.fromReport(report, resources);
+            EinsatzberichtForm form = EinsatzberichtForm.fromReport(
+                    report,
+                    resources,
+                    einsatzberichtService.selectedPersonnelIds(id),
+                    einsatzberichtService.selectedVehicleIds(id));
             populateEinsatzFormModel(model, unit.getId(), report, form, resourceStrings);
             model.addAttribute("formMode", "edit");
             model.addAttribute("pageTitle", "Einsatzbericht bearbeiten");
@@ -125,7 +128,6 @@ public class BerichteController {
             Unit unit = resolveUnit(unitId, actor);
             requireModuleEnabled(unit.getId());
             requireBerichteWrite(actor, unit.getId());
-            resolveIncidentTypeLabel(form);
             Map<String, String> flatParams = flattenParams(request);
             einsatzberichtService.create(unit.getId(), form.toData(einsatzberichtService.resourcesFromParams(flatParams)), actor);
             redirectAttributes.addFlashAttribute("saved", true);
@@ -149,7 +151,6 @@ public class BerichteController {
             Unit unit = resolveUnit(unitId, actor);
             requireModuleEnabled(unit.getId());
             requireBerichteWrite(actor, unit.getId());
-            resolveIncidentTypeLabel(form);
             Map<String, String> flatParams = flattenParams(request);
             einsatzberichtService.update(unit.getId(), id, form.toData(einsatzberichtService.resourcesFromParams(flatParams)), actor);
             redirectAttributes.addFlashAttribute("saved", true);
@@ -185,28 +186,15 @@ public class BerichteController {
             IncidentReport report,
             EinsatzberichtForm form,
             Map<String, String> resourceValues) {
-        List<IncidentType> types = einsatzberichtService.listActiveIncidentTypes();
         model.addAttribute("report", report);
         model.addAttribute("form", form);
-        model.addAttribute("incidentTypes", types);
-        model.addAttribute("incidentTypeCategories", types.stream()
-                .map(IncidentType::getCategory)
-                .distinct()
-                .toList());
+        model.addAttribute("unitPersons", einsatzberichtService.listPersonsForForm(unitId));
+        model.addAttribute("unitVehicles", einsatzberichtService.listVehiclesForForm(unitId));
+        model.addAttribute("knownStichworte", einsatzberichtService.listKnownStichworte(unitId));
+        model.addAttribute("selectedPersonnelIds", form.getPersonnelPersonIds());
+        model.addAttribute("selectedVehicleIds", form.getVehicleIds());
         model.addAttribute("resourceFields", IncidentResourceField.ALL);
         model.addAttribute("resourceValues", resourceValues);
-    }
-
-    private void resolveIncidentTypeLabel(EinsatzberichtForm form) {
-        if (form.getIncidentTypeLabel() != null && !form.getIncidentTypeLabel().isBlank()) {
-            return;
-        }
-        einsatzberichtService.listActiveIncidentTypes().stream()
-                .filter(t -> t.getTypeKey().equals(form.getIncidentTypeKey()))
-                .findFirst()
-                .ifPresentOrElse(
-                        t -> form.setIncidentTypeLabel(t.getLabel()),
-                        () -> form.setIncidentTypeLabel("Sonstiges"));
     }
 
     private static Map<String, String> flattenParams(HttpServletRequest request) {

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<th:block th:fragment="picker(vehicles, paramName, selectedIds)">
+  <div class="atemschutz-person-search-wrap" th:if="${!#lists.isEmpty(vehicles)}">
+    <input type="search" class="field berichte-vehicle-search" placeholder="Fahrzeug suchen …" autocomplete="off"/>
+  </div>
+  <div class="user-picker user-picker--scroll" th:if="${!#lists.isEmpty(vehicles)}">
+    <label class="user-picker__item" th:each="v : ${vehicles}"
+           th:attr="data-search=${#strings.toLowerCase(v.name + ' ' + (v.licensePlate != null ? v.licensePlate : ''))}">
+      <input type="checkbox" th:name="${paramName}" th:value="${v.id}"
+             th:checked="${selectedIds != null and selectedIds.contains(v.id)}"/>
+      <span class="user-picker__text">
+        <span class="user-picker__name" th:text="${v.name}">Fahrzeug</span>
+        <span class="user-picker__meta"
+              th:if="${v.licensePlate != null and !#strings.isEmpty(v.licensePlate)}"
+              th:text="${v.licensePlate}">Kennzeichen</span>
+      </span>
+    </label>
+  </div>
+  <p class="hint berichte-vehicle-search-empty" hidden style="margin:0;">Keine Treffer.</p>
+  <p class="hint" th:if="${#lists.isEmpty(vehicles)}" style="margin:0;">Keine Fahrzeuge in dieser Einheit.</p>
+</th:block>
+</html>

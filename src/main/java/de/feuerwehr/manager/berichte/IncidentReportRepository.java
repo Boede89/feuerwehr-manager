@@ -17,6 +17,7 @@ public interface IncidentReportRepository extends JpaRepository<IncidentReport, 
 
     @Query("""
             SELECT r FROM IncidentReport r
+            LEFT JOIN FETCH r.commanderPerson
             WHERE r.id = :id AND r.unit.id = :unitId
             """)
     Optional<IncidentReport> findByIdAndUnitId(@Param("id") long id, @Param("unitId") long unitId);
@@ -26,4 +27,11 @@ public interface IncidentReportRepository extends JpaRepository<IncidentReport, 
             WHERE r.unit.id = :unitId AND r.incidentNumber LIKE CONCAT(:datePrefix, '%')
             """)
     Optional<String> findMaxIncidentNumberForDate(@Param("unitId") long unitId, @Param("datePrefix") String datePrefix);
+
+    @Query("""
+            SELECT DISTINCT r.stichwort FROM IncidentReport r
+            WHERE r.unit.id = :unitId AND r.stichwort IS NOT NULL AND r.stichwort <> ''
+            ORDER BY r.stichwort
+            """)
+    List<String> findDistinctStichworteByUnitId(@Param("unitId") long unitId);
 }

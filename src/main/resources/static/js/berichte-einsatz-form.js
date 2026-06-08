@@ -11,12 +11,30 @@
     });
   }
 
-  function syncIncidentTypeLabel() {
-    var select = document.getElementById('incidentTypeKey');
-    var hidden = document.getElementById('incidentTypeLabel');
-    if (!select || !hidden) return;
-    var option = select.options[select.selectedIndex];
-    hidden.value = option ? option.text : '';
+  function initPickerSearch(searchSelector, emptySelector) {
+    document.querySelectorAll(searchSelector).forEach(function (search) {
+      var container = search.closest('.incident-section-block') || search.parentElement;
+      var picker = container.querySelector('.user-picker');
+      var emptyHint = container.querySelector(emptySelector);
+      if (!picker) return;
+
+      function filter() {
+        var q = (search.value || '').trim().toLowerCase();
+        var visible = 0;
+        picker.querySelectorAll('.user-picker__item').forEach(function (item) {
+          var hay = (item.dataset.search || '').toLowerCase();
+          var show = !q || hay.indexOf(q) !== -1;
+          item.hidden = !show;
+          if (show) visible++;
+        });
+        if (emptyHint) {
+          emptyHint.hidden = visible > 0 || !q;
+        }
+      }
+
+      search.addEventListener('input', filter);
+      filter();
+    });
   }
 
   document.addEventListener('DOMContentLoaded', function () {
@@ -25,12 +43,6 @@
         switchTab(Number(btn.dataset.tab));
       });
     });
-
-    var typeSelect = document.getElementById('incidentTypeKey');
-    if (typeSelect) {
-      typeSelect.addEventListener('change', syncIncidentTypeLabel);
-      syncIncidentTypeLabel();
-    }
 
     var dateInput = document.getElementById('incidentDate');
     var numberInput = document.getElementById('incidentNumber');
@@ -41,6 +53,9 @@
         }
       });
     }
+
+    initPickerSearch('.berichte-person-search', '.berichte-person-search-empty');
+    initPickerSearch('.berichte-vehicle-search', '.berichte-vehicle-search-empty');
 
     switchTab(0);
   });

@@ -107,6 +107,19 @@ public class Person {
         return formatDisplayName(firstName, lastName);
     }
 
+    /** Anzeige wie in der Anwesenheitsliste: Nachname, Vorname */
+    public String anwesenheitDisplayName() {
+        String last = lastName != null ? lastName.trim() : "";
+        String first = firstName != null ? firstName.trim() : "";
+        if (last.isEmpty()) {
+            return first;
+        }
+        if (first.isEmpty()) {
+            return last;
+        }
+        return last + ", " + first;
+    }
+
     public static String formatDisplayName(String firstName, String lastName) {
         String first = firstName != null ? firstName.trim() : "";
         String last = lastName != null ? lastName.trim() : "";

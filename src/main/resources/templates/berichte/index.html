@@ -44,7 +44,7 @@
           <tr th:each="r : ${einsatzberichte}">
             <td th:text="${r.incidentNumber != null ? r.incidentNumber : '—'}">—</td>
             <td th:text="${#temporals.format(r.incidentDate, 'dd.MM.yyyy')}">—</td>
-            <td th:text="${r.incidentTypeLabel}">—</td>
+            <td th:text="${r.stichwort != null and !#strings.isEmpty(r.stichwort) ? r.stichwort : r.incidentTypeLabel}">—</td>
             <td th:text="${r.location}">—</td>
             <td>
               <span class="badge" th:text="${r.status.label()}">Entwurf</span>

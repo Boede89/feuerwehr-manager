@@ -3,13 +3,12 @@
 <th:block th:fragment="form">
   <nav class="tab-bar incident-form-tabs" aria-label="Einsatzbericht-Bereiche">
     <button type="button" class="tab-btn incident-tab tab-btn--active" data-tab="0">Basisdaten</button>
-    <button type="button" class="tab-btn incident-tab" data-tab="1">Kräfte &amp; Schäden</button>
-    <button type="button" class="tab-btn incident-tab" data-tab="2">Bericht</button>
-    <button type="button" class="tab-btn incident-tab" data-tab="3">Einsatzmittel</button>
-    <button type="button" class="tab-btn incident-tab" data-tab="4">Polizei</button>
+    <button type="button" class="tab-btn incident-tab" data-tab="1">Kräfte &amp; Fahrzeuge</button>
+    <button type="button" class="tab-btn incident-tab" data-tab="2">Schäden</button>
+    <button type="button" class="tab-btn incident-tab" data-tab="3">Bericht</button>
+    <button type="button" class="tab-btn incident-tab" data-tab="4">Einsatzmittel</button>
+    <button type="button" class="tab-btn incident-tab" data-tab="5">Polizei</button>
   </nav>
-
-  <input type="hidden" id="incidentTypeLabel" name="incidentTypeLabel" th:value="${form.incidentTypeLabel}"/>
 
   <!-- Tab 0: Basisdaten -->
   <div class="incident-tab-panel" data-panel="0">
@@ -37,16 +36,14 @@
         <input id="endTime" name="endTime" type="time" th:value="${form.endTime}"/>
       </div>
       <div class="form-group form-group--full">
-        <label for="incidentTypeKey">Stichwort <span class="required">*</span></label>
-        <select id="incidentTypeKey" name="incidentTypeKey" required>
-          <optgroup th:each="cat : ${incidentTypeCategories}" th:label="${cat}">
-            <option th:each="t : ${incidentTypes}"
-                    th:if="${t.category == cat}"
-                    th:value="${t.typeKey}"
-                    th:text="${t.label}"
-                    th:selected="${form.incidentTypeKey == t.typeKey}">Art</option>
-          </optgroup>
-        </select>
+        <label for="stichwort">Stichwort <span class="required">*</span></label>
+        <input id="stichwort" name="stichwort" type="text" maxlength="255" required
+               list="stichwort-list" placeholder="Stichwort eingeben oder auswählen"
+               th:value="${form.stichwort}"/>
+        <datalist id="stichwort-list">
+          <option th:each="s : ${knownStichworte}" th:value="${s}">Stichwort</option>
+        </datalist>
+        <p class="hint text-sm" style="margin:0;">Manuell eingeben; später auch automatisch aus Divera. Bereits verwendete Stichworte erscheinen in der Auswahlliste.</p>
       </div>
       <div class="form-group form-group--full">
         <label for="location">Einsatzort <span class="required">*</span></label>
@@ -65,9 +62,23 @@
         <label for="houseNumber">Hausnummer</label>
         <input id="houseNumber" name="houseNumber" type="text" maxlength="20" th:value="${form.houseNumber}"/>
       </div>
+      <div class="form-group">
+        <label for="objekt">Objekt</label>
+        <input id="objekt" name="objekt" type="text" maxlength="255" th:value="${form.objekt}"/>
+      </div>
+      <div class="form-group">
+        <label for="eigentuemer">Eigentümer</label>
+        <input id="eigentuemer" name="eigentuemer" type="text" maxlength="255" th:value="${form.eigentuemer}"/>
+      </div>
       <div class="form-group form-group--full">
-        <label for="incidentCommander">Einsatzleiter</label>
-        <input id="incidentCommander" name="incidentCommander" type="text" maxlength="255" th:value="${form.incidentCommander}"/>
+        <label for="commanderPersonId">Einsatzleiter</label>
+        <select id="commanderPersonId" name="commanderPersonId">
+          <option value="">— Bitte wählen —</option>
+          <option th:each="p : ${unitPersons}"
+                  th:value="${p.id}"
+                  th:text="${p.anwesenheitDisplayName()}"
+                  th:selected="${form.commanderPersonId != null and form.commanderPersonId == p.id}">Name</option>
+        </select>
       </div>
       <div class="form-group">
         <label for="reporterName">Meldender</label>
@@ -80,24 +91,18 @@
     </div>
   </div>
 
-  <!-- Tab 1: Kräfte & Schäden -->
+  <!-- Tab 1: Kräfte & Fahrzeuge -->
   <div class="incident-tab-panel" data-panel="1" hidden>
-    <h4 class="incident-section-title">Kräftestärke (eigene)</h4>
-    <div class="incident-form-grid-3 incident-section-block">
-      <div class="form-group">
-        <label for="strengthLeadership">Führung</label>
-        <input id="strengthLeadership" name="strengthLeadership" type="number" min="0" th:value="${form.strengthLeadership}"/>
-      </div>
-      <div class="form-group">
-        <label for="strengthSub">Unterführung</label>
-        <input id="strengthSub" name="strengthSub" type="number" min="0" th:value="${form.strengthSub}"/>
-      </div>
-      <div class="form-group">
-        <label for="strengthCrew">Mannschaft</label>
-        <input id="strengthCrew" name="strengthCrew" type="number" min="0" th:value="${form.strengthCrew}"/>
-      </div>
-    </div>
+    <h4 class="incident-section-title">Eingesetztes Personal</h4>
+    <p class="hint text-sm incident-section-block" style="margin-top:0;">Personen aus der Einheitsliste auswählen (Sortierung: Nachname, Vorname).</p>
+    <div class="incident-section-block" th:replace="~{fragments/berichte-person-picker :: picker(${unitPersons}, 'personnelPersonIds', ${selectedPersonnelIds})}"></div>
 
+    <h4 class="incident-section-title">Eingesetzte Fahrzeuge</h4>
+    <div class="incident-section-block" th:replace="~{fragments/berichte-vehicle-picker :: picker(${unitVehicles}, 'vehicleIds', ${selectedVehicleIds})}"></div>
+  </div>
+
+  <!-- Tab 2: Schäden -->
+  <div class="incident-tab-panel" data-panel="2" hidden>
     <h4 class="incident-section-title">Personenschäden</h4>
     <div class="incident-form-grid-3 incident-section-block">
       <div class="form-group"><label for="personsRescued">Gerettet</label>
@@ -141,8 +146,8 @@
     </div>
   </div>
 
-  <!-- Tab 2: Bericht -->
-  <div class="incident-tab-panel" data-panel="2" hidden>
+  <!-- Tab 3: Bericht -->
+  <div class="incident-tab-panel" data-panel="3" hidden>
     <div class="incident-form-stack">
       <div class="form-group">
         <label for="fireObject">Brandobjekt / Hilfeleistungsart</label>
@@ -177,8 +182,8 @@
     </div>
   </div>
 
-  <!-- Tab 3: Einsatzmittel -->
-  <div class="incident-tab-panel" data-panel="3" hidden>
+  <!-- Tab 4: Einsatzmittel -->
+  <div class="incident-tab-panel" data-panel="4" hidden>
     <div class="incident-resources-grid" id="resources-grid">
       <div class="form-group" th:each="field : ${resourceFields}">
         <label th:for="${'res-' + field.key()}" class="incident-res-label">
@@ -196,8 +201,8 @@
     </div>
   </div>
 
-  <!-- Tab 4: Polizei -->
-  <div class="incident-tab-panel" data-panel="4" hidden>
+  <!-- Tab 5: Polizei -->
+  <div class="incident-tab-panel" data-panel="5" hidden>
     <div class="incident-form-police">
       <div class="form-group form-group--full">
         <label for="policeCaseNumber">Tgb.-Nr.</label>

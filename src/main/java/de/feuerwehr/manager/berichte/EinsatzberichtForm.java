@@ -2,6 +2,8 @@ package de.feuerwehr.manager.berichte;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
@@ -16,13 +18,14 @@ public class EinsatzberichtForm {
     private LocalTime departureTime;
     private LocalTime arrivalTime;
     private LocalTime endTime;
-    private String incidentTypeKey = "SONSTIGES";
-    private String incidentTypeLabel = "Sonstiges";
+    private String stichwort;
     private String location;
     private String postalCode;
     private String district;
     private String street;
     private String houseNumber;
+    private String objekt;
+    private String eigentuemer;
     private boolean extinguishedBeforeArrival;
     private boolean maliciousAlarm;
     private boolean falseAlarm;
@@ -30,12 +33,12 @@ public class EinsatzberichtForm {
     private boolean bfInvolved;
     private boolean violenceAgainstCrew;
     private int violenceCount;
+    private Long commanderPersonId;
     private String incidentCommander;
     private String reporterName;
     private String reporterPhone;
-    private int strengthLeadership;
-    private int strengthSub;
-    private int strengthCrew;
+    private List<Long> personnelPersonIds = new ArrayList<>();
+    private List<Long> vehicleIds = new ArrayList<>();
     private String fireObject;
     private String situation;
     private String measures;
@@ -60,7 +63,8 @@ public class EinsatzberichtForm {
     private String vehicleDamage;
     private String equipmentDamage;
 
-    public static EinsatzberichtForm fromReport(IncidentReport report, Map<String, Object> resources) {
+    public static EinsatzberichtForm fromReport(
+            IncidentReport report, Map<String, Object> resources, List<Long> personnelIds, List<Long> vehicleIds) {
         EinsatzberichtForm form = new EinsatzberichtForm();
         form.setIncidentNumber(report.getIncidentNumber());
         form.setIncidentDate(report.getIncidentDate());
@@ -68,13 +72,14 @@ public class EinsatzberichtForm {
         form.setDepartureTime(report.getDepartureTime());
         form.setArrivalTime(report.getArrivalTime());
         form.setEndTime(report.getEndTime());
-        form.setIncidentTypeKey(report.getIncidentTypeKey());
-        form.setIncidentTypeLabel(report.getIncidentTypeLabel());
+        form.setStichwort(report.getStichwort() != null ? report.getStichwort() : report.getIncidentTypeLabel());
         form.setLocation(report.getLocation());
         form.setPostalCode(report.getPostalCode());
         form.setDistrict(report.getDistrict());
         form.setStreet(report.getStreet());
         form.setHouseNumber(report.getHouseNumber());
+        form.setObjekt(report.getObjekt());
+        form.setEigentuemer(report.getEigentuemer());
         form.setExtinguishedBeforeArrival(report.isExtinguishedBeforeArrival());
         form.setMaliciousAlarm(report.isMaliciousAlarm());
         form.setFalseAlarm(report.isFalseAlarm());
@@ -82,12 +87,14 @@ public class EinsatzberichtForm {
         form.setBfInvolved(report.isBfInvolved());
         form.setViolenceAgainstCrew(report.isViolenceAgainstCrew());
         form.setViolenceCount(report.getViolenceCount());
+        if (report.getCommanderPerson() != null) {
+            form.setCommanderPersonId(report.getCommanderPerson().getId());
+        }
         form.setIncidentCommander(report.getIncidentCommander());
         form.setReporterName(report.getReporterName());
         form.setReporterPhone(report.getReporterPhone());
-        form.setStrengthLeadership(report.getStrengthLeadership());
-        form.setStrengthSub(report.getStrengthSub());
-        form.setStrengthCrew(report.getStrengthCrew());
+        form.setPersonnelPersonIds(new ArrayList<>(personnelIds));
+        form.setVehicleIds(new ArrayList<>(vehicleIds));
         form.setFireObject(report.getFireObject());
         form.setSituation(report.getSituation());
         form.setMeasures(report.getMeasures());
@@ -122,13 +129,14 @@ public class EinsatzberichtForm {
                 departureTime,
                 arrivalTime,
                 endTime,
-                incidentTypeKey,
-                incidentTypeLabel,
+                stichwort,
                 location,
                 postalCode,
                 district,
                 street,
                 houseNumber,
+                objekt,
+                eigentuemer,
                 extinguishedBeforeArrival,
                 maliciousAlarm,
                 falseAlarm,
@@ -136,12 +144,12 @@ public class EinsatzberichtForm {
                 bfInvolved,
                 violenceAgainstCrew,
                 violenceCount,
+                commanderPersonId,
                 incidentCommander,
                 reporterName,
                 reporterPhone,
-                strengthLeadership,
-                strengthSub,
-                strengthCrew,
+                personnelPersonIds != null ? personnelPersonIds : List.of(),
+                vehicleIds != null ? vehicleIds : List.of(),
                 fireObject,
                 situation,
                 measures,

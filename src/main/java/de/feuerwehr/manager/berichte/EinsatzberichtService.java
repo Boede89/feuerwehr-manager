@@ -2,17 +2,24 @@ package de.feuerwehr.manager.berichte;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import de.feuerwehr.manager.personal.Person;
+import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.settings.TestModeService;
+import de.feuerwehr.manager.technik.Vehicle;
+import de.feuerwehr.manager.technik.VehicleRepository;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,9 +31,12 @@ public class EinsatzberichtService {
     private static final TypeReference<Map<String, Object>> RESOURCE_MAP_TYPE = new TypeReference<>() {};
 
     private final IncidentReportRepository incidentReportRepository;
-    private final IncidentTypeRepository incidentTypeRepository;
+    private final IncidentReportPersonnelRepository incidentReportPersonnelRepository;
+    private final IncidentReportVehicleRepository incidentReportVehicleRepository;
     private final UnitRepository unitRepository;
     private final UserRepository userRepository;
+    private final PersonalService personalService;
+    private final VehicleRepository vehicleRepository;
     private final TestModeService testModeService;
     private final ObjectMapper objectMapper;
 
@@ -34,8 +44,33 @@ public class EinsatzberichtService {
         return incidentReportRepository.findByUnitIdOrderByDateDesc(unitId);
     }
 
-    public List<IncidentType> listActiveIncidentTypes() {
-        return incidentTypeRepository.findByActiveTrueOrderByCategoryAscSortOrderAscLabelAsc();
+    public List<Person> listPersonsForForm(long unitId) {
+        return personalService.listPersons(unitId);
+    }
+
+    public List<Vehicle> listVehiclesForForm(long unitId) {
+        return vehicleRepository.findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(
+                unitId, testModeService.isEnabled());
+    }
+
+    public List<String> listKnownStichworte(long unitId) {
+        return incidentReportRepository.findDistinctStichworteByUnitId(unitId);
+    }
+
+    public List<Long> selectedPersonnelIds(long reportId) {
+        return incidentReportPersonnelRepository.findByIncidentReportId(reportId).stream()
+                .map(IncidentReportPersonnel::getPerson)
+                .filter(Objects::nonNull)
+                .map(Person::getId)
+                .toList();
+    }
+
+    public List<Long> selectedVehicleIds(long reportId) {
+        return incidentReportVehicleRepository.findByIncidentReportId(reportId).stream()
+                .map(IncidentReportVehicle::getVehicle)
+                .filter(Objects::nonNull)
+                .map(Vehicle::getId)
+                .toList();
     }
 
     public IncidentReport requireReport(long unitId, long reportId) {
@@ -53,8 +88,6 @@ public class EinsatzberichtService {
         form.setIncidentNumber(suggestIncidentNumber(unitId, today));
         form.setLocation(address.city());
         form.setPostalCode(address.postalCode());
-        form.setIncidentTypeKey("SONSTIGES");
-        form.setIncidentTypeLabel("Sonstiges");
         return form;
     }
 
@@ -79,19 +112,23 @@ public class EinsatzberichtService {
     public IncidentReport create(long unitId, EinsatzberichtFormData form, AppUserDetails actor) {
         validateRequired(form);
         IncidentReport report = newDraft(unitId);
-        applyForm(report, form);
+        applyForm(report, form, unitId);
         report.setStatus(IncidentReportStatus.ENTWURF);
         report.setIncidentNumber(resolveIncidentNumber(unitId, form.incidentDate()));
         applyCreator(report, actor);
-        return incidentReportRepository.save(report);
+        IncidentReport saved = incidentReportRepository.save(report);
+        saveAssignments(saved, form, unitId);
+        return saved;
     }
 
     @Transactional
     public IncidentReport update(long unitId, long reportId, EinsatzberichtFormData form, AppUserDetails actor) {
         validateRequired(form);
         IncidentReport report = requireReport(unitId, reportId);
-        applyForm(report, form);
-        return incidentReportRepository.save(report);
+        applyForm(report, form, unitId);
+        IncidentReport saved = incidentReportRepository.save(report);
+        saveAssignments(saved, form, unitId);
+        return saved;
     }
 
     public Map<String, Object> parseResources(IncidentReport report) {
@@ -117,19 +154,23 @@ public class EinsatzberichtService {
         return resources;
     }
 
-    private void applyForm(IncidentReport report, EinsatzberichtFormData form) {
+    private void applyForm(IncidentReport report, EinsatzberichtFormData form, long unitId) {
+        String stichwort = form.stichwort() != null ? form.stichwort().trim() : "";
         report.setIncidentDate(form.incidentDate());
         report.setAlarmTime(form.alarmTime());
         report.setDepartureTime(null);
         report.setArrivalTime(null);
         report.setEndTime(form.endTime());
-        report.setIncidentTypeKey(form.incidentTypeKey());
-        report.setIncidentTypeLabel(form.incidentTypeLabel());
+        report.setStichwort(stichwort);
+        report.setIncidentTypeKey("SONSTIGES");
+        report.setIncidentTypeLabel(stichwort.isEmpty() ? "Sonstiges" : stichwort);
         report.setLocation(form.location().trim());
         report.setPostalCode(trimToNull(form.postalCode()));
         report.setDistrict(null);
         report.setStreet(trimToNull(form.street()));
         report.setHouseNumber(trimToNull(form.houseNumber()));
+        report.setObjekt(trimToNull(form.objekt()));
+        report.setEigentuemer(trimToNull(form.eigentuemer()));
         report.setExtinguishedBeforeArrival(form.extinguishedBeforeArrival());
         report.setMaliciousAlarm(form.maliciousAlarm());
         report.setFalseAlarm(form.falseAlarm());
@@ -137,12 +178,13 @@ public class EinsatzberichtService {
         report.setBfInvolved(form.bfInvolved());
         report.setViolenceAgainstCrew(form.violenceAgainstCrew());
         report.setViolenceCount(Math.max(0, form.violenceCount()));
-        report.setIncidentCommander(trimToNull(form.incidentCommander()));
+        applyCommander(report, form, unitId);
         report.setReporterName(trimToNull(form.reporterName()));
         report.setReporterPhone(trimToNull(form.reporterPhone()));
-        report.setStrengthLeadership(Math.max(0, form.strengthLeadership()));
-        report.setStrengthSub(Math.max(0, form.strengthSub()));
-        report.setStrengthCrew(Math.max(0, form.strengthCrew()));
+        int personnelCount = form.personnelPersonIds() != null ? form.personnelPersonIds().size() : 0;
+        report.setStrengthLeadership(0);
+        report.setStrengthSub(0);
+        report.setStrengthCrew(personnelCount);
         report.setFireObject(trimToNull(form.fireObject()));
         report.setSituation(trimToNull(form.situation()));
         report.setMeasures(trimToNull(form.measures()));
@@ -167,6 +209,66 @@ public class EinsatzberichtService {
         report.setVehicleDamage(trimToNull(form.vehicleDamage()));
         report.setEquipmentDamage(trimToNull(form.equipmentDamage()));
         report.setResourcesJson(writeResources(form.resources()));
+    }
+
+    private void applyCommander(IncidentReport report, EinsatzberichtFormData form, long unitId) {
+        Long commanderId = form.commanderPersonId();
+        if (commanderId == null) {
+            report.setCommanderPerson(null);
+            report.setIncidentCommander(trimToNull(form.incidentCommander()));
+            return;
+        }
+        Person commander = resolvePersonForUnit(commanderId, unitId);
+        report.setCommanderPerson(commander);
+        report.setIncidentCommander(commander.anwesenheitDisplayName());
+    }
+
+    private void saveAssignments(IncidentReport report, EinsatzberichtFormData form, long unitId) {
+        long reportId = report.getId();
+        incidentReportPersonnelRepository.deleteByIncidentReportId(reportId);
+        incidentReportVehicleRepository.deleteByIncidentReportId(reportId);
+
+        Set<Long> personIds = new LinkedHashSet<>();
+        if (form.personnelPersonIds() != null) {
+            personIds.addAll(form.personnelPersonIds());
+        }
+        for (Long personId : personIds) {
+            if (personId == null) {
+                continue;
+            }
+            Person person = resolvePersonForUnit(personId, unitId);
+            IncidentReportPersonnel row = new IncidentReportPersonnel();
+            row.setIncidentReport(report);
+            row.setPerson(person);
+            row.setDisplayName(person.anwesenheitDisplayName());
+            incidentReportPersonnelRepository.save(row);
+        }
+
+        Set<Long> vehicleIdSet = new LinkedHashSet<>();
+        if (form.vehicleIds() != null) {
+            vehicleIdSet.addAll(form.vehicleIds());
+        }
+        for (Long vehicleId : vehicleIdSet) {
+            if (vehicleId == null) {
+                continue;
+            }
+            Vehicle vehicle = vehicleRepository
+                    .findByIdAndUnitId(vehicleId, unitId)
+                    .orElseThrow(() -> new IllegalArgumentException("Fahrzeug nicht gefunden."));
+            IncidentReportVehicle row = new IncidentReportVehicle();
+            row.setIncidentReport(report);
+            row.setVehicle(vehicle);
+            row.setVehicleName(vehicle.getName());
+            incidentReportVehicleRepository.save(row);
+        }
+    }
+
+    private Person resolvePersonForUnit(long personId, long unitId) {
+        Person person = personalService.requirePerson(personId);
+        if (person.getUnit().getId() != unitId) {
+            throw new IllegalArgumentException("Person gehört nicht zu dieser Einheit.");
+        }
+        return person;
     }
 
     private void applyCreator(IncidentReport report, AppUserDetails actor) {
@@ -203,7 +305,7 @@ public class EinsatzberichtService {
         if (form.location() == null || form.location().isBlank()) {
             throw new IllegalArgumentException("Einsatzort ist Pflichtfeld.");
         }
-        if (form.incidentTypeKey() == null || form.incidentTypeKey().isBlank()) {
+        if (form.stichwort() == null || form.stichwort().isBlank()) {
             throw new IllegalArgumentException("Stichwort ist Pflichtfeld.");
         }
     }
