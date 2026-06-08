@@ -158,6 +158,9 @@ public class WebUiAdvice {
         if (path.startsWith("/berichte")) {
             return "berichte";
         }
+        if (path.startsWith("/termine")) {
+            return "termine";
+        }
         if (path.startsWith("/my-area") || path.startsWith("/profile")) {
             return "my-area";
         }

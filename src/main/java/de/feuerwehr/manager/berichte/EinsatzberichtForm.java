@@ -4,7 +4,6 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -39,16 +38,7 @@ public class EinsatzberichtForm {
     private String reporterPhone;
     private List<Long> personnelPersonIds = new ArrayList<>();
     private List<Long> vehicleIds = new ArrayList<>();
-    private String fireObject;
-    private String situation;
-    private String measures;
-    private String notes;
-    private String weatherInfluence;
-    private String handoverTo;
-    private String handoverNotes;
-    private String policeCaseNumber;
-    private String policeStation;
-    private String policeOfficer;
+    private String einsatzkurzbericht;
     private int personsRescued;
     private int personsEvacuated;
     private int personsInjured;
@@ -64,7 +54,7 @@ public class EinsatzberichtForm {
     private String equipmentDamage;
 
     public static EinsatzberichtForm fromReport(
-            IncidentReport report, Map<String, Object> resources, List<Long> personnelIds, List<Long> vehicleIds) {
+            IncidentReport report, List<Long> personnelIds, List<Long> vehicleIds) {
         EinsatzberichtForm form = new EinsatzberichtForm();
         form.setIncidentNumber(report.getIncidentNumber());
         form.setIncidentDate(report.getIncidentDate());
@@ -95,16 +85,7 @@ public class EinsatzberichtForm {
         form.setReporterPhone(report.getReporterPhone());
         form.setPersonnelPersonIds(new ArrayList<>(personnelIds));
         form.setVehicleIds(new ArrayList<>(vehicleIds));
-        form.setFireObject(report.getFireObject());
-        form.setSituation(report.getSituation());
-        form.setMeasures(report.getMeasures());
-        form.setNotes(report.getNotes());
-        form.setWeatherInfluence(report.getWeatherInfluence());
-        form.setHandoverTo(report.getHandoverTo());
-        form.setHandoverNotes(report.getHandoverNotes());
-        form.setPoliceCaseNumber(report.getPoliceCaseNumber());
-        form.setPoliceStation(report.getPoliceStation());
-        form.setPoliceOfficer(report.getPoliceOfficer());
+        form.setEinsatzkurzbericht(report.getNotes());
         form.setPersonsRescued(report.getPersonsRescued());
         form.setPersonsEvacuated(report.getPersonsEvacuated());
         form.setPersonsInjured(report.getPersonsInjured());
@@ -121,7 +102,7 @@ public class EinsatzberichtForm {
         return form;
     }
 
-    public EinsatzberichtFormData toData(Map<String, String> resources) {
+    public EinsatzberichtFormData toData() {
         return new EinsatzberichtFormData(
                 incidentNumber,
                 incidentDate,
@@ -150,16 +131,7 @@ public class EinsatzberichtForm {
                 reporterPhone,
                 personnelPersonIds != null ? personnelPersonIds : List.of(),
                 vehicleIds != null ? vehicleIds : List.of(),
-                fireObject,
-                situation,
-                measures,
-                notes,
-                weatherInfluence,
-                handoverTo,
-                handoverNotes,
-                policeCaseNumber,
-                policeStation,
-                policeOfficer,
+                einsatzkurzbericht,
                 personsRescued,
                 personsEvacuated,
                 personsInjured,
@@ -172,7 +144,6 @@ public class EinsatzberichtForm {
                 animalsRecovered,
                 animalsDead,
                 vehicleDamage,
-                equipmentDamage,
-                resources);
+                equipmentDamage);
     }
 }

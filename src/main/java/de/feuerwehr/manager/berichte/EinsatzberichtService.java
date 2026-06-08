@@ -1,7 +1,5 @@
 package de.feuerwehr.manager.berichte;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.security.AppUserDetails;
@@ -13,10 +11,8 @@ import de.feuerwehr.manager.unit.UnitRepository;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
 import java.time.LocalDate;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -28,8 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class EinsatzberichtService {
 
-    private static final TypeReference<Map<String, Object>> RESOURCE_MAP_TYPE = new TypeReference<>() {};
-
     private final IncidentReportRepository incidentReportRepository;
     private final IncidentReportPersonnelRepository incidentReportPersonnelRepository;
     private final IncidentReportVehicleRepository incidentReportVehicleRepository;
@@ -38,7 +32,6 @@ public class EinsatzberichtService {
     private final PersonalService personalService;
     private final VehicleRepository vehicleRepository;
     private final TestModeService testModeService;
-    private final ObjectMapper objectMapper;
 
     public List<IncidentReport> listByUnit(long unitId) {
         return incidentReportRepository.findByUnitIdOrderByDateDesc(unitId);
@@ -131,29 +124,6 @@ public class EinsatzberichtService {
         return saved;
     }
 
-    public Map<String, Object> parseResources(IncidentReport report) {
-        if (report.getResourcesJson() == null || report.getResourcesJson().isBlank()) {
-            return Map.of();
-        }
-        try {
-            return objectMapper.readValue(report.getResourcesJson(), RESOURCE_MAP_TYPE);
-        } catch (Exception e) {
-            return Map.of();
-        }
-    }
-
-    public Map<String, String> resourcesFromParams(Map<String, String> params) {
-        Map<String, String> resources = new LinkedHashMap<>();
-        for (IncidentResourceField field : IncidentResourceField.ALL) {
-            String key = "res_" + field.key();
-            String value = params.get(key);
-            if (value != null && !value.isBlank() && !"0".equals(value.trim())) {
-                resources.put(field.key(), value.trim());
-            }
-        }
-        return resources;
-    }
-
     private void applyForm(IncidentReport report, EinsatzberichtFormData form, long unitId) {
         String stichwort = form.stichwort() != null ? form.stichwort().trim() : "";
         report.setIncidentDate(form.incidentDate());
@@ -185,16 +155,7 @@ public class EinsatzberichtService {
         report.setStrengthLeadership(0);
         report.setStrengthSub(0);
         report.setStrengthCrew(personnelCount);
-        report.setFireObject(trimToNull(form.fireObject()));
-        report.setSituation(trimToNull(form.situation()));
-        report.setMeasures(trimToNull(form.measures()));
-        report.setNotes(trimToNull(form.notes()));
-        report.setWeatherInfluence(trimToNull(form.weatherInfluence()));
-        report.setHandoverTo(trimToNull(form.handoverTo()));
-        report.setHandoverNotes(trimToNull(form.handoverNotes()));
-        report.setPoliceCaseNumber(trimToNull(form.policeCaseNumber()));
-        report.setPoliceStation(trimToNull(form.policeStation()));
-        report.setPoliceOfficer(trimToNull(form.policeOfficer()));
+        report.setNotes(trimToNull(form.einsatzkurzbericht()));
         report.setPersonsRescued(Math.max(0, form.personsRescued()));
         report.setPersonsEvacuated(Math.max(0, form.personsEvacuated()));
         report.setPersonsInjured(Math.max(0, form.personsInjured()));
@@ -208,7 +169,6 @@ public class EinsatzberichtService {
         report.setAnimalsDead(Math.max(0, form.animalsDead()));
         report.setVehicleDamage(trimToNull(form.vehicleDamage()));
         report.setEquipmentDamage(trimToNull(form.equipmentDamage()));
-        report.setResourcesJson(writeResources(form.resources()));
     }
 
     private void applyCommander(IncidentReport report, EinsatzberichtFormData form, long unitId) {
@@ -307,14 +267,6 @@ public class EinsatzberichtService {
         }
         if (form.stichwort() == null || form.stichwort().isBlank()) {
             throw new IllegalArgumentException("Stichwort ist Pflichtfeld.");
-        }
-    }
-
-    private String writeResources(Map<String, String> resources) {
-        try {
-            return objectMapper.writeValueAsString(resources != null ? resources : Map.of());
-        } catch (Exception e) {
-            return "{}";
         }
     }
 

@@ -6,8 +6,6 @@
     <button type="button" class="tab-btn incident-tab" data-tab="1">Kräfte &amp; Fahrzeuge</button>
     <button type="button" class="tab-btn incident-tab" data-tab="2">Schäden</button>
     <button type="button" class="tab-btn incident-tab" data-tab="3">Bericht</button>
-    <button type="button" class="tab-btn incident-tab" data-tab="4">Einsatzmittel</button>
-    <button type="button" class="tab-btn incident-tab" data-tab="5">Polizei</button>
   </nav>
 
   <!-- Tab 0: Basisdaten -->
@@ -148,74 +146,12 @@
 
   <!-- Tab 3: Bericht -->
   <div class="incident-tab-panel" data-panel="3" hidden>
-    <div class="incident-form-stack">
-      <div class="form-group">
-        <label for="fireObject">Brandobjekt / Hilfeleistungsart</label>
-        <input id="fireObject" name="fireObject" type="text" maxlength="512" th:value="${form.fireObject}"/>
-      </div>
-      <div class="form-group">
-        <label for="situation">Lage bei Eintreffen</label>
-        <textarea id="situation" name="situation" rows="4" th:text="${form.situation}"></textarea>
-      </div>
-      <div class="form-group">
-        <label for="measures">Durchgeführte Maßnahmen</label>
-        <textarea id="measures" name="measures" rows="4" th:text="${form.measures}"></textarea>
-      </div>
-      <div class="form-group">
-        <label for="notes">Besonderheiten / Kurzbeschreibung</label>
-        <textarea id="notes" name="notes" rows="3" th:text="${form.notes}"></textarea>
-      </div>
-      <div class="incident-form-grid-2">
-        <div class="form-group">
-          <label for="weatherInfluence">Einfluss der Wetterlage</label>
-          <input id="weatherInfluence" name="weatherInfluence" type="text" maxlength="255" th:value="${form.weatherInfluence}"/>
-        </div>
-        <div class="form-group">
-          <label for="handoverTo">Übergabe an</label>
-          <input id="handoverTo" name="handoverTo" type="text" maxlength="255" th:value="${form.handoverTo}"/>
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="handoverNotes">Bemerkung zur Übergabe</label>
-        <textarea id="handoverNotes" name="handoverNotes" rows="2" th:text="${form.handoverNotes}"></textarea>
-      </div>
-    </div>
-  </div>
-
-  <!-- Tab 4: Einsatzmittel -->
-  <div class="incident-tab-panel" data-panel="4" hidden>
-    <div class="incident-resources-grid" id="resources-grid">
-      <div class="form-group" th:each="field : ${resourceFields}">
-        <label th:for="${'res-' + field.key()}" class="incident-res-label">
-          <span th:text="${field.label()}">Feld</span>
-          <span class="text-muted">(<span th:text="${field.unit()}">Stk</span>)</span>
-        </label>
-        <input th:id="${'res-' + field.key()}"
-               th:name="${'res_' + field.key()}"
-               th:type="${field.unit() == 'hh:mm' ? 'text' : 'number'}"
-               th:attr="data-resource=${field.key()}"
-               min="0"
-               placeholder="0"
-               th:value="${resourceValues[field.key()]}"/>
-      </div>
-    </div>
-  </div>
-
-  <!-- Tab 5: Polizei -->
-  <div class="incident-tab-panel" data-panel="5" hidden>
-    <div class="incident-form-police">
-      <div class="form-group form-group--full">
-        <label for="policeCaseNumber">Tgb.-Nr.</label>
-        <input id="policeCaseNumber" name="policeCaseNumber" type="text" maxlength="128" th:value="${form.policeCaseNumber}"/>
-      </div>
-      <div class="form-group">
-        <label for="policeStation">Revier</label>
-        <input id="policeStation" name="policeStation" type="text" maxlength="255" th:value="${form.policeStation}"/>
-      </div>
-      <div class="form-group">
-        <label for="policeOfficer">Name Beamter</label>
-        <input id="policeOfficer" name="policeOfficer" type="text" maxlength="255" th:value="${form.policeOfficer}"/>
-      </div>
+    <div class="form-group">
+      <label for="einsatzkurzbericht">Einsatzkurzbericht</label>
+      <textarea id="einsatzkurzbericht" name="einsatzkurzbericht" rows="16"
+                class="incident-kurzbericht-field"
+                placeholder="Kurzbericht zum Einsatz …"
+                th:text="${form.einsatzkurzbericht}"></textarea>
     </div>
   </div>
 </th:block>

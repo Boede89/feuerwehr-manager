@@ -4,7 +4,6 @@ import de.feuerwehr.manager.berichte.BerichteTab;
 import de.feuerwehr.manager.berichte.EinsatzberichtForm;
 import de.feuerwehr.manager.berichte.EinsatzberichtService;
 import de.feuerwehr.manager.berichte.IncidentReport;
-import de.feuerwehr.manager.berichte.IncidentResourceField;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.UserPermissionService;
@@ -12,11 +11,6 @@ import de.feuerwehr.manager.settings.AppModule;
 import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
-import jakarta.servlet.http.HttpServletRequest;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
@@ -75,7 +69,7 @@ public class BerichteController {
             Unit unit = resolveUnit(unitId, actor, model);
             requireModuleEnabled(unit.getId());
             requireBerichteWrite(actor, unit.getId());
-            populateEinsatzFormModel(model, unit.getId(), null, einsatzberichtService.newForm(unit.getId()), Map.of());
+            populateEinsatzFormModel(model, unit.getId(), null, einsatzberichtService.newForm(unit.getId()));
             model.addAttribute("formMode", "create");
             model.addAttribute("pageTitle", "Neuer Einsatzbericht");
             model.addAttribute("pageSubtitle", "Entwurf — wird nach dem Speichern zur Freigabe vorgelegt");
@@ -98,15 +92,11 @@ public class BerichteController {
             requireModuleEnabled(unit.getId());
             requireBerichteWrite(actor, unit.getId());
             IncidentReport report = einsatzberichtService.requireReport(unit.getId(), id);
-            Map<String, Object> resources = einsatzberichtService.parseResources(report);
-            Map<String, String> resourceStrings = resources.entrySet().stream()
-                    .collect(Collectors.toMap(Map.Entry::getKey, e -> String.valueOf(e.getValue()), (a, b) -> a, HashMap::new));
             EinsatzberichtForm form = EinsatzberichtForm.fromReport(
                     report,
-                    resources,
                     einsatzberichtService.selectedPersonnelIds(id),
                     einsatzberichtService.selectedVehicleIds(id));
-            populateEinsatzFormModel(model, unit.getId(), report, form, resourceStrings);
+            populateEinsatzFormModel(model, unit.getId(), report, form);
             model.addAttribute("formMode", "edit");
             model.addAttribute("pageTitle", "Einsatzbericht bearbeiten");
             model.addAttribute("pageSubtitle", report.getIncidentNumber() != null ? report.getIncidentNumber() : "Entwurf");
@@ -122,14 +112,12 @@ public class BerichteController {
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
             @ModelAttribute EinsatzberichtForm form,
-            HttpServletRequest request,
             RedirectAttributes redirectAttributes) {
         try {
             Unit unit = resolveUnit(unitId, actor);
             requireModuleEnabled(unit.getId());
             requireBerichteWrite(actor, unit.getId());
-            Map<String, String> flatParams = flattenParams(request);
-            einsatzberichtService.create(unit.getId(), form.toData(einsatzberichtService.resourcesFromParams(flatParams)), actor);
+            einsatzberichtService.create(unit.getId(), form.toData(), actor);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Einsatzbericht wurde gespeichert.");
             return redirectBerichte(unit.getId(), "einsatz");
@@ -145,14 +133,12 @@ public class BerichteController {
             @RequestParam(name = "unit", required = false) Long unitId,
             @PathVariable long id,
             @ModelAttribute EinsatzberichtForm form,
-            HttpServletRequest request,
             RedirectAttributes redirectAttributes) {
         try {
             Unit unit = resolveUnit(unitId, actor);
             requireModuleEnabled(unit.getId());
             requireBerichteWrite(actor, unit.getId());
-            Map<String, String> flatParams = flattenParams(request);
-            einsatzberichtService.update(unit.getId(), id, form.toData(einsatzberichtService.resourcesFromParams(flatParams)), actor);
+            einsatzberichtService.update(unit.getId(), id, form.toData(), actor);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Einsatzbericht wurde aktualisiert.");
             return redirectBerichte(unit.getId(), "einsatz");
@@ -180,12 +166,7 @@ public class BerichteController {
         }
     }
 
-    private void populateEinsatzFormModel(
-            Model model,
-            long unitId,
-            IncidentReport report,
-            EinsatzberichtForm form,
-            Map<String, String> resourceValues) {
+    private void populateEinsatzFormModel(Model model, long unitId, IncidentReport report, EinsatzberichtForm form) {
         model.addAttribute("report", report);
         model.addAttribute("form", form);
         model.addAttribute("unitPersons", einsatzberichtService.listPersonsForForm(unitId));
@@ -193,18 +174,6 @@ public class BerichteController {
         model.addAttribute("knownStichworte", einsatzberichtService.listKnownStichworte(unitId));
         model.addAttribute("selectedPersonnelIds", form.getPersonnelPersonIds());
         model.addAttribute("selectedVehicleIds", form.getVehicleIds());
-        model.addAttribute("resourceFields", IncidentResourceField.ALL);
-        model.addAttribute("resourceValues", resourceValues);
-    }
-
-    private static Map<String, String> flattenParams(HttpServletRequest request) {
-        Map<String, String> flat = new HashMap<>();
-        request.getParameterMap().forEach((key, values) -> {
-            if (values != null && values.length > 0) {
-                flat.put(key, values[0]);
-            }
-        });
-        return flat;
     }
 
     private Unit resolveUnit(Long unitId, AppUserDetails actor, Model model) {

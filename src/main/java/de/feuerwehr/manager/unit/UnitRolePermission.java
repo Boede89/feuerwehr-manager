@@ -16,6 +16,7 @@ public final class UnitRolePermission {
             module(AppModule.RESERVIERUNGEN, RolePermissionLevel.READ, RolePermissionLevel.WRITE),
             module(AppModule.ATEMSCHUTZ, RolePermissionLevel.READ, RolePermissionLevel.WRITE),
             module(AppModule.BERICHTE, RolePermissionLevel.READ, RolePermissionLevel.WRITE, RolePermissionLevel.APPROVE),
+            module(AppModule.TERMINE, RolePermissionLevel.READ, RolePermissionLevel.WRITE),
             module(AppModule.AUSWERTUNG, RolePermissionLevel.READ, RolePermissionLevel.WRITE));
 
     private static final Set<String> ALLOWED = MODULES.stream()

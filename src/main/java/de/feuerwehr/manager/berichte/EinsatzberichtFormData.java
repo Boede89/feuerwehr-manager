@@ -3,7 +3,6 @@ package de.feuerwehr.manager.berichte;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
-import java.util.Map;
 
 public record EinsatzberichtFormData(
         String incidentNumber,
@@ -33,16 +32,7 @@ public record EinsatzberichtFormData(
         String reporterPhone,
         List<Long> personnelPersonIds,
         List<Long> vehicleIds,
-        String fireObject,
-        String situation,
-        String measures,
-        String notes,
-        String weatherInfluence,
-        String handoverTo,
-        String handoverNotes,
-        String policeCaseNumber,
-        String policeStation,
-        String policeOfficer,
+        String einsatzkurzbericht,
         int personsRescued,
         int personsEvacuated,
         int personsInjured,
@@ -55,5 +45,4 @@ public record EinsatzberichtFormData(
         int animalsRecovered,
         int animalsDead,
         String vehicleDamage,
-        String equipmentDamage,
-        Map<String, String> resources) {}
+        String equipmentDamage) {}
