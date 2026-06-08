@@ -7,17 +7,23 @@ public final class IncidentCrewSupport {
     public static final long EINSATZSTELLE_VEHICLE_ID = -2L;
     public static final String EINSATZSTELLE_VEHICLE_NAME = "Einsatzstelle";
 
-    /** @deprecated Frühere Bezeichnung; wird beim Laden noch erkannt. */
+    /** Personal nur an der Wache (nicht mit Fahrzeug ausgerückt). */
     public static final long WACHE_VEHICLE_ID = -1L;
     public static final String WACHE_VEHICLE_NAME = "Wache";
 
     private IncidentCrewSupport() {}
 
-    public static boolean isSceneWithoutVehicle(long vehicleId) {
+    public static boolean isVirtualSlot(long vehicleId) {
         return vehicleId == EINSATZSTELLE_VEHICLE_ID || vehicleId == WACHE_VEHICLE_ID;
     }
 
-    public static boolean isSceneWithoutVehicleName(String vehicleName) {
-        return EINSATZSTELLE_VEHICLE_NAME.equals(vehicleName) || WACHE_VEHICLE_NAME.equals(vehicleName);
+    public static String virtualSlotName(long vehicleId) {
+        if (vehicleId == EINSATZSTELLE_VEHICLE_ID) {
+            return EINSATZSTELLE_VEHICLE_NAME;
+        }
+        if (vehicleId == WACHE_VEHICLE_ID) {
+            return WACHE_VEHICLE_NAME;
+        }
+        return null;
     }
 }

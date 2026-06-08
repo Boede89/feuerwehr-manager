@@ -108,109 +108,130 @@
     <div class="incident-kraefte-board" id="incident-kraefte-board"
          th:attr="data-initial=${kraefteInitialJson}">
 
-      <section class="incident-kraefte-section incident-kraefte-section--reserves">
-        <header class="incident-kraefte-section__head">
-          <div>
-            <h3 class="incident-kraefte-section__title">Verfügbares Personal</h3>
-            <p class="hint text-sm">Personen auf Fahrzeuge oder „Einsatzstelle“ ziehen — zurückziehen in die passende Liste.</p>
-          </div>
-        </header>
-        <div class="incident-kraefte-reserves">
-          <article class="incident-reserve-panel incident-reserve-panel--manual">
-            <div class="incident-reserve-panel__head">
-              <h4 class="incident-reserve-panel__title">
-                <span class="incident-reserve-panel__badge incident-reserve-panel__badge--manual">Manuell</span>
-                Einheit
-              </h4>
-              <input type="search" id="manual-person-search" class="incident-person-search field"
-                     placeholder="Suchen …" autocomplete="off" aria-label="Personal suchen"/>
-            </div>
-            <div class="incident-person-pool" id="manual-person-pool" data-pool="manual">
-              <div class="incident-crew-chip" draggable="true"
-                   th:each="p : ${kraefteState.manualPersons()}"
-                   th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}, data-sort-order=${p.sortOrder()}"
-                   th:text="${p.displayName()}">Name</div>
-            </div>
-            <p class="hint incident-person-pool-empty" id="manual-pool-empty"
-               th:hidden="${!#lists.isEmpty(kraefteState.manualPersons())}">Alle zugewiesen.</p>
-          </article>
+      <div class="incident-kraefte-layout">
+        <div class="incident-kraefte-col incident-kraefte-col--left">
 
-          <article class="incident-reserve-panel incident-reserve-panel--divera">
-            <div class="incident-reserve-panel__head">
-              <h4 class="incident-reserve-panel__title">
-                <span class="incident-reserve-panel__badge incident-reserve-panel__badge--divera">DIVERA</span>
-                Rückmeldungen
-              </h4>
-            </div>
-            <div class="incident-person-pool incident-person-pool--divera" id="divera-person-pool" data-pool="divera">
-              <div class="incident-crew-chip incident-crew-chip--divera" draggable="true"
-                   th:each="p : ${kraefteState.diveraPersons()}"
-                   th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}, data-sort-order=${p.sortOrder()}"
-                   th:text="${p.displayName()}">Name</div>
-            </div>
-            <p class="hint incident-person-pool-empty" id="divera-pool-empty"
-               th:hidden="${!#lists.isEmpty(kraefteState.diveraPersons())}">Noch keine DIVERA-Rückmeldungen.</p>
-          </article>
-        </div>
-      </section>
-
-      <section class="incident-kraefte-section incident-kraefte-section--scene"
-               th:with="scene=${kraefteState.einsatzstelle()}">
-        <header class="incident-kraefte-section__head">
-          <div>
-            <h3 class="incident-kraefte-section__title">An der Einsatzstelle (ohne Fahrzeug)</h3>
-            <p class="hint text-sm">Personal, das vor Ort war, aber keinem Einsatzmittel zugeordnet ist.</p>
-          </div>
-        </header>
-        <article class="incident-vehicle-card incident-vehicle-card--einsatzstelle"
-                 th:attr="data-vehicle-id=${scene.vehicleId()}">
-          <header class="incident-vehicle-card__head">
-            <h5 class="incident-vehicle-card__name" th:text="${scene.name()}">Einsatzstelle</h5>
-            <span class="incident-vehicle-card__staerke" th:attr="data-staerke-badge=${scene.vehicleId()}"
-                  th:text="${scene.besatzungsstaerke()}">0/0/0/0</span>
-          </header>
-          <div class="incident-vehicle-dropzone" th:attr="data-vehicle-id=${scene.vehicleId()}">
-            <div class="incident-crew-chip" draggable="true"
-                 th:each="person : ${scene.crewPersons()}"
-                 th:attr="data-person-id=${person.id()}, data-qual-tier=${person.qualTier()}, data-person-name=${person.displayName()}, data-sort-order=${person.sortOrder()}"
-                 th:text="${person.displayName()}">Name</div>
-          </div>
-          <p class="hint incident-vehicle-dropzone-hint">Hier ablegen</p>
-        </article>
-      </section>
-
-      <section class="incident-kraefte-section incident-kraefte-section--vehicles">
-        <header class="incident-kraefte-section__head">
-          <div>
-            <h3 class="incident-kraefte-section__title">Fahrzeugbesetzung</h3>
-            <p class="hint text-sm">Besatzungsstärke: ZF / GF / M / Gesamt — Farbe nach Fahrzeugtyp</p>
-          </div>
-        </header>
-        <div class="incident-vehicle-stack" id="incident-vehicle-stack">
-          <article class="incident-vehicle-card"
-                   th:each="v : ${kraefteState.vehicles()}"
-                   th:classappend="${v.vehicleType() != null ? 'incident-vehicle-card--type-' + v.vehicleType() : ''}"
-                   th:attr="data-vehicle-id=${v.vehicleId()}, data-vehicle-type=${v.vehicleType()}">
-            <header class="incident-vehicle-card__head">
-              <div class="incident-vehicle-card__title-wrap">
-                <h5 class="incident-vehicle-card__name" th:text="${v.name()}">HLF 20</h5>
-                <span class="incident-vehicle-card__type-label" th:if="${v.vehicleTypeLabel() != null}"
-                      th:text="${v.vehicleTypeLabel()}">Löschfahrzeug</span>
-              </div>
-              <span class="incident-vehicle-card__staerke" th:attr="data-staerke-badge=${v.vehicleId()}"
-                    th:text="${v.besatzungsstaerke()}">0/0/0/0</span>
+          <section class="incident-kraefte-section incident-kraefte-section--reserves">
+            <header class="incident-kraefte-section__head">
+              <h3 class="incident-kraefte-section__title">Verfügbares Personal</h3>
             </header>
-            <div class="incident-vehicle-dropzone" th:attr="data-vehicle-id=${v.vehicleId()}">
-              <div class="incident-crew-chip" draggable="true"
-                   th:each="person : ${v.crewPersons()}"
-                   th:attr="data-person-id=${person.id()}, data-qual-tier=${person.qualTier()}, data-person-name=${person.displayName()}, data-sort-order=${person.sortOrder()}"
-                   th:text="${person.displayName()}">Name</div>
+            <div class="incident-kraefte-reserves">
+              <article class="incident-reserve-panel incident-reserve-panel--manual">
+                <div class="incident-reserve-panel__head">
+                  <h4 class="incident-reserve-panel__title">
+                    <span class="incident-reserve-panel__badge incident-reserve-panel__badge--manual">Manuell</span>
+                    Einheit
+                  </h4>
+                  <input type="search" id="manual-person-search" class="incident-person-search field"
+                         placeholder="Suchen …" autocomplete="off" aria-label="Personal suchen"/>
+                </div>
+                <div class="incident-person-pool" id="manual-person-pool" data-pool="manual">
+                  <div class="incident-crew-chip" draggable="true"
+                       th:each="p : ${kraefteState.manualPersons()}"
+                       th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}, data-sort-order=${p.sortOrder()}"
+                       th:text="${p.displayName()}">Name</div>
+                </div>
+                <p class="hint incident-person-pool-empty" id="manual-pool-empty"
+                   th:hidden="${!#lists.isEmpty(kraefteState.manualPersons())}">Alle zugewiesen.</p>
+              </article>
+
+              <article class="incident-reserve-panel incident-reserve-panel--divera">
+                <div class="incident-reserve-panel__head">
+                  <h4 class="incident-reserve-panel__title">
+                    <span class="incident-reserve-panel__badge incident-reserve-panel__badge--divera">DIVERA</span>
+                    Rückmeldungen
+                  </h4>
+                </div>
+                <div class="incident-person-pool incident-person-pool--divera" id="divera-person-pool" data-pool="divera">
+                  <div class="incident-crew-chip incident-crew-chip--divera" draggable="true"
+                       th:each="p : ${kraefteState.diveraPersons()}"
+                       th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}, data-sort-order=${p.sortOrder()}"
+                       th:text="${p.displayName()}">Name</div>
+                </div>
+                <p class="hint incident-person-pool-empty" id="divera-pool-empty"
+                   th:hidden="${!#lists.isEmpty(kraefteState.diveraPersons())}">Noch keine DIVERA-Rückmeldungen.</p>
+              </article>
             </div>
-            <p class="hint incident-vehicle-dropzone-hint">Hier ablegen</p>
-          </article>
+          </section>
+
+          <section class="incident-kraefte-section incident-kraefte-section--virtual"
+                   th:with="scene=${kraefteState.einsatzstelle()}, wache=${kraefteState.wache()}">
+            <header class="incident-kraefte-section__head">
+              <h3 class="incident-kraefte-section__title">Ohne Fahrzeug</h3>
+            </header>
+            <div class="incident-virtual-slots">
+              <article class="incident-vehicle-card incident-vehicle-card--compact incident-vehicle-card--einsatzstelle"
+                       th:attr="data-vehicle-id=${scene.vehicleId()}">
+                <header class="incident-vehicle-card__head">
+                  <h5 class="incident-vehicle-card__name" th:text="${scene.name()}">Einsatzstelle</h5>
+                  <span class="incident-vehicle-card__staerke" th:attr="data-staerke-badge=${scene.vehicleId()}"
+                        th:text="${scene.besatzungsstaerke()}">0/0/0/0</span>
+                </header>
+                <div class="incident-vehicle-dropzone" th:attr="data-vehicle-id=${scene.vehicleId()}">
+                  <div class="incident-crew-chip" draggable="true"
+                       th:each="person : ${scene.crewPersons()}"
+                       th:attr="data-person-id=${person.id()}, data-qual-tier=${person.qualTier()}, data-person-name=${person.displayName()}, data-sort-order=${person.sortOrder()}"
+                       th:text="${person.displayName()}">Name</div>
+                </div>
+                <p class="hint incident-vehicle-dropzone-hint">Vor Ort, kein Fahrzeug</p>
+              </article>
+
+              <article class="incident-vehicle-card incident-vehicle-card--compact incident-vehicle-card--wache"
+                       th:attr="data-vehicle-id=${wache.vehicleId()}">
+                <header class="incident-vehicle-card__head">
+                  <h5 class="incident-vehicle-card__name" th:text="${wache.name()}">Wache</h5>
+                  <span class="incident-vehicle-card__staerke" th:attr="data-staerke-badge=${wache.vehicleId()}"
+                        th:text="${wache.besatzungsstaerke()}">0/0/0/0</span>
+                </header>
+                <div class="incident-vehicle-dropzone" th:attr="data-vehicle-id=${wache.vehicleId()}">
+                  <div class="incident-crew-chip" draggable="true"
+                       th:each="person : ${wache.crewPersons()}"
+                       th:attr="data-person-id=${person.id()}, data-qual-tier=${person.qualTier()}, data-person-name=${person.displayName()}, data-sort-order=${person.sortOrder()}"
+                       th:text="${person.displayName()}">Name</div>
+                </div>
+                <p class="hint incident-vehicle-dropzone-hint">Nur an der Wache</p>
+              </article>
+            </div>
+          </section>
+
         </div>
-        <p class="hint" th:if="${#lists.isEmpty(kraefteState.vehicles())}">Keine Fahrzeuge in dieser Einheit.</p>
-      </section>
+
+        <div class="incident-kraefte-col incident-kraefte-col--right">
+          <section class="incident-kraefte-section incident-kraefte-section--vehicles">
+            <header class="incident-kraefte-section__head">
+              <div>
+                <h3 class="incident-kraefte-section__title">Fahrzeugbesetzung</h3>
+                <p class="hint text-sm">ZF / GF / M / Gesamt — Farbe nach Fahrzeugtyp</p>
+              </div>
+            </header>
+            <div class="incident-vehicle-stack" id="incident-vehicle-stack">
+              <article class="incident-vehicle-card"
+                       th:each="v : ${kraefteState.vehicles()}"
+                       th:classappend="${v.vehicleType() != null ? 'incident-vehicle-card--type-' + v.vehicleType() : ''}"
+                       th:attr="data-vehicle-id=${v.vehicleId()}, data-vehicle-type=${v.vehicleType()}">
+                <header class="incident-vehicle-card__head">
+                  <div class="incident-vehicle-card__title-wrap">
+                    <h5 class="incident-vehicle-card__name" th:text="${v.name()}">HLF 20</h5>
+                    <span class="incident-vehicle-card__type-label" th:if="${v.vehicleTypeLabel() != null}"
+                          th:text="${v.vehicleTypeLabel()}">Löschfahrzeug</span>
+                  </div>
+                  <span class="incident-vehicle-card__staerke" th:attr="data-staerke-badge=${v.vehicleId()}"
+                        th:text="${v.besatzungsstaerke()}">0/0/0/0</span>
+                </header>
+                <div class="incident-vehicle-dropzone" th:attr="data-vehicle-id=${v.vehicleId()}">
+                  <div class="incident-crew-chip" draggable="true"
+                       th:each="person : ${v.crewPersons()}"
+                       th:attr="data-person-id=${person.id()}, data-qual-tier=${person.qualTier()}, data-person-name=${person.displayName()}, data-sort-order=${person.sortOrder()}"
+                       th:text="${person.displayName()}">Name</div>
+                </div>
+                <p class="hint incident-vehicle-dropzone-hint">Hier ablegen</p>
+              </article>
+            </div>
+            <p class="hint" th:if="${#lists.isEmpty(kraefteState.vehicles())}">Keine Fahrzeuge in dieser Einheit.</p>
+          </section>
+        </div>
+      </div>
+
     </div>
   </div>
 

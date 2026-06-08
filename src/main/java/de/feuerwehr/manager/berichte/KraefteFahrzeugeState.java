@@ -6,6 +6,7 @@ public record KraefteFahrzeugeState(
         List<KraeftePersonView> manualPersons,
         List<KraeftePersonView> diveraPersons,
         KraefteVehicleView einsatzstelle,
+        KraefteVehicleView wache,
         List<KraefteVehicleView> vehicles) {
 
     public record KraeftePersonView(long id, String displayName, String qualTier, int sortOrder) {}

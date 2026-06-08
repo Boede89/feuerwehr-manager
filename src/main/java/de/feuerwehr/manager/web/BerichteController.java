@@ -220,6 +220,7 @@ public class BerichteController {
         StringBuilder sb = new StringBuilder("[");
         boolean first = true;
         first = appendCrewAssignment(sb, state.einsatzstelle(), first);
+        first = appendCrewAssignment(sb, state.wache(), first);
         for (KraefteFahrzeugeState.KraefteVehicleView vehicle : state.vehicles()) {
             first = appendCrewAssignment(sb, vehicle, first);
         }

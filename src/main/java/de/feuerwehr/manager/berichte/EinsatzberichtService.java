@@ -92,6 +92,7 @@ public class EinsatzberichtService {
             crewByVehicleId.put(vehicle.getId(), new ArrayList<>());
         }
         List<Long> einsatzstelleCrewIds = new ArrayList<>();
+        List<Long> wacheCrewIds = new ArrayList<>();
 
         Set<Long> diveraPersonIds = new HashSet<>();
         Set<Long> onVehiclePersonIds = new HashSet<>();
@@ -113,10 +114,15 @@ public class EinsatzberichtService {
                     long vehicleId = reportVehicle.getVehicle().getId();
                     crewByVehicleId.computeIfAbsent(vehicleId, k -> new ArrayList<>()).add(person.getId());
                     onVehiclePersonIds.add(person.getId());
-                } else if (reportVehicle.getVehicle() == null
-                        && IncidentCrewSupport.isSceneWithoutVehicleName(reportVehicle.getVehicleName())) {
-                    einsatzstelleCrewIds.add(person.getId());
-                    onVehiclePersonIds.add(person.getId());
+                } else if (reportVehicle.getVehicle() == null) {
+                    String slotName = reportVehicle.getVehicleName();
+                    if (IncidentCrewSupport.EINSATZSTELLE_VEHICLE_NAME.equals(slotName)) {
+                        einsatzstelleCrewIds.add(person.getId());
+                        onVehiclePersonIds.add(person.getId());
+                    } else if (IncidentCrewSupport.WACHE_VEHICLE_NAME.equals(slotName)) {
+                        wacheCrewIds.add(person.getId());
+                        onVehiclePersonIds.add(person.getId());
+                    }
                 }
             }
         }
@@ -166,16 +172,24 @@ public class EinsatzberichtService {
                 .map(personById::get)
                 .filter(Objects::nonNull)
                 .toList();
-        KraefteFahrzeugeState.KraefteVehicleView einsatzstelle = new KraefteFahrzeugeState.KraefteVehicleView(
+        KraefteFahrzeugeState.KraefteVehicleView einsatzstelle = buildVirtualSlotView(
                 IncidentCrewSupport.EINSATZSTELLE_VEHICLE_ID,
                 IncidentCrewSupport.EINSATZSTELLE_VEHICLE_NAME,
-                null,
-                null,
-                new ArrayList<>(einsatzstelleCrewIds),
-                einsatzstelleCrew.stream().map(p -> toPersonView(p, sortOrderByPersonId)).toList(),
-                Besatzungsstaerke.format(einsatzstelleCrew));
+                einsatzstelleCrewIds,
+                einsatzstelleCrew,
+                sortOrderByPersonId);
+        List<Person> wacheCrew = wacheCrewIds.stream()
+                .map(personById::get)
+                .filter(Objects::nonNull)
+                .toList();
+        KraefteFahrzeugeState.KraefteVehicleView wache = buildVirtualSlotView(
+                IncidentCrewSupport.WACHE_VEHICLE_ID,
+                IncidentCrewSupport.WACHE_VEHICLE_NAME,
+                wacheCrewIds,
+                wacheCrew,
+                sortOrderByPersonId);
 
-        return new KraefteFahrzeugeState(manualPersons, diveraPersons, einsatzstelle, vehicles);
+        return new KraefteFahrzeugeState(manualPersons, diveraPersons, einsatzstelle, wache, vehicles);
     }
 
     public String serializeKraefteFahrzeugeState(KraefteFahrzeugeState state) {
@@ -404,19 +418,18 @@ public class EinsatzberichtService {
         List<CrewAssignment> assignments =
                 form.crewAssignments() != null ? form.crewAssignments() : List.of();
 
-        IncidentReportVehicle einsatzstelleVehicle = null;
+        Map<Long, IncidentReportVehicle> virtualVehicles = new HashMap<>();
 
         for (CrewAssignment assignment : assignments) {
             IncidentReportVehicle reportVehicle;
-            if (IncidentCrewSupport.isSceneWithoutVehicle(assignment.vehicleId())) {
-                if (einsatzstelleVehicle == null) {
-                    einsatzstelleVehicle = new IncidentReportVehicle();
-                    einsatzstelleVehicle.setIncidentReport(report);
-                    einsatzstelleVehicle.setVehicle(null);
-                    einsatzstelleVehicle.setVehicleName(IncidentCrewSupport.EINSATZSTELLE_VEHICLE_NAME);
-                    einsatzstelleVehicle = incidentReportVehicleRepository.save(einsatzstelleVehicle);
-                }
-                reportVehicle = einsatzstelleVehicle;
+            if (IncidentCrewSupport.isVirtualSlot(assignment.vehicleId())) {
+                reportVehicle = virtualVehicles.computeIfAbsent(assignment.vehicleId(), slotId -> {
+                    IncidentReportVehicle row = new IncidentReportVehicle();
+                    row.setIncidentReport(report);
+                    row.setVehicle(null);
+                    row.setVehicleName(IncidentCrewSupport.virtualSlotName(slotId));
+                    return incidentReportVehicleRepository.save(row);
+                });
             } else {
                 reportVehicle = reportVehicleByUnitVehicleId.get(assignment.vehicleId());
             }
@@ -460,6 +473,22 @@ public class EinsatzberichtService {
             }
         }
         return ids.size();
+    }
+
+    private KraefteFahrzeugeState.KraefteVehicleView buildVirtualSlotView(
+            long slotId,
+            String slotName,
+            List<Long> crewIds,
+            List<Person> crew,
+            Map<Long, Integer> sortOrderByPersonId) {
+        return new KraefteFahrzeugeState.KraefteVehicleView(
+                slotId,
+                slotName,
+                null,
+                null,
+                new ArrayList<>(crewIds),
+                crew.stream().map(p -> toPersonView(p, sortOrderByPersonId)).toList(),
+                Besatzungsstaerke.format(crew));
     }
 
     private KraefteFahrzeugeState.KraeftePersonView toPersonView(Person person, Map<Long, Integer> sortOrderByPersonId) {
