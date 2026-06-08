@@ -96,10 +96,12 @@
       <div class="incident-kraefte-col incident-kraefte-col--manual">
         <h4 class="incident-kraefte-col__title">Personal (manuell)</h4>
         <p class="hint text-sm">Personen per Drag &amp; Drop auf ein Fahrzeug ziehen.</p>
+        <input type="search" id="manual-person-search" class="incident-person-search field"
+               placeholder="Personal suchen …" autocomplete="off" aria-label="Personal suchen"/>
         <div class="incident-person-pool" id="manual-person-pool" data-pool="manual">
           <div class="incident-crew-chip" draggable="true"
                th:each="p : ${kraefteState.manualPersons()}"
-               th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}"
+               th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}, data-sort-order=${p.sortOrder()}"
                th:text="${p.displayName()}">Name</div>
         </div>
         <p class="hint incident-person-pool-empty" id="manual-pool-empty"
@@ -135,7 +137,7 @@
             <div class="incident-vehicle-dropzone" th:attr="data-vehicle-id=${v.vehicleId()}">
               <div class="incident-crew-chip" draggable="true"
                    th:each="person : ${v.crewPersons()}"
-                   th:attr="data-person-id=${person.id()}, data-qual-tier=${person.qualTier()}, data-person-name=${person.displayName()}"
+                   th:attr="data-person-id=${person.id()}, data-qual-tier=${person.qualTier()}, data-person-name=${person.displayName()}, data-sort-order=${person.sortOrder()}"
                    th:text="${person.displayName()}">Name</div>
             </div>
             <p class="hint incident-vehicle-dropzone-hint">Person hierher ziehen</p>

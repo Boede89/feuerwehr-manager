@@ -137,6 +137,43 @@
     refreshBoard();
   }
 
+  function chipSortOrder(chip) {
+    var order = Number(chip.dataset.sortOrder);
+    return isNaN(order) ? 999999 : order;
+  }
+
+  function insertChipSorted(pool, chip) {
+    var order = chipSortOrder(chip);
+    var chips = Array.from(pool.querySelectorAll('.incident-crew-chip'));
+    var insertBefore = null;
+    for (var i = 0; i < chips.length; i++) {
+      if (chips[i] === chip) {
+        continue;
+      }
+      if (chipSortOrder(chips[i]) > order) {
+        insertBefore = chips[i];
+        break;
+      }
+    }
+    if (insertBefore) {
+      pool.insertBefore(chip, insertBefore);
+    } else {
+      pool.appendChild(chip);
+    }
+  }
+
+  function filterManualPool(query) {
+    var pool = document.getElementById('manual-person-pool');
+    if (!pool) {
+      return;
+    }
+    var q = (query || '').trim().toLocaleLowerCase('de');
+    pool.querySelectorAll('.incident-crew-chip').forEach(function (chip) {
+      var name = (chip.dataset.personName || chip.textContent || '').trim().toLocaleLowerCase('de');
+      chip.hidden = q.length > 0 && name.indexOf(q) === -1;
+    });
+  }
+
   function onDropManualPool(e) {
     e.preventDefault();
     if (!draggedChip || draggedChip.closest('#manual-person-pool')) {
@@ -147,7 +184,9 @@
       return;
     }
     removePersonFromBoard(draggedChip.dataset.personId, draggedChip);
-    pool.appendChild(draggedChip);
+    insertChipSorted(pool, draggedChip);
+    var searchEl = document.getElementById('manual-person-search');
+    filterManualPool(searchEl ? searchEl.value : '');
     refreshBoard();
   }
 
@@ -174,6 +213,13 @@
         }
       });
       manualPool.addEventListener('drop', onDropManualPool);
+    }
+
+    var manualSearch = document.getElementById('manual-person-search');
+    if (manualSearch) {
+      manualSearch.addEventListener('input', function () {
+        filterManualPool(manualSearch.value);
+      });
     }
 
     var form = document.getElementById('einsatzbericht-form');

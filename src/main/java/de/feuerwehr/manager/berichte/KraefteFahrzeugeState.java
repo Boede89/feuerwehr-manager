@@ -7,7 +7,7 @@ public record KraefteFahrzeugeState(
         List<KraeftePersonView> diveraPersons,
         List<KraefteVehicleView> vehicles) {
 
-    public record KraeftePersonView(long id, String displayName, String qualTier) {}
+    public record KraeftePersonView(long id, String displayName, String qualTier, int sortOrder) {}
 
     public record KraefteVehicleView(
             long vehicleId,

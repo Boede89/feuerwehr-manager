@@ -109,11 +109,17 @@ public class EinsatzberichtService {
             }
         }
 
+        Map<Long, Integer> sortOrderByPersonId = new LinkedHashMap<>();
+        int sortIndex = 0;
+        for (Person person : allPersons) {
+            sortOrderByPersonId.put(person.getId(), sortIndex++);
+        }
+
         List<KraefteFahrzeugeState.KraeftePersonView> manualPersons = new ArrayList<>();
         List<KraefteFahrzeugeState.KraeftePersonView> diveraPersons = new ArrayList<>();
 
         for (Person person : allPersons) {
-            KraefteFahrzeugeState.KraeftePersonView view = toPersonView(person);
+            KraefteFahrzeugeState.KraeftePersonView view = toPersonView(person, sortOrderByPersonId);
             if (diveraPersonIds.contains(person.getId())) {
                 if (!onVehiclePersonIds.contains(person.getId())) {
                     diveraPersons.add(view);
@@ -130,8 +136,9 @@ public class EinsatzberichtService {
                     .map(personById::get)
                     .filter(Objects::nonNull)
                     .toList();
-            List<KraefteFahrzeugeState.KraeftePersonView> crewViews =
-                    crew.stream().map(this::toPersonView).toList();
+            List<KraefteFahrzeugeState.KraeftePersonView> crewViews = crew.stream()
+                    .map(p -> toPersonView(p, sortOrderByPersonId))
+                    .toList();
             vehicles.add(new KraefteFahrzeugeState.KraefteVehicleView(
                     vehicle.getId(),
                     vehicle.getName(),
@@ -148,7 +155,7 @@ public class EinsatzberichtService {
                 IncidentCrewSupport.WACHE_VEHICLE_ID,
                 IncidentCrewSupport.WACHE_VEHICLE_NAME,
                 new ArrayList<>(wacheCrewIds),
-                wacheCrew.stream().map(this::toPersonView).toList(),
+                wacheCrew.stream().map(p -> toPersonView(p, sortOrderByPersonId)).toList(),
                 Besatzungsstaerke.format(wacheCrew)));
 
         return new KraefteFahrzeugeState(manualPersons, diveraPersons, vehicles);
@@ -409,11 +416,12 @@ public class EinsatzberichtService {
         return ids.size();
     }
 
-    private KraefteFahrzeugeState.KraeftePersonView toPersonView(Person person) {
+    private KraefteFahrzeugeState.KraeftePersonView toPersonView(Person person, Map<Long, Integer> sortOrderByPersonId) {
         return new KraefteFahrzeugeState.KraeftePersonView(
                 person.getId(),
                 person.anwesenheitDisplayName(),
-                Besatzungsstaerke.qualTier(person).name());
+                Besatzungsstaerke.qualTier(person).name(),
+                sortOrderByPersonId.getOrDefault(person.getId(), 0));
     }
 
     private Person resolvePersonForUnit(long personId, long unitId) {
