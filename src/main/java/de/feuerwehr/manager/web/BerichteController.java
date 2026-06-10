@@ -9,6 +9,7 @@ import de.feuerwehr.manager.berichte.EinsatzberichtService;
 import de.feuerwehr.manager.berichte.EinsatzberichtListResponse;
 import de.feuerwehr.manager.berichte.IncidentReport;
 import de.feuerwehr.manager.berichte.IncidentReportStatus;
+import de.feuerwehr.manager.berichte.PersonDamageDetailsSupport;
 import de.feuerwehr.manager.berichte.VehicleEquipmentView;
 import de.feuerwehr.manager.divera.DiveraEinsatzberichtSyncService;
 import de.feuerwehr.manager.berichte.KraefteFahrzeugeState;
@@ -403,6 +404,9 @@ public class BerichteController {
         if (form.getDeployedEquipmentJson() == null || form.getDeployedEquipmentJson().isBlank()) {
             form.setDeployedEquipmentJson(
                     reportId != null ? einsatzberichtService.buildDeployedEquipmentJson(reportId) : "[]");
+        }
+        if (form.getPersonDamageDetailsJson() == null || form.getPersonDamageDetailsJson().isBlank()) {
+            form.setPersonDamageDetailsJson(PersonDamageDetailsSupport.emptyJson());
         }
         boolean showHistory = EinsatzberichtAccess.showChangeHistory(report);
         model.addAttribute("showChangeHistory", showHistory);

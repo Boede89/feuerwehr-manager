@@ -169,8 +169,12 @@
          th:value="${form.crewAssignmentsJson}"/>
   <input type="hidden" name="deployedEquipmentJson" id="deployedEquipmentJson" th:if="${formMode != 'view'}"
          th:value="${form.deployedEquipmentJson}"/>
+  <input type="hidden" name="personDamageDetailsJson" id="personDamageDetailsJson" th:if="${formMode != 'view'}"
+         th:value="${form.personDamageDetailsJson}"/>
   <div class="incident-kraefte-board" id="incident-kraefte-board"
-       th:attr="data-unit-id=${unitId},data-initial=${kraefteInitialJson},data-readonly=${formMode == 'view' ? 'true' : null}"
+       th:data-unit-id="${unitId}"
+       th:data-initial="${kraefteInitialJson}"
+       th:data-readonly="${formMode == 'view' ? 'true' : null}"
        th:with="beteiligt=${kraefteState.beteiligt()}, scene=${kraefteState.einsatzstelle()}, wache=${kraefteState.wache()}, diveraDefault=${!#lists.isEmpty(kraefteState.diveraPersons())}">
 
     <!-- Tab 1: Personal -->
@@ -410,7 +414,8 @@
       Für die beteiligten Fahrzeuge sind noch keine Geräte in der Technik-Verwaltung hinterlegt.
     </p>
     <div id="incident-deployed-equipment" class="incident-deployed-equipment"
-         th:attr="data-readonly=${formMode == 'view' ? 'true' : 'false'},data-initial=${form.deployedEquipmentJson}"></div>
+         th:data-readonly="${formMode == 'view' ? 'true' : 'false'}"
+         th:data-initial="${form.deployedEquipmentJson}"></div>
   </div>
 
   <!-- Tab 4: Schäden -->
@@ -453,9 +458,8 @@
       </div>
     </div>
     <div id="person-damage-details-wrap" class="incident-person-damage-details incident-section-block"
-         th:attr="data-readonly=${formMode == 'view' ? 'true' : 'false'},data-initial=${form.personDamageDetailsJson}"></div>
-    <input type="hidden" name="personDamageDetailsJson" id="personDamageDetailsJson" th:if="${formMode != 'view'}"
-           th:value="${form.personDamageDetailsJson}"/>
+         th:data-readonly="${formMode == 'view' ? 'true' : 'false'}"
+         th:data-initial="${form.personDamageDetailsJson}"></div>
 
     <h4 class="incident-section-title">Tierschäden</h4>
     <div class="yes-no-radio incident-section-block" role="radiogroup" aria-label="Tierschäden">

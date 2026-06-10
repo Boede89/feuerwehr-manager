@@ -365,6 +365,7 @@ public class EinsatzberichtService {
         form.setIncidentNumber(suggestIncidentNumber(unitId, today));
         form.setLocation(address.city());
         form.setPostalCode(address.postalCode());
+        form.setPersonDamageDetailsJson(PersonDamageDetailsSupport.emptyJson());
         return form;
     }
 

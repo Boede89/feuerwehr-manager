@@ -219,6 +219,14 @@
     }
   }
 
+  function readInitialFromHidden() {
+    var hidden = document.getElementById('personDamageDetailsJson');
+    if (hidden && hidden.value) {
+      return hidden.value;
+    }
+    return '{}';
+  }
+
   function init(root) {
     var scope = root || document;
     wrap = scope.querySelector ? scope.querySelector('#person-damage-details-wrap') : document.getElementById('person-damage-details-wrap');
@@ -226,7 +234,7 @@
       return;
     }
     readonly = wrap.dataset.readonly === 'true';
-    state = parseInitial(wrap.dataset.initial || '{}');
+    state = parseInitial(wrap.dataset.initial || readInitialFromHidden());
     bindCountInputs(scope);
     render();
   }
