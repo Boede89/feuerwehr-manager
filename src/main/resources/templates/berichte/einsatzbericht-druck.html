@@ -39,7 +39,8 @@
       line-height: 1;
       letter-spacing: 0;
     }
-    .personnel-table th.col-pa { font-weight: bold; }
+    .personnel-table th.col-pa { font-weight: bold; vertical-align: middle; }
+    .personnel-table th.col-pa .pa-header-label { display: inline-block; font-size: 6pt; line-height: 0.9; }
     .col-pa-x { display: inline-block; font-size: 7pt; font-weight: bold; line-height: 1; }
     .kurzbericht-cell { white-space: pre-wrap; }
     .person-damage-pdf-table { margin: 0; font-size: 8pt; }
@@ -144,7 +145,7 @@
               <col class="col-pa" style="width:8px;"/>
             </colgroup>
             <thead>
-            <tr><th class="col-name">Name</th><th class="col-fahrzeug">Fzg</th><th class="col-pa">P</th></tr>
+            <tr><th class="col-name">Name</th><th class="col-fahrzeug">Fzg</th><th class="col-pa"><span class="pa-header-label">P<br/>A</span></th></tr>
             </thead>
             <tbody>
             <tr th:each="row : ${personnel}">
