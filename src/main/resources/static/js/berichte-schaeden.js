@@ -67,7 +67,22 @@
 
   function personDamagesActive() {
     var yes = document.querySelector('input[name="personDamagesEnabled"][value="true"]');
-    return yes && yes.checked;
+    if (yes && yes.checked) {
+      return true;
+    }
+    return CATEGORIES.some(function (category) {
+      return readCount(category.countId) > 0;
+    });
+  }
+
+  function ensurePersonDamagesEnabled() {
+    if (!personDamagesActive()) {
+      return;
+    }
+    var yes = document.querySelector('input[name="personDamagesEnabled"][value="true"]');
+    if (yes && !yes.checked && !yes.disabled) {
+      yes.checked = true;
+    }
   }
 
   function collectState(current) {
@@ -87,10 +102,11 @@
         var nameInput = row.querySelector('[data-field="name"]');
         var addressInput = row.querySelector('[data-field="address"]');
         var birthdateInput = row.querySelector('[data-field="birthdate"]');
+        var birthdate = birthdateInput && birthdateInput.value ? birthdateInput.value : null;
         next[category.key][idx] = {
           name: nameInput ? nameInput.value.trim() : '',
           address: addressInput ? addressInput.value.trim() : '',
-          birthdate: birthdateInput ? birthdateInput.value : ''
+          birthdate: birthdate
         };
       });
     });
@@ -99,9 +115,20 @@
 
   function syncHidden(state) {
     var hidden = document.getElementById('personDamageDetailsJson');
-    if (hidden) {
-      hidden.value = JSON.stringify(state);
+    if (!hidden) {
+      return;
     }
+    var payload = state || emptyDetails();
+    if (!personDamagesActive()) {
+      payload = emptyDetails();
+    }
+    hidden.value = JSON.stringify(payload);
+  }
+
+  function syncBeforeSave() {
+    ensurePersonDamagesEnabled();
+    state = collectState(state);
+    syncHidden(state);
   }
 
   function renderEntry(category, index, entry, readonly) {
@@ -212,19 +239,41 @@
     var form = document.getElementById('einsatzbericht-form');
     if (form && form.dataset.personDamageSubmitBound !== 'true') {
       form.dataset.personDamageSubmitBound = 'true';
-      form.addEventListener('submit', function () {
-        state = collectState(state);
-        syncHidden(state);
-      });
+      form.addEventListener('submit', syncBeforeSave, true);
     }
+    document.querySelectorAll('button[form="einsatzbericht-form"][type="submit"]').forEach(function (btn) {
+      if (btn.dataset.personDamageSubmitBound === 'true') {
+        return;
+      }
+      btn.dataset.personDamageSubmitBound = 'true';
+      btn.addEventListener('click', syncBeforeSave);
+    });
   }
 
-  function readInitialFromHidden() {
+  function readInitialPayload() {
+    var wrapEl = document.getElementById('person-damage-details-wrap');
+    if (wrapEl && wrapEl.dataset.initial) {
+      return wrapEl.dataset.initial;
+    }
     var hidden = document.getElementById('personDamageDetailsJson');
-    if (hidden && hidden.value) {
-      return hidden.value;
+    if (hidden) {
+      if (hidden.dataset.initial) {
+        return hidden.dataset.initial;
+      }
+      if (hidden.value) {
+        return hidden.value;
+      }
     }
     return '{}';
+  }
+
+  function initHiddenFromInitial() {
+    var hidden = document.getElementById('personDamageDetailsJson');
+    if (!hidden) {
+      return;
+    }
+    var initial = hidden.dataset.initial || readInitialPayload();
+    hidden.value = initial;
   }
 
   function init(root) {
@@ -234,10 +283,11 @@
       return;
     }
     readonly = wrap.dataset.readonly === 'true';
-    state = parseInitial(wrap.dataset.initial || readInitialFromHidden());
+    initHiddenFromInitial();
+    state = parseInitial(wrap.dataset.initial || readInitialPayload());
     bindCountInputs(scope);
     render();
   }
 
-  window.BerichteSchaeden = { init: init };
+  window.BerichteSchaeden = { init: init, syncBeforeSave: syncBeforeSave };
 })();

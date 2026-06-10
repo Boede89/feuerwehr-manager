@@ -10,6 +10,13 @@ public record KraefteFahrzeugeState(
         KraefteVehicleView wache,
         List<KraefteVehicleView> vehicles) {
 
+    public List<KraefteVehicleView> involvedVehicles() {
+        if (vehicles == null || vehicles.isEmpty()) {
+            return List.of();
+        }
+        return vehicles.stream().filter(KraefteVehicleView::involvedInIncident).toList();
+    }
+
     public record KraeftePersonView(
             long id,
             String displayName,

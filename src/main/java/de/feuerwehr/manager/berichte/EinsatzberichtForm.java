@@ -100,8 +100,13 @@ public class EinsatzberichtForm {
         form.setReporterName(report.getReporterName());
         form.setReporterPhone(report.getReporterPhone());
         form.setEinsatzkurzbericht(report.getNotes());
-        form.setPersonDamagesEnabled(report.isPersonDamagesEnabled());
-        if (report.isPersonDamagesEnabled()) {
+        boolean personDamagesActive = report.isPersonDamagesEnabled()
+                || report.getPersonsRescued() > 0
+                || report.getPersonsInjured() > 0
+                || report.getPersonsRecovered() > 0
+                || report.getPersonsDead() > 0;
+        form.setPersonDamagesEnabled(personDamagesActive);
+        if (personDamagesActive) {
             PersonDamageDetails details = PersonDamageDetailsSupport.parse(report.getPersonDamageDetailsJson())
                     .normalized(
                             report.getPersonsRescued(),

@@ -15,10 +15,7 @@ public record CrewAssignment(
         this(vehicleId, personIds, null, null, null, null, null);
     }
 
-    public boolean resolvesInvolvedInIncident() {
-        if (Boolean.TRUE.equals(involvedInIncident)) {
-            return true;
-        }
-        return personIds != null && !personIds.isEmpty();
+    public boolean isInvolvedInIncident() {
+        return Boolean.TRUE.equals(involvedInIncident);
     }
 }

@@ -253,8 +253,8 @@ public class EinsatzberichtService {
             String typeKey = vehicle.getVehicleType();
             boolean hasCrew = !crewIds.isEmpty();
             boolean involvedFromDb = involvedByVehicleId.getOrDefault(vehicle.getId(), false);
-            boolean involvedInIncident = hasCrew || involvedFromDb;
-            boolean manuallyInvolvedInIncident = !hasCrew && involvedFromDb;
+            boolean involvedInIncident = involvedFromDb;
+            boolean manuallyInvolvedInIncident = involvedFromDb && !hasCrew;
             vehicles.add(new KraefteFahrzeugeState.KraefteVehicleView(
                     vehicle.getId(),
                     vehicle.getName(),
@@ -676,9 +676,14 @@ public class EinsatzberichtService {
         report.setStrengthSub(0);
         report.setStrengthCrew(personnelCount);
         report.setNotes(trimToNull(form.einsatzkurzbericht()));
-        report.setPersonDamagesEnabled(form.personDamagesEnabled());
+        boolean personDamagesActive = form.personDamagesEnabled()
+                || form.personsRescued() > 0
+                || form.personsInjured() > 0
+                || form.personsRecovered() > 0
+                || form.personsDead() > 0;
+        report.setPersonDamagesEnabled(personDamagesActive);
         report.setAnimalDamagesEnabled(form.animalDamagesEnabled());
-        if (form.personDamagesEnabled()) {
+        if (personDamagesActive) {
             int rescued = Math.max(0, form.personsRescued());
             int injured = Math.max(0, form.personsInjured());
             int recovered = Math.max(0, form.personsRecovered());
@@ -750,7 +755,7 @@ public class EinsatzberichtService {
             row.setVehicle(vehicle);
             row.setVehicleName(vehicle.getName());
             CrewAssignment vehicleAssignment = assignmentByVehicleId.get(vehicle.getId());
-            row.setInvolved(vehicleAssignment != null && vehicleAssignment.resolvesInvolvedInIncident());
+            row.setInvolved(vehicleAssignment != null && vehicleAssignment.isInvolvedInIncident());
             IncidentReportVehicle saved = incidentReportVehicleRepository.save(row);
             reportVehicleByUnitVehicleId.put(vehicle.getId(), saved);
         }

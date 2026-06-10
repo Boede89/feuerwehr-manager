@@ -170,7 +170,7 @@
   <input type="hidden" name="deployedEquipmentJson" id="deployedEquipmentJson" th:if="${formMode != 'view'}"
          th:value="${form.deployedEquipmentJson}"/>
   <input type="hidden" name="personDamageDetailsJson" id="personDamageDetailsJson" th:if="${formMode != 'view'}"
-         th:value="${form.personDamageDetailsJson}"/>
+         th:data-initial="${form.personDamageDetailsJson}" value=""/>
   <div class="incident-kraefte-board" id="incident-kraefte-board"
        th:data-unit-id="${unitId}"
        th:data-initial="${kraefteInitialJson}"
@@ -240,7 +240,8 @@
       <div class="incident-kraefte-layout" th:classappend="${formMode == 'view' ? ' incident-kraefte-layout--view' : ''}">
         <div id="fahrzeuge-involved-slot" class="incident-involved-slot incident-kraefte-col incident-kraefte-col--left"></div>
         <div class="incident-kraefte-col incident-kraefte-col--right">
-          <section class="incident-kraefte-section incident-kraefte-section--vehicles">
+          <section class="incident-kraefte-section incident-kraefte-section--vehicles"
+                   th:with="displayVehicles=${formMode == 'view' ? kraefteState.involvedVehicles() : kraefteState.vehicles()}">
             <header class="incident-kraefte-section__head">
               <div>
                 <h3 class="incident-kraefte-section__title">Fahrzeugbesetzung</h3>
@@ -250,7 +251,7 @@
             </header>
             <div class="incident-vehicle-stack" id="incident-vehicle-stack">
               <article class="incident-vehicle-card"
-                       th:each="v : ${kraefteState.vehicles()}"
+                       th:each="v : ${displayVehicles}"
                        th:classappend="${(v.vehicleType() != null ? 'incident-vehicle-card--type-' + v.vehicleType() : '') + (v.involvedInIncident() ? ' incident-vehicle-card--einsatz-beteiligt' : '')}"
                        th:attr="data-vehicle-id=${v.vehicleId()},
                                 data-vehicle-type=${v.vehicleType()},
@@ -269,7 +270,7 @@
                             title="Am Einsatz beteiligt markieren">
                       Am Einsatz beteiligt
                     </button>
-                    <span class="incident-vehicle-involved-badge" th:if="${formMode == 'view' and v.involvedInIncident()}">
+                    <span class="incident-vehicle-involved-badge" th:if="${formMode == 'view'}">
                       Am Einsatz beteiligt
                     </span>
                     <span class="incident-vehicle-card__staerke" th:attr="data-staerke-badge=${v.vehicleId()}"
@@ -299,7 +300,12 @@
                 <p class="hint incident-vehicle-dropzone-hint" th:if="${formMode != 'view'}">Hier ablegen</p>
               </article>
             </div>
-            <p class="hint" th:if="${#lists.isEmpty(kraefteState.vehicles())}">Keine Fahrzeuge in dieser Einheit.</p>
+            <p class="hint" th:if="${formMode == 'view' and #lists.isEmpty(displayVehicles)}">
+              Keine am Einsatz beteiligten Fahrzeuge.
+            </p>
+            <p class="hint" th:if="${formMode != 'view' and #lists.isEmpty(kraefteState.vehicles())}">
+              Keine Fahrzeuge in dieser Einheit.
+            </p>
           </section>
           <section class="incident-kraefte-section incident-kraefte-section--virtual">
             <header class="incident-kraefte-section__head">

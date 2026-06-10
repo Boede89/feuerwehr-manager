@@ -102,25 +102,18 @@
     if (!isRealVehicleCard(card)) {
       return;
     }
-    var crewCount = crewCountForCard(card);
-    var manuallyInvolved = card.dataset.manuallyInvolved === 'true';
-    var involved = crewCount > 0 || manuallyInvolved;
+    var involved = card.dataset.involvedInIncident === 'true';
     card.classList.toggle('incident-vehicle-card--einsatz-beteiligt', involved);
-    card.dataset.involvedInIncident = involved ? 'true' : 'false';
     var toggle = card.querySelector('.incident-vehicle-involved-toggle');
     if (toggle) {
       toggle.setAttribute('aria-pressed', involved ? 'true' : 'false');
       toggle.classList.toggle('incident-vehicle-involved-toggle--active', involved);
-      toggle.disabled = crewCount > 0;
     }
   }
 
   function applyCrewInvolvementAfterChange(card) {
     if (!isRealVehicleCard(card)) {
       return;
-    }
-    if (crewCountForCard(card) === 0) {
-      card.dataset.manuallyInvolved = 'false';
     }
     syncVehicleInvolvementUI(card);
   }
@@ -135,12 +128,25 @@
   }
 
   function toggleManualVehicleInvolvement(card) {
-    if (!isRealVehicleCard(card) || crewCountForCard(card) > 0 || isBoardReadonly()) {
+    if (!isRealVehicleCard(card) || isBoardReadonly()) {
       return;
     }
-    card.dataset.manuallyInvolved = card.dataset.manuallyInvolved === 'true' ? 'false' : 'true';
+    var involved = card.dataset.involvedInIncident !== 'true';
+    card.dataset.involvedInIncident = involved ? 'true' : 'false';
+    card.dataset.manuallyInvolved = involved ? 'true' : 'false';
     syncVehicleInvolvementUI(card);
     syncHiddenJson();
+  }
+
+  function hideNonInvolvedVehiclesInView() {
+    if (!isBoardReadonly()) {
+      return;
+    }
+    document.querySelectorAll('#incident-vehicle-stack .incident-vehicle-card').forEach(function (card) {
+      if (card.dataset.involvedInIncident !== 'true') {
+        card.remove();
+      }
+    });
   }
 
   function isReserveChip(chip) {
@@ -615,7 +621,10 @@
   function refreshBoard() {
     refreshInvolvedDisplay();
     document.querySelectorAll('.incident-vehicle-card').forEach(updateVehicleStaerke);
-    syncAllVehicleInvolvement();
+    if (!isBoardReadonly()) {
+      syncAllVehicleInvolvement();
+    }
+    hideNonInvolvedVehiclesInView();
     updatePoolCounts();
     updateActiveEmptyHint();
     syncHiddenJson();
@@ -916,8 +925,11 @@
     var form = document.getElementById('einsatzbericht-form');
     if (form) {
       form.addEventListener('submit', function () {
+        if (window.BerichteSchaeden && window.BerichteSchaeden.syncBeforeSave) {
+          window.BerichteSchaeden.syncBeforeSave();
+        }
         syncHiddenJson();
-      });
+      }, true);
     }
 
     var diveraCountEl = document.getElementById('divera-pool-count');
