@@ -4,10 +4,11 @@
   <div th:classappend="${formMode == 'view' ? ' einsatzbericht-form--view' : ''}">
   <nav class="tab-bar incident-form-tabs" aria-label="Einsatzbericht-Bereiche">
     <button type="button" class="tab-btn incident-tab tab-btn--active" data-tab="0">Basisdaten</button>
-    <button type="button" class="tab-btn incident-tab" data-tab="1">Kräfte &amp; Fahrzeuge</button>
-    <button type="button" class="tab-btn incident-tab" data-tab="2">Schäden</button>
-    <button type="button" class="tab-btn incident-tab" data-tab="3">Bericht</button>
-    <button type="button" class="tab-btn incident-tab" data-tab="4" th:if="${report != null}">Anhänge</button>
+    <button type="button" class="tab-btn incident-tab" data-tab="1">Personal</button>
+    <button type="button" class="tab-btn incident-tab" data-tab="2">Fahrzeuge</button>
+    <button type="button" class="tab-btn incident-tab" data-tab="3">Schäden</button>
+    <button type="button" class="tab-btn incident-tab" data-tab="4">Bericht</button>
+    <button type="button" class="tab-btn incident-tab" data-tab="5" th:if="${report != null}">Anhänge</button>
   </nav>
 
   <!-- Tab 0: Basisdaten -->
@@ -163,63 +164,77 @@
     </div>
   </div>
 
-  <!-- Tab 1: Kräfte & Fahrzeuge -->
-  <div class="incident-tab-panel" data-panel="1" hidden>
-    <input type="hidden" name="crewAssignmentsJson" id="crewAssignmentsJson" th:if="${formMode != 'view'}"
-           th:value="${form.crewAssignmentsJson}"/>
-    <div class="incident-kraefte-board" id="incident-kraefte-board"
-         th:data-initial="${kraefteInitialJson}"
-         th:data-readonly="${formMode == 'view' ? 'true' : null}">
+  <input type="hidden" name="crewAssignmentsJson" id="crewAssignmentsJson" th:if="${formMode != 'view'}"
+         th:value="${form.crewAssignmentsJson}"/>
+  <div class="incident-kraefte-board" id="incident-kraefte-board"
+       th:data-initial="${kraefteInitialJson}"
+       th:data-readonly="${formMode == 'view' ? 'true' : null}"
+       th:with="beteiligt=${kraefteState.beteiligt()}, scene=${kraefteState.einsatzstelle()}, wache=${kraefteState.wache()}, diveraDefault=${!#lists.isEmpty(kraefteState.diveraPersons())}">
 
+    <!-- Tab 1: Personal -->
+    <div class="incident-tab-panel" data-panel="1" hidden>
+      <div class="incident-personal-layout" th:classappend="${formMode == 'view' ? ' incident-personal-layout--view' : ''}">
+        <section class="incident-kraefte-section incident-kraefte-section--reserves" th:if="${formMode != 'view'}">
+          <article class="incident-reserve-panel">
+            <div class="incident-reserve-panel__head">
+              <h3 class="incident-kraefte-section__title">Verfügbares Personal</h3>
+              <input type="search" id="reserve-person-search" class="incident-person-search field"
+                     placeholder="Suchen …" autocomplete="off" aria-label="Personal suchen"/>
+            </div>
+            <div class="incident-reserve-tabs" role="tablist" aria-label="Personalquelle">
+              <button type="button" class="incident-reserve-tab"
+                      th:classappend="${diveraDefault ? ' incident-reserve-tab--active' : ''}"
+                      role="tab" th:attr="aria-selected=${diveraDefault ? 'true' : 'false'}"
+                      data-reserve-tab="divera" id="reserve-tab-divera">
+                <span class="incident-reserve-tab__label">DIVERA</span>
+                <span class="incident-reserve-tab__count" id="divera-pool-count"
+                      th:text="${#lists.size(kraefteState.diveraPersons())}">0</span>
+              </button>
+              <button type="button" class="incident-reserve-tab"
+                      th:classappend="${!diveraDefault ? ' incident-reserve-tab--active' : ''}"
+                      role="tab" th:attr="aria-selected=${!diveraDefault ? 'true' : 'false'}"
+                      data-reserve-tab="manual" id="reserve-tab-manual">
+                <span class="incident-reserve-tab__label">Manuell</span>
+                <span class="incident-reserve-tab__count" id="manual-pool-count"
+                      th:text="${#lists.size(kraefteState.manualPersons())}">0</span>
+              </button>
+            </div>
+            <div class="incident-reserve-pools">
+              <div class="incident-person-pool incident-person-pool--reserve incident-person-pool--divera"
+                   th:classappend="${diveraDefault ? ' incident-person-pool--active' : ''}"
+                   id="divera-person-pool" data-pool="divera" role="tabpanel" aria-labelledby="reserve-tab-divera"
+                   th:hidden="${!diveraDefault}">
+                <div class="incident-crew-chip incident-crew-chip--reserve incident-crew-chip--divera" draggable="true"
+                     th:each="p : ${kraefteState.diveraPersons()}"
+                     th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}, data-sort-order=${p.sortOrder()}, data-pool-source=${p.poolSource()}"
+                     th:text="${p.displayName()}">Name</div>
+              </div>
+              <div class="incident-person-pool incident-person-pool--reserve"
+                   th:classappend="${!diveraDefault ? ' incident-person-pool--active' : ''}"
+                   id="manual-person-pool" data-pool="manual" role="tabpanel" aria-labelledby="reserve-tab-manual"
+                   th:hidden="${diveraDefault}">
+                <div class="incident-crew-chip incident-crew-chip--reserve" draggable="true"
+                     th:each="p : ${kraefteState.manualPersons()}"
+                     th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}, data-sort-order=${p.sortOrder()}, data-pool-source=${p.poolSource()}"
+                     th:text="${p.displayName()}">Name</div>
+              </div>
+            </div>
+            <p class="hint incident-person-pool-empty" id="divera-pool-empty"
+               th:hidden="${!#lists.isEmpty(kraefteState.diveraPersons())}">Noch keine DIVERA-Rückmeldungen.</p>
+            <p class="hint incident-person-pool-empty" id="manual-pool-empty" hidden
+               th:hidden="${!#lists.isEmpty(kraefteState.manualPersons())}">Alle zugewiesen.</p>
+          </article>
+        </section>
+        <div id="personal-involved-slot" class="incident-involved-slot"></div>
+      </div>
+    </div>
+
+    <!-- Tab 2: Fahrzeuge -->
+    <div class="incident-tab-panel" data-panel="2" hidden>
       <div class="incident-kraefte-layout" th:classappend="${formMode == 'view' ? ' incident-kraefte-layout--view' : ''}">
-        <div class="incident-kraefte-col incident-kraefte-col--left">
-
-          <section class="incident-kraefte-section incident-kraefte-section--reserves" th:if="${formMode != 'view'}">
-            <article class="incident-reserve-panel">
-              <div class="incident-reserve-panel__head">
-                <h3 class="incident-kraefte-section__title">Verfügbares Personal</h3>
-                <input type="search" id="reserve-person-search" class="incident-person-search field"
-                       placeholder="Suchen …" autocomplete="off" aria-label="Personal suchen"/>
-              </div>
-              <div class="incident-reserve-tabs" role="tablist" aria-label="Personalquelle">
-                <button type="button" class="incident-reserve-tab incident-reserve-tab--active"
-                        role="tab" aria-selected="true" data-reserve-tab="divera" id="reserve-tab-divera">
-                  <span class="incident-reserve-tab__label">DIVERA</span>
-                  <span class="incident-reserve-tab__count" id="divera-pool-count"
-                        th:text="${#lists.size(kraefteState.diveraPersons())}">0</span>
-                </button>
-                <button type="button" class="incident-reserve-tab"
-                        role="tab" aria-selected="false" data-reserve-tab="manual" id="reserve-tab-manual">
-                  <span class="incident-reserve-tab__label">Manuell</span>
-                  <span class="incident-reserve-tab__count" id="manual-pool-count"
-                        th:text="${#lists.size(kraefteState.manualPersons())}">0</span>
-                </button>
-              </div>
-              <div class="incident-reserve-pools">
-                <div class="incident-person-pool incident-person-pool--reserve incident-person-pool--divera incident-person-pool--active"
-                     id="divera-person-pool" data-pool="divera" role="tabpanel" aria-labelledby="reserve-tab-divera">
-                  <div class="incident-crew-chip incident-crew-chip--reserve incident-crew-chip--divera" draggable="true"
-                       th:each="p : ${kraefteState.diveraPersons()}"
-                       th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}, data-sort-order=${p.sortOrder()}, data-pool-source=${p.poolSource()}"
-                       th:text="${p.displayName()}">Name</div>
-                </div>
-                <div class="incident-person-pool incident-person-pool--reserve"
-                     id="manual-person-pool" data-pool="manual" role="tabpanel" aria-labelledby="reserve-tab-manual" hidden>
-                  <div class="incident-crew-chip incident-crew-chip--reserve" draggable="true"
-                       th:each="p : ${kraefteState.manualPersons()}"
-                       th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}, data-sort-order=${p.sortOrder()}, data-pool-source=${p.poolSource()}"
-                       th:text="${p.displayName()}">Name</div>
-                </div>
-              </div>
-              <p class="hint incident-person-pool-empty" id="divera-pool-empty"
-                 th:hidden="${!#lists.isEmpty(kraefteState.diveraPersons())}">Noch keine DIVERA-Rückmeldungen.</p>
-              <p class="hint incident-person-pool-empty" id="manual-pool-empty" hidden
-                 th:hidden="${!#lists.isEmpty(kraefteState.manualPersons())}">Alle zugewiesen.</p>
-            </article>
-          </section>
-
-          <section class="incident-kraefte-section incident-kraefte-section--virtual"
-                   th:with="scene=${kraefteState.einsatzstelle()}, wache=${kraefteState.wache()}">
+        <div id="fahrzeuge-involved-slot" class="incident-involved-slot incident-kraefte-col incident-kraefte-col--left"></div>
+        <div class="incident-kraefte-col incident-kraefte-col--right">
+          <section class="incident-kraefte-section incident-kraefte-section--virtual">
             <header class="incident-kraefte-section__head">
               <h3 class="incident-kraefte-section__title">Ohne Fahrzeug</h3>
             </header>
@@ -248,7 +263,6 @@
                 </div>
                 <p class="hint incident-vehicle-dropzone-hint" th:if="${formMode != 'view'}">Vor Ort, kein Fahrzeug</p>
               </article>
-
               <article class="incident-vehicle-card incident-vehicle-card--compact incident-vehicle-card--wache"
                        th:attr="data-vehicle-id=${wache.vehicleId()}">
                 <header class="incident-vehicle-card__head">
@@ -275,10 +289,6 @@
               </article>
             </div>
           </section>
-
-        </div>
-
-        <div class="incident-kraefte-col incident-kraefte-col--right">
           <section class="incident-kraefte-section incident-kraefte-section--vehicles">
             <header class="incident-kraefte-section__head">
               <div>
@@ -328,30 +338,53 @@
           </section>
         </div>
       </div>
+    </div>
 
-      <div id="incident-crew-role-menu" class="incident-crew-role-menu" hidden role="menu" th:if="${formMode != 'view'}">
-        <button type="button" class="incident-crew-role-menu__btn" data-role="EINHEITSFUEHRER" role="menuitem">
-          Einheitsführer
-        </button>
-        <button type="button" class="incident-crew-role-menu__btn" data-role="MASCHINIST" role="menuitem">
-          Maschinist
-        </button>
-        <button type="button" class="incident-crew-role-menu__btn" data-action="PA" role="menuitem">
-          PA (Atemschutz)
-        </button>
-        <button type="button" class="incident-crew-role-menu__btn incident-crew-role-menu__btn--danger" data-action="CLEAR_ROLE" role="menuitem">
-          Zuordnung löschen
-        </button>
-        <button type="button" class="incident-crew-role-menu__btn incident-crew-role-menu__btn--danger" data-action="CLEAR_PA" role="menuitem">
-          PA entfernen
-        </button>
+    <article id="involved-card" class="incident-vehicle-card incident-vehicle-card--involved"
+             th:attr="data-vehicle-id=${beteiligt.vehicleId()}">
+      <header class="incident-vehicle-card__head">
+        <h3 class="incident-kraefte-section__title" th:text="${beteiligt.name()}">Am Einsatz beteiligt</h3>
+        <span class="incident-vehicle-card__staerke" th:attr="data-staerke-badge=${beteiligt.vehicleId()}"
+              th:text="${beteiligt.besatzungsstaerke()}">0/0/0/0</span>
+      </header>
+      <div class="incident-vehicle-dropzone incident-vehicle-dropzone--involved"
+           th:attr="data-vehicle-id=${beteiligt.vehicleId()}">
+        <div class="incident-crew-chip"
+             th:each="person : ${beteiligt.crewPersons()}"
+             th:attr="draggable=${formMode != 'view' ? 'true' : 'false'}"
+             th:classappend="${person.poolSource() == 'divera' ? ' incident-crew-chip--divera' : ''}"
+             th:data-person-id="${person.id()}"
+             th:data-qual-tier="${person.qualTier()}"
+             th:data-person-name="${person.displayName()}"
+             th:data-sort-order="${person.sortOrder()}"
+             th:data-pool-source="${person.poolSource()}">
+          <span class="incident-crew-chip__name" th:text="${person.displayName()}">Name</span>
+        </div>
       </div>
+      <p class="hint incident-vehicle-dropzone-hint" th:if="${formMode != 'view'}">Personal hierher ziehen</p>
+    </article>
 
+    <div id="incident-crew-role-menu" class="incident-crew-role-menu" hidden role="menu" th:if="${formMode != 'view'}">
+      <button type="button" class="incident-crew-role-menu__btn" data-role="EINHEITSFUEHRER" role="menuitem">
+        Einheitsführer
+      </button>
+      <button type="button" class="incident-crew-role-menu__btn" data-role="MASCHINIST" role="menuitem">
+        Maschinist
+      </button>
+      <button type="button" class="incident-crew-role-menu__btn" data-action="PA" role="menuitem">
+        PA (Atemschutz)
+      </button>
+      <button type="button" class="incident-crew-role-menu__btn incident-crew-role-menu__btn--danger" data-action="CLEAR_ROLE" role="menuitem">
+        Zuordnung löschen
+      </button>
+      <button type="button" class="incident-crew-role-menu__btn incident-crew-role-menu__btn--danger" data-action="CLEAR_PA" role="menuitem">
+        PA entfernen
+      </button>
     </div>
   </div>
 
-  <!-- Tab 2: Schäden -->
-  <div class="incident-tab-panel" data-panel="2" hidden>
+  <!-- Tab 3: Schäden -->
+  <div class="incident-tab-panel" data-panel="3" hidden>
     <h4 class="incident-section-title">Personenschäden</h4>
     <div class="yes-no-radio incident-section-block" role="radiogroup" aria-label="Personenschäden">
       <label class="yes-no-radio__option">
@@ -429,8 +462,8 @@
     </div>
   </div>
 
-  <!-- Tab 3: Bericht -->
-  <div class="incident-tab-panel" data-panel="3" hidden>
+  <!-- Tab 4: Bericht -->
+  <div class="incident-tab-panel" data-panel="4" hidden>
     <div class="form-group">
       <label for="einsatzkurzbericht">Einsatzkurzbericht</label>
       <textarea id="einsatzkurzbericht" name="einsatzkurzbericht" rows="16"
@@ -440,8 +473,8 @@
     </div>
   </div>
 
-  <!-- Tab 4: Anhänge -->
-  <div class="incident-tab-panel" data-panel="4" hidden th:if="${report != null}">
+  <!-- Tab 5: Anhänge -->
+  <div class="incident-tab-panel" data-panel="5" hidden th:if="${report != null}">
     <div id="incident-attachments-wrap"
          th:attr="data-report-id=${report.id},data-unit-id=${unitId},data-readonly=${formMode == 'view' or report.status.name() != 'ENTWURF' ? 'true' : 'false'}">
     </div>

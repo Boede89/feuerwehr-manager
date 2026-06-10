@@ -3784,11 +3784,43 @@ span.required { color: var(--error); }
   }
 }
 
-/* Kräfte & Fahrzeuge — Board (links Personal/Slots, rechts Fahrzeuge) */
+/* Personal & Fahrzeuge — Board */
 .einsatzbericht-form-page .incident-kraefte-board {
   position: relative;
   width: 100%;
   max-width: none;
+}
+
+.einsatzbericht-form-page .incident-personal-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(280px, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.einsatzbericht-form-page .incident-personal-layout--view {
+  grid-template-columns: 1fr;
+}
+
+.einsatzbericht-form-page .incident-involved-slot {
+  min-width: 0;
+}
+
+.einsatzbericht-form-page .incident-vehicle-card--involved {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  padding: 10px;
+  min-height: 220px;
+}
+
+.einsatzbericht-form-page .incident-vehicle-card--involved .incident-vehicle-dropzone {
+  min-height: 160px;
+}
+
+.einsatzbericht-form-page .incident-vehicle-card--involved .incident-kraefte-section__title {
+  margin: 0;
+  font-size: 14px;
 }
 
 .einsatzbericht-form-page .incident-kraefte-layout {
@@ -4375,6 +4407,9 @@ span.required { color: var(--error); }
 }
 
 @media (max-width: 1024px) {
+  .einsatzbericht-form-page .incident-personal-layout {
+    grid-template-columns: 1fr;
+  }
   .einsatzbericht-form-page .incident-kraefte-layout {
     grid-template-columns: 1fr;
   }

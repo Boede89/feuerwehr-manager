@@ -97,6 +97,7 @@ public class EinsatzberichtService {
         for (Vehicle vehicle : unitVehicles) {
             crewByVehicleId.put(vehicle.getId(), new ArrayList<>());
         }
+        List<Long> beteiligtCrewIds = new ArrayList<>();
         List<Long> einsatzstelleCrewIds = new ArrayList<>();
         List<Long> wacheCrewIds = new ArrayList<>();
 
@@ -133,7 +134,10 @@ public class EinsatzberichtService {
                     onVehiclePersonIds.add(person.getId());
                 } else if (reportVehicle.getVehicle() == null) {
                     String slotName = reportVehicle.getVehicleName();
-                    if (IncidentCrewSupport.EINSATZSTELLE_VEHICLE_NAME.equals(slotName)) {
+                    if (IncidentCrewSupport.BETEILIGT_VEHICLE_NAME.equals(slotName)) {
+                        beteiligtCrewIds.add(person.getId());
+                        onVehiclePersonIds.add(person.getId());
+                    } else if (IncidentCrewSupport.EINSATZSTELLE_VEHICLE_NAME.equals(slotName)) {
                         einsatzstelleCrewIds.add(person.getId());
                         onVehiclePersonIds.add(person.getId());
                     } else if (IncidentCrewSupport.WACHE_VEHICLE_NAME.equals(slotName)) {
@@ -204,6 +208,19 @@ public class EinsatzberichtService {
                     maschinistPersonId));
         }
 
+        List<Person> beteiligtCrew = beteiligtCrewIds.stream()
+                .map(personById::get)
+                .filter(Objects::nonNull)
+                .toList();
+        KraefteFahrzeugeState.KraefteVehicleView beteiligt = buildVirtualSlotView(
+                IncidentCrewSupport.BETEILIGT_VEHICLE_ID,
+                IncidentCrewSupport.BETEILIGT_VEHICLE_NAME,
+                beteiligtCrewIds,
+                beteiligtCrew,
+                sortOrderByPersonId,
+                sourceByPersonId,
+                paByPersonId);
+
         List<Person> einsatzstelleCrew = einsatzstelleCrewIds.stream()
                 .map(personById::get)
                 .filter(Objects::nonNull)
@@ -229,7 +246,7 @@ public class EinsatzberichtService {
                 sourceByPersonId,
                 paByPersonId);
 
-        return new KraefteFahrzeugeState(manualPersons, diveraPersons, einsatzstelle, wache, vehicles);
+        return new KraefteFahrzeugeState(manualPersons, diveraPersons, beteiligt, einsatzstelle, wache, vehicles);
     }
 
     public String serializeKraefteFahrzeugeState(KraefteFahrzeugeState state) {

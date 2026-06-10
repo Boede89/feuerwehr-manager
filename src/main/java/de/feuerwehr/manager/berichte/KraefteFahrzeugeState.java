@@ -5,6 +5,7 @@ import java.util.List;
 public record KraefteFahrzeugeState(
         List<KraeftePersonView> manualPersons,
         List<KraeftePersonView> diveraPersons,
+        KraefteVehicleView beteiligt,
         KraefteVehicleView einsatzstelle,
         KraefteVehicleView wache,
         List<KraefteVehicleView> vehicles) {

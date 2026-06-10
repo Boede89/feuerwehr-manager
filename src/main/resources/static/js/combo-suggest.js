@@ -47,17 +47,22 @@
       visible[index].element.scrollIntoView({ block: 'nearest' });
     }
 
-    function filterOptions(query) {
+    function filterOptions(query, showAllOnFocus) {
       var q = (query || '').trim().toLocaleLowerCase('de');
       var visibleCount = 0;
       options.forEach(function (opt) {
-        var show = q.length >= minChars && opt.search.indexOf(q) !== -1;
+        var show;
+        if (showAllOnFocus && q.length === 0) {
+          show = true;
+        } else {
+          show = q.length >= minChars && opt.search.indexOf(q) !== -1;
+        }
         opt.element.style.display = show ? '' : 'none';
         if (show) {
           visibleCount++;
         }
       });
-      if (visibleCount > 0 && q.length >= minChars) {
+      if (visibleCount > 0 && (showAllOnFocus || q.length >= minChars)) {
         openList();
         setActive(0);
       } else {
@@ -76,8 +81,12 @@
     });
 
     input.addEventListener('focus', function () {
-      if (input.value.trim().length >= minChars) {
-        filterOptions(input.value);
+      filterOptions(input.value, true);
+    });
+
+    input.addEventListener('click', function () {
+      if (document.activeElement === input) {
+        filterOptions(input.value, true);
       }
     });
 

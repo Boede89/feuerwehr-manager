@@ -259,6 +259,7 @@ public class BerichteController {
     private static String buildCrewJson(KraefteFahrzeugeState state) {
         StringBuilder sb = new StringBuilder("[");
         boolean first = true;
+        first = appendCrewAssignment(sb, state.beteiligt(), first);
         first = appendCrewAssignment(sb, state.einsatzstelle(), first);
         first = appendCrewAssignment(sb, state.wache(), first);
         for (KraefteFahrzeugeState.KraefteVehicleView vehicle : state.vehicles()) {

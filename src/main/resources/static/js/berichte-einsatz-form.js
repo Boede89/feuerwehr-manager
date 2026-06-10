@@ -40,7 +40,10 @@
       btn.addEventListener('click', function () {
         var idx = Number(btn.dataset.tab);
         switchTab(idx);
-        if (idx === 4 && window.BerichteAnhaenge) {
+        if (window.BerichteKraefte && (idx === 1 || idx === 2)) {
+          window.BerichteKraefte.onTabShow(idx);
+        }
+        if (idx === 5 && window.BerichteAnhaenge) {
           window.BerichteAnhaenge.load();
         }
       });

@@ -10,6 +10,7 @@
   var ACTION_PA = 'PA';
   var ACTION_CLEAR_ROLE = 'CLEAR_ROLE';
   var ACTION_CLEAR_PA = 'CLEAR_PA';
+  var BETEILIGT_VEHICLE_ID = -3;
 
   function computeStaerke(chips) {
     var zf = 0;
@@ -85,6 +86,32 @@
 
   function isRealVehicleCard(card) {
     return card && Number(card.dataset.vehicleId) > 0;
+  }
+
+  function isReserveChip(chip) {
+    return !!(chip && chip.closest('.incident-person-pool--reserve'));
+  }
+
+  function isInvolvedZone(zone) {
+    return zone && Number(zone.dataset.vehicleId) === BETEILIGT_VEHICLE_ID;
+  }
+
+  function placeInvolvedCard(tabIdx) {
+    var card = document.getElementById('involved-card');
+    var personalSlot = document.getElementById('personal-involved-slot');
+    var fahrzeugeSlot = document.getElementById('fahrzeuge-involved-slot');
+    if (!card) {
+      return;
+    }
+    if (tabIdx === 1 && personalSlot) {
+      personalSlot.appendChild(card);
+      card.hidden = false;
+    } else if (tabIdx === 2 && fahrzeugeSlot) {
+      fahrzeugeSlot.appendChild(card);
+      card.hidden = false;
+    } else {
+      card.hidden = true;
+    }
   }
 
   function vehicleCardForChip(chip) {
@@ -373,14 +400,23 @@
     if (!draggedChip) {
       return;
     }
+    if (isReserveChip(draggedChip) && !isInvolvedZone(zone)) {
+      return;
+    }
     var personId = draggedChip.dataset.personId;
     var targetCard = zone.closest('.incident-vehicle-card');
     removePersonFromBoard(personId, draggedChip);
-    clearChipVehicleRole(draggedChip);
+    if (isInvolvedZone(zone)) {
+      clearChipVehicleRole(draggedChip);
+      clearChipPa(draggedChip);
+      draggedChip.classList.remove('incident-crew-chip--vehicle-role');
+    } else {
+      clearChipVehicleRole(draggedChip);
+    }
     zone.appendChild(draggedChip);
     if (isRealVehicleCard(targetCard)) {
       draggedChip.classList.add('incident-crew-chip--vehicle-role');
-    } else {
+    } else if (!isInvolvedZone(zone)) {
       draggedChip.classList.remove('incident-crew-chip--vehicle-role');
     }
     refreshBoard();
@@ -561,9 +597,18 @@
       });
     }
 
-    switchReserveTab('divera');
+    var diveraCountEl = document.getElementById('divera-pool-count');
+    var hasDivera = diveraCountEl && Number(diveraCountEl.textContent) > 0;
+    switchReserveTab(hasDivera ? 'divera' : 'manual');
+    placeInvolvedCard(1);
     refreshBoard();
   }
+
+  window.BerichteKraefte = {
+    onTabShow: function (tabIdx) {
+      placeInvolvedCard(tabIdx);
+    }
+  };
 
   document.addEventListener('DOMContentLoaded', bindBoard);
 })();
