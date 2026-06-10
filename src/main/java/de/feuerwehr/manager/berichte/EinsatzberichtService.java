@@ -786,7 +786,7 @@ public class EinsatzberichtService {
             report.setPersonDamageDetailsJson(PersonDamageDetailsSupport.emptyJson());
         }
         report.setDamagePerpetratorJson(DamagePerpetratorSupport.serialize(
-                DamagePerpetratorSupport.parse(form.damagePerpetratorJson())));
+                DamagePerpetratorSupport.parse(form.damagePerpetratorJson()).normalized()));
         report.setPersonsEvacuated(0);
         report.setPersonsInjuredOwn(0);
         report.setPersonsDeadOwn(0);

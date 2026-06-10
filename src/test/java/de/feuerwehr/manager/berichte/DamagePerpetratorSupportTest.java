@@ -20,8 +20,13 @@ class DamagePerpetratorSupportTest {
         assertThat(details.licensePlate()).isEqualTo("AB-C 1234");
         assertThat(details.hasContent()).isTrue();
 
-        String serialized = DamagePerpetratorSupport.serialize(details);
+        String serialized = DamagePerpetratorSupport.serialize(details.normalized());
         assertThat(serialized).contains("Erika Muster");
         assertThat(serialized).contains("AB-C 1234");
+
+        DamagePerpetratorDetails emptyBirthdate = DamagePerpetratorSupport.parse(
+                "{\"name\":\"Max\",\"address\":\"\",\"birthdate\":\"\",\"licensePlate\":null}");
+        assertThat(emptyBirthdate.normalized().name()).isEqualTo("Max");
+        assertThat(emptyBirthdate.normalized().birthdate()).isNull();
     }
 }

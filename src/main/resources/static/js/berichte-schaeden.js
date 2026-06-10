@@ -158,17 +158,27 @@
     return {
       name: nameInput ? nameInput.value.trim() : '',
       address: addressInput ? addressInput.value.trim() : '',
-      birthdate: birthdateInput && birthdateInput.value ? birthdateInput.value : '',
+      birthdate: birthdateInput && birthdateInput.value ? birthdateInput.value : null,
       licensePlate: licensePlateInput ? licensePlateInput.value.trim() : ''
     };
   }
 
-  function syncPerpetratorHidden() {
+  function perpetratorPayload(entry) {
+    var data = entry || emptyPerpetrator();
+    return {
+      name: data.name ? data.name : null,
+      address: data.address ? data.address : null,
+      birthdate: data.birthdate ? data.birthdate : null,
+      licensePlate: data.licensePlate ? data.licensePlate : null
+    };
+  }
+
+  function syncPerpetratorHidden(entry) {
     var hidden = document.getElementById('damagePerpetratorJson');
     if (!hidden) {
       return;
     }
-    hidden.value = JSON.stringify(collectPerpetratorState());
+    hidden.value = JSON.stringify(perpetratorPayload(entry || collectPerpetratorState()));
   }
 
   function renderPerpetrator() {
@@ -220,26 +230,23 @@
 
   function initPerpetratorHiddenFromInitial() {
     var hidden = document.getElementById('damagePerpetratorJson');
-    if (!hidden) {
+    if (!hidden || hidden.value) {
       return;
     }
-    var initial = hidden.dataset.initial || readPerpetratorInitialPayload();
-    hidden.value = initial;
+    var initial = readPerpetratorInitialPayload();
+    if (initial) {
+      hidden.value = initial;
+    }
   }
 
   function readPerpetratorInitialPayload() {
+    var hidden = document.getElementById('damagePerpetratorJson');
+    if (hidden && hidden.value) {
+      return hidden.value;
+    }
     var wrapEl = document.getElementById('damage-perpetrator-wrap');
     if (wrapEl && wrapEl.dataset.initial) {
       return wrapEl.dataset.initial;
-    }
-    var hidden = document.getElementById('damagePerpetratorJson');
-    if (hidden) {
-      if (hidden.dataset.initial) {
-        return hidden.dataset.initial;
-      }
-      if (hidden.value) {
-        return hidden.value;
-      }
     }
     return '{}';
   }
@@ -382,29 +389,26 @@
   }
 
   function readInitialPayload() {
+    var hidden = document.getElementById('personDamageDetailsJson');
+    if (hidden && hidden.value) {
+      return hidden.value;
+    }
     var wrapEl = document.getElementById('person-damage-details-wrap');
     if (wrapEl && wrapEl.dataset.initial) {
       return wrapEl.dataset.initial;
-    }
-    var hidden = document.getElementById('personDamageDetailsJson');
-    if (hidden) {
-      if (hidden.dataset.initial) {
-        return hidden.dataset.initial;
-      }
-      if (hidden.value) {
-        return hidden.value;
-      }
     }
     return '{}';
   }
 
   function initHiddenFromInitial() {
     var hidden = document.getElementById('personDamageDetailsJson');
-    if (!hidden) {
+    if (!hidden || hidden.value) {
       return;
     }
-    var initial = hidden.dataset.initial || readInitialPayload();
-    hidden.value = initial;
+    var initial = readInitialPayload();
+    if (initial) {
+      hidden.value = initial;
+    }
   }
 
   function initPerpetrator(root) {
@@ -416,22 +420,39 @@
       return;
     }
     perpetratorReadonly = wrapEl.dataset.readonly === 'true';
+    if (wrapEl.querySelector('[data-field="name"]') && !perpetratorReadonly) {
+      perpetratorState = collectPerpetratorState();
+      syncPerpetratorHidden(perpetratorState);
+      return;
+    }
     initPerpetratorHiddenFromInitial();
-    perpetratorState = parsePerpetratorInitial(wrapEl.dataset.initial || readPerpetratorInitialPayload());
+    perpetratorState = parsePerpetratorInitial(readPerpetratorInitialPayload());
     renderPerpetrator();
+  }
+
+  function initPersonDamage(scope) {
+    wrap = scope.querySelector
+        ? scope.querySelector('#person-damage-details-wrap')
+        : document.getElementById('person-damage-details-wrap');
+    if (!wrap) {
+      return;
+    }
+    readonly = wrap.dataset.readonly === 'true';
+    if (wrap.querySelector('[data-person-damage-index]') && !readonly) {
+      state = collectState(state);
+      syncHidden(state);
+      return;
+    }
+    initHiddenFromInitial();
+    state = parseInitial(readInitialPayload());
+    bindCountInputs(scope);
+    render();
   }
 
   function init(root) {
     var scope = root || document;
-    wrap = scope.querySelector ? scope.querySelector('#person-damage-details-wrap') : document.getElementById('person-damage-details-wrap');
     bindSaveSync(scope);
-    if (wrap) {
-      readonly = wrap.dataset.readonly === 'true';
-      initHiddenFromInitial();
-      state = parseInitial(wrap.dataset.initial || readInitialPayload());
-      bindCountInputs(scope);
-      render();
-    }
+    initPersonDamage(scope);
     initPerpetrator(scope);
   }
 

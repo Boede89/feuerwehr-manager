@@ -170,9 +170,9 @@
   <input type="hidden" name="deployedEquipmentJson" id="deployedEquipmentJson" th:if="${formMode != 'view'}"
          th:value="${form.deployedEquipmentJson}"/>
   <input type="hidden" name="personDamageDetailsJson" id="personDamageDetailsJson" th:if="${formMode != 'view'}"
-         th:data-initial="${form.personDamageDetailsJson}" value=""/>
+         th:value="${form.personDamageDetailsJson}"/>
   <input type="hidden" name="damagePerpetratorJson" id="damagePerpetratorJson" th:if="${formMode != 'view'}"
-         th:data-initial="${form.damagePerpetratorJson}" value=""/>
+         th:value="${form.damagePerpetratorJson}"/>
   <div class="incident-kraefte-board" id="incident-kraefte-board"
        th:data-unit-id="${unitId}"
        th:data-initial="${kraefteInitialJson}"

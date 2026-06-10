@@ -119,7 +119,7 @@ public class EinsatzberichtForm {
             form.setPersonDamageDetailsJson(PersonDamageDetailsSupport.emptyJson());
         }
         form.setDamagePerpetratorJson(DamagePerpetratorSupport.serialize(
-                DamagePerpetratorSupport.parse(report.getDamagePerpetratorJson())));
+                DamagePerpetratorSupport.parse(report.getDamagePerpetratorJson()).normalized()));
         form.setAnimalDamagesEnabled(report.isAnimalDamagesEnabled());
         form.setPersonsRescued(report.getPersonsRescued());
         form.setPersonsEvacuated(report.getPersonsEvacuated());
