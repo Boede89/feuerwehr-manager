@@ -1,5 +1,12 @@
 <!DOCTYPE html>
 <html lang="de" xmlns:th="http://www.thymeleaf.org">
+<!-- Nur einbinden über historySection – prüft Status (freigegeben/archiviert) zuverlässig im Wrapper. -->
+<th:block th:fragment="historySection(report, changes)">
+  <div th:if="${T(de.feuerwehr.manager.berichte.EinsatzberichtAccess).showChangeHistory(report)}">
+    <div th:replace="~{fragments/berichte-einsatz-changes :: history(${changes})}"></div>
+  </div>
+</th:block>
+
 <th:block th:fragment="history(changes)">
   <div class="card berichte-changes-card">
     <div class="card__body">
