@@ -187,7 +187,6 @@ public class EinsatzberichtService {
         Map<Long, Boolean> involvedByVehicleId = new LinkedHashMap<>();
 
         Set<Long> diveraPersonIds = new HashSet<>();
-        Set<Long> foreignPersonIds = new HashSet<>();
         Set<Long> onVehicleRefIds = new HashSet<>();
         Map<Long, IncidentPersonnelSource> sourceByRefId = new LinkedHashMap<>();
         Map<Long, Boolean> paByRefId = new LinkedHashMap<>();
@@ -202,21 +201,24 @@ public class EinsatzberichtService {
                 }
             }
             for (IncidentReportPersonnel row : reportRows) {
-                long refId = personnelRefId(row);
+                long refId;
+                try {
+                    refId = personnelRefId(row);
+                } catch (IllegalStateException ex) {
+                    log.warn(
+                            "Personaleintrag {} in Bericht {} übersprungen: {}",
+                            row.getId(),
+                            reportId,
+                            ex.getMessage());
+                    continue;
+                }
                 rowByRefId.put(refId, row);
                 sourceByRefId.put(refId, row.getSource());
                 if (row.isUsesPa()) {
                     paByRefId.put(refId, true);
                 }
-                if (row.getPerson() != null) {
-                    Person person = row.getPerson();
-                    if (row.getSource() == IncidentPersonnelSource.DIVERA) {
-                        diveraPersonIds.add(person.getId());
-                    }
-                    if (row.getSource() == IncidentPersonnelSource.FOREIGN
-                            || person.getUnit().getId() != unitId) {
-                        foreignPersonIds.add(person.getId());
-                    }
+                if (row.getPerson() != null && row.getSource() == IncidentPersonnelSource.DIVERA) {
+                    diveraPersonIds.add(row.getPerson().getId());
                 } else if (row.getDiveraUcrId() != null && !row.getDiveraUcrId().isBlank()) {
                     try {
                         long ucrId = Long.parseLong(row.getDiveraUcrId().trim());
@@ -227,7 +229,9 @@ public class EinsatzberichtService {
                 }
                 IncidentReportVehicle reportVehicle = row.getIncidentReportVehicle();
                 if (reportVehicle == null) {
-                    if (row.getSource() == IncidentPersonnelSource.FOREIGN && row.getPerson() != null) {
+                    if (row.getSource() == IncidentPersonnelSource.FOREIGN
+                            && row.getPerson() != null
+                            && !onVehicleRefIds.contains(refId)) {
                         beteiligtCrewIds.add(refId);
                         onVehicleRefIds.add(refId);
                     }
@@ -274,8 +278,8 @@ public class EinsatzberichtService {
         for (Person person : allPersons) {
             if (diveraPersonIds.contains(person.getId())) {
                 if (!onVehicleRefIds.contains(person.getId())) {
-                    String unitLabel = person.getUnit().getId() != unitId ? person.getUnit().getName() : null;
-                    diveraPersons.add(toPersonView(person, sortOrderByRefId, null, false, "divera", unitLabel));
+                    diveraPersons.add(toPersonView(
+                            person, sortOrderByRefId, null, false, "divera", unitLabelForPerson(person, unitId)));
                 }
             } else if (!onVehicleRefIds.contains(person.getId())) {
                 manualPersons.add(toPersonView(person, sortOrderByRefId, null, false, "manual", null));
@@ -874,7 +878,7 @@ public class EinsatzberichtService {
                     IncidentPersonnelSource source =
                             existingSources.getOrDefault(personRefId, IncidentPersonnelSource.MANUAL);
                     row.setSource(source);
-                    if (person.getUnit().getId() != unitId) {
+                    if (person.getUnit() != null && person.getUnit().getId() != unitId) {
                         row.setSource(IncidentPersonnelSource.FOREIGN);
                         row.setForeignUnit(person.getUnit());
                     }
@@ -1099,14 +1103,20 @@ public class EinsatzberichtService {
             return new KraefteFahrzeugeState.KraeftePersonView(
                     refId, displayName, Besatzungsstaerke.QualTier.MANNSCHAFT.name(), 0, null, usesPa, "manual", null, null, false);
         }
-        String unitLabel = person.getUnit().getId() != reportUnitId ? person.getUnit().getName() : null;
         return toPersonView(
                 person,
                 sortOrderByRefId,
                 vehicleRole,
                 usesPa,
                 poolSourceFor(source),
-                unitLabel);
+                unitLabelForPerson(person, reportUnitId));
+    }
+
+    private static String unitLabelForPerson(Person person, long reportUnitId) {
+        if (person == null || person.getUnit() == null) {
+            return null;
+        }
+        return person.getUnit().getId() != reportUnitId ? person.getUnit().getName() : null;
     }
 
     private long personnelRefId(IncidentReportPersonnel row) {
@@ -1301,7 +1311,7 @@ public class EinsatzberichtService {
                 row.setDisplayName(person.anwesenheitDisplayName());
                 row.setDiveraUcrId(ucr);
                 row.setSource(IncidentPersonnelSource.DIVERA);
-                if (person.getUnit().getId() != unitId) {
+                if (person.getUnit() != null && person.getUnit().getId() != unitId) {
                     row.setSource(IncidentPersonnelSource.FOREIGN);
                     row.setForeignUnit(person.getUnit());
                 }

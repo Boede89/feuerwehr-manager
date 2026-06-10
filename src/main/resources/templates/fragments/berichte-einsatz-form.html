@@ -383,15 +383,14 @@
            th:attr="data-vehicle-id=${beteiligt.vehicleId()}">
         <div class="incident-crew-chip"
              th:each="person : ${beteiligt.crewPersons()}"
-             th:attr="draggable=${formMode != 'view' ? 'true' : 'false'}"
-             th:classappend="${person.poolSource() == 'divera' ? ' incident-crew-chip--divera' : ''}"
-             th:classappend="${person.poolSource() == 'foreign' ? ' incident-crew-chip--foreign' : ''}"
-             th:data-person-id="${person.id()}"
-             th:data-qual-tier="${person.qualTier()}"
-             th:data-person-name="${person.displayName()}"
-             th:data-sort-order="${person.sortOrder()}"
-             th:data-pool-source="${person.poolSource()}"
-             th:data-unit-label="${person.unitLabel()}">
+             th:classappend="${(person.poolSource() == 'divera' ? ' incident-crew-chip--divera' : '') + (person.poolSource() == 'foreign' ? ' incident-crew-chip--foreign' : '')}"
+             th:attr="draggable=${formMode != 'view' ? 'true' : 'false'},
+                      data-person-id=${person.id()},
+                      data-qual-tier=${person.qualTier()},
+                      data-person-name=${person.displayName()},
+                      data-sort-order=${person.sortOrder()},
+                      data-pool-source=${person.poolSource()},
+                      data-unit-label=${person.unitLabel()}">
           <span class="incident-crew-chip__name"
                 th:text="${person.unitLabel() != null ? person.displayName() + ' (' + person.unitLabel() + ')' : person.displayName()}">Name</span>
         </div>
