@@ -4,6 +4,8 @@
   var draggedChip = null;
   var suppressChipClick = false;
   var roleMenuChip = null;
+  var vehicleMenuChip = null;
+  var activeCrewTab = 1;
 
   var ROLE_EF = 'EINHEITSFUEHRER';
   var ROLE_MA = 'MASCHINIST';
@@ -94,6 +96,81 @@
 
   function isInvolvedZone(zone) {
     return zone && Number(zone.dataset.vehicleId) === BETEILIGT_VEHICLE_ID;
+  }
+
+  function isMirrorChip(chip) {
+    return !!(chip && chip.classList.contains('incident-crew-chip--involved-mirror'));
+  }
+
+  function removeInvolvedMirrors() {
+    var zone = involvedDropzone();
+    if (!zone) {
+      return;
+    }
+    zone.querySelectorAll('.incident-crew-chip--involved-mirror').forEach(function (chip) {
+      chip.remove();
+    });
+  }
+
+  function createInvolvedMirrorChip(sourceChip) {
+    var mirror = document.createElement('div');
+    mirror.className = 'incident-crew-chip incident-crew-chip--involved-mirror';
+    if (sourceChip.classList.contains('incident-crew-chip--divera')) {
+      mirror.classList.add('incident-crew-chip--divera');
+    }
+    mirror.dataset.personId = sourceChip.dataset.personId;
+    mirror.dataset.qualTier = sourceChip.dataset.qualTier || '';
+    mirror.dataset.personName = sourceChip.dataset.personName || '';
+    if (sourceChip.dataset.poolSource) {
+      mirror.dataset.poolSource = sourceChip.dataset.poolSource;
+    }
+    mirror.setAttribute('draggable', 'false');
+    var nameEl = document.createElement('span');
+    nameEl.className = 'incident-crew-chip__name';
+    nameEl.textContent = sourceChip.dataset.personName || '';
+    mirror.appendChild(nameEl);
+    return mirror;
+  }
+
+  function resortInvolvedZoneChips(zone) {
+    var chips = Array.from(zone.querySelectorAll('.incident-crew-chip'));
+    chips.sort(function (a, b) {
+      return chipSortName(a).localeCompare(chipSortName(b), 'de');
+    });
+    chips.forEach(function (chip) {
+      zone.appendChild(chip);
+    });
+  }
+
+  function refreshInvolvedDisplay() {
+    var zone = involvedDropzone();
+    if (!zone) {
+      return;
+    }
+    removeInvolvedMirrors();
+    if (activeCrewTab !== 1) {
+      resortInvolvedZoneChips(zone);
+      return;
+    }
+    var assignedByPersonId = {};
+    document.querySelectorAll('.incident-vehicle-card .incident-vehicle-dropzone .incident-crew-chip').forEach(function (chip) {
+      if (isMirrorChip(chip)) {
+        return;
+      }
+      var personId = chip.dataset.personId;
+      if (!personId) {
+        return;
+      }
+      assignedByPersonId[personId] = chip;
+    });
+    Object.keys(assignedByPersonId).forEach(function (personId) {
+      var canonical = assignedByPersonId[personId];
+      if (isInvolvedChip(canonical)) {
+        return;
+      }
+      zone.appendChild(createInvolvedMirrorChip(canonical));
+    });
+    resortInvolvedZoneChips(zone);
   }
 
   function placeInvolvedCard(tabIdx) {
@@ -215,12 +292,152 @@
     return card.querySelector('.incident-vehicle-dropzone .incident-crew-chip[data-vehicle-role="' + role + '"]');
   }
 
+  function isBoardReadonly() {
+    var board = document.getElementById('incident-kraefte-board');
+    return board && board.dataset.readonly === 'true';
+  }
+
+  function involvedDropzone() {
+    return document.querySelector('.incident-vehicle-dropzone--involved');
+  }
+
+  function isInvolvedChip(chip) {
+    return isInvolvedZone(chip && chip.closest('.incident-vehicle-dropzone'));
+  }
+
+  function chipSortName(chip) {
+    return (chip.dataset.personName || chip.textContent || '').trim().toLocaleLowerCase('de');
+  }
+
+  function insertChipSortedByName(pool, chip) {
+    var name = chipSortName(chip);
+    var chips = Array.from(pool.querySelectorAll('.incident-crew-chip'));
+    var insertBefore = null;
+    for (var i = 0; i < chips.length; i++) {
+      if (chips[i] === chip) {
+        continue;
+      }
+      if (chipSortName(chips[i]).localeCompare(name, 'de') > 0) {
+        insertBefore = chips[i];
+        break;
+      }
+    }
+    if (insertBefore) {
+      pool.insertBefore(chip, insertBefore);
+    } else {
+      pool.appendChild(chip);
+    }
+  }
+
+  function positionFloatingMenu(menu, chip) {
+    var board = document.getElementById('incident-kraefte-board');
+    var rect = chip.getBoundingClientRect();
+    var boardRect = board ? board.getBoundingClientRect() : { left: 0, top: 0 };
+    var left = rect.left - boardRect.left;
+    var top = rect.bottom - boardRect.top + 6;
+    if (board) {
+      left = Math.max(4, Math.min(left, board.clientWidth - menu.offsetWidth - 4));
+    }
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+  }
+
   function hideRoleMenu() {
     var menu = document.getElementById('incident-crew-role-menu');
     if (menu) {
       menu.hidden = true;
     }
     roleMenuChip = null;
+  }
+
+  function hideVehicleMenu() {
+    var menu = document.getElementById('incident-vehicle-assign-menu');
+    if (menu) {
+      menu.hidden = true;
+      menu.textContent = '';
+    }
+    vehicleMenuChip = null;
+  }
+
+  function hideAllMenus() {
+    hideRoleMenu();
+    hideVehicleMenu();
+  }
+
+  function listAssignableVehicleCards() {
+    var cards = [];
+    var stack = document.getElementById('incident-vehicle-stack');
+    if (stack) {
+      stack.querySelectorAll('.incident-vehicle-card').forEach(function (card) {
+        cards.push(card);
+      });
+    }
+    document.querySelectorAll('.incident-virtual-slots .incident-vehicle-card').forEach(function (card) {
+      cards.push(card);
+    });
+    return cards;
+  }
+
+  function vehicleCardLabel(card) {
+    var title = card.querySelector('.incident-kraefte-section__title, .incident-vehicle-card__name');
+    return title ? title.textContent.trim() : 'Fahrzeug';
+  }
+
+  function assignChipToVehicle(chip, vehicleId) {
+    var zone = document.querySelector('.incident-vehicle-dropzone[data-vehicle-id="' + vehicleId + '"]');
+    if (!chip || !zone) {
+      return;
+    }
+    removePersonFromBoard(chip.dataset.personId, chip);
+    clearChipVehicleRole(chip);
+    clearChipPa(chip);
+    zone.appendChild(chip);
+    var card = zone.closest('.incident-vehicle-card');
+    if (isRealVehicleCard(card)) {
+      chip.classList.add('incident-crew-chip--vehicle-role');
+    } else {
+      chip.classList.remove('incident-crew-chip--vehicle-role');
+    }
+    refreshBoard();
+  }
+
+  function moveChipToInvolved(chip) {
+    var zone = involvedDropzone();
+    if (!chip || !zone || isInvolvedChip(chip)) {
+      return;
+    }
+    removePersonFromBoard(chip.dataset.personId, chip);
+    clearChipVehicleRole(chip);
+    clearChipPa(chip);
+    chip.classList.remove('incident-crew-chip--vehicle-role');
+    insertChipSortedByName(zone, chip);
+    refreshBoard();
+  }
+
+  function showVehicleAssignMenu(chip) {
+    var menu = document.getElementById('incident-vehicle-assign-menu');
+    if (!menu || !isInvolvedChip(chip)) {
+      return;
+    }
+    hideRoleMenu();
+    var cards = listAssignableVehicleCards();
+    if (cards.length === 0) {
+      return;
+    }
+    menu.textContent = '';
+    cards.forEach(function (card) {
+      var vehicleId = card.dataset.vehicleId;
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'incident-crew-role-menu__btn';
+      btn.setAttribute('role', 'menuitem');
+      btn.textContent = vehicleCardLabel(card);
+      btn.dataset.vehicleId = vehicleId;
+      menu.appendChild(btn);
+    });
+    vehicleMenuChip = chip;
+    menu.hidden = false;
+    positionFloatingMenu(menu, chip);
   }
 
   function configureMenuButton(btn, hidden) {
@@ -230,9 +447,10 @@
   function showRoleMenu(chip) {
     var card = vehicleCardForChip(chip);
     var menu = document.getElementById('incident-crew-role-menu');
-    if (!chip.closest('.incident-vehicle-dropzone') || !menu) {
+    if (!chip.closest('.incident-vehicle-dropzone') || !menu || isInvolvedChip(chip)) {
       return;
     }
+    hideVehicleMenu();
     var onRealVehicle = isRealVehicleCard(card);
     var currentRole = chip.dataset.vehicleRole || '';
     var hasPa = chipHasPa(chip);
@@ -264,16 +482,7 @@
 
     roleMenuChip = chip;
     menu.hidden = false;
-    var board = document.getElementById('incident-kraefte-board');
-    var rect = chip.getBoundingClientRect();
-    var boardRect = board ? board.getBoundingClientRect() : { left: 0, top: 0 };
-    var left = rect.left - boardRect.left;
-    var top = rect.bottom - boardRect.top + 6;
-    if (board) {
-      left = Math.max(4, Math.min(left, board.clientWidth - menu.offsetWidth - 4));
-    }
-    menu.style.left = left + 'px';
-    menu.style.top = top + 'px';
+    positionFloatingMenu(menu, chip);
   }
 
   function handleMenuAction(action) {
@@ -311,6 +520,9 @@
     document.querySelectorAll('.incident-vehicle-card').forEach(function (card) {
       var vehicleId = Number(card.dataset.vehicleId);
       var personIds = Array.from(card.querySelectorAll('.incident-vehicle-dropzone .incident-crew-chip'))
+        .filter(function (chip) {
+          return !isMirrorChip(chip);
+        })
         .map(function (chip) {
           return Number(chip.dataset.personId);
         })
@@ -344,6 +556,7 @@
   }
 
   function refreshBoard() {
+    refreshInvolvedDisplay();
     document.querySelectorAll('.incident-vehicle-card').forEach(updateVehicleStaerke);
     updatePoolCounts();
     updateActiveEmptyHint();
@@ -352,10 +565,10 @@
 
   function onDragStart(e) {
     var chip = e.target.closest('.incident-crew-chip');
-    if (!chip || chip.getAttribute('draggable') !== 'true') {
+    if (!chip || isMirrorChip(chip) || chip.getAttribute('draggable') !== 'true') {
       return;
     }
-    hideRoleMenu();
+    hideAllMenus();
     draggedChip = chip;
     chip.classList.add('incident-crew-chip--dragging');
     e.dataTransfer.effectAllowed = 'move';
@@ -410,10 +623,11 @@
       clearChipVehicleRole(draggedChip);
       clearChipPa(draggedChip);
       draggedChip.classList.remove('incident-crew-chip--vehicle-role');
+      insertChipSortedByName(zone, draggedChip);
     } else {
       clearChipVehicleRole(draggedChip);
+      zone.appendChild(draggedChip);
     }
-    zone.appendChild(draggedChip);
     if (isRealVehicleCard(targetCard)) {
       draggedChip.classList.add('incident-crew-chip--vehicle-role');
     } else if (!isInvolvedZone(zone)) {
@@ -531,11 +745,27 @@
     board.addEventListener('dragend', onDragEnd);
 
     board.addEventListener('click', function (e) {
-      if (suppressChipClick) {
+      if (suppressChipClick || isBoardReadonly()) {
         return;
       }
       var chip = e.target.closest('.incident-crew-chip');
-      if (!chip || !chip.closest('.incident-vehicle-dropzone')) {
+      if (!chip) {
+        return;
+      }
+      if (isReserveChip(chip) && activeCrewTab === 1) {
+        e.stopPropagation();
+        moveChipToInvolved(chip);
+        return;
+      }
+      if (isMirrorChip(chip)) {
+        return;
+      }
+      if (isInvolvedChip(chip) && activeCrewTab === 2) {
+        e.stopPropagation();
+        showVehicleAssignMenu(chip);
+        return;
+      }
+      if (!chip.closest('.incident-vehicle-dropzone')) {
         return;
       }
       e.stopPropagation();
@@ -552,10 +782,28 @@
       });
     }
 
+    var vehicleMenu = document.getElementById('incident-vehicle-assign-menu');
+    if (vehicleMenu) {
+      vehicleMenu.addEventListener('click', function (e) {
+        var btn = e.target.closest('.incident-crew-role-menu__btn');
+        if (!btn || !vehicleMenuChip) {
+          return;
+        }
+        e.stopPropagation();
+        assignChipToVehicle(vehicleMenuChip, btn.dataset.vehicleId);
+        hideVehicleMenu();
+      });
+    }
+
     document.addEventListener('click', function (e) {
-      if (!e.target.closest('#incident-crew-role-menu') && !e.target.closest('.incident-vehicle-dropzone .incident-crew-chip')) {
-        hideRoleMenu();
+      if (e.target.closest('#incident-crew-role-menu') || e.target.closest('#incident-vehicle-assign-menu')) {
+        return;
       }
+      if (e.target.closest('.incident-vehicle-dropzone .incident-crew-chip') ||
+          e.target.closest('.incident-person-pool--reserve .incident-crew-chip')) {
+        return;
+      }
+      hideAllMenus();
     });
 
     board.querySelectorAll('.incident-vehicle-dropzone').forEach(function (zone) {
@@ -606,7 +854,10 @@
 
   window.BerichteKraefte = {
     onTabShow: function (tabIdx) {
+      activeCrewTab = tabIdx;
       placeInvolvedCard(tabIdx);
+      hideAllMenus();
+      refreshBoard();
     }
   };
 

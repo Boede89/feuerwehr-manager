@@ -4067,6 +4067,12 @@ span.required { color: var(--error); }
   opacity: 0.5;
 }
 
+.einsatzbericht-form-page .incident-crew-chip--involved-mirror {
+  cursor: default;
+  opacity: 0.82;
+  border-style: dashed;
+}
+
 .einsatzbericht-form-page .incident-crew-chip--vehicle-role {
   display: inline-flex;
   align-items: center;

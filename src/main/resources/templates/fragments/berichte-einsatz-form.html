@@ -364,6 +364,8 @@
       <p class="hint incident-vehicle-dropzone-hint" th:if="${formMode != 'view'}">Personal hierher ziehen</p>
     </article>
 
+    <div id="incident-vehicle-assign-menu" class="incident-crew-role-menu incident-vehicle-assign-menu" hidden role="menu" th:if="${formMode != 'view'}"></div>
+
     <div id="incident-crew-role-menu" class="incident-crew-role-menu" hidden role="menu" th:if="${formMode != 'view'}">
       <button type="button" class="incident-crew-role-menu__btn" data-role="EINHEITSFUEHRER" role="menuitem">
         Einheitsführer
