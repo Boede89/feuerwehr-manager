@@ -184,6 +184,9 @@ public class IncidentReport {
     @Column(name = "persons_dead_own", nullable = false)
     private int personsDeadOwn;
 
+    @Column(name = "person_damages_enabled", nullable = false)
+    private boolean personDamagesEnabled;
+
     @Column(name = "animals_rescued", nullable = false)
     private int animalsRescued;
 
@@ -195,6 +198,9 @@ public class IncidentReport {
 
     @Column(name = "animals_dead", nullable = false)
     private int animalsDead;
+
+    @Column(name = "animal_damages_enabled", nullable = false)
+    private boolean animalDamagesEnabled;
 
     @Column(name = "vehicle_damage", columnDefinition = "TEXT")
     private String vehicleDamage;

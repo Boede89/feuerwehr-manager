@@ -423,19 +423,35 @@ public class EinsatzberichtService {
         report.setStrengthSub(0);
         report.setStrengthCrew(personnelCount);
         report.setNotes(trimToNull(form.einsatzkurzbericht()));
-        report.setPersonsRescued(Math.max(0, form.personsRescued()));
-        report.setPersonsEvacuated(Math.max(0, form.personsEvacuated()));
-        report.setPersonsInjured(Math.max(0, form.personsInjured()));
-        report.setPersonsInjuredOwn(Math.max(0, form.personsInjuredOwn()));
-        report.setPersonsRecovered(Math.max(0, form.personsRecovered()));
-        report.setPersonsDead(Math.max(0, form.personsDead()));
-        report.setPersonsDeadOwn(Math.max(0, form.personsDeadOwn()));
-        report.setAnimalsRescued(Math.max(0, form.animalsRescued()));
-        report.setAnimalsInjured(Math.max(0, form.animalsInjured()));
-        report.setAnimalsRecovered(Math.max(0, form.animalsRecovered()));
-        report.setAnimalsDead(Math.max(0, form.animalsDead()));
-        report.setVehicleDamage(trimToNull(form.vehicleDamage()));
-        report.setEquipmentDamage(trimToNull(form.equipmentDamage()));
+        report.setPersonDamagesEnabled(form.personDamagesEnabled());
+        report.setAnimalDamagesEnabled(form.animalDamagesEnabled());
+        if (form.personDamagesEnabled()) {
+            report.setPersonsRescued(Math.max(0, form.personsRescued()));
+            report.setPersonsInjured(Math.max(0, form.personsInjured()));
+            report.setPersonsRecovered(Math.max(0, form.personsRecovered()));
+            report.setPersonsDead(Math.max(0, form.personsDead()));
+        } else {
+            report.setPersonsRescued(0);
+            report.setPersonsInjured(0);
+            report.setPersonsRecovered(0);
+            report.setPersonsDead(0);
+        }
+        report.setPersonsEvacuated(0);
+        report.setPersonsInjuredOwn(0);
+        report.setPersonsDeadOwn(0);
+        if (form.animalDamagesEnabled()) {
+            report.setAnimalsRescued(Math.max(0, form.animalsRescued()));
+            report.setAnimalsInjured(Math.max(0, form.animalsInjured()));
+            report.setAnimalsRecovered(Math.max(0, form.animalsRecovered()));
+            report.setAnimalsDead(Math.max(0, form.animalsDead()));
+        } else {
+            report.setAnimalsRescued(0);
+            report.setAnimalsInjured(0);
+            report.setAnimalsRecovered(0);
+            report.setAnimalsDead(0);
+        }
+        report.setVehicleDamage(null);
+        report.setEquipmentDamage(null);
     }
 
     private void applyCommander(IncidentReport report, EinsatzberichtFormData form, long unitId) {

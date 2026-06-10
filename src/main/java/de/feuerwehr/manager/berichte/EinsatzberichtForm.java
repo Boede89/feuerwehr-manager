@@ -48,6 +48,8 @@ public class EinsatzberichtForm {
     private String reporterPhone;
     private String crewAssignmentsJson;
     private String einsatzkurzbericht;
+    private boolean personDamagesEnabled;
+    private boolean animalDamagesEnabled;
     private int personsRescued;
     private int personsEvacuated;
     private int personsInjured;
@@ -91,6 +93,8 @@ public class EinsatzberichtForm {
         form.setReporterName(report.getReporterName());
         form.setReporterPhone(report.getReporterPhone());
         form.setEinsatzkurzbericht(report.getNotes());
+        form.setPersonDamagesEnabled(report.isPersonDamagesEnabled());
+        form.setAnimalDamagesEnabled(report.isAnimalDamagesEnabled());
         form.setPersonsRescued(report.getPersonsRescued());
         form.setPersonsEvacuated(report.getPersonsEvacuated());
         form.setPersonsInjured(report.getPersonsInjured());
@@ -137,6 +141,8 @@ public class EinsatzberichtForm {
                 reporterPhone,
                 crewAssignments != null ? crewAssignments : List.of(),
                 einsatzkurzbericht,
+                personDamagesEnabled,
+                animalDamagesEnabled,
                 personsRescued,
                 personsEvacuated,
                 personsInjured,

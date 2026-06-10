@@ -3571,6 +3571,35 @@ span.required { color: var(--error); }
   align-items: start;
 }
 
+.einsatzbericht-form-page .incident-damage-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.einsatzbericht-form-page .incident-damage-toggle__option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  user-select: none;
+}
+
+.einsatzbericht-form-page .incident-damage-toggle__option:has(input:checked) {
+  border-color: color-mix(in srgb, var(--accent, #c41e3a) 55%, var(--border));
+  background: color-mix(in srgb, var(--accent, #c41e3a) 10%, var(--bg-card));
+}
+
+.einsatzbericht-form-page .incident-damage-toggle__option input {
+  margin: 0;
+}
+
 .einsatzbericht-form-page .incident-section-title {
   margin: 0 0 12px;
   font-size: 13px;
