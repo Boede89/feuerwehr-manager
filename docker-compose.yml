@@ -37,9 +37,13 @@ services:
       FEUERWEHR_AUDIT_SALT: ${FEUERWEHR_AUDIT_SALT:-bitte-in-produktion-aendern}
       # DSGVO: 2FA-Secrets verschlüsselt — in Produktion via .env setzen (siehe .env.example)
       FEUERWEHR_TOTP_ENCRYPTION_KEY: ${FEUERWEHR_TOTP_ENCRYPTION_KEY:-}
+      FEUERWEHR_DATA_DIR: /data
+    volumes:
+      - ffm_app_data:/data
     depends_on:
       mysql:
         condition: service_healthy
 
 volumes:
   ffm_mysql_data:
+  ffm_app_data:

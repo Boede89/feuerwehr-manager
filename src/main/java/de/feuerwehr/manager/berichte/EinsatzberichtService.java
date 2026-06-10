@@ -65,6 +65,7 @@ public class EinsatzberichtService {
     private final DiveraService diveraService;
     private final DiveraMappingService diveraMappingService;
     private final AtemschutzService atemschutzService;
+    private final EinsatzberichtAttachmentService einsatzberichtAttachmentService;
     private final UnitDiveraSettingsRepository diveraSettingsRepository;
     private final ObjectMapper objectMapper;
 
@@ -319,12 +320,14 @@ public class EinsatzberichtService {
     }
 
     @Transactional
+    @Transactional
     public void delete(long unitId, long reportId) {
         IncidentReport report = requireReport(unitId, reportId);
         long id = report.getId();
         atemschutzService.deleteIncidentPaFitnessRecords(id);
         incidentReportPersonnelRepository.deleteByIncidentReportId(id);
         incidentReportVehicleRepository.deleteByIncidentReportId(id);
+        einsatzberichtAttachmentService.deleteAllForReport(id);
         incidentReportRepository.delete(report);
     }
 

@@ -3574,46 +3574,125 @@ span.required { color: var(--error); }
   align-items: start;
 }
 
-.einsatzbericht-form-page .incident-damage-toggle {
-  display: inline-flex;
-  gap: 4px;
-  padding: 4px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--border) 25%, var(--bg-card));
+.einsatzbericht-form-page .yes-no-radio {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 24px;
 }
 
-.einsatzbericht-form-page .incident-damage-toggle__option {
+.einsatzbericht-form-page .yes-no-radio__option {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
   gap: 8px;
-  min-width: 96px;
-  padding: 8px 20px;
-  border: none;
-  border-radius: calc(var(--radius-md) - 2px);
-  background: transparent;
+  margin: 0;
   cursor: pointer;
   font-size: 14px;
-  font-weight: 600;
-  user-select: none;
-  line-height: 1.2;
-}
-
-.einsatzbericht-form-page .incident-damage-toggle__option:has(input:checked) {
-  background: var(--bg-card);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  font-weight: 500;
   color: var(--text);
+  user-select: none;
+  line-height: 1.3;
 }
 
-.einsatzbericht-form-page .incident-damage-toggle__option:has(input:disabled) {
+.einsatzbericht-form-page .yes-no-radio__option input[type="radio"] {
+  width: 1.125rem;
+  height: 1.125rem;
+  margin: 0;
+  flex-shrink: 0;
+  accent-color: var(--accent, var(--rot));
+  cursor: pointer;
+}
+
+.einsatzbericht-form-page .yes-no-radio__option:has(input:disabled) {
   cursor: default;
   opacity: 0.85;
 }
 
-.einsatzbericht-form-page .incident-damage-toggle__option input {
-  margin: 0;
+.einsatzbericht-form-page .incident-attachments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.einsatzbericht-form-page .incident-attachment-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.einsatzbericht-form-page .incident-attachment-card__icon {
   flex-shrink: 0;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.einsatzbericht-form-page .incident-attachment-card__meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.einsatzbericht-form-page .incident-attachment-card__name {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.einsatzbericht-form-page .incident-attachment-card__details {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.einsatzbericht-form-page .incident-attachment-drop {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.einsatzbericht-form-page .incident-attachment-drop:hover,
+.einsatzbericht-form-page .incident-attachment-drop--active {
+  border-color: color-mix(in srgb, var(--accent, var(--rot)) 55%, var(--border));
+  background: color-mix(in srgb, var(--accent, var(--rot)) 6%, var(--bg-card));
+}
+
+.einsatzbericht-form-page .incident-attachment-drop__icon {
+  font-size: 28px;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.einsatzbericht-form-page .incident-attachment-drop__hint {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.einsatzbericht-form-page .incident-attachment-drop__types {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.einsatzbericht-form-page .incident-attachment-progress {
+  display: none;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.einsatzbericht-form-page .incident-attachments-empty {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin: 0 0 16px;
 }
 
 .einsatzbericht-form-page .incident-section-title {

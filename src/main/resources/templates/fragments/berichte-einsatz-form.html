@@ -7,6 +7,7 @@
     <button type="button" class="tab-btn incident-tab" data-tab="1">Kräfte &amp; Fahrzeuge</button>
     <button type="button" class="tab-btn incident-tab" data-tab="2">Schäden</button>
     <button type="button" class="tab-btn incident-tab" data-tab="3">Bericht</button>
+    <button type="button" class="tab-btn incident-tab" data-tab="4" th:if="${report != null}">Anhänge</button>
   </nav>
 
   <!-- Tab 0: Basisdaten -->
@@ -127,35 +128,35 @@
       </div>
       <div class="form-group">
         <span class="form-label" id="chargeable-label">Kostenpflichtig</span>
-        <div class="incident-damage-toggle" role="radiogroup" aria-labelledby="chargeable-label">
-          <label class="incident-damage-toggle__option">
-            <input type="radio" name="chargeable" value="false"
-                   th:disabled="${formMode == 'view'}"
-                   th:checked="${form.chargeable != null and !form.chargeable}"/>
-            <span>Nein</span>
-          </label>
-          <label class="incident-damage-toggle__option">
+        <div class="yes-no-radio" role="radiogroup" aria-labelledby="chargeable-label">
+          <label class="yes-no-radio__option">
             <input type="radio" name="chargeable" value="true"
                    th:disabled="${formMode == 'view'}"
                    th:checked="${form.chargeable != null and form.chargeable}"/>
             <span>Ja</span>
           </label>
+          <label class="yes-no-radio__option">
+            <input type="radio" name="chargeable" value="false"
+                   th:disabled="${formMode == 'view'}"
+                   th:checked="${form.chargeable != null and !form.chargeable}"/>
+            <span>Nein</span>
+          </label>
         </div>
       </div>
       <div class="form-group">
         <span class="form-label" id="fire-watch-label">Brandwache</span>
-        <div class="incident-damage-toggle" role="radiogroup" aria-labelledby="fire-watch-label">
-          <label class="incident-damage-toggle__option">
-            <input type="radio" name="fireWatch" value="false"
-                   th:disabled="${formMode == 'view'}"
-                   th:checked="${form.fireWatch != null and !form.fireWatch}"/>
-            <span>Nein</span>
-          </label>
-          <label class="incident-damage-toggle__option">
+        <div class="yes-no-radio" role="radiogroup" aria-labelledby="fire-watch-label">
+          <label class="yes-no-radio__option">
             <input type="radio" name="fireWatch" value="true"
                    th:disabled="${formMode == 'view'}"
                    th:checked="${form.fireWatch != null and form.fireWatch}"/>
             <span>Ja</span>
+          </label>
+          <label class="yes-no-radio__option">
+            <input type="radio" name="fireWatch" value="false"
+                   th:disabled="${formMode == 'view'}"
+                   th:checked="${form.fireWatch != null and !form.fireWatch}"/>
+            <span>Nein</span>
           </label>
         </div>
       </div>
@@ -352,18 +353,18 @@
   <!-- Tab 2: Schäden -->
   <div class="incident-tab-panel" data-panel="2" hidden>
     <h4 class="incident-section-title">Personenschäden</h4>
-    <div class="incident-damage-toggle incident-section-block" role="radiogroup" aria-label="Personenschäden">
-      <label class="incident-damage-toggle__option">
-        <input type="radio" name="personDamagesEnabled" value="false"
-               th:disabled="${formMode == 'view'}"
-               th:checked="${!form.personDamagesEnabled}"/>
-        <span>Nein</span>
-      </label>
-      <label class="incident-damage-toggle__option">
+    <div class="yes-no-radio incident-section-block" role="radiogroup" aria-label="Personenschäden">
+      <label class="yes-no-radio__option">
         <input type="radio" name="personDamagesEnabled" value="true"
                th:disabled="${formMode == 'view'}"
                th:checked="${form.personDamagesEnabled}"/>
         <span>Ja</span>
+      </label>
+      <label class="yes-no-radio__option">
+        <input type="radio" name="personDamagesEnabled" value="false"
+               th:disabled="${formMode == 'view'}"
+               th:checked="${!form.personDamagesEnabled}"/>
+        <span>Nein</span>
       </label>
     </div>
     <div id="person-damage-fields" class="incident-form-grid-4 incident-section-block">
@@ -390,18 +391,18 @@
     </div>
 
     <h4 class="incident-section-title">Tierschäden</h4>
-    <div class="incident-damage-toggle incident-section-block" role="radiogroup" aria-label="Tierschäden">
-      <label class="incident-damage-toggle__option">
-        <input type="radio" name="animalDamagesEnabled" value="false"
-               th:disabled="${formMode == 'view'}"
-               th:checked="${!form.animalDamagesEnabled}"/>
-        <span>Nein</span>
-      </label>
-      <label class="incident-damage-toggle__option">
+    <div class="yes-no-radio incident-section-block" role="radiogroup" aria-label="Tierschäden">
+      <label class="yes-no-radio__option">
         <input type="radio" name="animalDamagesEnabled" value="true"
                th:disabled="${formMode == 'view'}"
                th:checked="${form.animalDamagesEnabled}"/>
         <span>Ja</span>
+      </label>
+      <label class="yes-no-radio__option">
+        <input type="radio" name="animalDamagesEnabled" value="false"
+               th:disabled="${formMode == 'view'}"
+               th:checked="${!form.animalDamagesEnabled}"/>
+        <span>Nein</span>
       </label>
     </div>
     <div id="animal-damage-fields" class="incident-form-grid-4 incident-section-block">
@@ -436,6 +437,13 @@
                 class="incident-kurzbericht-field" th:readonly="${formMode == 'view'}"
                 placeholder="Kurzbericht zum Einsatz …"
                 th:text="${form.einsatzkurzbericht}"></textarea>
+    </div>
+  </div>
+
+  <!-- Tab 4: Anhänge -->
+  <div class="incident-tab-panel" data-panel="4" hidden th:if="${report != null}">
+    <div id="incident-attachments-wrap"
+         th:attr="data-report-id=${report.id},data-unit-id=${unitId},data-readonly=${formMode == 'view' or report.status.name() != 'ENTWURF' ? 'true' : 'false'}">
     </div>
   </div>
   </div>

@@ -44,6 +44,8 @@ management:
         include: health,info
 
 feuerwehr:
+  storage:
+    data-dir: ${FEUERWEHR_DATA_DIR:data}
   security:
     bootstrap-admin-username: ${FEUERWEHR_BOOTSTRAP_ADMIN_USERNAME:admin}
     bootstrap-admin-password: ${FEUERWEHR_BOOTSTRAP_ADMIN_PASSWORD:changeme}

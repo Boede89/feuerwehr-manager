@@ -38,7 +38,11 @@
   document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.incident-tab').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        switchTab(Number(btn.dataset.tab));
+        var idx = Number(btn.dataset.tab);
+        switchTab(idx);
+        if (idx === 4 && window.BerichteAnhaenge) {
+          window.BerichteAnhaenge.load();
+        }
       });
     });
 
