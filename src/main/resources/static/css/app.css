@@ -4761,32 +4761,56 @@ span.required { color: var(--error); }
 /* ── Einsatzberichte-Liste (FW-Hub) ───────────────────────────────────────── */
 .filter-bar {
   display: flex;
+  flex-direction: row;
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
   margin-bottom: 16px;
 }
 
-.filter-bar select,
-.berichte-einsatz-filter select {
+/* Kompakte Filter wie FW-Hub / Anwesenheit (nicht volle Breite, nicht 44px Touch) */
+.berichte-einsatz-filter .berichte-filter-select {
+  width: auto;
   min-width: 90px;
-  padding: 7px 12px;
+  max-width: 11.5rem;
+  height: 2.25rem;
+  min-height: 2.25rem;
+  max-height: 2.25rem;
+  margin: 0;
+  padding: 0 12px;
+  padding-right: 1.75rem;
   font-size: var(--fs-sm);
-  background: var(--bg-card);
+  line-height: 1.25;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  background-color: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--text);
   appearance: none;
   -webkit-appearance: none;
-  padding-right: 1.75rem;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M3 4.5 6 8l3-3.5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 0.625rem center;
   background-size: 0.75rem;
 }
 
-#filter-year {
-  min-width: 90px;
+.berichte-einsatz-filter .berichte-filter-select--stichwort {
+  min-width: 10rem;
+  max-width: 14rem;
+}
+
+.berichte-einsatz-filter .berichte-filter-select--status {
+  min-width: 8.5rem;
+  max-width: 11rem;
+}
+
+#incident-table-wrap {
+  margin-top: 4px;
+}
+
+#incident-table-wrap .data-table {
+  margin-top: 0;
 }
 
 .berichte-einsatz-header {
