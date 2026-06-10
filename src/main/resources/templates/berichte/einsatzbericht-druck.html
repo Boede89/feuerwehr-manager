@@ -29,6 +29,10 @@
     .personnel-table .col-pa { width: 14px; min-width: 14px; max-width: 14px; padding: 1px 2px; text-align: center; }
     .col-pa-x { font-size: 1.1em; font-weight: bold; line-height: 1; }
     .kurzbericht-cell { white-space: pre-wrap; }
+    .person-damage-pdf-table { margin: 0; font-size: 8pt; }
+    .person-damage-pdf-table th { font-size: 7.5pt; }
+    .person-damage-pdf-table .col-damage-label { width: 110px; }
+    .person-damage-pdf-table .col-damage-birth { width: 72px; }
     .bottom-row { display: flex; gap: 24px; align-items: flex-end; margin-top: 20px; padding-top: 12px; border-top: 1px solid #333; }
     .bottom-row .einsatzleiter-cell { flex: 1; }
     .bottom-row .signature-cell { flex-shrink: 0; padding-top: 24px; }
@@ -84,6 +88,29 @@
         <td th:text="${fireWatch}">—</td>
         <td class="label-cell">Personenschäden</td>
         <td th:text="${personDamages}">—</td>
+      </tr>
+      <tr th:if="${!#lists.isEmpty(personDamageDetails)}">
+        <td class="label-cell">Geschädigte</td>
+        <td colspan="5" style="padding:0;">
+          <table class="person-damage-pdf-table" width="100%">
+            <thead>
+            <tr>
+              <th class="col-damage-label">Kategorie</th>
+              <th>Name</th>
+              <th>Adresse</th>
+              <th class="col-damage-birth">Geburtsdatum</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="entry : ${personDamageDetails}">
+              <td th:text="${entry.label()}">Gerettete Person 1</td>
+              <td th:text="${entry.name()}">—</td>
+              <td th:text="${entry.address()}">—</td>
+              <td th:text="${entry.birthdate()}">—</td>
+            </tr>
+            </tbody>
+          </table>
+        </td>
       </tr>
       <tr th:if="${einsatzkurzbericht != null and einsatzkurzbericht != '—'}">
         <td class="label-cell">Einsatzkurzbericht</td>
