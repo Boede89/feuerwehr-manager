@@ -21,12 +21,36 @@
 
   <!-- Einsatzberichte -->
   <div th:if="${berichteTab == 'einsatz'}" class="berichte-module-panel">
+    <div class="page-header berichte-einsatz-header">
+      <div>
+        <h2>Einsatzberichte</h2>
+        <p>Verwaltung und Dokumentation · <strong th:text="${currentUnitName}">—</strong></p>
+      </div>
+      <a th:if="${canWrite}" class="btn btn--primary" th:href="@{/berichte/einsatzberichte/neu(unit=${unitId})}">+ Neuer Bericht</a>
+    </div>
+
+    <form method="get" class="filter-bar berichte-einsatz-filter" th:action="@{/berichte}">
+      <input type="hidden" name="unit" th:value="${unitId}"/>
+      <input type="hidden" name="tab" value="einsatz"/>
+      <select name="year" class="field berichte-filter-field" aria-label="Jahr filtern" onchange="this.form.submit()">
+        <option th:each="y : ${filterYears}" th:value="${y}" th:text="${y}"
+                th:selected="${y == filterYear}">2026</option>
+      </select>
+      <select name="stichwort" class="field berichte-filter-field" aria-label="Stichwort filtern" onchange="this.form.submit()">
+        <option value="" th:selected="${filterStichwort == null or filterStichwort == ''}">Alle Stichworte</option>
+        <option th:each="s : ${filterStichworte}" th:value="${s}" th:text="${s}"
+                th:selected="${s == filterStichwort}">Stichwort</option>
+      </select>
+      <select name="status" class="field berichte-filter-field" aria-label="Status filtern" onchange="this.form.submit()">
+        <option value="" th:selected="${filterStatus == null or filterStatus == ''}">Alle Status</option>
+        <option th:each="st : ${filterStatuses}" th:value="${st.name()}" th:text="${st.label()}"
+                th:selected="${st.name() == filterStatus}">Entwurf</option>
+      </select>
+    </form>
+
     <div class="card">
-      <div class="card__header card__header--toolbar">
+      <div class="card__header">
         <span th:text="'Einsatzberichte (' + ${#lists.size(einsatzberichte)} + ')'">Einsatzberichte</span>
-        <div class="toolbar-actions" th:if="${canWrite}">
-          <a class="btn btn--primary btn--sm" th:href="@{/berichte/einsatzberichte/neu(unit=${unitId})}">+ Neuer Bericht</a>
-        </div>
       </div>
       <div class="card__body card__body--flush" th:if="${!#lists.isEmpty(einsatzberichte)}">
         <table class="data-table">
@@ -38,39 +62,50 @@
             <th>Einsatzort</th>
             <th>Status</th>
             <th>Quelle</th>
-            <th th:if="${canWrite}"></th>
+            <th>Aktionen</th>
           </tr>
           </thead>
           <tbody>
           <tr th:each="r : ${einsatzberichte}">
-            <td th:text="${r.incidentNumber != null ? r.incidentNumber : '—'}">—</td>
+            <td class="text-muted text-xs" th:text="${r.incidentNumber != null ? r.incidentNumber : '—'}">—</td>
             <td th:text="${#temporals.format(r.incidentDate, 'dd.MM.yyyy')}">—</td>
             <td th:text="${r.stichwort != null and !#strings.isEmpty(r.stichwort) ? r.stichwort : r.incidentTypeLabel}">—</td>
             <td th:text="${r.location}">—</td>
             <td>
-              <span class="badge" th:text="${r.status.label()}">Entwurf</span>
+              <span class="incident-status-pill"
+                    th:classappend="${' incident-status-pill--' + r.status.cssModifier()}"
+                    th:text="${r.status.label()}">Entwurf</span>
             </td>
             <td>
-              <span class="badge badge-muted" th:if="${r.diveraAlarmId != null}">DIVERA</span>
-              <span class="text-muted" th:if="${r.diveraAlarmId == null}">Manuell</span>
+              <span class="text-muted text-sm" th:if="${r.diveraAlarmId == null}">Manuell</span>
+              <span class="text-muted text-sm" th:if="${r.diveraAlarmId != null}">DIVERA</span>
             </td>
-            <td th:if="${canWrite}" class="table-actions">
-              <a class="btn btn--outline btn--sm"
-                 th:href="@{/berichte/einsatzberichte/{id}/bearbeiten(id=${r.id},unit=${unitId})}">Bearbeiten</a>
-              <form method="post" th:action="@{/berichte/einsatzberichte/{id}/delete(id=${r.id})}"
-                    class="table-inline-form"
-                    onsubmit="return confirm('Einsatzbericht wirklich löschen?');">
-                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-                <input type="hidden" name="unit" th:value="${unitId}"/>
-                <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
-              </form>
+            <td>
+              <div class="btn-group">
+                <a class="btn btn--outline btn--sm"
+                   th:href="@{/berichte/einsatzberichte/{id}(id=${r.id}, unit=${unitId}, returnUrl=${einsatzListPath})}">Anzeigen</a>
+                <a class="btn btn--outline btn--sm"
+                   th:if="${T(de.feuerwehr.manager.berichte.EinsatzberichtAccess).canEdit(r, currentUserId, isAdmin, canApprove)}"
+                   th:href="@{/berichte/einsatzberichte/{id}/bearbeiten(id=${r.id},unit=${unitId})}">Bearbeiten</a>
+                <form th:if="${T(de.feuerwehr.manager.berichte.EinsatzberichtAccess).canDelete(r, currentUserId, isAdmin, canApprove)}"
+                      method="post" th:action="@{/berichte/einsatzberichte/{id}/delete(id=${r.id})}"
+                      class="table-inline-form"
+                      onsubmit="return confirm('Einsatzbericht wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.');">
+                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                  <input type="hidden" name="unit" th:value="${unitId}"/>
+                  <input type="hidden" name="year" th:value="${filterYear}"/>
+                  <input type="hidden" name="stichwort" th:value="${filterStichwort}"/>
+                  <input type="hidden" name="status" th:value="${filterStatus}"/>
+                  <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
+                </form>
+              </div>
             </td>
           </tr>
           </tbody>
         </table>
       </div>
       <div class="card__body" th:if="${#lists.isEmpty(einsatzberichte)}">
-        <p class="hint" style="margin:0;">Noch keine Einsatzberichte angelegt.</p>
+        <p class="hint" style="margin:0;">Keine Einsatzberichte für die gewählten Filter gefunden.</p>
       </div>
     </div>
   </div>

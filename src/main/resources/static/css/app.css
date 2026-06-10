@@ -3421,8 +3421,10 @@ span.required { color: var(--error); }
 
 .einsatzbericht-form-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   flex-shrink: 0;
+  align-items: center;
 }
 
 .einsatzbericht-form-page .card {
@@ -4754,4 +4756,81 @@ span.required { color: var(--error); }
   .einsatzbericht-form-page .incident-vehicle-stack {
     grid-template-columns: 1fr;
   }
+}
+
+/* ── Einsatzberichte-Liste (FW-Hub) ───────────────────────────────────────── */
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.filter-bar .field,
+.berichte-filter-field {
+  min-width: 90px;
+  padding: 7px 12px;
+  font-size: var(--fs-sm);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text);
+}
+
+.berichte-einsatz-filter select.berichte-filter-field {
+  padding-right: 1.75rem;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M3 4.5 6 8l3-3.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.625rem center;
+  background-size: 0.75rem;
+}
+
+.berichte-einsatz-header {
+  margin-bottom: 0;
+}
+
+.berichte-einsatz-header h2 {
+  margin: 0 0 4px;
+}
+
+.incident-status-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.incident-status-pill--entwurf {
+  background: var(--orange-hell);
+  color: var(--gelb);
+}
+
+.incident-status-pill--freigegeben {
+  background: var(--gruen-hell);
+  color: var(--gruen);
+}
+
+.incident-status-pill--archiviert {
+  background: var(--bg-card-hover);
+  color: var(--text-muted);
+}
+
+.incident-status-pill--header {
+  align-self: center;
+  margin-right: 4px;
+}
+
+.btn--success {
+  background: var(--gruen);
+  border-color: var(--gruen);
+  color: #fff;
+}
+
+.btn--success:hover {
+  filter: brightness(1.05);
 }

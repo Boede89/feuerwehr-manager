@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.berichte;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,10 +11,28 @@ public interface IncidentReportRepository extends JpaRepository<IncidentReport, 
 
     @Query("""
             SELECT r FROM IncidentReport r
+            LEFT JOIN FETCH r.createdByUser
             WHERE r.unit.id = :unitId
             ORDER BY r.incidentDate DESC, r.id DESC
             """)
     List<IncidentReport> findByUnitIdOrderByDateDesc(@Param("unitId") long unitId);
+
+    @Query("""
+            SELECT r FROM IncidentReport r
+            LEFT JOIN FETCH r.createdByUser
+            WHERE r.unit.id = :unitId
+              AND r.incidentDate >= :yearStart
+              AND r.incidentDate < :yearEnd
+              AND (:stichwort = '' OR r.stichwort = :stichwort)
+              AND (:status IS NULL OR r.status = :status)
+            ORDER BY r.incidentDate DESC, r.id DESC
+            """)
+    List<IncidentReport> findFilteredByUnit(
+            @Param("unitId") long unitId,
+            @Param("yearStart") LocalDate yearStart,
+            @Param("yearEnd") LocalDate yearEnd,
+            @Param("stichwort") String stichwort,
+            @Param("status") IncidentReportStatus status);
 
     @Query("""
             SELECT r FROM IncidentReport r

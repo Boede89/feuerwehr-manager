@@ -3,9 +3,11 @@ package de.feuerwehr.manager.web;
 import de.feuerwehr.manager.berichte.BerichteTab;
 import de.feuerwehr.manager.berichte.CrewAssignment;
 import de.feuerwehr.manager.berichte.DeployedEquipmentAssignment;
+import de.feuerwehr.manager.berichte.EinsatzberichtAccess;
 import de.feuerwehr.manager.berichte.EinsatzberichtForm;
 import de.feuerwehr.manager.berichte.EinsatzberichtService;
 import de.feuerwehr.manager.berichte.IncidentReport;
+import de.feuerwehr.manager.berichte.IncidentReportStatus;
 import de.feuerwehr.manager.berichte.VehicleEquipmentView;
 import de.feuerwehr.manager.divera.DiveraEinsatzberichtSyncService;
 import de.feuerwehr.manager.berichte.KraefteFahrzeugeState;
@@ -16,6 +18,8 @@ import de.feuerwehr.manager.settings.AppModule;
 import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -49,6 +53,9 @@ public class BerichteController {
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
             @RequestParam(name = "tab", defaultValue = "einsatz") String tab,
+            @RequestParam(name = "year", required = false) Integer filterYear,
+            @RequestParam(name = "stichwort", required = false) String filterStichwort,
+            @RequestParam(name = "status", required = false) String filterStatus,
             Model model,
             RedirectAttributes redirectAttributes) {
         try {
@@ -58,7 +65,9 @@ public class BerichteController {
             BerichteTab berichteTab = BerichteTab.fromKey(tab);
             model.addAttribute("berichteTab", berichteTab.key());
             model.addAttribute("berichteTabs", BerichteTab.values());
+            boolean canApprove = canApprove(actor, unit.getId());
             model.addAttribute("canWrite", canWrite(actor, unit.getId()));
+            model.addAttribute("canApprove", canApprove);
             if (berichteTab == BerichteTab.EINSATZ) {
                 DiveraEinsatzberichtSyncService.SyncResult sync =
                         diveraEinsatzberichtSyncService.syncAlarmsForUnit(unit.getId());
@@ -67,7 +76,19 @@ public class BerichteController {
                             "message",
                             sync.created() + " Einsatzbericht/Einsatzberichte aus DIVERA als Entwurf übernommen.");
                 }
-                model.addAttribute("einsatzberichte", einsatzberichtService.listByUnit(unit.getId()));
+                int year = filterYear != null ? filterYear : LocalDate.now().getYear();
+                String stichwort = filterStichwort != null ? filterStichwort.trim() : "";
+                IncidentReportStatus statusFilter = parseStatusFilter(filterStatus);
+                model.addAttribute("filterYear", year);
+                model.addAttribute("filterStichwort", stichwort);
+                model.addAttribute("filterStatus", statusFilter != null ? statusFilter.name() : "");
+                model.addAttribute("filterYears", einsatzberichtService.listFilterYears());
+                model.addAttribute("filterStichworte", einsatzberichtService.listKnownStichworte(unit.getId()));
+                model.addAttribute("filterStatuses", IncidentReportStatus.values());
+                model.addAttribute(
+                        "einsatzberichte",
+                        einsatzberichtService.listFiltered(unit.getId(), year, stichwort, statusFilter));
+                model.addAttribute("einsatzListPath", buildEinsatzListPath(year, stichwort, statusFilter));
             }
             return "berichte/index";
         } catch (IllegalArgumentException e) {
@@ -125,8 +146,15 @@ public class BerichteController {
             EinsatzberichtForm form = EinsatzberichtForm.fromReport(report);
             populateEinsatzFormModel(model, unit.getId(), report, form, false);
             model.addAttribute("formMode", "view");
+            boolean canApprove = canApprove(actor, unit.getId());
             model.addAttribute("canWrite", canWrite(actor, unit.getId()));
-            model.addAttribute("backUrl", buildBackUrl(sanitizeReturnUrl(returnUrl), unit.getId()));
+            model.addAttribute("canApprove", canApprove);
+            model.addAttribute("canEditReport", EinsatzberichtAccess.canEdit(report, actor, canApprove));
+            model.addAttribute("canRelease", EinsatzberichtAccess.canRelease(report, canApprove, actor));
+            model.addAttribute("canArchive", EinsatzberichtAccess.canArchive(report, canApprove, actor));
+            String safeReturn = sanitizeReturnUrl(returnUrl);
+            model.addAttribute("einsatzListPath", safeReturn);
+            model.addAttribute("backUrl", buildBackUrl(safeReturn, unit.getId()));
             model.addAttribute("pageTitle", "Einsatzbericht");
             model.addAttribute(
                     "pageSubtitle",
@@ -152,11 +180,16 @@ public class BerichteController {
         try {
             Unit unit = resolveUnit(unitId, actor, model);
             requireModuleEnabled(unit.getId());
-            requireBerichteWrite(actor, unit.getId());
+            requireBerichteRead(actor, unit.getId());
             IncidentReport report = einsatzberichtService.requireReport(unit.getId(), id);
+            boolean canApprove = canApprove(actor, unit.getId());
+            if (!EinsatzberichtAccess.canEdit(report, actor, canApprove)) {
+                throw new IllegalArgumentException("Dieser Einsatzbericht kann nicht bearbeitet werden.");
+            }
             EinsatzberichtForm form = EinsatzberichtForm.fromReport(report);
             populateEinsatzFormModel(model, unit.getId(), report, form, true);
             model.addAttribute("formMode", "edit");
+            model.addAttribute("canDeleteReport", EinsatzberichtAccess.canDelete(report, actor, canApprove));
             model.addAttribute("pageTitle", "Einsatzbericht bearbeiten");
             model.addAttribute("pageSubtitle", report.getIncidentNumber() != null ? report.getIncidentNumber() : "Entwurf");
             return "berichte/einsatzbericht-form";
@@ -199,17 +232,19 @@ public class BerichteController {
         try {
             Unit unit = resolveUnit(unitId, actor);
             requireModuleEnabled(unit.getId());
-            requireBerichteWrite(actor, unit.getId());
+            requireBerichteRead(actor, unit.getId());
+            boolean canApprove = canApprove(actor, unit.getId());
             List<CrewAssignment> crewAssignments = einsatzberichtService.parseCrewAssignments(form.getCrewAssignmentsJson());
             List<DeployedEquipmentAssignment> deployedEquipment =
                     einsatzberichtService.parseDeployedEquipment(form.getDeployedEquipmentJson());
-            einsatzberichtService.update(unit.getId(), id, form.toData(crewAssignments, deployedEquipment), actor);
+            einsatzberichtService.update(
+                    unit.getId(), id, form.toData(crewAssignments, deployedEquipment), actor, canApprove);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Einsatzbericht wurde aktualisiert.");
-            return redirectBerichte(unit.getId(), "einsatz");
+            return redirectBerichte(unit.getId(), "einsatz", null, null, null);
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
-            return redirectBerichte(unitId, "einsatz");
+            return redirectBerichte(unitId, "einsatz", null, null, null);
         }
     }
 
@@ -217,18 +252,74 @@ public class BerichteController {
     public String deleteEinsatzbericht(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "year", required = false) Integer filterYear,
+            @RequestParam(name = "stichwort", required = false) String filterStichwort,
+            @RequestParam(name = "status", required = false) String filterStatus,
             @PathVariable long id,
             RedirectAttributes redirectAttributes) {
         try {
             Unit unit = resolveUnit(unitId, actor);
             requireModuleEnabled(unit.getId());
-            requireBerichteWrite(actor, unit.getId());
-            einsatzberichtService.delete(unit.getId(), id);
+            requireBerichteRead(actor, unit.getId());
+            boolean canApprove = canApprove(actor, unit.getId());
+            einsatzberichtService.delete(unit.getId(), id, actor, canApprove);
             redirectAttributes.addFlashAttribute("message", "Einsatzbericht wurde gelöscht.");
-            return redirectBerichte(unit.getId(), "einsatz");
+            return redirectBerichte(unit.getId(), "einsatz", filterYear, filterStichwort, filterStatus);
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
-            return redirectBerichte(unitId, "einsatz");
+            return redirectBerichte(unitId, "einsatz", filterYear, filterStichwort, filterStatus);
+        }
+    }
+
+    @PostMapping("/einsatzberichte/{id}/freigeben")
+    public String releaseEinsatzbericht(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "returnUrl", required = false) String returnUrl,
+            @PathVariable long id,
+            RedirectAttributes redirectAttributes) {
+        return changeEinsatzberichtStatus(
+                actor, unitId, id, IncidentReportStatus.FREIGEGEBEN, returnUrl, redirectAttributes, "freigeben");
+    }
+
+    @PostMapping("/einsatzberichte/{id}/archivieren")
+    public String archiveEinsatzbericht(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "returnUrl", required = false) String returnUrl,
+            @PathVariable long id,
+            RedirectAttributes redirectAttributes) {
+        return changeEinsatzberichtStatus(
+                actor, unitId, id, IncidentReportStatus.ARCHIVIERT, returnUrl, redirectAttributes, "archivieren");
+    }
+
+    private String changeEinsatzberichtStatus(
+            AppUserDetails actor,
+            Long unitId,
+            long id,
+            IncidentReportStatus newStatus,
+            String returnUrl,
+            RedirectAttributes redirectAttributes,
+            String actionLabel) {
+        try {
+            Unit unit = resolveUnit(unitId, actor);
+            requireModuleEnabled(unit.getId());
+            requireBerichteRead(actor, unit.getId());
+            boolean canApprove = canApprove(actor, unit.getId());
+            einsatzberichtService.transitionStatus(unit.getId(), id, newStatus, actor, canApprove);
+            redirectAttributes.addFlashAttribute("message", "Einsatzbericht wurde " + actionLabel + ".");
+            String safeReturn = sanitizeReturnUrl(returnUrl);
+            if (safeReturn != null) {
+                return "redirect:" + buildBackUrl(safeReturn, unit.getId());
+            }
+            return redirectBerichte(unit.getId(), "einsatz", null, null, null);
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            String safeReturn = sanitizeReturnUrl(returnUrl);
+            if (safeReturn != null && unitId != null) {
+                return "redirect:" + buildBackUrl(safeReturn, unitId);
+            }
+            return redirectBerichte(unitId, "einsatz", null, null, null);
         }
     }
 
@@ -383,15 +474,52 @@ public class BerichteController {
         return userPermissionService.hasPermission(actor, unitId, "berichte.write");
     }
 
+    private boolean canApprove(AppUserDetails actor, long unitId) {
+        return userPermissionService.hasPermission(actor, unitId, "berichte.approve");
+    }
+
+    private static IncidentReportStatus parseStatusFilter(String filterStatus) {
+        if (filterStatus == null || filterStatus.isBlank()) {
+            return null;
+        }
+        return IncidentReportStatus.valueOf(filterStatus.trim().toUpperCase());
+    }
+
+    private static String buildEinsatzListPath(int year, String stichwort, IncidentReportStatus status) {
+        StringBuilder path = new StringBuilder("/berichte?tab=einsatz&year=").append(year);
+        if (stichwort != null && !stichwort.isBlank()) {
+            path.append("&stichwort=").append(URLEncoder.encode(stichwort.trim(), StandardCharsets.UTF_8));
+        }
+        if (status != null) {
+            path.append("&status=").append(status.name());
+        }
+        return path.toString();
+    }
+
     private static String redirectHome(Long unitId) {
         return unitId != null ? "redirect:/?unit=" + unitId : "redirect:/";
     }
 
-    private static String redirectBerichte(Long unitId, String tab) {
+    private static String redirectBerichte(
+            Long unitId, String tab, Integer year, String stichwort, String status) {
+        StringBuilder url = new StringBuilder("redirect:/berichte?tab=").append(tab);
         if (unitId != null) {
-            return "redirect:/berichte?unit=" + unitId + "&tab=" + tab;
+            url.append("&unit=").append(unitId);
         }
-        return "redirect:/berichte?tab=" + tab;
+        if (year != null) {
+            url.append("&year=").append(year);
+        }
+        if (stichwort != null && !stichwort.isBlank()) {
+            url.append("&stichwort=").append(URLEncoder.encode(stichwort.trim(), StandardCharsets.UTF_8));
+        }
+        if (status != null && !status.isBlank()) {
+            url.append("&status=").append(status.trim().toUpperCase());
+        }
+        return url.toString();
+    }
+
+    private static String redirectBerichte(Long unitId, String tab) {
+        return redirectBerichte(unitId, tab, null, null, null);
     }
 
     private static String sanitizeReturnUrl(String returnUrl) {

@@ -79,6 +79,22 @@ public class EinsatzberichtService {
         return incidentReportRepository.findByUnitIdOrderByDateDesc(unitId);
     }
 
+    public List<IncidentReport> listFiltered(long unitId, int year, String stichwort, IncidentReportStatus status) {
+        LocalDate yearStart = LocalDate.of(year, 1, 1);
+        LocalDate yearEnd = yearStart.plusYears(1);
+        String stichwortFilter = stichwort != null ? stichwort.trim() : "";
+        return incidentReportRepository.findFilteredByUnit(unitId, yearStart, yearEnd, stichwortFilter, status);
+    }
+
+    public List<Integer> listFilterYears() {
+        int currentYear = LocalDate.now().getYear();
+        List<Integer> years = new ArrayList<>();
+        for (int y = currentYear; y >= currentYear - 10; y--) {
+            years.add(y);
+        }
+        return years;
+    }
+
     public List<Person> listPersonsForForm(long unitId) {
         return personalService.listPersons(unitId);
     }
@@ -360,8 +376,11 @@ public class EinsatzberichtService {
     }
 
     @Transactional
-    public void delete(long unitId, long reportId) {
+    public void delete(long unitId, long reportId, AppUserDetails actor, boolean canApprove) {
         IncidentReport report = requireReport(unitId, reportId);
+        if (!EinsatzberichtAccess.canDelete(report, actor, canApprove)) {
+            throw new IllegalArgumentException("Dieser Einsatzbericht kann nicht gelöscht werden.");
+        }
         long id = report.getId();
         atemschutzService.deleteIncidentPaFitnessRecords(id);
         incidentReportPersonnelRepository.deleteByIncidentReportId(id);
@@ -422,9 +441,21 @@ public class EinsatzberichtService {
     }
 
     @Transactional
-    public IncidentReport update(long unitId, long reportId, EinsatzberichtFormData form, AppUserDetails actor) {
+    public IncidentReport update(
+            long unitId,
+            long reportId,
+            EinsatzberichtFormData form,
+            AppUserDetails actor,
+            boolean canApprove) {
         validateRequired(form);
         IncidentReport report = requireReport(unitId, reportId);
+        if (!EinsatzberichtAccess.canEdit(report, actor, canApprove)) {
+            throw new IllegalArgumentException("Dieser Einsatzbericht kann nicht bearbeitet werden.");
+        }
+        if (report.getStatus() != IncidentReportStatus.ENTWURF
+                && (actor == null || !actor.getRole().isAdminLevel())) {
+            throw new IllegalArgumentException("Freigegebene oder archivierte Berichte können nur von Administratoren geändert werden.");
+        }
         applyForm(report, form, unitId);
         IncidentReport saved = incidentReportRepository.save(report);
         saveCrewAssignments(saved, form, unitId);
@@ -781,6 +812,34 @@ public class EinsatzberichtService {
             throw new IllegalArgumentException("Person gehört nicht zu dieser Einheit.");
         }
         return person;
+    }
+
+    @Transactional
+    public void transitionStatus(
+            long unitId, long reportId, IncidentReportStatus newStatus, AppUserDetails actor, boolean canApprove) {
+        if (actor == null) {
+            throw new IllegalArgumentException("Keine Berechtigung für diese Aktion.");
+        }
+        if (!canApprove && !actor.getRole().isAdminLevel()) {
+            throw new IllegalArgumentException("Keine Berechtigung zum Ändern des Status.");
+        }
+        IncidentReport report = requireReport(unitId, reportId);
+        validateStatusTransition(report.getStatus(), newStatus);
+        report.setStatus(newStatus);
+        if (newStatus == IncidentReportStatus.FREIGEGEBEN) {
+            userRepository.findById(actor.getUserId()).ifPresent(report::setReleasedByUser);
+            report.setReleasedAt(Instant.now());
+        }
+        incidentReportRepository.save(report);
+    }
+
+    private static void validateStatusTransition(IncidentReportStatus from, IncidentReportStatus to) {
+        boolean valid = (from == IncidentReportStatus.ENTWURF && to == IncidentReportStatus.FREIGEGEBEN)
+                || (from == IncidentReportStatus.FREIGEGEBEN && to == IncidentReportStatus.ARCHIVIERT);
+        if (!valid) {
+            throw new IllegalArgumentException(
+                    "Ungültiger Status-Übergang: " + from.label() + " → " + to.label());
+        }
     }
 
     private void applyCreator(IncidentReport report, AppUserDetails actor) {

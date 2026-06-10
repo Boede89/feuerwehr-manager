@@ -12,4 +12,9 @@ public enum IncidentReportStatus {
             case ARCHIVIERT -> "Archiviert";
         };
     }
+
+    /** CSS-Suffix für {@code incident-status-pill--*} (wie FW-Hub). */
+    public String cssModifier() {
+        return name().toLowerCase();
+    }
 }
