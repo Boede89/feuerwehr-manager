@@ -65,11 +65,28 @@
     var dateInput = document.getElementById('incidentDate');
     var numberInput = document.getElementById('incidentNumber');
     if (dateInput && numberInput && numberInput.dataset.autoNumber === 'true') {
-      dateInput.addEventListener('change', function () {
-        if (dateInput.value) {
-          numberInput.value = dateInput.value + '-01';
+      function refreshSuggestedNumber() {
+        if (!dateInput.value || !numberInput.dataset.unitId) {
+          return;
         }
-      });
+        var url = '/berichte/einsatzberichte/suggest-number?unit='
+          + encodeURIComponent(numberInput.dataset.unitId)
+          + '&date=' + encodeURIComponent(dateInput.value);
+        fetch(url, { credentials: 'same-origin' })
+          .then(function (res) {
+            if (!res.ok) {
+              throw new Error('Vorschlag fehlgeschlagen');
+            }
+            return res.text();
+          })
+          .then(function (suggested) {
+            numberInput.value = suggested;
+          })
+          .catch(function () {
+            numberInput.value = dateInput.value + '-01';
+          });
+      }
+      dateInput.addEventListener('change', refreshSuggestedNumber);
     }
 
     switchTab(0);

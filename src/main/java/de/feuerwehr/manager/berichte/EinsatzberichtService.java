@@ -309,7 +309,8 @@ public class EinsatzberichtService {
         if (date == null) {
             date = LocalDate.now();
         }
-        return resolveIncidentNumber(unitId, date);
+        return IncidentNumberSupport.suggestForDate(
+                date, incidentReportRepository.findIncidentNumbersForYear(unitId, yearPrefix(date.getYear())));
     }
 
     private IncidentReport newDraft(long unitId) {
@@ -328,7 +329,7 @@ public class EinsatzberichtService {
         IncidentReport report = newDraft(unitId);
         applyForm(report, form, unitId);
         report.setStatus(IncidentReportStatus.ENTWURF);
-        report.setIncidentNumber(resolveIncidentNumber(unitId, form.incidentDate()));
+        report.setIncidentNumber(resolveIncidentNumberForCreate(unitId, form.incidentDate(), form.incidentNumber()));
         applyCreator(report, actor);
         IncidentReport saved = incidentReportRepository.save(report);
         saveCrewAssignments(saved, form, unitId);
@@ -390,7 +391,7 @@ public class EinsatzberichtService {
         report.setStatus(IncidentReportStatus.ENTWURF);
         report.setDiveraAlarmId(details.alarmId());
         report.setDiveraForeignId(details.externalId());
-        report.setIncidentNumber(resolveIncidentNumber(unitId, report.getIncidentDate()));
+        report.setIncidentNumber(suggestIncidentNumber(unitId, report.getIncidentDate()));
         report.setCreatedByName("DIVERA");
         IncidentReport saved = incidentReportRepository.save(report);
         importDiveraPersonnel(saved, details, unitId);
@@ -410,6 +411,9 @@ public class EinsatzberichtService {
 
     private void applyForm(IncidentReport report, EinsatzberichtFormData form, long unitId) {
         String stichwort = form.stichwort() != null ? form.stichwort().trim() : "";
+        if (form.incidentNumber() != null && !form.incidentNumber().isBlank()) {
+            report.setIncidentNumber(form.incidentNumber().trim());
+        }
         report.setIncidentDate(form.incidentDate());
         report.setAlarmTime(form.alarmTime());
         report.setDepartureTime(null);
@@ -682,22 +686,15 @@ public class EinsatzberichtService {
         report.setCreatedByName(actor.getDisplayName());
     }
 
-    private String resolveIncidentNumber(long unitId, LocalDate date) {
-        String datePrefix = date + "-";
-        int next = 1;
-        Optional<String> max = incidentReportRepository.findMaxIncidentNumberForDate(unitId, datePrefix);
-        if (max.isPresent()) {
-            String number = max.get();
-            if (number.startsWith(datePrefix)) {
-                String suffix = number.substring(datePrefix.length());
-                try {
-                    next = Integer.parseInt(suffix) + 1;
-                } catch (NumberFormatException ignored) {
-                    next = 1;
-                }
-            }
+    private String resolveIncidentNumberForCreate(long unitId, LocalDate date, String requestedNumber) {
+        if (requestedNumber != null && !requestedNumber.isBlank()) {
+            return requestedNumber.trim();
         }
-        return datePrefix + String.format("%02d", next);
+        return suggestIncidentNumber(unitId, date);
+    }
+
+    private static String yearPrefix(int year) {
+        return year + "-";
     }
 
     private void applyDiveraAlarmierungDurch(IncidentReport report, DiveraAlarmDetails details, long unitId) {
