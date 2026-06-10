@@ -215,7 +215,13 @@ public class BerichteController {
             populateEinsatzFormModel(model, unit.getId(), report, form, true);
             model.addAttribute("formMode", "edit");
             model.addAttribute("canDeleteReport", EinsatzberichtAccess.canDelete(report, actor, canApprove));
-            model.addAttribute("reportChanges", einsatzberichtService.listChanges(unit.getId(), id));
+            model.addAttribute(
+                    "showChangeHistory", report.getStatus() != IncidentReportStatus.ENTWURF);
+            model.addAttribute(
+                    "reportChanges",
+                    report.getStatus() != IncidentReportStatus.ENTWURF
+                            ? einsatzberichtService.listChanges(unit.getId(), id)
+                            : List.of());
             model.addAttribute("pageTitle", "Einsatzbericht bearbeiten");
             model.addAttribute(
                     "pageSubtitle",

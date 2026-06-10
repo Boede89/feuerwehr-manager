@@ -480,15 +480,21 @@ public class EinsatzberichtService {
                 && (actor == null || !actor.getRole().isAdminLevel())) {
             throw new IllegalArgumentException("Freigegebene oder archivierte Berichte können nur von Administratoren geändert werden.");
         }
-        Map<String, String> before = IncidentReportSnapshot.fromReport(report);
+        boolean trackChanges = report.getStatus() != IncidentReportStatus.ENTWURF;
+        Map<String, String> before = trackChanges ? IncidentReportSnapshot.fromReport(report) : Map.of();
         applyForm(report, form, unitId);
-        Map<String, String> after = IncidentReportSnapshot.fromReport(report);
-        List<IncidentReportSnapshot.FieldChange> fieldChanges = IncidentReportSnapshot.diff(before, after);
+        List<IncidentReportSnapshot.FieldChange> fieldChanges = List.of();
+        if (trackChanges) {
+            Map<String, String> after = IncidentReportSnapshot.fromReport(report);
+            fieldChanges = IncidentReportSnapshot.diff(before, after);
+        }
         IncidentReport saved = incidentReportRepository.save(report);
         saveCrewAssignments(saved, form, unitId);
         saveDeployedEquipment(saved, form, unitId);
         syncPaAtemschutzRecords(saved, form, actor);
-        recordChange(saved, actor, changeComment, fieldChanges);
+        if (trackChanges) {
+            recordChange(saved, actor, changeComment, fieldChanges);
+        }
         return saved;
     }
 
@@ -497,6 +503,9 @@ public class EinsatzberichtService {
             AppUserDetails actor,
             String changeComment,
             List<IncidentReportSnapshot.FieldChange> fieldChanges) {
+        if (report.getStatus() == IncidentReportStatus.ENTWURF) {
+            return;
+        }
         String comment = changeComment != null ? changeComment.trim() : "";
         if (fieldChanges.isEmpty() && comment.isBlank()) {
             return;
