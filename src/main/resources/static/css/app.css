@@ -4342,27 +4342,98 @@ span.required { color: var(--error); }
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 14px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--border);
   background: color-mix(in srgb, var(--einsatz-c, var(--rot)) 8%, var(--bg-card));
 }
 
-.einsatzbericht-form-page .incident-deployed-vehicle-card__title {
+.einsatzbericht-form-page .incident-deployed-vehicle-card--collapsed .incident-deployed-vehicle-card__head {
+  border-bottom: none;
+}
+
+.einsatzbericht-form-page .incident-deployed-vehicle-card__toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
   margin: 0;
+  padding: 2px 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.einsatzbericht-form-page .incident-deployed-vehicle-card__chevron {
+  flex-shrink: 0;
+  width: 1rem;
+  margin-top: 2px;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--text-muted);
+  transition: transform 0.15s ease;
+}
+
+.einsatzbericht-form-page .incident-deployed-vehicle-card:not(.incident-deployed-vehicle-card--collapsed) .incident-deployed-vehicle-card__chevron {
+  transform: rotate(90deg);
+}
+
+.einsatzbericht-form-page .incident-deployed-vehicle-card__title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.einsatzbericht-form-page .incident-deployed-vehicle-card__title {
   font-size: 15px;
   font-weight: 700;
+  line-height: 1.25;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.einsatzbericht-form-page .incident-deployed-vehicle-card__status {
+  display: inline-block;
+  width: fit-content;
+  max-width: 100%;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.einsatzbericht-form-page .incident-deployed-vehicle-card__status--selected {
+  color: #166534;
+  background: color-mix(in srgb, #22c55e 18%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, #22c55e 35%, var(--border));
+}
+
+.einsatzbericht-form-page .incident-deployed-vehicle-card__status--empty {
+  color: var(--text-muted);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
 }
 
 .einsatzbericht-form-page .incident-deployed-vehicle-card__actions {
   display: flex;
   gap: 8px;
   flex-shrink: 0;
+  align-self: flex-start;
+}
+
+.einsatzbericht-form-page .incident-deployed-vehicle-card--collapsed .incident-deployed-vehicle-card__body {
+  display: none;
 }
 
 .einsatzbericht-form-page .incident-deployed-vehicle-card__body {
   padding: 12px 14px 14px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
   gap: 12px;
   align-items: start;
 }
@@ -4383,10 +4454,12 @@ span.required { color: var(--error); }
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  line-height: 1.25;
+  line-height: 1.35;
   color: var(--text);
   border-bottom: 1px solid var(--border);
   background: color-mix(in srgb, var(--einsatz-c, var(--rot)) 6%, var(--bg-card-hover));
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .einsatzbericht-form-page .incident-deployed-equipment-group__list {
@@ -4419,6 +4492,15 @@ span.required { color: var(--error); }
 
 .einsatzbericht-form-page .incident-deployed-equipment-item input {
   flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.einsatzbericht-form-page .incident-deployed-equipment-item__name {
+  flex: 1;
+  min-width: 0;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .einsatzbericht-form-page .incident-bericht-equipment {

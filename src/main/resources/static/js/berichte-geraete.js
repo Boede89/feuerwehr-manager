@@ -4,6 +4,7 @@
   var equipmentCache = {};
   var selectionByVehicle = {};
   var equipmentNameById = {};
+  var collapsedByVehicle = {};
 
   function hiddenField() {
     return document.getElementById('deployedEquipmentJson');
@@ -156,6 +157,48 @@
     }
   }
 
+  function selectedCountForVehicle(vehicleId) {
+    var set = selectionByVehicle[vehicleId];
+    return set ? set.size : 0;
+  }
+
+  function isVehicleCollapsed(vehicleId) {
+    if (!Object.prototype.hasOwnProperty.call(collapsedByVehicle, vehicleId)) {
+      collapsedByVehicle[vehicleId] = true;
+    }
+    return collapsedByVehicle[vehicleId];
+  }
+
+  function setVehicleCollapsed(vehicleId, collapsed, card) {
+    collapsedByVehicle[vehicleId] = collapsed;
+    if (!card) {
+      return;
+    }
+    card.classList.toggle('incident-deployed-vehicle-card--collapsed', collapsed);
+    var toggle = card.querySelector('.incident-deployed-vehicle-card__toggle');
+    if (toggle) {
+      toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    }
+  }
+
+  function updateVehicleStatusBadge(card, vehicleId) {
+    var badge = card.querySelector('.incident-deployed-vehicle-card__status');
+    if (!badge) {
+      return;
+    }
+    var selected = selectedCountForVehicle(vehicleId);
+    var total = Number(card.dataset.equipmentCount) || 0;
+    if (selected > 0) {
+      badge.textContent = selected + ' von ' + total + ' ausgewählt';
+      badge.classList.add('incident-deployed-vehicle-card__status--selected');
+      badge.classList.remove('incident-deployed-vehicle-card__status--empty');
+    } else {
+      badge.textContent = 'Keine Auswahl';
+      badge.classList.remove('incident-deployed-vehicle-card__status--selected');
+      badge.classList.add('incident-deployed-vehicle-card__status--empty');
+    }
+  }
+
   function groupEquipment(items) {
     var groups = {};
     var uncategorized = [];
@@ -202,8 +245,13 @@
           selectionByVehicle[vehicleId].delete(item.id);
         }
         syncHiddenJson();
+        var card = label.closest('.incident-deployed-vehicle-card');
+        if (card) {
+          updateVehicleStatusBadge(card, vehicleId);
+        }
       });
       var name = document.createElement('span');
+      name.className = 'incident-deployed-equipment-item__name';
       name.textContent = item.name;
       label.appendChild(input);
       label.appendChild(name);
@@ -257,13 +305,40 @@
       var card = document.createElement('article');
       card.className = 'incident-deployed-vehicle-card';
       card.dataset.vehicleId = String(vehicle.vehicleId);
+      card.dataset.equipmentCount = String(vehicle.equipment.length);
+      setVehicleCollapsed(vehicle.vehicleId, isVehicleCollapsed(vehicle.vehicleId), card);
 
       var head = document.createElement('header');
       head.className = 'incident-deployed-vehicle-card__head';
-      var title = document.createElement('h4');
+
+      var toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'incident-deployed-vehicle-card__toggle';
+      toggle.setAttribute('aria-expanded', isVehicleCollapsed(vehicle.vehicleId) ? 'false' : 'true');
+
+      var chevron = document.createElement('span');
+      chevron.className = 'incident-deployed-vehicle-card__chevron';
+      chevron.setAttribute('aria-hidden', 'true');
+      chevron.textContent = '›';
+
+      var titleWrap = document.createElement('span');
+      titleWrap.className = 'incident-deployed-vehicle-card__title-wrap';
+
+      var title = document.createElement('span');
       title.className = 'incident-deployed-vehicle-card__title';
       title.textContent = vehicle.vehicleName;
-      head.appendChild(title);
+
+      var status = document.createElement('span');
+      status.className = 'incident-deployed-vehicle-card__status';
+
+      titleWrap.appendChild(title);
+      titleWrap.appendChild(status);
+      toggle.appendChild(chevron);
+      toggle.appendChild(titleWrap);
+      toggle.addEventListener('click', function () {
+        setVehicleCollapsed(vehicle.vehicleId, !isVehicleCollapsed(vehicle.vehicleId), card);
+      });
+      head.appendChild(toggle);
 
       if (!isReadonly()) {
         var actions = document.createElement('div');
@@ -272,14 +347,16 @@
         allBtn.type = 'button';
         allBtn.className = 'btn btn--outline btn--sm';
         allBtn.textContent = 'Alle';
-        allBtn.addEventListener('click', function () {
+        allBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
           selectAllForVehicle(vehicle.vehicleId, vehicle.equipment, true);
         });
         var noneBtn = document.createElement('button');
         noneBtn.type = 'button';
         noneBtn.className = 'btn btn--outline btn--sm';
         noneBtn.textContent = 'Keine';
-        noneBtn.addEventListener('click', function () {
+        noneBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
           selectAllForVehicle(vehicle.vehicleId, vehicle.equipment, false);
         });
         actions.appendChild(allBtn);
@@ -287,6 +364,7 @@
         head.appendChild(actions);
       }
       card.appendChild(head);
+      updateVehicleStatusBadge(card, vehicle.vehicleId);
 
       var body = document.createElement('div');
       body.className = 'incident-deployed-vehicle-card__body';
