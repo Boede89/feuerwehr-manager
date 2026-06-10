@@ -486,6 +486,7 @@
     <div class="modal" role="dialog">
       <div class="modal__header">
         <h3>Gerätekategorien verwalten</h3>
+        <p class="hint text-sm" style="margin:0 0 12px;">Kategorien gelten für alle Fahrzeuge dieser Einheit.</p>
         <button type="button" class="modal__close" data-close-modal>✕</button>
       </div>
       <div class="modal__body">
@@ -502,7 +503,6 @@
                       data-confirm="Kategorie wirklich löschen? Zugeordnete Geräte bleiben ohne Kategorie.">
                   <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
                   <input type="hidden" name="unit" th:value="${unitId}"/>
-                  <input type="hidden" name="vehicleId" th:value="${selectedVehicleId}"/>
                   <input type="hidden" name="categoryId" th:value="${cat.id}"/>
                   <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
                 </form>

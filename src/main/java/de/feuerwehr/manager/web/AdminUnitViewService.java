@@ -113,7 +113,7 @@ public class AdminUnitViewService {
                 Vehicle v = selected.get();
                 model.addAttribute("selectedVehicle", v);
                 model.addAttribute("selectedVehicleName", v.getName());
-                model.addAttribute("equipmentCategories", unitAdminService.listEquipmentCategories(selectedVehicleId));
+                model.addAttribute("equipmentCategories", unitAdminService.listEquipmentCategories(unitId));
                 model.addAttribute(
                         "equipmentRows",
                         unitAdminService.listEquipment(selectedVehicleId).stream()

@@ -30,7 +30,7 @@ public class VehicleEquipment {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
-    private VehicleEquipmentCategory category;
+    private UnitEquipmentCategory category;
 
     @Column(nullable = false)
     private String name;

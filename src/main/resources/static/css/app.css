@@ -4324,6 +4324,109 @@ span.required { color: var(--error); }
   font-weight: 600;
 }
 
+.einsatzbericht-form-page .incident-deployed-equipment {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.einsatzbericht-form-page .incident-deployed-vehicle-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card-hover);
+  overflow: hidden;
+}
+
+.einsatzbericht-form-page .incident-deployed-vehicle-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--einsatz-c, var(--rot)) 8%, var(--bg-card));
+}
+
+.einsatzbericht-form-page .incident-deployed-vehicle-card__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.einsatzbericht-form-page .incident-deployed-vehicle-card__actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.einsatzbericht-form-page .incident-deployed-vehicle-card__body {
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.einsatzbericht-form-page .incident-deployed-equipment-group__title {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.einsatzbericht-form-page .incident-deployed-equipment-group__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.einsatzbericht-form-page .incident-deployed-equipment-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--bg-card);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.einsatzbericht-form-page .incident-deployed-equipment-item input {
+  flex-shrink: 0;
+}
+
+.einsatzbericht-form-page .incident-bericht-equipment {
+  margin-bottom: 20px;
+}
+
+.einsatzbericht-form-page .incident-bericht-equipment__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.einsatzbericht-form-page .incident-bericht-equipment__vehicle {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card-hover);
+}
+
+.einsatzbericht-form-page .incident-bericht-equipment__vehicle-name {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.einsatzbericht-form-page .incident-bericht-equipment__items {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
 .einsatzbericht-form-page .incident-vehicle-card__head {
   display: flex;
   align-items: center;

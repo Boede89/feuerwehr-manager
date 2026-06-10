@@ -6,9 +6,10 @@
     <button type="button" class="tab-btn incident-tab tab-btn--active" data-tab="0">Basisdaten</button>
     <button type="button" class="tab-btn incident-tab" data-tab="1">Personal</button>
     <button type="button" class="tab-btn incident-tab" data-tab="2">Fahrzeuge</button>
-    <button type="button" class="tab-btn incident-tab" data-tab="3">Schäden</button>
-    <button type="button" class="tab-btn incident-tab" data-tab="4">Bericht</button>
-    <button type="button" class="tab-btn incident-tab" data-tab="5" th:if="${report != null}">Anhänge</button>
+    <button type="button" class="tab-btn incident-tab" data-tab="3">Eingesetzte Geräte</button>
+    <button type="button" class="tab-btn incident-tab" data-tab="4">Schäden</button>
+    <button type="button" class="tab-btn incident-tab" data-tab="5">Bericht</button>
+    <button type="button" class="tab-btn incident-tab" data-tab="6" th:if="${report != null}">Anhänge</button>
   </nav>
 
   <!-- Tab 0: Basisdaten -->
@@ -166,9 +167,10 @@
 
   <input type="hidden" name="crewAssignmentsJson" id="crewAssignmentsJson" th:if="${formMode != 'view'}"
          th:value="${form.crewAssignmentsJson}"/>
+  <input type="hidden" name="deployedEquipmentJson" id="deployedEquipmentJson" th:if="${formMode != 'view'}"
+         th:value="${form.deployedEquipmentJson}"/>
   <div class="incident-kraefte-board" id="incident-kraefte-board"
-       th:data-initial="${kraefteInitialJson}"
-       th:data-readonly="${formMode == 'view' ? 'true' : null}"
+       th:attr="data-unit-id=${unitId},data-initial=${kraefteInitialJson},data-readonly=${formMode == 'view' ? 'true' : null}"
        th:with="beteiligt=${kraefteState.beteiligt()}, scene=${kraefteState.einsatzstelle()}, wache=${kraefteState.wache()}, diveraDefault=${!#lists.isEmpty(kraefteState.diveraPersons())}">
 
     <!-- Tab 1: Personal -->
@@ -399,8 +401,20 @@
     </div>
   </div>
 
-  <!-- Tab 3: Schäden -->
+  <!-- Tab 3: Eingesetzte Geräte -->
   <div class="incident-tab-panel" data-panel="3" hidden>
+    <p class="hint" id="deployed-equipment-no-vehicles" hidden>
+      Markieren Sie zuerst im Reiter Fahrzeuge die am Einsatz beteiligten Fahrzeuge.
+    </p>
+    <p class="hint" id="deployed-equipment-empty" hidden>
+      Für die beteiligten Fahrzeuge sind noch keine Geräte in der Technik-Verwaltung hinterlegt.
+    </p>
+    <div id="incident-deployed-equipment" class="incident-deployed-equipment"
+         th:attr="data-readonly=${formMode == 'view' ? 'true' : 'false'},data-initial=${form.deployedEquipmentJson}"></div>
+  </div>
+
+  <!-- Tab 4: Schäden -->
+  <div class="incident-tab-panel" data-panel="4" hidden>
     <h4 class="incident-section-title">Personenschäden</h4>
     <div class="yes-no-radio incident-section-block" role="radiogroup" aria-label="Personenschäden">
       <label class="yes-no-radio__option">
@@ -478,12 +492,17 @@
     </div>
   </div>
 
-  <!-- Tab 4: Bericht -->
-  <div class="incident-tab-panel" data-panel="4" hidden>
+  <!-- Tab 5: Bericht -->
+  <div class="incident-tab-panel" data-panel="5" hidden>
     <section class="incident-bericht-vehicles" id="bericht-involved-vehicles-wrap" aria-labelledby="bericht-involved-vehicles-title">
       <h4 class="incident-section-title" id="bericht-involved-vehicles-title">Am Einsatz beteiligte Fahrzeuge</h4>
       <p class="hint" id="bericht-involved-vehicles-empty" hidden>Keine Fahrzeuge markiert.</p>
       <ul class="incident-bericht-vehicles__list" id="bericht-involved-vehicles-list"></ul>
+    </section>
+    <section class="incident-bericht-equipment" id="bericht-deployed-equipment-wrap" aria-labelledby="bericht-deployed-equipment-title">
+      <h4 class="incident-section-title" id="bericht-deployed-equipment-title">Eingesetzte Geräte</h4>
+      <p class="hint" id="bericht-deployed-equipment-empty" hidden>Keine Geräte ausgewählt.</p>
+      <div id="bericht-deployed-equipment-list" class="incident-bericht-equipment__list"></div>
     </section>
     <div class="form-group">
       <label for="einsatzkurzbericht">Einsatzkurzbericht</label>
@@ -494,8 +513,8 @@
     </div>
   </div>
 
-  <!-- Tab 5: Anhänge -->
-  <div class="incident-tab-panel" data-panel="5" hidden th:if="${report != null}">
+  <!-- Tab 6: Anhänge -->
+  <div class="incident-tab-panel" data-panel="6" hidden th:if="${report != null}">
     <div id="incident-attachments-wrap"
          th:attr="data-report-id=${report.id},data-unit-id=${unitId},data-readonly=${formMode == 'view' or report.status.name() != 'ENTWURF' ? 'true' : 'false'}">
     </div>

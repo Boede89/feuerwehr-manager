@@ -2,9 +2,11 @@ package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.berichte.BerichteTab;
 import de.feuerwehr.manager.berichte.CrewAssignment;
+import de.feuerwehr.manager.berichte.DeployedEquipmentAssignment;
 import de.feuerwehr.manager.berichte.EinsatzberichtForm;
 import de.feuerwehr.manager.berichte.EinsatzberichtService;
 import de.feuerwehr.manager.berichte.IncidentReport;
+import de.feuerwehr.manager.berichte.VehicleEquipmentView;
 import de.feuerwehr.manager.divera.DiveraEinsatzberichtSyncService;
 import de.feuerwehr.manager.berichte.KraefteFahrzeugeState;
 import de.feuerwehr.manager.security.AccessControlService;
@@ -175,7 +177,9 @@ public class BerichteController {
             requireModuleEnabled(unit.getId());
             requireBerichteWrite(actor, unit.getId());
             List<CrewAssignment> crewAssignments = einsatzberichtService.parseCrewAssignments(form.getCrewAssignmentsJson());
-            einsatzberichtService.create(unit.getId(), form.toData(crewAssignments), actor);
+            List<DeployedEquipmentAssignment> deployedEquipment =
+                    einsatzberichtService.parseDeployedEquipment(form.getDeployedEquipmentJson());
+            einsatzberichtService.create(unit.getId(), form.toData(crewAssignments, deployedEquipment), actor);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Einsatzbericht wurde gespeichert.");
             return redirectBerichte(unit.getId(), "einsatz");
@@ -197,7 +201,9 @@ public class BerichteController {
             requireModuleEnabled(unit.getId());
             requireBerichteWrite(actor, unit.getId());
             List<CrewAssignment> crewAssignments = einsatzberichtService.parseCrewAssignments(form.getCrewAssignmentsJson());
-            einsatzberichtService.update(unit.getId(), id, form.toData(crewAssignments), actor);
+            List<DeployedEquipmentAssignment> deployedEquipment =
+                    einsatzberichtService.parseDeployedEquipment(form.getDeployedEquipmentJson());
+            einsatzberichtService.update(unit.getId(), id, form.toData(crewAssignments, deployedEquipment), actor);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Einsatzbericht wurde aktualisiert.");
             return redirectBerichte(unit.getId(), "einsatz");
@@ -269,6 +275,21 @@ public class BerichteController {
         if (form.getCrewAssignmentsJson() == null || form.getCrewAssignmentsJson().isBlank()) {
             form.setCrewAssignmentsJson(buildCrewJson(kraefteState));
         }
+        if (form.getDeployedEquipmentJson() == null || form.getDeployedEquipmentJson().isBlank()) {
+            form.setDeployedEquipmentJson(
+                    reportId != null ? einsatzberichtService.buildDeployedEquipmentJson(reportId) : "[]");
+        }
+    }
+
+    @GetMapping("/einsatzberichte/vehicle-equipment")
+    @ResponseBody
+    public List<VehicleEquipmentView> vehicleEquipment(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @RequestParam(name = "vehicleIds") List<Long> vehicleIds) {
+        accessControlService.requireUnitAccess(actor, unitId);
+        requireModuleEnabled(unitId);
+        return einsatzberichtService.listVehicleEquipment(unitId, vehicleIds);
     }
 
     private static String buildCrewJson(KraefteFahrzeugeState state) {

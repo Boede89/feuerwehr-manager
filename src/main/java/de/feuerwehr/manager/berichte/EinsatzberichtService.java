@@ -18,6 +18,8 @@ import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.technik.Vehicle;
+import de.feuerwehr.manager.technik.VehicleEquipment;
+import de.feuerwehr.manager.technik.VehicleEquipmentRepository;
 import de.feuerwehr.manager.technik.VehicleRepository;
 import de.feuerwehr.manager.technik.VehicleTypes;
 import de.feuerwehr.manager.unit.Unit;
@@ -50,15 +52,19 @@ public class EinsatzberichtService {
 
     private static final TypeReference<List<CrewAssignmentPayload>> CREW_ASSIGNMENT_LIST =
             new TypeReference<>() {};
+    private static final TypeReference<List<DeployedEquipmentPayload>> DEPLOYED_EQUIPMENT_LIST =
+            new TypeReference<>() {};
 
     private final IncidentReportRepository incidentReportRepository;
     private final IncidentReportPersonnelRepository incidentReportPersonnelRepository;
     private final IncidentReportVehicleRepository incidentReportVehicleRepository;
+    private final IncidentReportEquipmentRepository incidentReportEquipmentRepository;
     private final UnitRepository unitRepository;
     private final UserRepository userRepository;
     private final PersonalService personalService;
     private final PersonRepository personRepository;
     private final VehicleRepository vehicleRepository;
+    private final VehicleEquipmentRepository vehicleEquipmentRepository;
     private final TestModeService testModeService;
     private final BerichteSettingsService berichteSettingsService;
     private final DiveraApiClient diveraApiClient;
@@ -348,6 +354,7 @@ public class EinsatzberichtService {
         applyCreator(report, actor);
         IncidentReport saved = incidentReportRepository.save(report);
         saveCrewAssignments(saved, form, unitId);
+        saveDeployedEquipment(saved, form, unitId);
         syncPaAtemschutzRecords(saved, form, actor);
         return saved;
     }
@@ -359,6 +366,7 @@ public class EinsatzberichtService {
         atemschutzService.deleteIncidentPaFitnessRecords(id);
         incidentReportPersonnelRepository.deleteByIncidentReportId(id);
         incidentReportVehicleRepository.deleteByIncidentReportId(id);
+        incidentReportEquipmentRepository.deleteByIncidentReportId(id);
         einsatzberichtAttachmentService.deleteAllForReport(id);
         incidentReportRepository.delete(report);
     }
@@ -420,8 +428,80 @@ public class EinsatzberichtService {
         applyForm(report, form, unitId);
         IncidentReport saved = incidentReportRepository.save(report);
         saveCrewAssignments(saved, form, unitId);
+        saveDeployedEquipment(saved, form, unitId);
         syncPaAtemschutzRecords(saved, form, actor);
         return saved;
+    }
+
+    @Transactional(readOnly = true)
+    public List<VehicleEquipmentView> listVehicleEquipment(long unitId, List<Long> vehicleIds) {
+        if (vehicleIds == null || vehicleIds.isEmpty()) {
+            return List.of();
+        }
+        List<VehicleEquipmentView> result = new ArrayList<>();
+        for (Long vehicleId : vehicleIds) {
+            if (vehicleId == null || vehicleId <= 0) {
+                continue;
+            }
+            Vehicle vehicle =
+                    vehicleRepository.findByIdAndUnitId(vehicleId, unitId).orElse(null);
+            if (vehicle == null) {
+                continue;
+            }
+            List<VehicleEquipmentView.EquipmentItemView> items = vehicleEquipmentRepository
+                    .findByVehicleIdWithCategoryOrderBySortOrderAscNameAsc(vehicleId)
+                    .stream()
+                    .map(eq -> new VehicleEquipmentView.EquipmentItemView(
+                            eq.getId(),
+                            eq.getName(),
+                            eq.getCategory() != null ? eq.getCategory().getId() : null,
+                            eq.getCategory() != null ? eq.getCategory().getName() : null))
+                    .toList();
+            result.add(new VehicleEquipmentView(vehicle.getId(), vehicle.getName(), items));
+        }
+        return result;
+    }
+
+    public List<DeployedEquipmentAssignment> parseDeployedEquipment(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            List<DeployedEquipmentPayload> payloads = objectMapper.readValue(json, DEPLOYED_EQUIPMENT_LIST);
+            List<DeployedEquipmentAssignment> result = new ArrayList<>();
+            for (DeployedEquipmentPayload payload : payloads) {
+                if (payload == null || payload.vehicleId() == null) {
+                    continue;
+                }
+                List<Long> equipmentIds = payload.equipmentIds() != null
+                        ? payload.equipmentIds().stream().filter(Objects::nonNull).toList()
+                        : List.of();
+                result.add(new DeployedEquipmentAssignment(payload.vehicleId(), equipmentIds));
+            }
+            return result;
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    public String buildDeployedEquipmentJson(long reportId) {
+        Map<Long, List<Long>> equipmentByVehicleId = new LinkedHashMap<>();
+        for (IncidentReportEquipment row : incidentReportEquipmentRepository.findByIncidentReportId(reportId)) {
+            if (row.getVehicleEquipment() == null) {
+                continue;
+            }
+            equipmentByVehicleId
+                    .computeIfAbsent(row.getVehicle().getId(), ignored -> new ArrayList<>())
+                    .add(row.getVehicleEquipment().getId());
+        }
+        List<DeployedEquipmentAssignment> assignments = equipmentByVehicleId.entrySet().stream()
+                .map(entry -> new DeployedEquipmentAssignment(entry.getKey(), entry.getValue()))
+                .toList();
+        try {
+            return objectMapper.writeValueAsString(assignments);
+        } catch (Exception e) {
+            return "[]";
+        }
     }
 
     private void applyForm(IncidentReport report, EinsatzberichtFormData form, long unitId) {
@@ -992,6 +1072,46 @@ public class EinsatzberichtService {
         return unitRepository.findById(unitId).orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden."));
     }
 
+    private void saveDeployedEquipment(IncidentReport report, EinsatzberichtFormData form, long unitId) {
+        long reportId = report.getId();
+        incidentReportEquipmentRepository.deleteByIncidentReportId(reportId);
+        List<DeployedEquipmentAssignment> assignments =
+                form.deployedEquipment() != null ? form.deployedEquipment() : List.of();
+        for (DeployedEquipmentAssignment assignment : assignments) {
+            if (assignment.vehicleId() <= 0) {
+                continue;
+            }
+            Vehicle vehicle = vehicleRepository
+                    .findByIdAndUnitId(assignment.vehicleId(), unitId)
+                    .orElse(null);
+            if (vehicle == null) {
+                continue;
+            }
+            List<Long> equipmentIds =
+                    assignment.equipmentIds() != null ? assignment.equipmentIds() : List.of();
+            for (Long equipmentId : equipmentIds) {
+                if (equipmentId == null) {
+                    continue;
+                }
+                VehicleEquipment equipment = vehicleEquipmentRepository
+                        .findById(equipmentId)
+                        .filter(eq -> eq.getVehicle().getId().equals(vehicle.getId()))
+                        .orElse(null);
+                if (equipment == null) {
+                    continue;
+                }
+                IncidentReportEquipment row = new IncidentReportEquipment();
+                row.setIncidentReport(report);
+                row.setVehicle(vehicle);
+                row.setVehicleEquipment(equipment);
+                row.setEquipmentName(equipment.getName());
+                row.setCategoryName(
+                        equipment.getCategory() != null ? equipment.getCategory().getName() : null);
+                incidentReportEquipmentRepository.save(row);
+            }
+        }
+    }
+
     private record CrewAssignmentPayload(
             Long vehicleId,
             List<Long> personIds,
@@ -1000,4 +1120,6 @@ public class EinsatzberichtService {
             List<Long> paPersonIds,
             Boolean involvedInIncident,
             Boolean manuallyInvolvedInIncident) {}
+
+    private record DeployedEquipmentPayload(Long vehicleId, List<Long> equipmentIds) {}
 }

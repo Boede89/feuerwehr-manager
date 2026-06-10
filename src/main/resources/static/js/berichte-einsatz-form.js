@@ -43,7 +43,10 @@
         if (window.BerichteKraefte && (idx === 1 || idx === 2)) {
           window.BerichteKraefte.onTabShow(idx);
         }
-        if (idx === 5 && window.BerichteAnhaenge) {
+        if (idx === 3 && window.BerichteGeraete) {
+          window.BerichteGeraete.onTabShow();
+        }
+        if (idx === 6 && window.BerichteAnhaenge) {
           window.BerichteAnhaenge.load();
         }
       });

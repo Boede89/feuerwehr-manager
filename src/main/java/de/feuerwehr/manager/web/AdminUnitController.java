@@ -518,7 +518,7 @@ public class AdminUnitController {
                 redirectAttributes,
                 "technik",
                 () -> {
-                    unitAdminService.createEquipmentCategory(unit, vehicleId, name);
+                    unitAdminService.createEquipmentCategory(unit, name);
                     redirectAttributes.addFlashAttribute("message", "Kategorie angelegt.");
                 },
                 "vehicle=" + vehicleId + "&vt=geraete&openModal=equipment-categories");
@@ -537,7 +537,7 @@ public class AdminUnitController {
                 redirectAttributes,
                 "technik",
                 () -> {
-                    unitAdminService.deleteEquipmentCategory(unit, vehicleId, categoryId);
+                    unitAdminService.deleteEquipmentCategory(unit, categoryId);
                     redirectAttributes.addFlashAttribute("message", "Kategorie entfernt.");
                 },
                 "vehicle=" + vehicleId + "&vt=geraete&openModal=equipment-categories");

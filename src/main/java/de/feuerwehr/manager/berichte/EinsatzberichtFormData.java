@@ -34,6 +34,7 @@ public record EinsatzberichtFormData(
         String reporterName,
         String reporterPhone,
         List<CrewAssignment> crewAssignments,
+        List<DeployedEquipmentAssignment> deployedEquipment,
         String einsatzkurzbericht,
         boolean personDamagesEnabled,
         boolean animalDamagesEnabled,

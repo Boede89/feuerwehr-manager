@@ -49,6 +49,7 @@ public class EinsatzberichtForm {
     private String reporterName;
     private String reporterPhone;
     private String crewAssignmentsJson;
+    private String deployedEquipmentJson;
     private String einsatzkurzbericht;
     private boolean personDamagesEnabled;
     private boolean animalDamagesEnabled;
@@ -115,7 +116,8 @@ public class EinsatzberichtForm {
         return form;
     }
 
-    public EinsatzberichtFormData toData(List<CrewAssignment> crewAssignments) {
+    public EinsatzberichtFormData toData(
+            List<CrewAssignment> crewAssignments, List<DeployedEquipmentAssignment> deployedEquipment) {
         return new EinsatzberichtFormData(
                 incidentNumber,
                 incidentDate,
@@ -146,6 +148,7 @@ public class EinsatzberichtForm {
                 reporterName,
                 reporterPhone,
                 crewAssignments != null ? crewAssignments : List.of(),
+                deployedEquipment != null ? deployedEquipment : List.of(),
                 einsatzkurzbericht,
                 personDamagesEnabled,
                 animalDamagesEnabled,

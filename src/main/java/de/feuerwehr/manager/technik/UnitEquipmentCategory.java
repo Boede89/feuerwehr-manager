@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.technik;
 
+import de.feuerwehr.manager.unit.Unit;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -17,16 +18,16 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "vehicle_equipment_categories")
-public class VehicleEquipmentCategory {
+@Table(name = "unit_equipment_categories")
+public class UnitEquipmentCategory {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "vehicle_id", nullable = false)
-    private Vehicle vehicle;
+    @JoinColumn(name = "unit_id", nullable = false)
+    private Unit unit;
 
     @Column(nullable = false)
     private String name;

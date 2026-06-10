@@ -7,9 +7,9 @@ import de.feuerwehr.manager.technik.Vehicle;
 import de.feuerwehr.manager.technik.VehicleFormData;
 import de.feuerwehr.manager.technik.VehicleServiceStatus;
 import de.feuerwehr.manager.technik.UnitVehicleTypeService;
+import de.feuerwehr.manager.technik.UnitEquipmentCategory;
+import de.feuerwehr.manager.technik.UnitEquipmentCategoryRepository;
 import de.feuerwehr.manager.technik.VehicleEquipment;
-import de.feuerwehr.manager.technik.VehicleEquipmentCategory;
-import de.feuerwehr.manager.technik.VehicleEquipmentCategoryRepository;
 import de.feuerwehr.manager.technik.VehicleEquipmentRepository;
 import de.feuerwehr.manager.technik.VehicleRepository;
 import java.time.Instant;
@@ -31,7 +31,7 @@ public class UnitAdminService {
     private final UnitCalendarAccountRepository calendarAccountRepository;
     private final VehicleRepository vehicleRepository;
     private final RoomRepository roomRepository;
-    private final VehicleEquipmentCategoryRepository equipmentCategoryRepository;
+    private final UnitEquipmentCategoryRepository equipmentCategoryRepository;
     private final VehicleEquipmentRepository equipmentRepository;
     private final TestModeService testModeService;
     private final UnitVehicleTypeService unitVehicleTypeService;
@@ -352,8 +352,8 @@ public class UnitAdminService {
     }
 
     @Transactional(readOnly = true)
-    public List<VehicleEquipmentCategory> listEquipmentCategories(long vehicleId) {
-        return equipmentCategoryRepository.findByVehicleIdOrderBySortOrderAscNameAsc(vehicleId);
+    public List<UnitEquipmentCategory> listEquipmentCategories(long unitId) {
+        return equipmentCategoryRepository.findByUnitIdOrderBySortOrderAscNameAsc(unitId);
     }
 
     @Transactional(readOnly = true)
@@ -371,24 +371,23 @@ public class UnitAdminService {
     }
 
     @Transactional
-    public VehicleEquipmentCategory createEquipmentCategory(long unitId, long vehicleId, String name) {
-        Vehicle vehicle = requireVehicle(unitId, vehicleId);
+    public UnitEquipmentCategory createEquipmentCategory(long unitId, String name) {
+        Unit unit = requireUnit(unitId);
         String categoryName = requireName(name);
-        if (equipmentCategoryRepository.existsByVehicleIdAndNameIgnoreCase(vehicleId, categoryName)) {
+        if (equipmentCategoryRepository.existsByUnitIdAndNameIgnoreCase(unitId, categoryName)) {
             throw new IllegalArgumentException("Diese Kategorie existiert bereits.");
         }
-        VehicleEquipmentCategory category = new VehicleEquipmentCategory();
-        category.setVehicle(vehicle);
+        UnitEquipmentCategory category = new UnitEquipmentCategory();
+        category.setUnit(unit);
         category.setName(categoryName);
-        category.setSortOrder(equipmentCategoryRepository.findByVehicleIdOrderBySortOrderAscNameAsc(vehicleId).size());
+        category.setSortOrder(equipmentCategoryRepository.findByUnitIdOrderBySortOrderAscNameAsc(unitId).size());
         return equipmentCategoryRepository.save(category);
     }
 
     @Transactional
-    public void deleteEquipmentCategory(long unitId, long vehicleId, long categoryId) {
-        requireVehicle(unitId, vehicleId);
-        VehicleEquipmentCategory category = equipmentCategoryRepository
-                .findByIdAndVehicleId(categoryId, vehicleId)
+    public void deleteEquipmentCategory(long unitId, long categoryId) {
+        UnitEquipmentCategory category = equipmentCategoryRepository
+                .findByIdAndUnitId(categoryId, unitId)
                 .orElseThrow(() -> new IllegalArgumentException("Kategorie nicht gefunden."));
         equipmentCategoryRepository.delete(category);
     }
@@ -405,7 +404,7 @@ public class UnitAdminService {
         eq.setName(equipmentName);
         if (categoryId != null && categoryId > 0) {
             equipmentCategoryRepository
-                    .findByIdAndVehicleId(categoryId, vehicleId)
+                    .findByIdAndUnitId(categoryId, unitId)
                     .ifPresent(eq::setCategory);
         }
         eq.setSortOrder((int) equipmentRepository.countByVehicleId(vehicleId));
@@ -425,7 +424,7 @@ public class UnitAdminService {
         eq.setName(requireName(name));
         if (categoryId != null && categoryId > 0) {
             equipmentCategoryRepository
-                    .findByIdAndVehicleId(categoryId, vehicleId)
+                    .findByIdAndUnitId(categoryId, unitId)
                     .ifPresentOrElse(eq::setCategory, () -> eq.setCategory(null));
         } else {
             eq.setCategory(null);
