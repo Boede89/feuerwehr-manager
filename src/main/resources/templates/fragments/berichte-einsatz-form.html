@@ -234,6 +234,53 @@
       <div class="incident-kraefte-layout" th:classappend="${formMode == 'view' ? ' incident-kraefte-layout--view' : ''}">
         <div id="fahrzeuge-involved-slot" class="incident-involved-slot incident-kraefte-col incident-kraefte-col--left"></div>
         <div class="incident-kraefte-col incident-kraefte-col--right">
+          <section class="incident-kraefte-section incident-kraefte-section--vehicles">
+            <header class="incident-kraefte-section__head">
+              <div>
+                <h3 class="incident-kraefte-section__title">Fahrzeugbesetzung</h3>
+                <p class="hint text-sm" th:if="${formMode != 'view'}">ZF / GF / M / Gesamt — Person anklicken für Einheitsführer, Maschinist oder PA</p>
+                <p class="hint text-sm" th:if="${formMode == 'view'}">ZF / GF / M / Gesamt — EF = Einheitsführer, Ma = Maschinist, PA = Atemschutz</p>
+              </div>
+            </header>
+            <div class="incident-vehicle-stack" id="incident-vehicle-stack">
+              <article class="incident-vehicle-card"
+                       th:each="v : ${kraefteState.vehicles()}"
+                       th:classappend="${v.vehicleType() != null ? 'incident-vehicle-card--type-' + v.vehicleType() : ''}"
+                       th:attr="data-vehicle-id=${v.vehicleId()}, data-vehicle-type=${v.vehicleType()}">
+                <header class="incident-vehicle-card__head">
+                  <div class="incident-vehicle-card__title-wrap">
+                    <h5 class="incident-vehicle-card__name" th:text="${v.name()}">HLF 20</h5>
+                    <span class="incident-vehicle-card__type-label" th:if="${v.vehicleTypeLabel() != null}"
+                          th:text="${v.vehicleTypeLabel()}">Löschfahrzeug</span>
+                  </div>
+                  <span class="incident-vehicle-card__staerke" th:attr="data-staerke-badge=${v.vehicleId()}"
+                        th:text="${v.besatzungsstaerke()}">0/0/0/0</span>
+                </header>
+                <div class="incident-vehicle-dropzone" th:attr="data-vehicle-id=${v.vehicleId()}">
+                  <div class="incident-crew-chip incident-crew-chip--vehicle-role"
+                       th:each="person : ${v.crewPersons()}"
+                       th:attr="draggable=${formMode != 'view' ? 'true' : 'false'}"
+                       th:classappend="${(person.poolSource() == 'divera' ? ' incident-crew-chip--divera' : '') + (person.vehicleRole() == 'EINHEITSFUEHRER' ? ' incident-crew-chip--ef' : (person.vehicleRole() == 'MASCHINIST' ? ' incident-crew-chip--maschinist' : '')) + (person.usesPa() ? ' incident-crew-chip--pa' : '')}"
+                       th:data-person-id="${person.id()}"
+                       th:data-qual-tier="${person.qualTier()}"
+                       th:data-person-name="${person.displayName()}"
+                       th:data-sort-order="${person.sortOrder()}"
+                       th:data-vehicle-role="${person.vehicleRole()}"
+                       th:data-pool-source="${person.poolSource()}"
+                       th:data-pa="${person.usesPa() ? 'true' : null}">
+                    <span class="incident-crew-chip__role-badge"
+                          th:if="${person.vehicleRole() == 'EINHEITSFUEHRER'}">EF</span>
+                    <span class="incident-crew-chip__role-badge"
+                          th:if="${person.vehicleRole() == 'MASCHINIST'}">Ma</span>
+                    <span class="incident-crew-chip__pa-badge" th:if="${person.usesPa()}">PA</span>
+                    <span class="incident-crew-chip__name" th:text="${person.displayName()}">Name</span>
+                  </div>
+                </div>
+                <p class="hint incident-vehicle-dropzone-hint" th:if="${formMode != 'view'}">Hier ablegen</p>
+              </article>
+            </div>
+            <p class="hint" th:if="${#lists.isEmpty(kraefteState.vehicles())}">Keine Fahrzeuge in dieser Einheit.</p>
+          </section>
           <section class="incident-kraefte-section incident-kraefte-section--virtual">
             <header class="incident-kraefte-section__head">
               <h3 class="incident-kraefte-section__title">Ohne Fahrzeug</h3>
@@ -288,53 +335,6 @@
                 <p class="hint incident-vehicle-dropzone-hint" th:if="${formMode != 'view'}">Nur an der Wache</p>
               </article>
             </div>
-          </section>
-          <section class="incident-kraefte-section incident-kraefte-section--vehicles">
-            <header class="incident-kraefte-section__head">
-              <div>
-                <h3 class="incident-kraefte-section__title">Fahrzeugbesetzung</h3>
-                <p class="hint text-sm" th:if="${formMode != 'view'}">ZF / GF / M / Gesamt — Person anklicken für Einheitsführer, Maschinist oder PA</p>
-                <p class="hint text-sm" th:if="${formMode == 'view'}">ZF / GF / M / Gesamt — EF = Einheitsführer, Ma = Maschinist, PA = Atemschutz</p>
-              </div>
-            </header>
-            <div class="incident-vehicle-stack" id="incident-vehicle-stack">
-              <article class="incident-vehicle-card"
-                       th:each="v : ${kraefteState.vehicles()}"
-                       th:classappend="${v.vehicleType() != null ? 'incident-vehicle-card--type-' + v.vehicleType() : ''}"
-                       th:attr="data-vehicle-id=${v.vehicleId()}, data-vehicle-type=${v.vehicleType()}">
-                <header class="incident-vehicle-card__head">
-                  <div class="incident-vehicle-card__title-wrap">
-                    <h5 class="incident-vehicle-card__name" th:text="${v.name()}">HLF 20</h5>
-                    <span class="incident-vehicle-card__type-label" th:if="${v.vehicleTypeLabel() != null}"
-                          th:text="${v.vehicleTypeLabel()}">Löschfahrzeug</span>
-                  </div>
-                  <span class="incident-vehicle-card__staerke" th:attr="data-staerke-badge=${v.vehicleId()}"
-                        th:text="${v.besatzungsstaerke()}">0/0/0/0</span>
-                </header>
-                <div class="incident-vehicle-dropzone" th:attr="data-vehicle-id=${v.vehicleId()}">
-                  <div class="incident-crew-chip incident-crew-chip--vehicle-role"
-                       th:each="person : ${v.crewPersons()}"
-                       th:attr="draggable=${formMode != 'view' ? 'true' : 'false'}"
-                       th:classappend="${(person.poolSource() == 'divera' ? ' incident-crew-chip--divera' : '') + (person.vehicleRole() == 'EINHEITSFUEHRER' ? ' incident-crew-chip--ef' : (person.vehicleRole() == 'MASCHINIST' ? ' incident-crew-chip--maschinist' : '')) + (person.usesPa() ? ' incident-crew-chip--pa' : '')}"
-                       th:data-person-id="${person.id()}"
-                       th:data-qual-tier="${person.qualTier()}"
-                       th:data-person-name="${person.displayName()}"
-                       th:data-sort-order="${person.sortOrder()}"
-                       th:data-vehicle-role="${person.vehicleRole()}"
-                       th:data-pool-source="${person.poolSource()}"
-                       th:data-pa="${person.usesPa() ? 'true' : null}">
-                    <span class="incident-crew-chip__role-badge"
-                          th:if="${person.vehicleRole() == 'EINHEITSFUEHRER'}">EF</span>
-                    <span class="incident-crew-chip__role-badge"
-                          th:if="${person.vehicleRole() == 'MASCHINIST'}">Ma</span>
-                    <span class="incident-crew-chip__pa-badge" th:if="${person.usesPa()}">PA</span>
-                    <span class="incident-crew-chip__name" th:text="${person.displayName()}">Name</span>
-                  </div>
-                </div>
-                <p class="hint incident-vehicle-dropzone-hint" th:if="${formMode != 'view'}">Hier ablegen</p>
-              </article>
-            </div>
-            <p class="hint" th:if="${#lists.isEmpty(kraefteState.vehicles())}">Keine Fahrzeuge in dieser Einheit.</p>
           </section>
         </div>
       </div>

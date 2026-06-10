@@ -3815,12 +3815,36 @@ span.required { color: var(--error); }
 }
 
 .einsatzbericht-form-page .incident-vehicle-card--involved .incident-vehicle-dropzone {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
   min-height: 160px;
+  max-height: min(50vh, 420px);
+  overflow-y: auto;
+  padding: 8px;
+  align-content: start;
+}
+
+.einsatzbericht-form-page .incident-vehicle-card--involved .incident-vehicle-dropzone .incident-crew-chip {
+  width: 100%;
+  max-width: none;
+  padding: 5px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  border-left-width: 3px;
+  border-radius: var(--radius-sm, 6px);
 }
 
 .einsatzbericht-form-page .incident-vehicle-card--involved .incident-kraefte-section__title {
   margin: 0;
   font-size: 14px;
+}
+
+.einsatzbericht-form-page .incident-kraefte-section--virtual {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
 }
 
 .einsatzbericht-form-page .incident-kraefte-layout {
