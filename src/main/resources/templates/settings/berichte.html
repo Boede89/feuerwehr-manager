@@ -50,6 +50,17 @@
               <span class="toggle-switch__track"></span>
             </span>
           </label>
+          <label class="toggle-row">
+            <span class="toggle-row__label">
+              Personal aus anderen Einheiten erlauben
+              <span class="toggle-row__hint">Erlaubt DIVERA-Rückmeldungen und die manuelle Auswahl von Kräften anderer Feuerwehreinheiten im Einsatzbericht.</span>
+            </span>
+            <span class="toggle-switch">
+              <input type="checkbox" name="allowForeignUnitPersonnel" value="true"
+                     th:checked="${settings.allowForeignUnitPersonnel}"/>
+              <span class="toggle-switch__track"></span>
+            </span>
+          </label>
         </div>
 
         <div class="form-group form-group--full" style="margin-top:1.25rem;">

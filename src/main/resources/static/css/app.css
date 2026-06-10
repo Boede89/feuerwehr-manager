@@ -4812,7 +4812,17 @@ span.required { color: var(--error); }
 }
 
 .berichte-settings-page .toggle-row__label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   font-weight: 500;
+}
+
+.berichte-settings-page .toggle-row__hint {
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  color: var(--text-muted);
+  line-height: 1.35;
 }
 
 .berichte-settings-page .berichte-status-picker {

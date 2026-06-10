@@ -134,18 +134,35 @@ public class EinsatzberichtService {
         return incidentReportRepository.findDistinctStichworteByUnitId(unitId, includeTestReports());
     }
 
+    @Transactional(readOnly = true)
+    public boolean isForeignUnitPersonnelAllowed(long unitId) {
+        return berichteSettingsService.isForeignUnitPersonnelAllowed(unitId);
+    }
+
+    @Transactional(readOnly = true)
     public List<ForeignUnitOption> listForeignUnits(long reportUnitId) {
+        if (!berichteSettingsService.isForeignUnitPersonnelAllowed(reportUnitId)) {
+            return List.of();
+        }
         return unitRepository.findActiveVisible(testModeService.isEnabled()).stream()
                 .filter(unit -> unit.getId() != reportUnitId)
                 .map(unit -> new ForeignUnitOption(unit.getId(), unit.getName()))
                 .toList();
     }
 
-    public List<ForeignPersonOption> listForeignPersonnel(long sourceUnitId, String query) {
+    @Transactional(readOnly = true)
+    public List<ForeignPersonOption> listForeignPersonnel(long reportUnitId, long sourceUnitId, String query) {
+        if (!berichteSettingsService.isForeignUnitPersonnelAllowed(reportUnitId)) {
+            return List.of();
+        }
+        Unit sourceUnit = unitRepository
+                .findById(sourceUnitId)
+                .orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden."));
+        String unitName = sourceUnit.getName();
         String normalized = query != null ? query.trim() : "";
         List<Person> persons;
         if (normalized.length() < 2) {
-            persons = personalService.listPersons(sourceUnitId);
+            persons = personRepository.findActiveByUnitIdWithUnit(sourceUnitId, includeTestReports());
         } else {
             persons = personRepository.searchActiveByUnitId(sourceUnitId, normalized, includeTestReports());
         }
@@ -154,8 +171,8 @@ public class EinsatzberichtService {
                         person.getId(),
                         person.anwesenheitDisplayName(),
                         Besatzungsstaerke.qualTier(person).name(),
-                        person.getUnit().getId(),
-                        person.getUnit().getName()))
+                        sourceUnitId,
+                        unitName))
                 .toList();
     }
 
@@ -1407,6 +1424,9 @@ public class EinsatzberichtService {
         Optional<Person> ownUnit = personRepository.findByUnitIdAndDiveraUcrId(unitId, ucr, testData);
         if (ownUnit.isPresent()) {
             return ownUnit;
+        }
+        if (!berichteSettingsService.isForeignUnitPersonnelAllowed(unitId)) {
+            return Optional.empty();
         }
         return personRepository.findAllByDiveraUcrId(ucr, testData).stream().findFirst();
     }

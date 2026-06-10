@@ -403,6 +403,8 @@ public class BerichteController {
         model.addAttribute("knownStichworte", einsatzberichtService.listKnownStichworte(unitId));
         model.addAttribute("kraefteState", kraefteState);
         model.addAttribute("kraefteInitialJson", einsatzberichtService.serializeKraefteFahrzeugeState(kraefteState));
+        model.addAttribute(
+                "allowForeignUnitPersonnel", einsatzberichtService.isForeignUnitPersonnelAllowed(unitId));
         if (form.getCrewAssignmentsJson() == null || form.getCrewAssignmentsJson().isBlank()) {
             form.setCrewAssignmentsJson(buildCrewJson(kraefteState));
         }
@@ -461,7 +463,7 @@ public class BerichteController {
         accessControlService.requireUnitAccess(actor, unitId);
         requireModuleEnabled(unitId);
         requireBerichteRead(actor, unitId);
-        return einsatzberichtService.listForeignPersonnel(sourceUnitId, query);
+        return einsatzberichtService.listForeignPersonnel(unitId, sourceUnitId, query);
     }
 
     @GetMapping("/einsatzberichte/vehicle-equipment")

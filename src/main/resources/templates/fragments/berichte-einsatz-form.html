@@ -230,7 +230,7 @@
                th:hidden="${!#lists.isEmpty(kraefteState.diveraPersons())}">Noch keine DIVERA-Rückmeldungen.</p>
             <p class="hint incident-person-pool-empty" id="manual-pool-empty" hidden
                th:hidden="${!#lists.isEmpty(kraefteState.manualPersons())}">Alle zugewiesen.</p>
-            <div class="incident-foreign-person-actions">
+            <div class="incident-foreign-person-actions" th:if="${allowForeignUnitPersonnel}">
               <button type="button" class="btn btn--outline btn--sm" id="foreign-person-open-btn">
                 Personal aus anderer Einheit wählen
               </button>
@@ -533,7 +533,8 @@
   </div>
   </div>
 
-  <div id="foreign-person-modal" class="incident-modal" hidden aria-hidden="true" th:if="${formMode != 'view'}">
+  <div id="foreign-person-modal" class="incident-modal" hidden aria-hidden="true"
+       th:if="${formMode != 'view' and allowForeignUnitPersonnel}">
     <div class="modal__backdrop"></div>
     <div class="modal__box">
       <div class="modal__header">

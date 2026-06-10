@@ -37,14 +37,21 @@ public class BerichteSettingsService {
             long unitId,
             boolean importIncidentDataFromDivera,
             boolean importPersonnelFromDivera,
+            boolean allowForeignUnitPersonnel,
             List<String> personnelStatusIds) {
         UnitBerichteSettings settings = settingsRepository
                 .findByUnitId(unitId)
                 .orElseGet(() -> createDefaults(unitId));
         settings.setImportIncidentDataFromDivera(importIncidentDataFromDivera);
         settings.setImportPersonnelFromDivera(importPersonnelFromDivera);
+        settings.setAllowForeignUnitPersonnel(allowForeignUnitPersonnel);
         settings.setEinsatzPersonnelStatusIds(writeStatusIds(personnelStatusIds, unitId));
         return settingsRepository.save(settings);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isForeignUnitPersonnelAllowed(long unitId) {
+        return ensureSettings(unitId).isAllowForeignUnitPersonnel();
     }
 
     public List<String> parsePersonnelStatusIds(UnitBerichteSettings settings) {
@@ -92,6 +99,7 @@ public class BerichteSettingsService {
         settings.setUnit(unit);
         settings.setImportIncidentDataFromDivera(false);
         settings.setImportPersonnelFromDivera(false);
+        settings.setAllowForeignUnitPersonnel(false);
         settings.setEinsatzPersonnelStatusIds("[]");
         return settingsRepository.save(settings);
     }

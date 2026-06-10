@@ -70,6 +70,7 @@ public class BerichteSettingsController {
             @RequestParam long unit,
             @RequestParam(name = "importIncidentDataFromDivera", defaultValue = "false") boolean importIncidentDataFromDivera,
             @RequestParam(name = "importPersonnelFromDivera", defaultValue = "false") boolean importPersonnelFromDivera,
+            @RequestParam(name = "allowForeignUnitPersonnel", defaultValue = "false") boolean allowForeignUnitPersonnel,
             @RequestParam(name = "personnelStatusIds", required = false) String[] personnelStatusIds,
             RedirectAttributes redirectAttributes) {
         try {
@@ -78,7 +79,7 @@ public class BerichteSettingsController {
             requireModuleEnabled(unit);
             List<String> statusIds = personnelStatusIds == null ? List.of() : Arrays.asList(personnelStatusIds);
             berichteSettingsService.saveEinsatzSettings(
-                    unit, importIncidentDataFromDivera, importPersonnelFromDivera, statusIds);
+                    unit, importIncidentDataFromDivera, importPersonnelFromDivera, allowForeignUnitPersonnel, statusIds);
             redirectAttributes.addFlashAttribute("message", "Einsatzbericht-Einstellungen gespeichert.");
             return "redirect:/settings/berichte?unit=" + unit + "&tab=einsatz";
         } catch (IllegalArgumentException e) {

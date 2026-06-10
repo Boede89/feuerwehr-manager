@@ -36,6 +36,9 @@ public class UnitBerichteSettings {
     @Column(name = "import_personnel_from_divera", nullable = false)
     private boolean importPersonnelFromDivera;
 
+    @Column(name = "allow_foreign_unit_personnel", nullable = false)
+    private boolean allowForeignUnitPersonnel;
+
     @Column(name = "einsatz_personnel_status_ids", columnDefinition = "TEXT")
     private String einsatzPersonnelStatusIds;
 
