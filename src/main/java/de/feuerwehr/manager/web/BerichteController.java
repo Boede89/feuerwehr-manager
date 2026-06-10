@@ -6,6 +6,7 @@ import de.feuerwehr.manager.berichte.DeployedEquipmentAssignment;
 import de.feuerwehr.manager.berichte.EinsatzberichtAccess;
 import de.feuerwehr.manager.berichte.EinsatzberichtForm;
 import de.feuerwehr.manager.berichte.EinsatzberichtService;
+import de.feuerwehr.manager.berichte.EinsatzberichtListResponse;
 import de.feuerwehr.manager.berichte.IncidentReport;
 import de.feuerwehr.manager.berichte.IncidentReportStatus;
 import de.feuerwehr.manager.berichte.VehicleEquipmentView;
@@ -54,8 +55,6 @@ public class BerichteController {
             @RequestParam(name = "unit", required = false) Long unitId,
             @RequestParam(name = "tab", defaultValue = "einsatz") String tab,
             @RequestParam(name = "year", required = false) Integer filterYear,
-            @RequestParam(name = "stichwort", required = false) String filterStichwort,
-            @RequestParam(name = "status", required = false) String filterStatus,
             Model model,
             RedirectAttributes redirectAttributes) {
         try {
@@ -76,25 +75,51 @@ public class BerichteController {
                             "message",
                             sync.created() + " Einsatzbericht/Einsatzberichte aus DIVERA als Entwurf übernommen.");
                 }
-                int year = filterYear != null ? filterYear : LocalDate.now().getYear();
-                String stichwort = filterStichwort != null ? filterStichwort.trim() : "";
-                IncidentReportStatus statusFilter = parseStatusFilter(filterStatus);
-                model.addAttribute("filterYear", year);
-                model.addAttribute("filterStichwort", stichwort);
-                model.addAttribute("filterStatus", statusFilter != null ? statusFilter.name() : "");
-                model.addAttribute("filterYears", einsatzberichtService.listFilterYears());
-                model.addAttribute("filterStichworte", einsatzberichtService.listKnownStichworte(unit.getId()));
-                model.addAttribute("filterStatuses", IncidentReportStatus.values());
-                model.addAttribute(
-                        "einsatzberichte",
-                        einsatzberichtService.listFiltered(unit.getId(), year, stichwort, statusFilter));
-                model.addAttribute("einsatzListPath", buildEinsatzListPath(year, stichwort, statusFilter));
+                model.addAttribute("filterYear", filterYear != null ? filterYear : LocalDate.now().getYear());
             }
             return "berichte/index";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return redirectHome(unitId);
         }
+    }
+
+    @GetMapping("/einsatzberichte/list")
+    @ResponseBody
+    public EinsatzberichtListResponse listEinsatzberichte(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "year", required = false) Integer year) {
+        Unit unit = resolveUnit(unitId, actor);
+        requireModuleEnabled(unit.getId());
+        requireBerichteRead(actor, unit.getId());
+        int filterYear = year != null ? year : LocalDate.now().getYear();
+        return einsatzberichtService.listForYear(unit.getId(), filterYear);
+    }
+
+    @GetMapping("/einsatzberichte/{id}/modal")
+    public String modalEinsatzbericht(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @PathVariable long id,
+            Model model) {
+        Unit unit = resolveUnit(unitId, actor, model);
+        requireModuleEnabled(unit.getId());
+        requireBerichteRead(actor, unit.getId());
+        IncidentReport report = einsatzberichtService.requireReport(unit.getId(), id);
+        EinsatzberichtForm form = EinsatzberichtForm.fromReport(report);
+        populateEinsatzFormModel(model, unit.getId(), report, form, false);
+        model.addAttribute("formMode", "view");
+        boolean canApprove = canApprove(actor, unit.getId());
+        model.addAttribute("canEditReport", EinsatzberichtAccess.canEdit(report, actor, canApprove));
+        model.addAttribute("canRelease", EinsatzberichtAccess.canRelease(report, canApprove, actor));
+        model.addAttribute("canArchive", EinsatzberichtAccess.canArchive(report, canApprove, actor));
+        String stichwort = report.getStichwort() != null && !report.getStichwort().isBlank()
+                ? report.getStichwort()
+                : report.getIncidentTypeLabel();
+        String number = report.getIncidentNumber() != null ? report.getIncidentNumber() : String.valueOf(id);
+        model.addAttribute("modalTitle", number + " — " + stichwort);
+        return "berichte/einsatzbericht-modal-body";
     }
 
     @GetMapping("/einsatzberichte/suggest-number")
@@ -190,8 +215,13 @@ public class BerichteController {
             populateEinsatzFormModel(model, unit.getId(), report, form, true);
             model.addAttribute("formMode", "edit");
             model.addAttribute("canDeleteReport", EinsatzberichtAccess.canDelete(report, actor, canApprove));
+            model.addAttribute("reportChanges", einsatzberichtService.listChanges(unit.getId(), id));
             model.addAttribute("pageTitle", "Einsatzbericht bearbeiten");
-            model.addAttribute("pageSubtitle", report.getIncidentNumber() != null ? report.getIncidentNumber() : "Entwurf");
+            model.addAttribute(
+                    "pageSubtitle",
+                    (report.getIncidentNumber() != null ? report.getIncidentNumber() : "Entwurf")
+                            + " · "
+                            + report.getStatus().label());
             return "berichte/einsatzbericht-form";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
@@ -238,7 +268,12 @@ public class BerichteController {
             List<DeployedEquipmentAssignment> deployedEquipment =
                     einsatzberichtService.parseDeployedEquipment(form.getDeployedEquipmentJson());
             einsatzberichtService.update(
-                    unit.getId(), id, form.toData(crewAssignments, deployedEquipment), actor, canApprove);
+                    unit.getId(),
+                    id,
+                    form.toData(crewAssignments, deployedEquipment),
+                    form.getChangeComment(),
+                    actor,
+                    canApprove);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Einsatzbericht wurde aktualisiert.");
             return redirectBerichte(unit.getId(), "einsatz", null, null, null);

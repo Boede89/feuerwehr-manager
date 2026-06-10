@@ -73,6 +73,7 @@ public class EinsatzberichtService {
     private final AtemschutzService atemschutzService;
     private final EinsatzberichtAttachmentService einsatzberichtAttachmentService;
     private final UnitDiveraSettingsRepository diveraSettingsRepository;
+    private final IncidentReportChangeRepository incidentReportChangeRepository;
     private final ObjectMapper objectMapper;
 
     public List<IncidentReport> listByUnit(long unitId) {
@@ -93,6 +94,28 @@ public class EinsatzberichtService {
             years.add(y);
         }
         return years;
+    }
+
+    @Transactional(readOnly = true)
+    public EinsatzberichtListResponse listForYear(long unitId, int year) {
+        LocalDate yearStart = LocalDate.of(year, 1, 1);
+        LocalDate yearEnd = yearStart.plusYears(1);
+        List<IncidentReport> reports = incidentReportRepository.findByUnitIdAndYear(unitId, yearStart, yearEnd);
+        List<EinsatzberichtListItemView> items = reports.stream().map(this::toListItem).toList();
+        LinkedHashSet<String> stichworte = new LinkedHashSet<>();
+        for (IncidentReport report : reports) {
+            String stichwort = displayStichwort(report);
+            if (!stichwort.isBlank()) {
+                stichworte.add(stichwort);
+            }
+        }
+        return new EinsatzberichtListResponse(items, List.copyOf(stichworte));
+    }
+
+    @Transactional(readOnly = true)
+    public List<IncidentReportChange> listChanges(long unitId, long reportId) {
+        requireReport(unitId, reportId);
+        return incidentReportChangeRepository.findByReportIdWithFields(reportId);
     }
 
     public List<Person> listPersonsForForm(long unitId) {
@@ -445,6 +468,7 @@ public class EinsatzberichtService {
             long unitId,
             long reportId,
             EinsatzberichtFormData form,
+            String changeComment,
             AppUserDetails actor,
             boolean canApprove) {
         validateRequired(form);
@@ -456,12 +480,65 @@ public class EinsatzberichtService {
                 && (actor == null || !actor.getRole().isAdminLevel())) {
             throw new IllegalArgumentException("Freigegebene oder archivierte Berichte können nur von Administratoren geändert werden.");
         }
+        Map<String, String> before = IncidentReportSnapshot.fromReport(report);
         applyForm(report, form, unitId);
+        Map<String, String> after = IncidentReportSnapshot.fromReport(report);
+        List<IncidentReportSnapshot.FieldChange> fieldChanges = IncidentReportSnapshot.diff(before, after);
         IncidentReport saved = incidentReportRepository.save(report);
         saveCrewAssignments(saved, form, unitId);
         saveDeployedEquipment(saved, form, unitId);
         syncPaAtemschutzRecords(saved, form, actor);
+        recordChange(saved, actor, changeComment, fieldChanges);
         return saved;
+    }
+
+    private void recordChange(
+            IncidentReport report,
+            AppUserDetails actor,
+            String changeComment,
+            List<IncidentReportSnapshot.FieldChange> fieldChanges) {
+        String comment = changeComment != null ? changeComment.trim() : "";
+        if (fieldChanges.isEmpty() && comment.isBlank()) {
+            return;
+        }
+        IncidentReportChange change = new IncidentReportChange();
+        change.setIncidentReport(report);
+        if (actor != null) {
+            userRepository.findById(actor.getUserId()).ifPresent(change::setChangedByUser);
+            change.setChangedByName(actor.getDisplayName());
+        }
+        change.setCommentText(comment.isBlank() ? null : comment);
+        for (IncidentReportSnapshot.FieldChange fieldChange : fieldChanges) {
+            IncidentReportChangeField field = new IncidentReportChangeField();
+            field.setChange(change);
+            field.setFieldKey(fieldChange.key());
+            field.setFieldLabel(fieldChange.label());
+            field.setOldValue(fieldChange.oldValue());
+            field.setNewValue(fieldChange.newValue());
+            change.getFields().add(field);
+        }
+        incidentReportChangeRepository.save(change);
+    }
+
+    private EinsatzberichtListItemView toListItem(IncidentReport report) {
+        User creator = report.getCreatedByUser();
+        return new EinsatzberichtListItemView(
+                report.getId(),
+                report.getIncidentNumber(),
+                report.getIncidentDate(),
+                displayStichwort(report),
+                report.getLocation(),
+                report.getStatus().cssModifier(),
+                report.getStatus().label(),
+                report.getDiveraAlarmId() != null,
+                creator != null ? creator.getId() : null);
+    }
+
+    private static String displayStichwort(IncidentReport report) {
+        if (report.getStichwort() != null && !report.getStichwort().isBlank()) {
+            return report.getStichwort().trim();
+        }
+        return report.getIncidentTypeLabel() != null ? report.getIncidentTypeLabel().trim() : "";
     }
 
     @Transactional(readOnly = true)

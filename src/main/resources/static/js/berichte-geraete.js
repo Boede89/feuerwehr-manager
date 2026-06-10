@@ -352,6 +352,10 @@
     refresh: function () {
       equipmentCache = {};
       render();
+    },
+    initView: function () {
+      loadSelectionFromHidden();
+      render();
     }
   };
 

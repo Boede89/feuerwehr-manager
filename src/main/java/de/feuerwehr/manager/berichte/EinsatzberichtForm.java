@@ -66,6 +66,7 @@ public class EinsatzberichtForm {
     private int animalsDead;
     private String vehicleDamage;
     private String equipmentDamage;
+    private String changeComment;
 
     public static EinsatzberichtForm fromReport(IncidentReport report) {
         EinsatzberichtForm form = new EinsatzberichtForm();

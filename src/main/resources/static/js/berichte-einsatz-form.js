@@ -35,8 +35,13 @@
     });
   }
 
-  document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('.incident-tab').forEach(function (btn) {
+  function init(root) {
+    var scope = root || document;
+    scope.querySelectorAll('.incident-tab').forEach(function (btn) {
+      if (btn.dataset.bound === 'true') {
+        return;
+      }
+      btn.dataset.bound = 'true';
       btn.addEventListener('click', function () {
         var idx = Number(btn.dataset.tab);
         switchTab(idx);
@@ -93,5 +98,13 @@
     }
 
     switchTab(0);
+  }
+
+  window.BerichteEinsatzForm = { init: init };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    if (document.querySelector('.einsatzbericht-form-page')) {
+      init(document);
+    }
   });
 })();

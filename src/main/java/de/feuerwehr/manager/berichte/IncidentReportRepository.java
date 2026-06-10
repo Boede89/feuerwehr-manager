@@ -36,6 +36,19 @@ public interface IncidentReportRepository extends JpaRepository<IncidentReport, 
 
     @Query("""
             SELECT r FROM IncidentReport r
+            LEFT JOIN FETCH r.createdByUser
+            WHERE r.unit.id = :unitId
+              AND r.incidentDate >= :yearStart
+              AND r.incidentDate < :yearEnd
+            ORDER BY r.incidentDate DESC, r.id DESC
+            """)
+    List<IncidentReport> findByUnitIdAndYear(
+            @Param("unitId") long unitId,
+            @Param("yearStart") LocalDate yearStart,
+            @Param("yearEnd") LocalDate yearEnd);
+
+    @Query("""
+            SELECT r FROM IncidentReport r
             LEFT JOIN FETCH r.commanderPerson
             WHERE r.id = :id AND r.unit.id = :unitId
             """)

@@ -928,6 +928,7 @@
   }
 
   window.BerichteKraefte = {
+    init: bindBoard,
     onTabShow: function (tabIdx) {
       activeCrewTab = tabIdx;
       placeInvolvedCard(tabIdx);
