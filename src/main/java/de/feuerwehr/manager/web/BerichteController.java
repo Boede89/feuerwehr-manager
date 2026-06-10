@@ -404,16 +404,13 @@ public class BerichteController {
             form.setDeployedEquipmentJson(
                     reportId != null ? einsatzberichtService.buildDeployedEquipmentJson(reportId) : "[]");
         }
-        if (report != null) {
-            boolean showHistory = report.getStatus() != IncidentReportStatus.ENTWURF;
-            model.addAttribute("showChangeHistory", showHistory);
-            model.addAttribute(
-                    "reportChanges",
-                    showHistory ? einsatzberichtService.listChanges(unitId, report.getId()) : List.of());
-        } else {
-            model.addAttribute("showChangeHistory", false);
-            model.addAttribute("reportChanges", List.of());
-        }
+        boolean showHistory = EinsatzberichtAccess.showChangeHistory(report);
+        model.addAttribute("showChangeHistory", showHistory);
+        model.addAttribute(
+                "reportChanges",
+                showHistory && report != null
+                        ? einsatzberichtService.listChanges(unitId, report.getId())
+                        : List.of());
     }
 
     @GetMapping("/einsatzberichte/vehicle-equipment")

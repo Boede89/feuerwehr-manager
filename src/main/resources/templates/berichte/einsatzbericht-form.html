@@ -30,7 +30,8 @@
             th:action="${formMode == 'edit'} ? @{/berichte/einsatzberichte/{id}(id=${report.id},unit=${unitId})} : @{/berichte/einsatzberichte(unit=${unitId})}">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <th:block th:replace="~{fragments/berichte-einsatz-form :: form}"></th:block>
-        <div class="incident-edit-comment" th:if="${formMode == 'edit' and showChangeHistory}">
+        <div class="incident-edit-comment"
+             th:if="${formMode == 'edit' and showChangeHistory and report != null}">
           <label for="changeComment">Kommentar zur Änderung (optional)</label>
           <textarea id="changeComment" name="changeComment" rows="2" class="field"
                     placeholder="Was wurde geändert und warum?"></textarea>
@@ -39,7 +40,7 @@
     </div>
   </div>
 
-  <th:block th:if="${showChangeHistory}"
+  <th:block th:if="${showChangeHistory and formMode != 'create' and report != null}"
             th:replace="~{fragments/berichte-einsatz-changes :: history(${reportChanges})}"></th:block>
 
   <script th:src="@{/js/combo-suggest.js}" defer></script>

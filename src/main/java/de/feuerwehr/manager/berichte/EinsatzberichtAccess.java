@@ -70,4 +70,13 @@ public final class EinsatzberichtAccess {
         return report.getStatus() == IncidentReportStatus.FREIGEGEBEN
                 && (canApprove || (actor != null && actor.getRole().isAdminLevel()));
     }
+
+    /** Änderungshistorie nur nach Freigabe (inkl. archivierter Berichte). */
+    public static boolean showChangeHistory(IncidentReport report) {
+        if (report == null) {
+            return false;
+        }
+        return report.getStatus() == IncidentReportStatus.FREIGEGEBEN
+                || report.getStatus() == IncidentReportStatus.ARCHIVIERT;
+    }
 }
