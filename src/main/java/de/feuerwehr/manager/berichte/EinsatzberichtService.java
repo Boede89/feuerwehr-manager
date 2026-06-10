@@ -341,7 +341,7 @@ public class EinsatzberichtService {
             String typeKey = vehicle.getVehicleType();
             boolean hasCrew = !crewRefIds.isEmpty();
             boolean involvedFromDb = involvedByVehicleId.getOrDefault(vehicle.getId(), false);
-            boolean involvedInIncident = involvedFromDb;
+            boolean involvedInIncident = involvedFromDb || hasCrew;
             boolean manuallyInvolvedInIncident = involvedFromDb && !hasCrew;
             vehicles.add(new KraefteFahrzeugeState.KraefteVehicleView(
                     vehicle.getId(),
@@ -843,7 +843,11 @@ public class EinsatzberichtService {
             row.setVehicle(vehicle);
             row.setVehicleName(vehicle.getName());
             CrewAssignment vehicleAssignment = assignmentByVehicleId.get(vehicle.getId());
-            row.setInvolved(vehicleAssignment != null && vehicleAssignment.isInvolvedInIncident());
+            boolean hasAssignedCrew = vehicleAssignment != null
+                    && vehicleAssignment.personIds() != null
+                    && !vehicleAssignment.personIds().isEmpty();
+            row.setInvolved(vehicleAssignment != null
+                    && (vehicleAssignment.isInvolvedInIncident() || hasAssignedCrew));
             IncidentReportVehicle saved = incidentReportVehicleRepository.save(row);
             reportVehicleByUnitVehicleId.put(vehicle.getId(), saved);
         }

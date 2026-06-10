@@ -97,7 +97,7 @@
     if (!zone) {
       return 0;
     }
-    return zone.querySelectorAll('.incident-crew-chip').length;
+    return zone.querySelectorAll('.incident-crew-chip:not(.incident-crew-chip--involved-mirror)').length;
   }
 
   function syncVehicleInvolvementUI(card) {
@@ -116,6 +116,13 @@
   function applyCrewInvolvementAfterChange(card) {
     if (!isRealVehicleCard(card)) {
       return;
+    }
+    var crewCount = crewCountForCard(card);
+    if (crewCount > 0) {
+      card.dataset.involvedInIncident = 'true';
+      card.dataset.manuallyInvolved = 'false';
+    } else if (card.dataset.manuallyInvolved !== 'true') {
+      card.dataset.involvedInIncident = 'false';
     }
     syncVehicleInvolvementUI(card);
   }
@@ -628,7 +635,7 @@
     refreshInvolvedDisplay();
     document.querySelectorAll('.incident-vehicle-card').forEach(updateVehicleStaerke);
     if (!isBoardReadonly()) {
-      syncAllVehicleInvolvement();
+      applyCrewInvolvementToAllVehicles();
     }
     hideNonInvolvedVehiclesInView();
     updatePoolCounts();
