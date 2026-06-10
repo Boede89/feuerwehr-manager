@@ -4239,6 +4239,85 @@ span.required { color: var(--error); }
   flex-direction: column;
 }
 
+.einsatzbericht-form-page .incident-vehicle-card--einsatz-beteiligt {
+  border-color: color-mix(in srgb, var(--einsatz-c, var(--rot)) 45%, var(--border));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--einsatz-c, var(--rot)) 18%, transparent);
+}
+
+.einsatzbericht-form-page .incident-vehicle-card--einsatz-beteiligt .incident-vehicle-card__head {
+  background: color-mix(in srgb, var(--einsatz-c, var(--rot)) 16%, var(--bg-card));
+}
+
+.einsatzbericht-form-page .incident-vehicle-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.einsatzbericht-form-page .incident-vehicle-involved-toggle {
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.einsatzbericht-form-page .incident-vehicle-involved-toggle:hover:not(:disabled) {
+  background: var(--bg-card-hover);
+  color: var(--text);
+}
+
+.einsatzbericht-form-page .incident-vehicle-involved-toggle--active,
+.einsatzbericht-form-page .incident-vehicle-involved-toggle[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--einsatz-c, var(--rot)) 50%, var(--border));
+  background: color-mix(in srgb, var(--einsatz-c, var(--rot)) 14%, var(--bg-card));
+  color: var(--einsatz-c, var(--rot));
+}
+
+.einsatzbericht-form-page .incident-vehicle-involved-toggle:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.einsatzbericht-form-page .incident-vehicle-involved-badge {
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in srgb, var(--einsatz-c, var(--rot)) 40%, var(--border));
+  background: color-mix(in srgb, var(--einsatz-c, var(--rot)) 12%, var(--bg-card));
+  color: var(--einsatz-c, var(--rot));
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.einsatzbericht-form-page .incident-bericht-vehicles {
+  margin-bottom: 20px;
+}
+
+.einsatzbericht-form-page .incident-bericht-vehicles__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.einsatzbericht-form-page .incident-bericht-vehicles__item {
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in srgb, var(--einsatz-c, var(--rot)) 35%, var(--border));
+  background: color-mix(in srgb, var(--einsatz-c, var(--rot)) 10%, var(--bg-card));
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .einsatzbericht-form-page .incident-vehicle-card__head {
   display: flex;
   align-items: center;

@@ -37,6 +37,9 @@ public class IncidentReportVehicle {
     @Column(name = "vehicle_name", nullable = false, length = 100)
     private String vehicleName;
 
+    @Column(nullable = false)
+    private boolean involved;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;
 }

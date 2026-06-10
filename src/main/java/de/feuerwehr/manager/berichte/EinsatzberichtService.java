@@ -100,6 +100,7 @@ public class EinsatzberichtService {
         List<Long> beteiligtCrewIds = new ArrayList<>();
         List<Long> einsatzstelleCrewIds = new ArrayList<>();
         List<Long> wacheCrewIds = new ArrayList<>();
+        Map<Long, Boolean> involvedByVehicleId = new LinkedHashMap<>();
 
         Set<Long> diveraPersonIds = new HashSet<>();
         Set<Long> onVehiclePersonIds = new HashSet<>();
@@ -107,6 +108,12 @@ public class EinsatzberichtService {
         Map<Long, Boolean> paByPersonId = new LinkedHashMap<>();
 
         if (reportId != null) {
+            for (IncidentReportVehicle reportVehicle :
+                    incidentReportVehicleRepository.findByIncidentReportId(reportId)) {
+                if (reportVehicle.getVehicle() != null) {
+                    involvedByVehicleId.put(reportVehicle.getVehicle().getId(), reportVehicle.isInvolved());
+                }
+            }
             for (IncidentReportPersonnel row : incidentReportPersonnelRepository.findByIncidentReportId(reportId)) {
                 Person person = row.getPerson();
                 if (person == null) {
@@ -196,6 +203,10 @@ public class EinsatzberichtService {
                 }
             }
             String typeKey = vehicle.getVehicleType();
+            boolean hasCrew = !crewIds.isEmpty();
+            boolean involvedFromDb = involvedByVehicleId.getOrDefault(vehicle.getId(), false);
+            boolean involvedInIncident = hasCrew || involvedFromDb;
+            boolean manuallyInvolvedInIncident = !hasCrew && involvedFromDb;
             vehicles.add(new KraefteFahrzeugeState.KraefteVehicleView(
                     vehicle.getId(),
                     vehicle.getName(),
@@ -205,7 +216,9 @@ public class EinsatzberichtService {
                     crewViews,
                     Besatzungsstaerke.format(crew),
                     einheitsfuehrerPersonId,
-                    maschinistPersonId));
+                    maschinistPersonId,
+                    involvedInIncident,
+                    manuallyInvolvedInIncident));
         }
 
         List<Person> beteiligtCrew = beteiligtCrewIds.stream()
@@ -279,7 +292,9 @@ public class EinsatzberichtService {
                         personIds,
                         payload.einheitsfuehrerPersonId(),
                         payload.maschinistPersonId(),
-                        paPersonIds));
+                        paPersonIds,
+                        payload.involvedInIncident(),
+                        payload.manuallyInvolvedInIncident()));
             }
             return result;
         } catch (Exception e) {
@@ -498,19 +513,28 @@ public class EinsatzberichtService {
         incidentReportPersonnelRepository.deleteByIncidentReportId(reportId);
         incidentReportVehicleRepository.deleteByIncidentReportId(reportId);
 
+        List<CrewAssignment> assignments =
+                form.crewAssignments() != null ? form.crewAssignments() : List.of();
+        Map<Long, CrewAssignment> assignmentByVehicleId = new HashMap<>();
+        for (CrewAssignment assignment : assignments) {
+            if (assignment.vehicleId() > 0) {
+                assignmentByVehicleId.put(assignment.vehicleId(), assignment);
+            }
+        }
+
         Map<Long, IncidentReportVehicle> reportVehicleByUnitVehicleId = new HashMap<>();
         for (Vehicle vehicle : listVehiclesForForm(unitId)) {
             IncidentReportVehicle row = new IncidentReportVehicle();
             row.setIncidentReport(report);
             row.setVehicle(vehicle);
             row.setVehicleName(vehicle.getName());
+            CrewAssignment vehicleAssignment = assignmentByVehicleId.get(vehicle.getId());
+            row.setInvolved(vehicleAssignment != null && vehicleAssignment.resolvesInvolvedInIncident());
             IncidentReportVehicle saved = incidentReportVehicleRepository.save(row);
             reportVehicleByUnitVehicleId.put(vehicle.getId(), saved);
         }
 
         Set<Long> assignedPersons = new HashSet<>();
-        List<CrewAssignment> assignments =
-                form.crewAssignments() != null ? form.crewAssignments() : List.of();
 
         Map<Long, IncidentReportVehicle> virtualVehicles = new HashMap<>();
 
@@ -646,7 +670,9 @@ public class EinsatzberichtService {
                         .toList(),
                 Besatzungsstaerke.format(crew),
                 null,
-                null);
+                null,
+                false,
+                false);
     }
 
     private static String poolSourceFor(IncidentPersonnelSource source) {
@@ -971,5 +997,7 @@ public class EinsatzberichtService {
             List<Long> personIds,
             Long einheitsfuehrerPersonId,
             Long maschinistPersonId,
-            List<Long> paPersonIds) {}
+            List<Long> paPersonIds,
+            Boolean involvedInIncident,
+            Boolean manuallyInvolvedInIncident) {}
 }

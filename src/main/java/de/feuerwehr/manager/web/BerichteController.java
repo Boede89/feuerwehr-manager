@@ -318,6 +318,10 @@ public class BerichteController {
             }
             sb.append(']');
         }
+        if (vehicle.vehicleId() > 0) {
+            sb.append(",\"involvedInIncident\":").append(vehicle.involvedInIncident());
+            sb.append(",\"manuallyInvolvedInIncident\":").append(vehicle.manuallyInvolvedInIncident());
+        }
         sb.append('}');
         return false;
     }

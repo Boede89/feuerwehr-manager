@@ -28,5 +28,7 @@ public record KraefteFahrzeugeState(
             List<KraeftePersonView> crewPersons,
             String besatzungsstaerke,
             Long einheitsfuehrerPersonId,
-            Long maschinistPersonId) {}
+            Long maschinistPersonId,
+            boolean involvedInIncident,
+            boolean manuallyInvolvedInIncident) {}
 }

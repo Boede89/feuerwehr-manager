@@ -90,6 +90,93 @@
     return card && Number(card.dataset.vehicleId) > 0;
   }
 
+  function crewCountForCard(card) {
+    var zone = card && card.querySelector('.incident-vehicle-dropzone');
+    if (!zone) {
+      return 0;
+    }
+    return zone.querySelectorAll('.incident-crew-chip').length;
+  }
+
+  function syncVehicleInvolvementUI(card) {
+    if (!isRealVehicleCard(card)) {
+      return;
+    }
+    var crewCount = crewCountForCard(card);
+    var manuallyInvolved = card.dataset.manuallyInvolved === 'true';
+    var involved = crewCount > 0 || manuallyInvolved;
+    card.classList.toggle('incident-vehicle-card--einsatz-beteiligt', involved);
+    card.dataset.involvedInIncident = involved ? 'true' : 'false';
+    var toggle = card.querySelector('.incident-vehicle-involved-toggle');
+    if (toggle) {
+      toggle.setAttribute('aria-pressed', involved ? 'true' : 'false');
+      toggle.classList.toggle('incident-vehicle-involved-toggle--active', involved);
+      toggle.disabled = crewCount > 0;
+    }
+  }
+
+  function applyCrewInvolvementAfterChange(card) {
+    if (!isRealVehicleCard(card)) {
+      return;
+    }
+    if (crewCountForCard(card) === 0) {
+      card.dataset.manuallyInvolved = 'false';
+    }
+    syncVehicleInvolvementUI(card);
+  }
+
+  function applyCrewInvolvementToAllVehicles() {
+    document.querySelectorAll('#incident-vehicle-stack .incident-vehicle-card').forEach(applyCrewInvolvementAfterChange);
+    updateBerichtInvolvedVehicles();
+    syncHiddenJson();
+  }
+
+  function syncAllVehicleInvolvement() {
+    document.querySelectorAll('#incident-vehicle-stack .incident-vehicle-card').forEach(syncVehicleInvolvementUI);
+    updateBerichtInvolvedVehicles();
+  }
+
+  function toggleManualVehicleInvolvement(card) {
+    if (!isRealVehicleCard(card) || crewCountForCard(card) > 0 || isBoardReadonly()) {
+      return;
+    }
+    card.dataset.manuallyInvolved = card.dataset.manuallyInvolved === 'true' ? 'false' : 'true';
+    syncVehicleInvolvementUI(card);
+    syncHiddenJson();
+    updateBerichtInvolvedVehicles();
+  }
+
+  function updateBerichtInvolvedVehicles() {
+    var list = document.getElementById('bericht-involved-vehicles-list');
+    var empty = document.getElementById('bericht-involved-vehicles-empty');
+    if (!list) {
+      return;
+    }
+    list.textContent = '';
+    var names = [];
+    document.querySelectorAll('#incident-vehicle-stack .incident-vehicle-card').forEach(function (card) {
+      if (card.dataset.involvedInIncident !== 'true') {
+        return;
+      }
+      var nameEl = card.querySelector('.incident-vehicle-card__name');
+      if (nameEl) {
+        names.push(nameEl.textContent.trim());
+      }
+    });
+    names.sort(function (a, b) {
+      return a.localeCompare(b, 'de');
+    });
+    names.forEach(function (name) {
+      var item = document.createElement('li');
+      item.className = 'incident-bericht-vehicles__item';
+      item.textContent = name;
+      list.appendChild(item);
+    });
+    if (empty) {
+      empty.hidden = names.length > 0;
+    }
+  }
+
   function isReserveChip(chip) {
     return !!(chip && chip.closest('.incident-person-pool--reserve'));
   }
@@ -398,6 +485,7 @@
     } else {
       chip.classList.remove('incident-crew-chip--vehicle-role');
     }
+    applyCrewInvolvementToAllVehicles();
     refreshBoard();
   }
 
@@ -411,6 +499,7 @@
     clearChipPa(chip);
     chip.classList.remove('incident-crew-chip--vehicle-role');
     insertChipSortedByName(zone, chip);
+    applyCrewInvolvementToAllVehicles();
     refreshBoard();
   }
 
@@ -539,6 +628,8 @@
         if (maChip) {
           assignment.maschinistPersonId = Number(maChip.dataset.personId);
         }
+        assignment.involvedInIncident = card.dataset.involvedInIncident === 'true';
+        assignment.manuallyInvolvedInIncident = card.dataset.manuallyInvolved === 'true';
       }
       var paIds = Array.from(card.querySelectorAll('.incident-vehicle-dropzone .incident-crew-chip[data-pa="true"]'))
         .map(function (chip) {
@@ -558,6 +649,7 @@
   function refreshBoard() {
     refreshInvolvedDisplay();
     document.querySelectorAll('.incident-vehicle-card').forEach(updateVehicleStaerke);
+    syncAllVehicleInvolvement();
     updatePoolCounts();
     updateActiveEmptyHint();
     syncHiddenJson();
@@ -633,6 +725,7 @@
     } else if (!isInvolvedZone(zone)) {
       draggedChip.classList.remove('incident-crew-chip--vehicle-role');
     }
+    applyCrewInvolvementToAllVehicles();
     refreshBoard();
   }
 
@@ -732,6 +825,7 @@
     if (searchEl) {
       filterReservePool(searchEl.value);
     }
+    applyCrewInvolvementToAllVehicles();
     refreshBoard();
   }
 
@@ -751,6 +845,21 @@
       var chip = e.target.closest('.incident-crew-chip');
       if (!chip) {
         return;
+      }
+      var involvedToggle = e.target.closest('.incident-vehicle-involved-toggle');
+      if (involvedToggle) {
+        e.stopPropagation();
+        toggleManualVehicleInvolvement(involvedToggle.closest('.incident-vehicle-card'));
+        return;
+      }
+      var vehicleHead = e.target.closest('#incident-vehicle-stack .incident-vehicle-card__head');
+      if (vehicleHead && activeCrewTab === 2 && !e.target.closest('.incident-vehicle-card__staerke')) {
+        var vehicleCard = vehicleHead.closest('.incident-vehicle-card');
+        if (vehicleCard && isRealVehicleCard(vehicleCard) && !e.target.closest('.incident-crew-chip')) {
+          e.stopPropagation();
+          toggleManualVehicleInvolvement(vehicleCard);
+          return;
+        }
       }
       if (isReserveChip(chip) && activeCrewTab === 1) {
         e.stopPropagation();

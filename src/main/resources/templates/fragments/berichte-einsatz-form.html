@@ -238,23 +238,37 @@
             <header class="incident-kraefte-section__head">
               <div>
                 <h3 class="incident-kraefte-section__title">Fahrzeugbesetzung</h3>
-                <p class="hint text-sm" th:if="${formMode != 'view'}">ZF / GF / M / Gesamt — Person anklicken für Einheitsführer, Maschinist oder PA</p>
+                <p class="hint text-sm" th:if="${formMode != 'view'}">ZF / GF / M / Gesamt — Fahrzeug anklicken für „Am Einsatz beteiligt“, Person für EF/Ma/PA</p>
                 <p class="hint text-sm" th:if="${formMode == 'view'}">ZF / GF / M / Gesamt — EF = Einheitsführer, Ma = Maschinist, PA = Atemschutz</p>
               </div>
             </header>
             <div class="incident-vehicle-stack" id="incident-vehicle-stack">
               <article class="incident-vehicle-card"
                        th:each="v : ${kraefteState.vehicles()}"
-                       th:classappend="${v.vehicleType() != null ? 'incident-vehicle-card--type-' + v.vehicleType() : ''}"
-                       th:attr="data-vehicle-id=${v.vehicleId()}, data-vehicle-type=${v.vehicleType()}">
+                       th:classappend="${(v.vehicleType() != null ? 'incident-vehicle-card--type-' + v.vehicleType() : '') + (v.involvedInIncident() ? ' incident-vehicle-card--einsatz-beteiligt' : '')}"
+                       th:attr="data-vehicle-id=${v.vehicleId()},
+                                data-vehicle-type=${v.vehicleType()},
+                                data-manually-involved=${v.manuallyInvolvedInIncident() ? 'true' : 'false'},
+                                data-involved-in-incident=${v.involvedInIncident() ? 'true' : 'false'}">
                 <header class="incident-vehicle-card__head">
                   <div class="incident-vehicle-card__title-wrap">
                     <h5 class="incident-vehicle-card__name" th:text="${v.name()}">HLF 20</h5>
                     <span class="incident-vehicle-card__type-label" th:if="${v.vehicleTypeLabel() != null}"
                           th:text="${v.vehicleTypeLabel()}">Löschfahrzeug</span>
                   </div>
-                  <span class="incident-vehicle-card__staerke" th:attr="data-staerke-badge=${v.vehicleId()}"
-                        th:text="${v.besatzungsstaerke()}">0/0/0/0</span>
+                  <div class="incident-vehicle-card__meta">
+                    <button type="button" class="incident-vehicle-involved-toggle"
+                            th:if="${formMode != 'view'}"
+                            th:attr="aria-pressed=${v.involvedInIncident() ? 'true' : 'false'}"
+                            title="Am Einsatz beteiligt markieren">
+                      Einsatz
+                    </button>
+                    <span class="incident-vehicle-involved-badge" th:if="${formMode == 'view' and v.involvedInIncident()}">
+                      Einsatz
+                    </span>
+                    <span class="incident-vehicle-card__staerke" th:attr="data-staerke-badge=${v.vehicleId()}"
+                          th:text="${v.besatzungsstaerke()}">0/0/0/0</span>
+                  </div>
                 </header>
                 <div class="incident-vehicle-dropzone" th:attr="data-vehicle-id=${v.vehicleId()}">
                   <div class="incident-crew-chip incident-crew-chip--vehicle-role"
@@ -466,6 +480,11 @@
 
   <!-- Tab 4: Bericht -->
   <div class="incident-tab-panel" data-panel="4" hidden>
+    <section class="incident-bericht-vehicles" id="bericht-involved-vehicles-wrap" aria-labelledby="bericht-involved-vehicles-title">
+      <h4 class="incident-section-title" id="bericht-involved-vehicles-title">Am Einsatz beteiligte Fahrzeuge</h4>
+      <p class="hint" id="bericht-involved-vehicles-empty" hidden>Keine Fahrzeuge markiert.</p>
+      <ul class="incident-bericht-vehicles__list" id="bericht-involved-vehicles-list"></ul>
+    </section>
     <div class="form-group">
       <label for="einsatzkurzbericht">Einsatzkurzbericht</label>
       <textarea id="einsatzkurzbericht" name="einsatzkurzbericht" rows="16"
