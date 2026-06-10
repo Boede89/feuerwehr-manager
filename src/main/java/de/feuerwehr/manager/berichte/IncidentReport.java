@@ -196,6 +196,9 @@ public class IncidentReport {
     @Column(name = "person_damage_details_json", columnDefinition = "TEXT")
     private String personDamageDetailsJson = PersonDamageDetailsSupport.emptyJson();
 
+    @Column(name = "damage_perpetrator_json", columnDefinition = "TEXT")
+    private String damagePerpetratorJson = DamagePerpetratorSupport.emptyJson();
+
     @Column(name = "animals_rescued", nullable = false)
     private int animalsRescued;
 

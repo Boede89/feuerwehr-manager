@@ -91,6 +91,7 @@ public class EinsatzberichtPdfService {
         model.put("fireWatch", formatJaNein(report.getFireWatch()));
         model.put("personDamages", formatPersonDamages(report));
         model.put("personDamageDetails", buildPersonDamageDetails(report));
+        model.put("damagePerpetrator", buildDamagePerpetrator(report));
         model.put("einsatzkurzbericht", nullToDash(report.getNotes()));
         model.put("incidentCommander", nullToDash(report.getIncidentCommander()));
         model.put("submittedInfo", formatSubmittedInfo(report, reportId));
@@ -329,6 +330,18 @@ public class EinsatzberichtPdfService {
                         || (entry.birthdate() != null && !entry.birthdate().isBlank()));
     }
 
+    private static EinsatzberichtPdfPerpetratorRow buildDamagePerpetrator(IncidentReport report) {
+        DamagePerpetratorDetails details = DamagePerpetratorSupport.parse(report.getDamagePerpetratorJson());
+        if (!details.hasContent()) {
+            return null;
+        }
+        return new EinsatzberichtPdfPerpetratorRow(
+                nullToDash(details.name()),
+                nullToDash(details.address()),
+                formatBirthdate(details.birthdate()),
+                nullToDash(details.licensePlate()));
+    }
+
     private static String formatBirthdate(String value) {
         if (value == null || value.isBlank()) {
             return "—";
@@ -348,6 +361,9 @@ public class EinsatzberichtPdfService {
     public record EinsatzberichtPdfPersonRow(String name, String vehicle, String pa) {}
 
     public record EinsatzberichtPdfPersonDamageRow(String label, String name, String address, String birthdate) {}
+
+    public record EinsatzberichtPdfPerpetratorRow(
+            String name, String address, String birthdate, String licensePlate) {}
 
     public record EinsatzberichtPdfVehicleRow(
             String vehicle, String maschinist, String einheitsfuehrer, String strength, String equipment) {}

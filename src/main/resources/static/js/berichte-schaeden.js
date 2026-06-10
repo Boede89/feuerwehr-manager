@@ -125,10 +125,134 @@
     hidden.value = JSON.stringify(payload);
   }
 
+  function parsePerpetratorInitial(raw) {
+    if (!raw) {
+      return emptyPerpetrator();
+    }
+    try {
+      var parsed = JSON.parse(raw);
+      return {
+        name: parsed && parsed.name ? String(parsed.name) : '',
+        address: parsed && parsed.address ? String(parsed.address) : '',
+        birthdate: parsed && parsed.birthdate ? String(parsed.birthdate) : '',
+        licensePlate: parsed && parsed.licensePlate ? String(parsed.licensePlate) : ''
+      };
+    } catch (e) {
+      return emptyPerpetrator();
+    }
+  }
+
+  function emptyPerpetrator() {
+    return { name: '', address: '', birthdate: '', licensePlate: '' };
+  }
+
+  function collectPerpetratorState() {
+    var wrapEl = document.getElementById('damage-perpetrator-wrap');
+    if (!wrapEl) {
+      return emptyPerpetrator();
+    }
+    var nameInput = wrapEl.querySelector('[data-field="name"]');
+    var addressInput = wrapEl.querySelector('[data-field="address"]');
+    var birthdateInput = wrapEl.querySelector('[data-field="birthdate"]');
+    var licensePlateInput = wrapEl.querySelector('[data-field="licensePlate"]');
+    return {
+      name: nameInput ? nameInput.value.trim() : '',
+      address: addressInput ? addressInput.value.trim() : '',
+      birthdate: birthdateInput && birthdateInput.value ? birthdateInput.value : '',
+      licensePlate: licensePlateInput ? licensePlateInput.value.trim() : ''
+    };
+  }
+
+  function syncPerpetratorHidden() {
+    var hidden = document.getElementById('damagePerpetratorJson');
+    if (!hidden) {
+      return;
+    }
+    hidden.value = JSON.stringify(collectPerpetratorState());
+  }
+
+  function renderPerpetrator() {
+    var wrapEl = document.getElementById('damage-perpetrator-wrap');
+    if (!wrapEl) {
+      return;
+    }
+    var entry = perpetratorState;
+    wrapEl.innerHTML =
+      '<div class="incident-form-grid-4 damage-perpetrator-fields">' +
+        '<div class="form-group">' +
+          '<label>Name</label>' +
+          '<input type="text" maxlength="255" data-field="name" ' +
+            (perpetratorReadonly ? 'readonly ' : '') +
+            'value="' + esc(entry.name || '') + '" placeholder="Vor- und Nachname"/>' +
+        '</div>' +
+        '<div class="form-group">' +
+          '<label>Anschrift</label>' +
+          '<input type="text" maxlength="512" data-field="address" ' +
+            (perpetratorReadonly ? 'readonly ' : '') +
+            'value="' + esc(entry.address || '') + '" placeholder="Straße, PLZ Ort"/>' +
+        '</div>' +
+        '<div class="form-group">' +
+          '<label>Geburtsdatum</label>' +
+          '<input type="date" data-field="birthdate" ' +
+            (perpetratorReadonly ? 'readonly ' : '') +
+            'value="' + esc(entry.birthdate || '') + '"/>' +
+        '</div>' +
+        '<div class="form-group">' +
+          '<label>Kennzeichen</label>' +
+          '<input type="text" maxlength="32" data-field="licensePlate" ' +
+            (perpetratorReadonly ? 'readonly ' : '') +
+            'value="' + esc(entry.licensePlate || '') + '" placeholder="z. B. AB-C 1234"/>' +
+        '</div>' +
+      '</div>';
+    if (!perpetratorReadonly) {
+      wrapEl.querySelectorAll('input').forEach(function (input) {
+        input.addEventListener('input', onPerpetratorFieldChange);
+        input.addEventListener('change', onPerpetratorFieldChange);
+      });
+    }
+    syncPerpetratorHidden();
+  }
+
+  function onPerpetratorFieldChange() {
+    perpetratorState = collectPerpetratorState();
+    syncPerpetratorHidden();
+  }
+
+  function initPerpetratorHiddenFromInitial() {
+    var hidden = document.getElementById('damagePerpetratorJson');
+    if (!hidden) {
+      return;
+    }
+    var initial = hidden.dataset.initial || readPerpetratorInitialPayload();
+    hidden.value = initial;
+  }
+
+  function readPerpetratorInitialPayload() {
+    var wrapEl = document.getElementById('damage-perpetrator-wrap');
+    if (wrapEl && wrapEl.dataset.initial) {
+      return wrapEl.dataset.initial;
+    }
+    var hidden = document.getElementById('damagePerpetratorJson');
+    if (hidden) {
+      if (hidden.dataset.initial) {
+        return hidden.dataset.initial;
+      }
+      if (hidden.value) {
+        return hidden.value;
+      }
+    }
+    return '{}';
+  }
+
+  var perpetratorState = emptyPerpetrator();
+  var perpetratorReadonly = false;
+
   function syncBeforeSave() {
     ensurePersonDamagesEnabled();
     state = collectState(state);
     syncHidden(state);
+    perpetratorState = collectPerpetratorState();
+    syncPerpetratorHidden();
   }
 
   function renderEntry(category, index, entry, readonly) {
@@ -236,18 +360,25 @@
       radio.dataset.personDamageBound = 'true';
       radio.addEventListener('change', render);
     });
+    bindSaveSync(scope);
+  }
+
+  function bindSaveSync(scope) {
     var form = document.getElementById('einsatzbericht-form');
     if (form && form.dataset.personDamageSubmitBound !== 'true') {
       form.dataset.personDamageSubmitBound = 'true';
       form.addEventListener('submit', syncBeforeSave, true);
     }
-    document.querySelectorAll('button[form="einsatzbericht-form"][type="submit"]').forEach(function (btn) {
-      if (btn.dataset.personDamageSubmitBound === 'true') {
-        return;
-      }
-      btn.dataset.personDamageSubmitBound = 'true';
-      btn.addEventListener('click', syncBeforeSave);
-    });
+    (scope.querySelectorAll
+        ? scope.querySelectorAll('button[form="einsatzbericht-form"][type="submit"]')
+        : document.querySelectorAll('button[form="einsatzbericht-form"][type="submit"]'))
+      .forEach(function (btn) {
+        if (btn.dataset.personDamageSubmitBound === 'true') {
+          return;
+        }
+        btn.dataset.personDamageSubmitBound = 'true';
+        btn.addEventListener('click', syncBeforeSave);
+      });
   }
 
   function readInitialPayload() {
@@ -276,17 +407,32 @@
     hidden.value = initial;
   }
 
+  function initPerpetrator(root) {
+    var scope = root || document;
+    var wrapEl = scope.querySelector
+        ? scope.querySelector('#damage-perpetrator-wrap')
+        : document.getElementById('damage-perpetrator-wrap');
+    if (!wrapEl) {
+      return;
+    }
+    perpetratorReadonly = wrapEl.dataset.readonly === 'true';
+    initPerpetratorHiddenFromInitial();
+    perpetratorState = parsePerpetratorInitial(wrapEl.dataset.initial || readPerpetratorInitialPayload());
+    renderPerpetrator();
+  }
+
   function init(root) {
     var scope = root || document;
     wrap = scope.querySelector ? scope.querySelector('#person-damage-details-wrap') : document.getElementById('person-damage-details-wrap');
-    if (!wrap) {
-      return;
+    bindSaveSync(scope);
+    if (wrap) {
+      readonly = wrap.dataset.readonly === 'true';
+      initHiddenFromInitial();
+      state = parseInitial(wrap.dataset.initial || readInitialPayload());
+      bindCountInputs(scope);
+      render();
     }
-    readonly = wrap.dataset.readonly === 'true';
-    initHiddenFromInitial();
-    state = parseInitial(wrap.dataset.initial || readInitialPayload());
-    bindCountInputs(scope);
-    render();
+    initPerpetrator(scope);
   }
 
   window.BerichteSchaeden = { init: init, syncBeforeSave: syncBeforeSave };

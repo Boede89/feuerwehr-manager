@@ -53,6 +53,7 @@ public class EinsatzberichtForm {
     private String einsatzkurzbericht;
     private boolean personDamagesEnabled;
     private String personDamageDetailsJson;
+    private String damagePerpetratorJson;
     private boolean animalDamagesEnabled;
     private int personsRescued;
     private int personsEvacuated;
@@ -117,6 +118,8 @@ public class EinsatzberichtForm {
         } else {
             form.setPersonDamageDetailsJson(PersonDamageDetailsSupport.emptyJson());
         }
+        form.setDamagePerpetratorJson(DamagePerpetratorSupport.serialize(
+                DamagePerpetratorSupport.parse(report.getDamagePerpetratorJson())));
         form.setAnimalDamagesEnabled(report.isAnimalDamagesEnabled());
         form.setPersonsRescued(report.getPersonsRescued());
         form.setPersonsEvacuated(report.getPersonsEvacuated());
@@ -170,6 +173,7 @@ public class EinsatzberichtForm {
                 einsatzkurzbericht,
                 personDamagesEnabled,
                 personDamageDetailsJson,
+                damagePerpetratorJson,
                 animalDamagesEnabled,
                 personsRescued,
                 personsEvacuated,

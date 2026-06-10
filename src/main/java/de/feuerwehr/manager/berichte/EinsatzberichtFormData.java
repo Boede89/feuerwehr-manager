@@ -38,6 +38,7 @@ public record EinsatzberichtFormData(
         String einsatzkurzbericht,
         boolean personDamagesEnabled,
         String personDamageDetailsJson,
+        String damagePerpetratorJson,
         boolean animalDamagesEnabled,
         int personsRescued,
         int personsEvacuated,

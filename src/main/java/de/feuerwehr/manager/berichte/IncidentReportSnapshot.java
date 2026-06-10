@@ -44,6 +44,7 @@ public final class IncidentReportSnapshot {
             Map.entry("reporterPhone", "Meldender Telefon"),
             Map.entry("einsatzkurzbericht", "Einsatzkurzbericht"),
             Map.entry("personDamagesEnabled", "Personenschäden aktiv"),
+            Map.entry("damagePerpetrator", "Verursacher"),
             Map.entry("animalDamagesEnabled", "Tierschäden aktiv"),
             Map.entry("personsRescued", "Gerettete Personen"),
             Map.entry("personsInjured", "Verletzte Personen"),
@@ -93,6 +94,7 @@ public final class IncidentReportSnapshot {
         map.put("reporterPhone", norm(report.getReporterPhone()));
         map.put("einsatzkurzbericht", norm(report.getNotes()));
         map.put("personDamagesEnabled", formatBool(report.isPersonDamagesEnabled()));
+        map.put("damagePerpetrator", formatPerpetrator(report.getDamagePerpetratorJson()));
         map.put("animalDamagesEnabled", formatBool(report.isAnimalDamagesEnabled()));
         map.put("personsRescued", String.valueOf(report.getPersonsRescued()));
         map.put("personsInjured", String.valueOf(report.getPersonsInjured()));
@@ -145,5 +147,26 @@ public final class IncidentReportSnapshot {
 
     private static String formatBool(boolean value) {
         return value ? "Ja" : "Nein";
+    }
+
+    private static String formatPerpetrator(String json) {
+        DamagePerpetratorDetails details = DamagePerpetratorSupport.parse(json);
+        if (!details.hasContent()) {
+            return "";
+        }
+        List<String> parts = new ArrayList<>();
+        if (details.name() != null && !details.name().isBlank()) {
+            parts.add("Name: " + details.name().trim());
+        }
+        if (details.address() != null && !details.address().isBlank()) {
+            parts.add("Anschrift: " + details.address().trim());
+        }
+        if (details.birthdate() != null && !details.birthdate().isBlank()) {
+            parts.add("Geburtsdatum: " + details.birthdate().trim());
+        }
+        if (details.licensePlate() != null && !details.licensePlate().isBlank()) {
+            parts.add("Kennzeichen: " + details.licensePlate().trim());
+        }
+        return String.join(", ", parts);
     }
 }

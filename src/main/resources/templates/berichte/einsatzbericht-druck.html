@@ -46,6 +46,7 @@
     .person-damage-pdf-table th { font-size: 7.5pt; }
     .person-damage-pdf-table .col-damage-label { width: 110px; }
     .person-damage-pdf-table .col-damage-birth { width: 72px; }
+    .person-damage-pdf-table .col-damage-plate { width: 72px; }
     .bottom-row { display: flex; gap: 24px; align-items: flex-end; margin-top: 20px; padding-top: 12px; border-top: 1px solid #333; }
     .bottom-row .einsatzleiter-cell { flex: 1; }
     .bottom-row .signature-cell { flex-shrink: 0; padding-top: 24px; }
@@ -120,6 +121,29 @@
               <td th:text="${entry.name()}">—</td>
               <td th:text="${entry.address()}">—</td>
               <td th:text="${entry.birthdate()}">—</td>
+            </tr>
+            </tbody>
+          </table>
+        </td>
+      </tr>
+      <tr th:if="${damagePerpetrator != null}">
+        <td class="label-cell">Verursacher</td>
+        <td colspan="5" style="padding:0;">
+          <table class="person-damage-pdf-table" width="100%">
+            <thead>
+            <tr>
+              <th>Name</th>
+              <th>Adresse</th>
+              <th class="col-damage-birth">Geburtsdatum</th>
+              <th class="col-damage-plate">Kennzeichen</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+              <td th:text="${damagePerpetrator.name()}">—</td>
+              <td th:text="${damagePerpetrator.address()}">—</td>
+              <td th:text="${damagePerpetrator.birthdate()}">—</td>
+              <td th:text="${damagePerpetrator.licensePlate()}">—</td>
             </tr>
             </tbody>
           </table>

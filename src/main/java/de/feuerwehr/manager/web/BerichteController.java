@@ -12,6 +12,7 @@ import de.feuerwehr.manager.berichte.ForeignPersonOption;
 import de.feuerwehr.manager.berichte.ForeignUnitOption;
 import de.feuerwehr.manager.berichte.IncidentReport;
 import de.feuerwehr.manager.berichte.IncidentReportStatus;
+import de.feuerwehr.manager.berichte.DamagePerpetratorSupport;
 import de.feuerwehr.manager.berichte.PersonDamageDetailsSupport;
 import de.feuerwehr.manager.berichte.VehicleEquipmentView;
 import de.feuerwehr.manager.pdf.PdfDownloadResponse;
@@ -414,6 +415,9 @@ public class BerichteController {
         }
         if (form.getPersonDamageDetailsJson() == null || form.getPersonDamageDetailsJson().isBlank()) {
             form.setPersonDamageDetailsJson(PersonDamageDetailsSupport.emptyJson());
+        }
+        if (form.getDamagePerpetratorJson() == null || form.getDamagePerpetratorJson().isBlank()) {
+            form.setDamagePerpetratorJson(DamagePerpetratorSupport.emptyJson());
         }
         boolean showHistory = EinsatzberichtAccess.showChangeHistory(report);
         model.addAttribute("showChangeHistory", showHistory);
