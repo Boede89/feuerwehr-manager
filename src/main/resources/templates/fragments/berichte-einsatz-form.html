@@ -5,7 +5,8 @@
   <nav class="tab-bar incident-form-tabs" aria-label="Einsatzbericht-Bereiche">
     <button type="button" class="tab-btn incident-tab tab-btn--active" data-tab="0">Basisdaten</button>
     <button type="button" class="tab-btn incident-tab" data-tab="1">Kräfte &amp; Fahrzeuge</button>
-    <button type="button" class="tab-btn incident-tab" data-tab="2">Bericht</button>
+    <button type="button" class="tab-btn incident-tab" data-tab="2">Schäden</button>
+    <button type="button" class="tab-btn incident-tab" data-tab="3">Bericht</button>
   </nav>
 
   <!-- Tab 0: Basisdaten -->
@@ -66,7 +67,7 @@
       </div>
       <div class="form-group form-group--full">
         <label for="location">Einsatzort <span class="required">*</span></label>
-        <input id="location" name="location" type="text" maxlength="300" th:required="${formMode != 'view'}"
+        <input id="location" name="location" type="text" maxlength="300" required
                th:readonly="${formMode == 'view'}"
                placeholder="Ortsname / Gemeinde" th:value="${form.location}"/>
       </div>
@@ -314,8 +315,88 @@
     </div>
   </div>
 
-  <!-- Tab 2: Bericht -->
+  <!-- Tab 2: Schäden -->
   <div class="incident-tab-panel" data-panel="2" hidden>
+    <h4 class="incident-section-title">Personenschäden</h4>
+    <div class="incident-form-grid-3 incident-section-block">
+      <div class="form-group">
+        <label for="personsRescued">Gerettet</label>
+        <input id="personsRescued" name="personsRescued" type="number" min="0"
+               th:readonly="${formMode == 'view'}" th:value="${form.personsRescued}"/>
+      </div>
+      <div class="form-group">
+        <label for="personsEvacuated">Evakuiert</label>
+        <input id="personsEvacuated" name="personsEvacuated" type="number" min="0"
+               th:readonly="${formMode == 'view'}" th:value="${form.personsEvacuated}"/>
+      </div>
+      <div class="form-group">
+        <label for="personsInjured">Verletzt</label>
+        <input id="personsInjured" name="personsInjured" type="number" min="0"
+               th:readonly="${formMode == 'view'}" th:value="${form.personsInjured}"/>
+      </div>
+      <div class="form-group">
+        <label for="personsInjuredOwn">davon eigene EK</label>
+        <input id="personsInjuredOwn" name="personsInjuredOwn" type="number" min="0"
+               th:readonly="${formMode == 'view'}" th:value="${form.personsInjuredOwn}"/>
+      </div>
+      <div class="form-group">
+        <label for="personsRecovered">Geborgen</label>
+        <input id="personsRecovered" name="personsRecovered" type="number" min="0"
+               th:readonly="${formMode == 'view'}" th:value="${form.personsRecovered}"/>
+      </div>
+      <div class="form-group">
+        <label for="personsDead">Tot</label>
+        <input id="personsDead" name="personsDead" type="number" min="0"
+               th:readonly="${formMode == 'view'}" th:value="${form.personsDead}"/>
+      </div>
+      <div class="form-group">
+        <label for="personsDeadOwn">davon eigene EK</label>
+        <input id="personsDeadOwn" name="personsDeadOwn" type="number" min="0"
+               th:readonly="${formMode == 'view'}" th:value="${form.personsDeadOwn}"/>
+      </div>
+    </div>
+
+    <h4 class="incident-section-title">Tierschäden</h4>
+    <div class="incident-form-grid-4 incident-section-block">
+      <div class="form-group">
+        <label for="animalsRescued">Gerettet</label>
+        <input id="animalsRescued" name="animalsRescued" type="number" min="0"
+               th:readonly="${formMode == 'view'}" th:value="${form.animalsRescued}"/>
+      </div>
+      <div class="form-group">
+        <label for="animalsInjured">Verletzt</label>
+        <input id="animalsInjured" name="animalsInjured" type="number" min="0"
+               th:readonly="${formMode == 'view'}" th:value="${form.animalsInjured}"/>
+      </div>
+      <div class="form-group">
+        <label for="animalsRecovered">Geborgen</label>
+        <input id="animalsRecovered" name="animalsRecovered" type="number" min="0"
+               th:readonly="${formMode == 'view'}" th:value="${form.animalsRecovered}"/>
+      </div>
+      <div class="form-group">
+        <label for="animalsDead">Tot</label>
+        <input id="animalsDead" name="animalsDead" type="number" min="0"
+               th:readonly="${formMode == 'view'}" th:value="${form.animalsDead}"/>
+      </div>
+    </div>
+
+    <h4 class="incident-section-title">Sachschäden</h4>
+    <div class="incident-form-grid-2">
+      <div class="form-group">
+        <label for="vehicleDamage">Fahrzeugschäden</label>
+        <textarea id="vehicleDamage" name="vehicleDamage" rows="3"
+                  th:readonly="${formMode == 'view'}" th:text="${form.vehicleDamage}"></textarea>
+      </div>
+      <div class="form-group">
+        <label for="equipmentDamage">Ausrüstungsschäden</label>
+        <textarea id="equipmentDamage" name="equipmentDamage" rows="3"
+                  th:readonly="${formMode == 'view'}" th:text="${form.equipmentDamage}"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 3: Bericht -->
+  <div class="incident-tab-panel" data-panel="3" hidden>
     <div class="form-group">
       <label for="einsatzkurzbericht">Einsatzkurzbericht</label>
       <textarea id="einsatzkurzbericht" name="einsatzkurzbericht" rows="16"
