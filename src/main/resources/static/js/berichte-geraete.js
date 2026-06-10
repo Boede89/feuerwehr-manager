@@ -3,7 +3,6 @@
 
   var equipmentCache = {};
   var selectionByVehicle = {};
-  var equipmentNameById = {};
   var collapsedByVehicle = {};
 
   function hiddenField() {
@@ -53,7 +52,6 @@
   function syncHiddenJson() {
     var hidden = hiddenField();
     if (!hidden) {
-      updateBerichtDeployedEquipment();
       return;
     }
     var result = [];
@@ -66,95 +64,6 @@
       }
     });
     hidden.value = JSON.stringify(result);
-    updateBerichtDeployedEquipment();
-  }
-
-  function rememberEquipmentNames(vehicles) {
-    vehicles.forEach(function (vehicle) {
-      (vehicle.equipment || []).forEach(function (item) {
-        equipmentNameById[item.id] = {
-          name: item.name,
-          vehicleId: vehicle.vehicleId,
-          vehicleName: vehicle.vehicleName
-        };
-      });
-    });
-  }
-
-  function findVehicleInCache(vehicleId) {
-    var keys = Object.keys(equipmentCache);
-    for (var i = 0; i < keys.length; i++) {
-      var vehicles = equipmentCache[keys[i]];
-      for (var j = 0; j < vehicles.length; j++) {
-        if (vehicles[j].vehicleId === vehicleId) {
-          return vehicles[j];
-        }
-      }
-    }
-    return null;
-  }
-
-  function updateBerichtDeployedEquipment() {
-    var list = document.getElementById('bericht-deployed-equipment-list');
-    var empty = document.getElementById('bericht-deployed-equipment-empty');
-    if (!list) {
-      return;
-    }
-    list.textContent = '';
-    var entries = [];
-    Object.keys(selectionByVehicle).forEach(function (vehicleId) {
-      var selected = selectionByVehicle[vehicleId];
-      if (!selected || selected.size === 0) {
-        return;
-      }
-      var vehicleData = findVehicleInCache(Number(vehicleId));
-      var vehicleName = vehicleData ? vehicleData.vehicleName : 'Fahrzeug';
-      var names = [];
-      if (vehicleData) {
-        vehicleData.equipment.forEach(function (item) {
-          if (selected.has(item.id)) {
-            names.push(item.name);
-          }
-        });
-      } else {
-        selected.forEach(function (equipmentId) {
-          var meta = equipmentNameById[equipmentId];
-          if (meta) {
-            names.push(meta.name);
-            vehicleName = meta.vehicleName || vehicleName;
-          }
-        });
-      }
-      names.sort(function (a, b) {
-        return a.localeCompare(b, 'de');
-      });
-      if (names.length > 0) {
-        entries.push({ vehicleName: vehicleName, names: names });
-      }
-    });
-    entries.sort(function (a, b) {
-      return a.vehicleName.localeCompare(b.vehicleName, 'de');
-    });
-    entries.forEach(function (entry) {
-      var block = document.createElement('div');
-      block.className = 'incident-bericht-equipment__vehicle';
-      var title = document.createElement('h5');
-      title.className = 'incident-bericht-equipment__vehicle-name';
-      title.textContent = entry.vehicleName;
-      block.appendChild(title);
-      var ul = document.createElement('ul');
-      ul.className = 'incident-bericht-equipment__items';
-      entry.names.forEach(function (name) {
-        var li = document.createElement('li');
-        li.textContent = name;
-        ul.appendChild(li);
-      });
-      block.appendChild(ul);
-      list.appendChild(block);
-    });
-    if (empty) {
-      empty.hidden = entries.length > 0;
-    }
   }
 
   function selectedCountForVehicle(vehicleId) {
@@ -390,7 +299,6 @@
       hint.textContent = 'Für die beteiligten Fahrzeuge sind noch keine Geräte in der Technik-Verwaltung hinterlegt.';
       wrap.appendChild(hint);
     }
-    updateBerichtDeployedEquipment();
   }
 
   function render() {
@@ -405,7 +313,6 @@
       if (noVehicles) {
         noVehicles.hidden = false;
       }
-      updateBerichtDeployedEquipment();
       return;
     }
     if (noVehicles) {
@@ -430,7 +337,6 @@
       })
       .then(function (data) {
         equipmentCache[cacheKey] = data;
-        rememberEquipmentNames(data);
         renderCards(data);
       })
       .catch(function () {
@@ -446,9 +352,6 @@
     refresh: function () {
       equipmentCache = {};
       render();
-    },
-    syncSummary: function () {
-      updateBerichtDeployedEquipment();
     }
   };
 
@@ -456,8 +359,6 @@
     loadSelectionFromHidden();
     if (isReadonly()) {
       render();
-    } else {
-      updateBerichtDeployedEquipment();
     }
     var form = document.getElementById('einsatzbericht-form');
     if (form) {

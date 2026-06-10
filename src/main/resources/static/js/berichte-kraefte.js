@@ -127,13 +127,11 @@
 
   function applyCrewInvolvementToAllVehicles() {
     document.querySelectorAll('#incident-vehicle-stack .incident-vehicle-card').forEach(applyCrewInvolvementAfterChange);
-    updateBerichtInvolvedVehicles();
     syncHiddenJson();
   }
 
   function syncAllVehicleInvolvement() {
     document.querySelectorAll('#incident-vehicle-stack .incident-vehicle-card').forEach(syncVehicleInvolvementUI);
-    updateBerichtInvolvedVehicles();
   }
 
   function toggleManualVehicleInvolvement(card) {
@@ -143,38 +141,6 @@
     card.dataset.manuallyInvolved = card.dataset.manuallyInvolved === 'true' ? 'false' : 'true';
     syncVehicleInvolvementUI(card);
     syncHiddenJson();
-    updateBerichtInvolvedVehicles();
-  }
-
-  function updateBerichtInvolvedVehicles() {
-    var list = document.getElementById('bericht-involved-vehicles-list');
-    var empty = document.getElementById('bericht-involved-vehicles-empty');
-    if (!list) {
-      return;
-    }
-    list.textContent = '';
-    var names = [];
-    document.querySelectorAll('#incident-vehicle-stack .incident-vehicle-card').forEach(function (card) {
-      if (card.dataset.involvedInIncident !== 'true') {
-        return;
-      }
-      var nameEl = card.querySelector('.incident-vehicle-card__name');
-      if (nameEl) {
-        names.push(nameEl.textContent.trim());
-      }
-    });
-    names.sort(function (a, b) {
-      return a.localeCompare(b, 'de');
-    });
-    names.forEach(function (name) {
-      var item = document.createElement('li');
-      item.className = 'incident-bericht-vehicles__item';
-      item.textContent = name;
-      list.appendChild(item);
-    });
-    if (empty) {
-      empty.hidden = names.length > 0;
-    }
   }
 
   function isReserveChip(chip) {
