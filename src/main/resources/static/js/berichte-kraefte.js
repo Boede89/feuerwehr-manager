@@ -55,7 +55,7 @@
     return document.getElementById(tab + '-person-pool');
   }
 
-  var RESERVE_POOL_TABS = ['manual', 'divera', 'foreign'];
+  var RESERVE_POOL_TABS = ['manual', 'divera'];
 
   function updatePoolCounts() {
     RESERVE_POOL_TABS.forEach(function (tab) {
@@ -179,7 +179,8 @@
     if (sourceChip.classList.contains('incident-crew-chip--divera')) {
       mirror.classList.add('incident-crew-chip--divera');
     }
-    if (sourceChip.classList.contains('incident-crew-chip--foreign')) {
+    if (sourceChip.classList.contains('incident-crew-chip--foreign')
+        || sourceChip.dataset.poolSource === 'foreign') {
       mirror.classList.add('incident-crew-chip--foreign');
     }
     mirror.dataset.personId = sourceChip.dataset.personId;
@@ -621,23 +622,6 @@
       assignments.push(assignment);
     });
     hidden.value = JSON.stringify(assignments);
-    syncForeignReserveIds();
-  }
-
-  function syncForeignReserveIds() {
-    var hidden = document.getElementById('foreignReservePersonIds');
-    var pool = poolForTab('foreign');
-    if (!hidden || !pool) {
-      return;
-    }
-    var ids = Array.from(pool.querySelectorAll('.incident-crew-chip'))
-      .map(function (chip) {
-        return Number(chip.dataset.personId);
-      })
-      .filter(function (id) {
-        return !isNaN(id) && id > 0;
-      });
-    hidden.value = ids.join(',');
   }
 
   function refreshBoard() {
@@ -792,12 +776,6 @@
     if (source === 'manual') {
       return poolForTab('manual');
     }
-    if (source === 'foreign') {
-      return poolForTab('foreign');
-    }
-    if (chip.classList.contains('incident-crew-chip--foreign')) {
-      return poolForTab('foreign');
-    }
     if (chip.classList.contains('incident-crew-chip--divera')) {
       return poolForTab('divera');
     }
@@ -807,6 +785,13 @@
   function onDropPersonPool(e) {
     e.preventDefault();
     if (!draggedChip) {
+      return;
+    }
+    if (draggedChip.dataset.poolSource === 'foreign') {
+      removePersonFromBoard(draggedChip.dataset.personId, null);
+      draggedChip = null;
+      applyCrewInvolvementToAllVehicles();
+      refreshBoard();
       return;
     }
     var homePool = homePoolForChip(draggedChip);
@@ -820,8 +805,6 @@
     draggedChip.classList.remove('incident-crew-chip--divera', 'incident-crew-chip--foreign');
     if (homePool.dataset.pool === 'divera') {
       draggedChip.classList.add('incident-crew-chip--divera');
-    } else if (homePool.dataset.pool === 'foreign') {
-      draggedChip.classList.add('incident-crew-chip--foreign');
     }
     insertChipSorted(homePool, draggedChip);
     switchReserveTab(homePool.dataset.pool);
@@ -925,7 +908,7 @@
       zone.addEventListener('drop', onDropVehicle);
     });
 
-    ['manual-person-pool', 'divera-person-pool', 'foreign-person-pool'].forEach(function (poolId) {
+    ['manual-person-pool', 'divera-person-pool'].forEach(function (poolId) {
       var pool = document.getElementById(poolId);
       if (!pool) {
         return;
@@ -972,12 +955,12 @@
     if (!person || personOnBoard(String(person.id))) {
       return false;
     }
-    var pool = poolForTab('foreign');
-    if (!pool) {
+    var zone = involvedDropzone();
+    if (!zone) {
       return false;
     }
     var chip = document.createElement('div');
-    chip.className = 'incident-crew-chip incident-crew-chip--reserve incident-crew-chip--foreign';
+    chip.className = 'incident-crew-chip incident-crew-chip--foreign';
     chip.setAttribute('draggable', 'true');
     chip.dataset.personId = String(person.id);
     chip.dataset.qualTier = person.qualTier || 'MANNSCHAFT';
@@ -992,8 +975,8 @@
       label += ' (' + person.unitLabel + ')';
     }
     chip.textContent = label;
-    insertChipSortedByName(pool, chip);
-    switchReserveTab('foreign');
+    insertChipSortedByName(zone, chip);
+    applyCrewInvolvementToAllVehicles();
     refreshBoard();
     return true;
   }

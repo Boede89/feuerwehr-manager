@@ -227,6 +227,10 @@ public class EinsatzberichtService {
                 }
                 IncidentReportVehicle reportVehicle = row.getIncidentReportVehicle();
                 if (reportVehicle == null) {
+                    if (row.getSource() == IncidentPersonnelSource.FOREIGN && row.getPerson() != null) {
+                        beteiligtCrewIds.add(refId);
+                        onVehicleRefIds.add(refId);
+                    }
                     continue;
                 }
                 if (reportVehicle.getVehicle() != null) {
@@ -273,11 +277,6 @@ public class EinsatzberichtService {
                     String unitLabel = person.getUnit().getId() != unitId ? person.getUnit().getName() : null;
                     diveraPersons.add(toPersonView(person, sortOrderByRefId, null, false, "divera", unitLabel));
                 }
-            } else if (foreignPersonIds.contains(person.getId())) {
-                if (!onVehicleRefIds.contains(person.getId())) {
-                    foreignPersons.add(toPersonView(
-                            person, sortOrderByRefId, null, false, "foreign", person.getUnit().getName()));
-                }
             } else if (!onVehicleRefIds.contains(person.getId())) {
                 manualPersons.add(toPersonView(person, sortOrderByRefId, null, false, "manual", null));
             }
@@ -289,19 +288,6 @@ public class EinsatzberichtService {
                         refId, ucrEntry.getKey(), ucrEntry.getValue(), sortOrderByRefId.getOrDefault(refId, 0)));
             }
         }
-        for (Long foreignId : foreignPersonIds) {
-            Person person = personById.get(foreignId);
-            if (person != null
-                    && !allPersons.stream().map(Person::getId).anyMatch(id -> id.equals(foreignId))
-                    && !onVehicleRefIds.contains(foreignId)) {
-                boolean alreadyListed = foreignPersons.stream().anyMatch(view -> view.id() == foreignId);
-                if (!alreadyListed) {
-                    foreignPersons.add(toPersonView(
-                            person, sortOrderByRefId, null, false, "foreign", person.getUnit().getName()));
-                }
-            }
-        }
-
         List<KraefteFahrzeugeState.KraefteVehicleView> vehicles = new ArrayList<>();
         for (Vehicle vehicle : unitVehicles) {
             List<Long> crewRefIds = crewByVehicleId.getOrDefault(vehicle.getId(), List.of());
@@ -909,31 +895,6 @@ public class EinsatzberichtService {
             }
             IncidentReportPersonnel row = copyReserveRow(reserve);
             row.setIncidentReport(report);
-            row.setIncidentReportVehicle(null);
-            incidentReportPersonnelRepository.save(row);
-        }
-        saveForeignReservePersons(report, form.foreignReservePersonIds(), unitId, assignedPersons);
-    }
-
-    private void saveForeignReservePersons(
-            IncidentReport report, List<Long> personIds, long unitId, Set<Long> assignedPersons) {
-        if (personIds == null || personIds.isEmpty()) {
-            return;
-        }
-        for (Long personId : personIds) {
-            if (personId == null || !assignedPersons.add(personId)) {
-                continue;
-            }
-            Person person = resolvePersonForReport(personId, unitId);
-            if (person.getUnit().getId() == unitId) {
-                continue;
-            }
-            IncidentReportPersonnel row = new IncidentReportPersonnel();
-            row.setIncidentReport(report);
-            row.setPerson(person);
-            row.setDisplayName(person.anwesenheitDisplayName());
-            row.setSource(IncidentPersonnelSource.FOREIGN);
-            row.setForeignUnit(person.getUnit());
             row.setIncidentReportVehicle(null);
             incidentReportPersonnelRepository.save(row);
         }

@@ -36,7 +36,6 @@
       return;
     }
     modal.hidden = false;
-    modal.style.display = 'flex';
     modal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('modal-open');
     loadUnits();
@@ -48,7 +47,6 @@
       return;
     }
     modal.hidden = true;
-    modal.style.display = 'none';
     modal.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('modal-open');
     var results = document.getElementById('foreign-person-results');

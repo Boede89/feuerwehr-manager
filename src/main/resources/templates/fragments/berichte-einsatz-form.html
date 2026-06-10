@@ -167,7 +167,6 @@
 
   <input type="hidden" name="crewAssignmentsJson" id="crewAssignmentsJson" th:if="${formMode != 'view'}"
          th:value="${form.crewAssignmentsJson}"/>
-  <input type="hidden" name="foreignReservePersonIds" id="foreignReservePersonIds" th:if="${formMode != 'view'}" value=""/>
   <input type="hidden" name="deployedEquipmentJson" id="deployedEquipmentJson" th:if="${formMode != 'view'}"
          th:value="${form.deployedEquipmentJson}"/>
   <input type="hidden" name="personDamageDetailsJson" id="personDamageDetailsJson" th:if="${formMode != 'view'}"
@@ -205,12 +204,6 @@
                 <span class="incident-reserve-tab__count" id="manual-pool-count"
                       th:text="${#lists.size(kraefteState.manualPersons())}">0</span>
               </button>
-              <button type="button" class="incident-reserve-tab" role="tab" aria-selected="false"
-                      data-reserve-tab="foreign" id="reserve-tab-foreign">
-                <span class="incident-reserve-tab__label">Fremde Einheit</span>
-                <span class="incident-reserve-tab__count" id="foreign-pool-count"
-                      th:text="${#lists.size(kraefteState.foreignPersons())}">0</span>
-              </button>
             </div>
             <div class="incident-reserve-pools">
               <div class="incident-person-pool incident-person-pool--reserve incident-person-pool--divera"
@@ -232,20 +225,11 @@
                      th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}, data-sort-order=${p.sortOrder()}, data-pool-source=${p.poolSource()}"
                      th:text="${p.displayName()}">Name</div>
               </div>
-              <div class="incident-person-pool incident-person-pool--reserve incident-person-pool--foreign"
-                   id="foreign-person-pool" data-pool="foreign" role="tabpanel" aria-labelledby="reserve-tab-foreign" hidden>
-                <div class="incident-crew-chip incident-crew-chip--reserve incident-crew-chip--foreign" draggable="true"
-                     th:each="p : ${kraefteState.foreignPersons()}"
-                     th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}, data-sort-order=${p.sortOrder()}, data-pool-source=${p.poolSource()}, data-unit-label=${p.unitLabel()}"
-                     th:text="${p.unitLabel() != null ? p.displayName() + ' (' + p.unitLabel() + ')' : p.displayName()}">Name</div>
-              </div>
             </div>
             <p class="hint incident-person-pool-empty" id="divera-pool-empty"
                th:hidden="${!#lists.isEmpty(kraefteState.diveraPersons())}">Noch keine DIVERA-Rückmeldungen.</p>
             <p class="hint incident-person-pool-empty" id="manual-pool-empty" hidden
                th:hidden="${!#lists.isEmpty(kraefteState.manualPersons())}">Alle zugewiesen.</p>
-            <p class="hint incident-person-pool-empty" id="foreign-pool-empty" hidden
-               th:hidden="${!#lists.isEmpty(kraefteState.foreignPersons())}">Noch kein Personal anderer Einheiten.</p>
             <div class="incident-foreign-person-actions">
               <button type="button" class="btn btn--outline btn--sm" id="foreign-person-open-btn">
                 Personal aus anderer Einheit wählen
@@ -401,12 +385,15 @@
              th:each="person : ${beteiligt.crewPersons()}"
              th:attr="draggable=${formMode != 'view' ? 'true' : 'false'}"
              th:classappend="${person.poolSource() == 'divera' ? ' incident-crew-chip--divera' : ''}"
+             th:classappend="${person.poolSource() == 'foreign' ? ' incident-crew-chip--foreign' : ''}"
              th:data-person-id="${person.id()}"
              th:data-qual-tier="${person.qualTier()}"
              th:data-person-name="${person.displayName()}"
              th:data-sort-order="${person.sortOrder()}"
-             th:data-pool-source="${person.poolSource()}">
-          <span class="incident-crew-chip__name" th:text="${person.displayName()}">Name</span>
+             th:data-pool-source="${person.poolSource()}"
+             th:data-unit-label="${person.unitLabel()}">
+          <span class="incident-crew-chip__name"
+                th:text="${person.unitLabel() != null ? person.displayName() + ' (' + person.unitLabel() + ')' : person.displayName()}">Name</span>
         </div>
       </div>
       <p class="hint incident-vehicle-dropzone-hint" th:if="${formMode != 'view'}">Personal hierher ziehen</p>

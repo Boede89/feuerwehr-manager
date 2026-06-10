@@ -1,6 +1,7 @@
 package de.feuerwehr.manager.berichte;
 
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,4 +15,6 @@ public interface IncidentReportChangeRepository extends JpaRepository<IncidentRe
             ORDER BY c.createdAt DESC, c.id DESC
             """)
     List<IncidentReportChange> findByReportIdWithFields(@Param("reportId") long reportId);
+
+    Optional<IncidentReportChange> findFirstByIncidentReport_IdOrderByCreatedAtDescIdDesc(long reportId);
 }

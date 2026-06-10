@@ -25,8 +25,10 @@
     .label-cell { width: 100px; background: #f8f9fa; font-weight: bold; }
     .stamm-inline .label-cell { width: 90px; }
     .col-staerke { width: 28px; }
-    .col-pa { width: 28px; text-align: center; }
-    .col-pa-x { font-size: 1.4em; font-weight: bold; }
+    .personnel-table { table-layout: fixed; }
+    .personnel-table .col-pa { width: 14px; min-width: 14px; max-width: 14px; padding: 1px 2px; text-align: center; }
+    .col-pa-x { font-size: 1.1em; font-weight: bold; line-height: 1; }
+    .kurzbericht-cell { white-space: pre-wrap; }
     .bottom-row { display: flex; gap: 24px; align-items: flex-end; margin-top: 20px; padding-top: 12px; border-top: 1px solid #333; }
     .bottom-row .einsatzleiter-cell { flex: 1; }
     .bottom-row .signature-cell { flex-shrink: 0; padding-top: 24px; }
@@ -61,14 +63,31 @@
       <tr>
         <td class="label-cell">Einsatzbericht Nr.</td>
         <td th:text="${incidentNumber}">—</td>
+        <td colspan="4"></td>
+      </tr>
+      <tr>
         <td class="label-cell">Uhrzeit von</td>
         <td th:text="${alarmTime}">—</td>
         <td class="label-cell">Uhrzeit bis</td>
         <td th:text="${endTime}">—</td>
+        <td class="label-cell">Einsatzdauer</td>
+        <td th:text="${duration}">—</td>
       </tr>
       <tr>
-        <td class="label-cell">Einsatzdauer</td>
-        <td colspan="5" th:text="${duration}">—</td>
+        <td class="label-cell">Eigentümer</td>
+        <td colspan="5" th:text="${eigentuemer}">—</td>
+      </tr>
+      <tr>
+        <td class="label-cell">Kostenpflichtig</td>
+        <td th:text="${chargeable}">—</td>
+        <td class="label-cell">Brandwache</td>
+        <td th:text="${fireWatch}">—</td>
+        <td class="label-cell">Personenschäden</td>
+        <td th:text="${personDamages}">—</td>
+      </tr>
+      <tr th:if="${einsatzkurzbericht != null and einsatzkurzbericht != '—'}">
+        <td class="label-cell">Einsatzkurzbericht</td>
+        <td colspan="5" class="kurzbericht-cell" th:text="${einsatzkurzbericht}">—</td>
       </tr>
     </table>
   </div>
@@ -78,7 +97,7 @@
       <tr>
         <td>
           <div class="section-title">Personal</div>
-          <table width="100%">
+          <table class="personnel-table" width="100%">
             <thead>
             <tr><th>Name</th><th class="col-fahrzeug">Fzg</th><th class="col-pa">PA</th></tr>
             </thead>
@@ -125,7 +144,7 @@
   <div class="bottom-row">
     <div class="einsatzleiter-cell">
       <strong>Einsatzleiter:</strong> <span th:text="${incidentCommander}">—</span><br/>
-      <span class="eingereicht-text" th:text="'Berichterstatter: ' + ${reporterName}">Berichterstatter: —</span>
+      <span class="eingereicht-text" th:text="${submittedInfo}">Eingereicht am … von …</span>
     </div>
     <div class="signature-cell">
       <div class="signature-line"></div>
