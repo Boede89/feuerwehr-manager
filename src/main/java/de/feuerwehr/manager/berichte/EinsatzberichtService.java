@@ -23,6 +23,7 @@ import de.feuerwehr.manager.technik.VehicleEquipmentRepository;
 import de.feuerwehr.manager.technik.VehicleRepository;
 import de.feuerwehr.manager.technik.VehicleTypes;
 import de.feuerwehr.manager.unit.Unit;
+import de.feuerwehr.manager.unit.UnitAdminService;
 import de.feuerwehr.manager.unit.UnitRepository;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
@@ -63,6 +64,7 @@ public class EinsatzberichtService {
     private final UserRepository userRepository;
     private final PersonalService personalService;
     private final PersonRepository personRepository;
+    private final UnitAdminService unitAdminService;
     private final VehicleRepository vehicleRepository;
     private final VehicleEquipmentRepository vehicleEquipmentRepository;
     private final TestModeService testModeService;
@@ -77,14 +79,15 @@ public class EinsatzberichtService {
     private final ObjectMapper objectMapper;
 
     public List<IncidentReport> listByUnit(long unitId) {
-        return incidentReportRepository.findByUnitIdOrderByDateDesc(unitId);
+        return incidentReportRepository.findByUnitIdOrderByDateDesc(unitId, includeTestReports());
     }
 
     public List<IncidentReport> listFiltered(long unitId, int year, String stichwort, IncidentReportStatus status) {
         LocalDate yearStart = LocalDate.of(year, 1, 1);
         LocalDate yearEnd = yearStart.plusYears(1);
         String stichwortFilter = stichwort != null ? stichwort.trim() : "";
-        return incidentReportRepository.findFilteredByUnit(unitId, yearStart, yearEnd, stichwortFilter, status);
+        return incidentReportRepository.findFilteredByUnit(
+                unitId, yearStart, yearEnd, stichwortFilter, status, includeTestReports());
     }
 
     public List<Integer> listFilterYears() {
@@ -100,7 +103,8 @@ public class EinsatzberichtService {
     public EinsatzberichtListResponse listForYear(long unitId, int year) {
         LocalDate yearStart = LocalDate.of(year, 1, 1);
         LocalDate yearEnd = yearStart.plusYears(1);
-        List<IncidentReport> reports = incidentReportRepository.findByUnitIdAndYear(unitId, yearStart, yearEnd);
+        List<IncidentReport> reports =
+                incidentReportRepository.findByUnitIdAndYear(unitId, yearStart, yearEnd, includeTestReports());
         List<EinsatzberichtListItemView> items = reports.stream().map(this::toListItem).toList();
         LinkedHashSet<String> stichworte = new LinkedHashSet<>();
         for (IncidentReport report : reports) {
@@ -123,12 +127,11 @@ public class EinsatzberichtService {
     }
 
     public List<Vehicle> listVehiclesForForm(long unitId) {
-        return vehicleRepository.findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(
-                unitId, testModeService.isEnabled());
+        return unitAdminService.listVehicles(unitId);
     }
 
     public List<String> listKnownStichworte(long unitId) {
-        return incidentReportRepository.findDistinctStichworteByUnitId(unitId);
+        return incidentReportRepository.findDistinctStichworteByUnitId(unitId, includeTestReports());
     }
 
     public KraefteFahrzeugeState buildKraefteFahrzeugeState(long unitId, Long reportId) {
@@ -349,7 +352,7 @@ public class EinsatzberichtService {
 
     public IncidentReport requireReport(long unitId, long reportId) {
         return incidentReportRepository
-                .findByIdAndUnitId(reportId, unitId)
+                .findByIdAndUnitId(reportId, unitId, includeTestReports())
                 .orElseThrow(() -> new IllegalArgumentException("Einsatzbericht nicht gefunden."));
     }
 
@@ -370,7 +373,9 @@ public class EinsatzberichtService {
             date = LocalDate.now();
         }
         return IncidentNumberSupport.suggestForDate(
-                date, incidentReportRepository.findIncidentNumbersForYear(unitId, yearPrefix(date.getYear())));
+                date,
+                incidentReportRepository.findIncidentNumbersForYear(
+                        unitId, yearPrefix(date.getYear()), includeTestReports()));
     }
 
     private IncidentReport newDraft(long unitId) {
@@ -401,6 +406,7 @@ public class EinsatzberichtService {
     @Transactional
     public void delete(long unitId, long reportId, AppUserDetails actor, boolean canApprove) {
         IncidentReport report = requireReport(unitId, reportId);
+        ensureWritableReportInTestMode(report);
         if (!EinsatzberichtAccess.canDelete(report, actor, canApprove)) {
             throw new IllegalArgumentException("Dieser Einsatzbericht kann nicht gelöscht werden.");
         }
@@ -416,6 +422,7 @@ public class EinsatzberichtService {
     @Transactional
     public void refreshDiveraFromLatestAlarmData(long unitId, long reportId) {
         IncidentReport report = requireReport(unitId, reportId);
+        ensureWritableReportInTestMode(report);
         Long alarmId = report.getDiveraAlarmId();
         if (alarmId == null || alarmId <= 0) {
             return;
@@ -439,8 +446,13 @@ public class EinsatzberichtService {
             return;
         }
         incidentReportRepository
-                .findByUnitIdAndDiveraAlarmId(unitId, details.alarmId())
-                .ifPresent(report -> importDiveraPersonnel(report, details, unitId));
+                .findByUnitIdAndDiveraAlarmId(unitId, details.alarmId(), includeTestReports())
+                .ifPresent(report -> {
+                    if (testModeService.isEnabled() && !report.isTestData()) {
+                        return;
+                    }
+                    importDiveraPersonnel(report, details, unitId);
+                });
     }
 
     @Transactional
@@ -448,7 +460,9 @@ public class EinsatzberichtService {
         if (details == null || details.alarmId() <= 0) {
             return false;
         }
-        if (incidentReportRepository.findByUnitIdAndDiveraAlarmId(unitId, details.alarmId()).isPresent()) {
+        if (incidentReportRepository
+                .findByUnitIdAndDiveraAlarmId(unitId, details.alarmId(), includeTestReports())
+                .isPresent()) {
             return false;
         }
         IncidentReport report = newDraft(unitId);
@@ -473,6 +487,7 @@ public class EinsatzberichtService {
             boolean canApprove) {
         validateRequired(form);
         IncidentReport report = requireReport(unitId, reportId);
+        ensureWritableReportInTestMode(report);
         if (!EinsatzberichtAccess.canEdit(report, actor, canApprove)) {
             throw new IllegalArgumentException("Dieser Einsatzbericht kann nicht bearbeitet werden.");
         }
@@ -910,6 +925,7 @@ public class EinsatzberichtService {
             throw new IllegalArgumentException("Keine Berechtigung zum Ändern des Status.");
         }
         IncidentReport report = requireReport(unitId, reportId);
+        ensureWritableReportInTestMode(report);
         validateStatusTransition(report.getStatus(), newStatus);
         report.setStatus(newStatus);
         if (newStatus == IncidentReportStatus.FREIGEGEBEN) {
@@ -1213,8 +1229,21 @@ public class EinsatzberichtService {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
+    private boolean includeTestReports() {
+        return testModeService.isEnabled();
+    }
+
+    private void ensureWritableReportInTestMode(IncidentReport report) {
+        if (testModeService.isEnabled() && !report.isTestData()) {
+            throw new IllegalArgumentException(
+                    "Produktiv-Einsatzberichte können im Testmodus nur angesehen werden.");
+        }
+    }
+
     private Unit requireUnit(long unitId) {
-        return unitRepository.findById(unitId).orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden."));
+        return unitRepository
+                .findVisibleById(unitId, testModeService.isEnabled())
+                .orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden."));
     }
 
     private void saveDeployedEquipment(IncidentReport report, EinsatzberichtFormData form, long unitId) {

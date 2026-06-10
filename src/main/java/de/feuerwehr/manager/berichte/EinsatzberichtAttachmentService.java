@@ -1,6 +1,7 @@
 package de.feuerwehr.manager.berichte;
 
 import de.feuerwehr.manager.config.StorageProperties;
+import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.user.UserRepository;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -37,6 +38,7 @@ public class EinsatzberichtAttachmentService {
     private final IncidentReportAttachmentRepository attachmentRepository;
     private final IncidentReportRepository incidentReportRepository;
     private final UserRepository userRepository;
+    private final TestModeService testModeService;
     private final StorageProperties storageProperties;
 
     @Transactional(readOnly = true)
@@ -118,12 +120,16 @@ public class EinsatzberichtAttachmentService {
 
     private IncidentReport requireReport(long unitId, long reportId) {
         return incidentReportRepository
-                .findByIdAndUnitId(reportId, unitId)
+                .findByIdAndUnitId(reportId, unitId, testModeService.isEnabled())
                 .orElseThrow(() -> new IllegalArgumentException("Einsatzbericht nicht gefunden."));
     }
 
     private IncidentReport requireEditableReport(long unitId, long reportId) {
         IncidentReport report = requireReport(unitId, reportId);
+        if (testModeService.isEnabled() && !report.isTestData()) {
+            throw new IllegalArgumentException(
+                    "Produktiv-Einsatzberichte können im Testmodus nur angesehen werden.");
+        }
         if (report.getStatus() != IncidentReportStatus.ENTWURF) {
             throw new IllegalArgumentException("Anhänge können nur bei Entwürfen bearbeitet werden.");
         }

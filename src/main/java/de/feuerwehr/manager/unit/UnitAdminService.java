@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.unit;
 
+import de.feuerwehr.manager.settings.TestModeDataMerge;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.technik.Room;
 import de.feuerwehr.manager.technik.RoomRepository;
@@ -15,8 +16,10 @@ import de.feuerwehr.manager.technik.VehicleRepository;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -240,7 +243,19 @@ public class UnitAdminService {
 
     @Transactional(readOnly = true)
     public List<Vehicle> listVehicles(long unitId) {
-        return vehicleRepository.findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(unitId, testModeService.testDataScope());
+        if (!testModeService.isEnabled()) {
+            return vehicleRepository.findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(unitId, false);
+        }
+        List<Vehicle> production =
+                vehicleRepository.findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(unitId, false);
+        List<Vehicle> testRows =
+                vehicleRepository.findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(unitId, true);
+        return TestModeDataMerge.mergeByProductionSource(
+                production,
+                testRows,
+                Vehicle::getProductionSourceId,
+                Vehicle::getId,
+                Comparator.comparing(Vehicle::getSortOrder).thenComparing(Vehicle::getName));
     }
 
     @Transactional
@@ -248,7 +263,7 @@ public class UnitAdminService {
         Unit unit = requireUnit(unitId);
         Vehicle v = new Vehicle();
         v.setUnit(unit);
-        v.setTestData(testModeService.testDataScope());
+        v.setTestData(testModeService.isEnabled());
         v.setSortOrder(listVehicles(unitId).size());
         applyVehicleForm(v, form);
         return vehicleRepository.save(v);
@@ -256,9 +271,7 @@ public class UnitAdminService {
 
     @Transactional
     public Vehicle updateVehicle(long unitId, long vehicleId, VehicleFormData form) {
-        Vehicle v = vehicleRepository
-                .findByIdAndUnitId(vehicleId, unitId)
-                .orElseThrow(() -> new IllegalArgumentException("Fahrzeug nicht gefunden."));
+        Vehicle v = writableVehicle(resolveVehicle(unitId, vehicleId));
         applyVehicleForm(v, form);
         return vehicleRepository.save(v);
     }
@@ -300,9 +313,7 @@ public class UnitAdminService {
         }
         java.util.Collections.swap(items, idx, newIdx);
         for (int i = 0; i < items.size(); i++) {
-            Vehicle v = vehicleRepository
-                    .findByIdAndUnitId(items.get(i).getId(), unitId)
-                    .orElseThrow(() -> new IllegalArgumentException("Fahrzeug nicht gefunden."));
+            Vehicle v = writableVehicle(resolveVehicle(unitId, items.get(i).getId()));
             v.setSortOrder(i);
             vehicleRepository.save(v);
         }
@@ -310,15 +321,26 @@ public class UnitAdminService {
 
     @Transactional
     public void deleteVehicle(long unitId, long vehicleId) {
-        Vehicle v = vehicleRepository
-                .findByIdAndUnitId(vehicleId, unitId)
-                .orElseThrow(() -> new IllegalArgumentException("Fahrzeug nicht gefunden."));
+        Vehicle v = resolveVehicle(unitId, vehicleId);
+        if (testModeService.isEnabled() && !v.isTestData()) {
+            throw new IllegalArgumentException("Produktiv-Fahrzeuge können im Testmodus nicht gelöscht werden.");
+        }
         vehicleRepository.delete(v);
     }
 
     @Transactional(readOnly = true)
     public List<Room> listRooms(long unitId) {
-        return roomRepository.findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(unitId, testModeService.testDataScope());
+        if (!testModeService.isEnabled()) {
+            return roomRepository.findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(unitId, false);
+        }
+        List<Room> production = roomRepository.findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(unitId, false);
+        List<Room> testRows = roomRepository.findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(unitId, true);
+        return TestModeDataMerge.mergeByProductionSource(
+                production,
+                testRows,
+                Room::getProductionSourceId,
+                Room::getId,
+                Comparator.comparing(Room::getSortOrder).thenComparing(Room::getName));
     }
 
     @Transactional
@@ -328,15 +350,13 @@ public class UnitAdminService {
         r.setUnit(unit);
         r.setName(requireName(name));
         r.setDescription(trimToNull(description));
-        r.setTestData(testModeService.testDataScope());
+        r.setTestData(testModeService.isEnabled());
         return roomRepository.save(r);
     }
 
     @Transactional
     public Room updateRoom(long unitId, long roomId, String name, String description, boolean active) {
-        Room r = roomRepository
-                .findByIdAndUnitId(roomId, unitId)
-                .orElseThrow(() -> new IllegalArgumentException("Raum nicht gefunden."));
+        Room r = writableRoom(resolveRoom(unitId, roomId));
         r.setName(requireName(name));
         r.setDescription(trimToNull(description));
         r.setActive(active);
@@ -345,9 +365,10 @@ public class UnitAdminService {
 
     @Transactional
     public void deleteRoom(long unitId, long roomId) {
-        Room r = roomRepository
-                .findByIdAndUnitId(roomId, unitId)
-                .orElseThrow(() -> new IllegalArgumentException("Raum nicht gefunden."));
+        Room r = resolveRoom(unitId, roomId);
+        if (testModeService.isEnabled() && !r.isTestData()) {
+            throw new IllegalArgumentException("Produktiv-Räume können im Testmodus nicht gelöscht werden.");
+        }
         roomRepository.delete(r);
     }
 
@@ -394,9 +415,10 @@ public class UnitAdminService {
 
     @Transactional
     public VehicleEquipment createEquipment(long unitId, long vehicleId, String name, Long categoryId) {
-        Vehicle vehicle = requireVehicle(unitId, vehicleId);
+        Vehicle vehicle = writableVehicle(resolveVehicle(unitId, vehicleId));
         String equipmentName = requireName(name);
-        if (equipmentRepository.existsByVehicleIdAndNameIgnoreCase(vehicleId, equipmentName)) {
+        long resolvedVehicleId = vehicle.getId();
+        if (equipmentRepository.existsByVehicleIdAndNameIgnoreCase(resolvedVehicleId, equipmentName)) {
             throw new IllegalArgumentException("Dieses Gerät ist bereits hinterlegt.");
         }
         VehicleEquipment eq = new VehicleEquipment();
@@ -407,18 +429,19 @@ public class UnitAdminService {
                     .findByIdAndUnitId(categoryId, unitId)
                     .ifPresent(eq::setCategory);
         }
-        eq.setSortOrder((int) equipmentRepository.countByVehicleId(vehicleId));
+        eq.setSortOrder((int) equipmentRepository.countByVehicleId(resolvedVehicleId));
         return equipmentRepository.save(eq);
     }
 
     @Transactional
     public VehicleEquipment updateEquipment(
             long unitId, long vehicleId, long equipmentId, String name, Long categoryId) {
-        requireVehicle(unitId, vehicleId);
+        Vehicle vehicle = writableVehicle(resolveVehicle(unitId, vehicleId));
+        long resolvedVehicleId = vehicle.getId();
         VehicleEquipment eq = equipmentRepository
                 .findById(equipmentId)
                 .orElseThrow(() -> new IllegalArgumentException("Gerät nicht gefunden."));
-        if (!eq.getVehicle().getId().equals(vehicleId)) {
+        if (!eq.getVehicle().getId().equals(resolvedVehicleId)) {
             throw new IllegalArgumentException("Gerät gehört nicht zu diesem Fahrzeug.");
         }
         eq.setName(requireName(name));
@@ -443,15 +466,113 @@ public class UnitAdminService {
         equipmentRepository.delete(eq);
     }
 
-    private Vehicle requireVehicle(long unitId, long vehicleId) {
-        return vehicleRepository
+    private Vehicle resolveVehicle(long unitId, long vehicleId) {
+        if (!testModeService.isEnabled()) {
+            return vehicleRepository
+                    .findByIdAndUnitId(vehicleId, unitId)
+                    .filter(v -> !v.isTestData())
+                    .orElseThrow(() -> new IllegalArgumentException("Fahrzeug nicht gefunden."));
+        }
+        Optional<Vehicle> testRow = vehicleRepository.findByIdAndUnitId(vehicleId, unitId).filter(Vehicle::isTestData);
+        if (testRow.isPresent()) {
+            return testRow.get();
+        }
+        Vehicle prod = vehicleRepository
                 .findByIdAndUnitId(vehicleId, unitId)
+                .filter(v -> !v.isTestData())
                 .orElseThrow(() -> new IllegalArgumentException("Fahrzeug nicht gefunden."));
+        return vehicleRepository.findShadowByProductionSourceId(prod.getId()).orElse(prod);
+    }
+
+    private Vehicle writableVehicle(Vehicle viewed) {
+        if (!testModeService.isEnabled() || viewed.isTestData()) {
+            return viewed;
+        }
+        return vehicleRepository
+                .findShadowByProductionSourceId(viewed.getId())
+                .orElseGet(() -> {
+                    Vehicle shadow = vehicleRepository.save(copyVehicleToShadow(viewed));
+                    copyEquipmentToShadowVehicle(viewed, shadow);
+                    return shadow;
+                });
+    }
+
+    private Vehicle copyVehicleToShadow(Vehicle prod) {
+        Vehicle shadow = new Vehicle();
+        shadow.setUnit(prod.getUnit());
+        shadow.setName(prod.getName());
+        shadow.setDescription(prod.getDescription());
+        shadow.setVehicleType(prod.getVehicleType());
+        shadow.setLicensePlate(prod.getLicensePlate());
+        shadow.setYearBuilt(prod.getYearBuilt());
+        shadow.setPhone(prod.getPhone());
+        shadow.setLengthM(prod.getLengthM());
+        shadow.setWidthM(prod.getWidthM());
+        shadow.setHeightM(prod.getHeightM());
+        shadow.setWeightKg(prod.getWeightKg());
+        shadow.setServiceStatus(prod.getServiceStatus());
+        shadow.setNotes(prod.getNotes());
+        shadow.setActive(prod.isActive());
+        shadow.setSortOrder(prod.getSortOrder());
+        shadow.setTestData(true);
+        shadow.setProductionSourceId(prod.getId());
+        return shadow;
+    }
+
+    private void copyEquipmentToShadowVehicle(Vehicle prod, Vehicle shadow) {
+        for (VehicleEquipment item :
+                equipmentRepository.findByVehicleIdWithCategoryOrderBySortOrderAscNameAsc(prod.getId())) {
+            VehicleEquipment copy = new VehicleEquipment();
+            copy.setVehicle(shadow);
+            copy.setCategory(item.getCategory());
+            copy.setName(item.getName());
+            copy.setSortOrder(item.getSortOrder());
+            equipmentRepository.save(copy);
+        }
+    }
+
+    private Room resolveRoom(long unitId, long roomId) {
+        if (!testModeService.isEnabled()) {
+            return roomRepository
+                    .findByIdAndUnitId(roomId, unitId)
+                    .filter(r -> !r.isTestData())
+                    .orElseThrow(() -> new IllegalArgumentException("Raum nicht gefunden."));
+        }
+        Optional<Room> testRow = roomRepository.findByIdAndUnitId(roomId, unitId).filter(Room::isTestData);
+        if (testRow.isPresent()) {
+            return testRow.get();
+        }
+        Room prod = roomRepository
+                .findByIdAndUnitId(roomId, unitId)
+                .filter(r -> !r.isTestData())
+                .orElseThrow(() -> new IllegalArgumentException("Raum nicht gefunden."));
+        return roomRepository.findShadowByProductionSourceId(prod.getId()).orElse(prod);
+    }
+
+    private Room writableRoom(Room viewed) {
+        if (!testModeService.isEnabled() || viewed.isTestData()) {
+            return viewed;
+        }
+        return roomRepository
+                .findShadowByProductionSourceId(viewed.getId())
+                .orElseGet(() -> roomRepository.save(copyRoomToShadow(viewed)));
+    }
+
+    private Room copyRoomToShadow(Room prod) {
+        Room shadow = new Room();
+        shadow.setUnit(prod.getUnit());
+        shadow.setName(prod.getName());
+        shadow.setDescription(prod.getDescription());
+        shadow.setActive(prod.isActive());
+        shadow.setSortOrder(prod.getSortOrder());
+        shadow.setTestData(true);
+        shadow.setProductionSourceId(prod.getId());
+        return shadow;
     }
 
     private Unit requireUnit(long unitId) {
         return unitRepository
-                .findById(unitId)
+                .findVisibleById(unitId, testModeService.isEnabled())
                 .orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden."));
     }
 

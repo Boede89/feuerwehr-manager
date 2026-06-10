@@ -4880,73 +4880,56 @@ span.required { color: var(--error); }
   margin-top: 16px;
 }
 
+.einsatzbericht-modal-root .berichte-changes-card {
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.einsatzbericht-modal-root .berichte-changes-card .card__body {
+  padding: 12px 0 0;
+}
+
 .berichte-changes-heading {
   margin: 0 0 12px;
   font-size: var(--fs-md);
   font-weight: 600;
 }
 
-.berichte-change-item {
-  display: flex;
-  gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border);
-  align-items: flex-start;
+.berichte-changes-table-wrap {
+  overflow-x: auto;
 }
 
-.berichte-change-item:last-child {
-  border-bottom: none;
-}
-
-.berichte-change-item__avatar {
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--bg-card-hover);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.berichte-changes-table {
   font-size: var(--fs-sm);
-  font-weight: 700;
-  color: var(--text-muted);
 }
 
-.berichte-change-item__who {
-  font-size: var(--fs-md);
+.berichte-changes-table th {
+  white-space: nowrap;
+}
+
+.berichte-changes-table__date {
+  width: 1%;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.berichte-changes-table__name {
+  width: 1%;
+  white-space: nowrap;
   font-weight: 600;
 }
 
-.berichte-change-item__comment {
-  margin: 2px 0 0;
-  font-size: var(--fs-md);
-  color: var(--text);
-}
-
-.berichte-change-item__time {
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
-  margin-top: 4px;
-}
-
-.berichte-change-fields {
-  width: 100%;
-  margin-top: 8px;
-  border-collapse: collapse;
-  font-size: var(--fs-sm);
-}
-
-.berichte-change-fields th,
-.berichte-change-fields td {
-  border: 1px solid var(--border);
-  padding: 6px 8px;
-  text-align: left;
+.berichte-changes-table td {
   vertical-align: top;
+  max-width: 280px;
+  word-break: break-word;
 }
 
-.berichte-change-fields th {
-  background: var(--bg-card-hover);
-  font-weight: 600;
+.berichte-changes-empty {
+  margin: 0;
 }
 
 .berichte-change-fields__old {

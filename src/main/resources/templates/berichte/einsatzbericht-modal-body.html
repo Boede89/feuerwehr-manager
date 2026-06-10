@@ -7,4 +7,6 @@
   <div id="einsatzbericht-view" class="einsatzbericht-form--view">
     <th:block th:replace="~{fragments/berichte-einsatz-form :: form}"></th:block>
   </div>
+  <th:block th:if="${showChangeHistory}"
+            th:replace="~{fragments/berichte-einsatz-changes :: history(${reportChanges})}"></th:block>
 </div>

@@ -3,6 +3,7 @@ package de.feuerwehr.manager.atemschutz;
 import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.personal.PersonCourseCompletionRepository;
 import de.feuerwehr.manager.personal.PersonalService;
+import de.feuerwehr.manager.settings.TestModeDataMerge;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
@@ -51,8 +52,7 @@ public class AtemschutzService {
     public CarrierListResult listCarrierOverviews(long unitId, String filter) {
         atemschutzSettingsService.ensureSettings(unitId);
         syncCarriersFromAgt(unitId);
-        boolean testData = testModeService.isEnabled();
-        List<AtemschutzCarrier> carriers = carrierRepository.findByUnitId(unitId, testData);
+        List<AtemschutzCarrier> carriers = listCarriersForUnit(unitId);
         if (carriers.isEmpty()) {
             CarrierListStats emptyStats = new CarrierListStats(0, 0, 0, 0, 0);
             return new CarrierListResult(
@@ -65,11 +65,11 @@ public class AtemschutzService {
         List<Long> carrierIds = carriers.stream().map(AtemschutzCarrier::getId).toList();
         LocalDate today = LocalDate.now();
         Map<Long, AtemschutzFitnessRecord> latestG26 =
-                latestRecordsByCarrier(carrierIds, AtemschutzFitnessType.G26_UNTERSUCHUNG, testData);
+                latestRecordsByCarrier(carrierIds, AtemschutzFitnessType.G26_UNTERSUCHUNG);
         Map<Long, AtemschutzFitnessRecord> latestUebung =
-                latestRecordsByCarrier(carrierIds, AtemschutzFitnessType.UEBUNG, testData);
+                latestRecordsByCarrier(carrierIds, AtemschutzFitnessType.UEBUNG);
         Map<Long, AtemschutzFitnessRecord> latestStrecke =
-                latestRecordsByCarrier(carrierIds, AtemschutzFitnessType.STRECKEN, testData);
+                latestRecordsByCarrier(carrierIds, AtemschutzFitnessType.STRECKEN);
         List<CarrierOverview> all = new ArrayList<>();
         for (AtemschutzCarrier carrier : carriers) {
             Map<AtemschutzFitnessType, FitnessStatusView> summaries = new EnumMap<>(AtemschutzFitnessType.class);
@@ -113,16 +113,25 @@ public class AtemschutzService {
 
     @Transactional(readOnly = true)
     public AtemschutzCarrier requireCarrier(long carrierId) {
-        return carrierRepository
-                .findByIdAndTestData(carrierId, testModeService.isEnabled())
+        if (!testModeService.isEnabled()) {
+            return carrierRepository
+                    .findByIdAndTestData(carrierId, false)
+                    .orElseThrow(() -> new IllegalArgumentException("Geräteträger nicht gefunden"));
+        }
+        Optional<AtemschutzCarrier> testRow = carrierRepository.findByIdAndTestData(carrierId, true);
+        if (testRow.isPresent()) {
+            return testRow.get();
+        }
+        AtemschutzCarrier prod = carrierRepository
+                .findByIdAndTestData(carrierId, false)
                 .orElseThrow(() -> new IllegalArgumentException("Geräteträger nicht gefunden"));
+        return carrierRepository.findShadowByProductionSourceId(prod.getId()).orElse(prod);
     }
 
     @Transactional(readOnly = true)
     public CarrierDetailView loadCarrierDetail(long carrierId) {
         AtemschutzCarrier carrier = requireCarrier(carrierId);
-        boolean testData = testModeService.isEnabled();
-        List<AtemschutzFitnessRecord> records = fitnessRecordRepository.findByCarrierId(carrierId, testData);
+        List<AtemschutzFitnessRecord> records = fitnessRecordsForCarrier(carrier.getId());
         long unitId = carrier.getUnit().getId();
         LocalDate today = LocalDate.now();
         Map<AtemschutzFitnessType, FitnessStatusView> summaries = new EnumMap<>(AtemschutzFitnessType.class);
@@ -142,13 +151,11 @@ public class AtemschutzService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void syncCarriersFromAgt(long unitId) {
-        boolean testData = testModeService.isEnabled();
         Long courseId = atemschutzSettingsService.agtCourseId(unitId).orElse(null);
         if (courseId == null) {
             return;
         }
-        List<Person> agtPersons =
-                completionRepository.findPersonsWithCompletedCourseId(unitId, testData, courseId);
+        List<Person> agtPersons = listAgtPersons(unitId, courseId);
         Set<Long> agtPersonIds = agtPersons.stream().map(Person::getId).collect(Collectors.toCollection(HashSet::new));
         Unit unit = unitRepository
                 .findVisibleById(unitId, testModeService.isEnabled())
@@ -156,8 +163,11 @@ public class AtemschutzService {
         for (Person person : agtPersons) {
             ensureCarrierForPerson(unit, person);
         }
-        for (AtemschutzCarrier carrier : carrierRepository.findByUnitId(unitId, testData)) {
+        for (AtemschutzCarrier carrier : listCarriersForUnit(unitId)) {
             if (!agtPersonIds.contains(carrier.getPerson().getId())) {
+                if (testModeService.isEnabled() && !carrier.isTestData()) {
+                    continue;
+                }
                 carrierRepository.delete(carrier);
             }
         }
@@ -177,7 +187,7 @@ public class AtemschutzService {
 
     @Transactional
     public AtemschutzCarrier updateCarrier(long carrierId, AtemschutzCarrierStatus status, String notes) {
-        AtemschutzCarrier carrier = requireCarrier(carrierId);
+        AtemschutzCarrier carrier = writableCarrier(requireCarrier(carrierId));
         if (status != null) {
             carrier.setStatus(status);
         }
@@ -188,6 +198,9 @@ public class AtemschutzService {
     @Transactional
     public void removeCarrier(long carrierId) {
         AtemschutzCarrier carrier = requireCarrier(carrierId);
+        if (testModeService.isEnabled() && !carrier.isTestData()) {
+            throw new IllegalArgumentException("Produktiv-Geräteträger können im Testmodus nicht gelöscht werden.");
+        }
         carrierRepository.delete(carrier);
     }
 
@@ -387,13 +400,86 @@ public class AtemschutzService {
         return AtemschutzFitnessLevel.OK;
     }
 
+    private List<AtemschutzCarrier> listCarriersForUnit(long unitId) {
+        if (!testModeService.isEnabled()) {
+            return carrierRepository.findByUnitId(unitId, false);
+        }
+        List<AtemschutzCarrier> production = carrierRepository.findByUnitId(unitId, false);
+        List<AtemschutzCarrier> testRows = carrierRepository.findByUnitId(unitId, true);
+        return TestModeDataMerge.mergeByProductionSource(
+                production,
+                testRows,
+                AtemschutzCarrier::getProductionSourceId,
+                AtemschutzCarrier::getId,
+                Comparator.comparing((AtemschutzCarrier c) -> c.getPerson().getLastName())
+                        .thenComparing(c -> c.getPerson().getFirstName()));
+    }
+
+    private List<Person> listAgtPersons(long unitId, long courseId) {
+        List<Person> production =
+                completionRepository.findPersonsWithCompletedCourseId(unitId, false, courseId);
+        if (!testModeService.isEnabled()) {
+            return production;
+        }
+        List<Person> testRows = completionRepository.findPersonsWithCompletedCourseId(unitId, true, courseId);
+        return TestModeDataMerge.mergeByProductionSource(
+                production,
+                testRows,
+                Person::getProductionSourceId,
+                Person::getId,
+                Comparator.comparing(Person::getLastName).thenComparing(Person::getFirstName));
+    }
+
+    private List<AtemschutzFitnessRecord> fitnessRecordsForCarrier(long carrierId) {
+        if (!testModeService.isEnabled()) {
+            return fitnessRecordRepository.findByCarrierId(carrierId, false);
+        }
+        List<AtemschutzFitnessRecord> records = new ArrayList<>();
+        records.addAll(fitnessRecordRepository.findByCarrierId(carrierId, false));
+        records.addAll(fitnessRecordRepository.findByCarrierId(carrierId, true));
+        records.sort(Comparator.comparing(AtemschutzFitnessRecord::getValidUntil)
+                .thenComparing(AtemschutzFitnessRecord::getId)
+                .reversed());
+        return records;
+    }
+
+    private AtemschutzCarrier writableCarrier(AtemschutzCarrier viewed) {
+        if (!testModeService.isEnabled() || viewed.isTestData()) {
+            return viewed;
+        }
+        return carrierRepository
+                .findShadowByProductionSourceId(viewed.getId())
+                .orElseGet(() -> carrierRepository.save(copyCarrierToShadow(viewed)));
+    }
+
+    private AtemschutzCarrier copyCarrierToShadow(AtemschutzCarrier prod) {
+        AtemschutzCarrier shadow = new AtemschutzCarrier();
+        shadow.setUnit(prod.getUnit());
+        shadow.setPerson(prod.getPerson());
+        shadow.setStatus(prod.getStatus());
+        shadow.setNotes(prod.getNotes());
+        shadow.setTestData(true);
+        shadow.setProductionSourceId(prod.getId());
+        return shadow;
+    }
+
     private Map<Long, AtemschutzFitnessRecord> latestRecordsByCarrier(
-            List<Long> carrierIds, AtemschutzFitnessType type, boolean testData) {
+            List<Long> carrierIds, AtemschutzFitnessType type) {
         if (carrierIds.isEmpty()) {
             return Map.of();
         }
+        Map<Long, AtemschutzFitnessRecord> result = indexLatestRecords(
+                fitnessRecordRepository.findByCarrierIdsAndType(carrierIds, type, false));
+        if (testModeService.isEnabled()) {
+            result.putAll(indexLatestRecords(
+                    fitnessRecordRepository.findByCarrierIdsAndType(carrierIds, type, true)));
+        }
+        return result;
+    }
+
+    private static Map<Long, AtemschutzFitnessRecord> indexLatestRecords(List<AtemschutzFitnessRecord> records) {
         Map<Long, AtemschutzFitnessRecord> result = new HashMap<>();
-        for (AtemschutzFitnessRecord record : fitnessRecordRepository.findByCarrierIdsAndType(carrierIds, type, testData)) {
+        for (AtemschutzFitnessRecord record : records) {
             result.putIfAbsent(record.getCarrier().getId(), record);
         }
         return result;

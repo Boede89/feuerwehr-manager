@@ -4,6 +4,7 @@ import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -22,7 +23,13 @@ public class PersonalGroupService {
 
     @Transactional(readOnly = true)
     public List<PersonGroup> listGroups(long unitId) {
-        return groupRepository.findByUnitIdWithMembers(unitId, testModeService.isEnabled());
+        if (!testModeService.isEnabled()) {
+            return groupRepository.findByUnitIdWithMembers(unitId, false);
+        }
+        List<PersonGroup> merged = new ArrayList<>(groupRepository.findByUnitIdWithMembers(unitId, false));
+        merged.addAll(groupRepository.findByUnitIdWithMembers(unitId, true));
+        merged.sort(Comparator.comparing(PersonGroup::getName));
+        return merged;
     }
 
     @Transactional
@@ -63,8 +70,13 @@ public class PersonalGroupService {
     }
 
     private PersonGroup requireWritableGroup(long groupId) {
+        if (!testModeService.isEnabled()) {
+            return groupRepository
+                    .findByIdWithMembers(groupId, false)
+                    .orElseThrow(() -> new IllegalArgumentException("Gruppe nicht gefunden."));
+        }
         return groupRepository
-                .findByIdWithMembers(groupId, testModeService.isEnabled())
+                .findByIdWithMembers(groupId, true)
                 .orElseThrow(() -> new IllegalArgumentException("Gruppe nicht gefunden."));
     }
 

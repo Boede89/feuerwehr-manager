@@ -3,6 +3,7 @@ package de.feuerwehr.manager.atemschutz;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -58,4 +59,8 @@ public interface AtemschutzFitnessRecordRepository extends JpaRepository<Atemsch
             @Param("refId") long refId,
             @Param("personId") long personId,
             @Param("testData") boolean testData);
+
+    @Modifying
+    @Query("DELETE FROM AtemschutzFitnessRecord r WHERE r.testData = true")
+    void deleteAllByTestDataTrue();
 }

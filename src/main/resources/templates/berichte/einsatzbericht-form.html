@@ -39,7 +39,7 @@
     </div>
   </div>
 
-  <th:block th:if="${formMode == 'edit' and showChangeHistory}"
+  <th:block th:if="${showChangeHistory}"
             th:replace="~{fragments/berichte-einsatz-changes :: history(${reportChanges})}"></th:block>
 
   <script th:src="@{/js/combo-suggest.js}" defer></script>

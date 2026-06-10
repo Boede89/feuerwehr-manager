@@ -48,6 +48,9 @@
     </div>
   </div>
 
+  <th:block th:if="${showChangeHistory}"
+            th:replace="~{fragments/berichte-einsatz-changes :: history(${reportChanges})}"></th:block>
+
   <script th:src="@{/js/berichte-einsatz-form.js}" defer></script>
   <script th:src="@{/js/berichte-kraefte.js}" defer></script>
   <script th:src="@{/js/berichte-geraete.js}" defer></script>

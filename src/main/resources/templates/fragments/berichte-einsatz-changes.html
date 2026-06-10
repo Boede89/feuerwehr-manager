@@ -4,36 +4,44 @@
   <div class="card berichte-changes-card">
     <div class="card__body">
       <h4 class="berichte-changes-heading">Änderungshistorie</h4>
-      <div class="berichte-changes-list" th:if="${!#lists.isEmpty(changes)}">
-        <div class="berichte-change-item" th:each="c : ${changes}">
-          <div class="berichte-change-item__avatar"
-               th:text="${c.changedByName != null and !#strings.isEmpty(c.changedByName) ? #strings.toUpperCase(#strings.substring(c.changedByName,0,1)) : '?'}">A</div>
-          <div class="berichte-change-item__body">
-            <div class="berichte-change-item__who" th:text="${c.changedByName != null ? c.changedByName : '—'}">Name</div>
-            <p class="berichte-change-item__comment" th:if="${c.commentText != null and !#strings.isEmpty(c.commentText)}"
-               th:text="${c.commentText}">Kommentar</p>
-            <table class="berichte-change-fields" th:if="${!#lists.isEmpty(c.fields)}">
-              <thead>
-              <tr>
-                <th>Feld</th>
-                <th>Alt</th>
-                <th>Neu</th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr th:each="f : ${c.fields}">
-                <td th:text="${f.fieldLabel}">Feld</td>
-                <td class="berichte-change-fields__old" th:text="${f.oldValue}">—</td>
-                <td class="berichte-change-fields__new" th:text="${f.newValue}">—</td>
-              </tr>
-              </tbody>
-            </table>
-            <div class="berichte-change-item__time"
-                 th:text="${#temporals.format(c.createdAt, 'dd.MM.yyyy HH:mm')}">—</div>
-          </div>
-        </div>
+      <div class="berichte-changes-table-wrap" th:if="${!#lists.isEmpty(changes)}">
+        <table class="data-table berichte-changes-table">
+          <thead>
+          <tr>
+            <th class="berichte-changes-table__date">Datum</th>
+            <th>Feld</th>
+            <th>Alt</th>
+            <th>Neu</th>
+            <th class="berichte-changes-table__name">Name</th>
+          </tr>
+          </thead>
+          <tbody>
+          <th:block th:each="c : ${changes}">
+            <tr th:each="f : ${c.fields}">
+              <td class="berichte-changes-table__date"
+                  th:text="${#temporals.format(c.createdAt, 'dd.MM.yyyy HH:mm')}">—</td>
+              <td th:text="${f.fieldLabel}">Feld</td>
+              <td class="berichte-change-fields__old"
+                  th:text="${f.oldValue != null and !#strings.isEmpty(f.oldValue) ? f.oldValue : '—'}">—</td>
+              <td class="berichte-change-fields__new"
+                  th:text="${f.newValue != null and !#strings.isEmpty(f.newValue) ? f.newValue : '—'}">—</td>
+              <td class="berichte-changes-table__name"
+                  th:text="${c.changedByName != null and !#strings.isEmpty(c.changedByName) ? c.changedByName : '—'}">—</td>
+            </tr>
+            <tr th:if="${c.commentText != null and !#strings.isEmpty(c.commentText)}">
+              <td class="berichte-changes-table__date"
+                  th:text="${#temporals.format(c.createdAt, 'dd.MM.yyyy HH:mm')}">—</td>
+              <td>Kommentar</td>
+              <td class="berichte-change-fields__old">—</td>
+              <td class="berichte-change-fields__new" th:text="${c.commentText}">—</td>
+              <td class="berichte-changes-table__name"
+                  th:text="${c.changedByName != null and !#strings.isEmpty(c.changedByName) ? c.changedByName : '—'}">—</td>
+            </tr>
+          </th:block>
+          </tbody>
+        </table>
       </div>
-      <p class="hint" style="margin:0;" th:if="${#lists.isEmpty(changes)}">Noch keine Änderungen protokolliert.</p>
+      <p class="hint berichte-changes-empty" th:if="${#lists.isEmpty(changes)}">Noch keine Änderungen protokolliert.</p>
     </div>
   </div>
 </th:block>

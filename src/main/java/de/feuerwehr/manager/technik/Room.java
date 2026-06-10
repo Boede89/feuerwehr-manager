@@ -45,6 +45,9 @@ public class Room {
     @Column(name = "test_data", nullable = false)
     private boolean testData;
 
+    @Column(name = "production_source_id")
+    private Long productionSourceId;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;
 

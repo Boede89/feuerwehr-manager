@@ -215,13 +215,6 @@ public class BerichteController {
             populateEinsatzFormModel(model, unit.getId(), report, form, true);
             model.addAttribute("formMode", "edit");
             model.addAttribute("canDeleteReport", EinsatzberichtAccess.canDelete(report, actor, canApprove));
-            model.addAttribute(
-                    "showChangeHistory", report.getStatus() != IncidentReportStatus.ENTWURF);
-            model.addAttribute(
-                    "reportChanges",
-                    report.getStatus() != IncidentReportStatus.ENTWURF
-                            ? einsatzberichtService.listChanges(unit.getId(), id)
-                            : List.of());
             model.addAttribute("pageTitle", "Einsatzbericht bearbeiten");
             model.addAttribute(
                     "pageSubtitle",
@@ -410,6 +403,16 @@ public class BerichteController {
         if (form.getDeployedEquipmentJson() == null || form.getDeployedEquipmentJson().isBlank()) {
             form.setDeployedEquipmentJson(
                     reportId != null ? einsatzberichtService.buildDeployedEquipmentJson(reportId) : "[]");
+        }
+        if (report != null) {
+            boolean showHistory = report.getStatus() != IncidentReportStatus.ENTWURF;
+            model.addAttribute("showChangeHistory", showHistory);
+            model.addAttribute(
+                    "reportChanges",
+                    showHistory ? einsatzberichtService.listChanges(unitId, report.getId()) : List.of());
+        } else {
+            model.addAttribute("showChangeHistory", false);
+            model.addAttribute("reportChanges", List.of());
         }
     }
 
