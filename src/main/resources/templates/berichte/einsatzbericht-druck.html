@@ -17,7 +17,7 @@
     .two-cols-table td:first-child { width: 40%; }
     .two-cols-table td:last-child { width: 60%; padding: 0 0 0 8px; }
     .two-cols-table table { font-size: 9pt; table-layout: auto; width: 100%; }
-    .col-fahrzeug { width: 28px; }
+    .col-fahrzeug { width: 26px; max-width: 26px; padding: 2px 3px; text-align: left; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 8pt; }
     .stamm-inline { table-layout: fixed; }
     th, td { border: 1px solid #dee2e6; padding: 4px 6px; text-align: left; }
@@ -25,9 +25,22 @@
     .label-cell { width: 100px; background: #f8f9fa; font-weight: bold; }
     .stamm-inline .label-cell { width: 90px; }
     .col-staerke { width: 28px; }
-    .personnel-table { table-layout: fixed; }
-    .personnel-table .col-pa { width: 14px; min-width: 14px; max-width: 14px; padding: 1px 2px; text-align: center; }
-    .col-pa-x { font-size: 1.1em; font-weight: bold; line-height: 1; }
+    .personnel-table { table-layout: fixed; width: 100%; }
+    .personnel-table .col-name { width: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 2px 4px; }
+    .personnel-table .col-fahrzeug { width: 26px; max-width: 26px; padding: 2px 3px; }
+    .personnel-table th.col-pa,
+    .personnel-table td.col-pa {
+      width: 8px;
+      max-width: 8px;
+      min-width: 8px;
+      padding: 1px 0;
+      text-align: center;
+      font-size: 6.5pt;
+      line-height: 1;
+      letter-spacing: 0;
+    }
+    .personnel-table th.col-pa { font-weight: bold; }
+    .col-pa-x { display: inline-block; font-size: 7pt; font-weight: bold; line-height: 1; }
     .kurzbericht-cell { white-space: pre-wrap; }
     .person-damage-pdf-table { margin: 0; font-size: 8pt; }
     .person-damage-pdf-table th { font-size: 7.5pt; }
@@ -125,12 +138,17 @@
         <td>
           <div class="section-title">Personal</div>
           <table class="personnel-table" width="100%">
+            <colgroup>
+              <col class="col-name"/>
+              <col class="col-fahrzeug" style="width:26px;"/>
+              <col class="col-pa" style="width:8px;"/>
+            </colgroup>
             <thead>
-            <tr><th>Name</th><th class="col-fahrzeug">Fzg</th><th class="col-pa">PA</th></tr>
+            <tr><th class="col-name">Name</th><th class="col-fahrzeug">Fzg</th><th class="col-pa">P</th></tr>
             </thead>
             <tbody>
             <tr th:each="row : ${personnel}">
-              <td th:text="${row.name()}">Name</td>
+              <td class="col-name" th:text="${row.name()}">Name</td>
               <td class="col-fahrzeug" th:text="${row.vehicle()}">—</td>
               <td class="col-pa"><span th:if="${row.pa() == 'X'}" class="col-pa-x">X</span></td>
             </tr>
