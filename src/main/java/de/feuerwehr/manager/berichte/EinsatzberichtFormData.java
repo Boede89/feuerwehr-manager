@@ -21,6 +21,8 @@ public record EinsatzberichtFormData(
         String houseNumber,
         String objekt,
         String eigentuemer,
+        Boolean chargeable,
+        Boolean fireWatch,
         boolean extinguishedBeforeArrival,
         boolean maliciousAlarm,
         boolean falseAlarm,

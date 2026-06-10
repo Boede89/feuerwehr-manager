@@ -87,6 +87,12 @@ public class IncidentReport {
     @Column(length = 255)
     private String eigentuemer;
 
+    @Column
+    private Boolean chargeable;
+
+    @Column(name = "fire_watch")
+    private Boolean fireWatch;
+
     @Column(name = "extinguished_before_arrival", nullable = false)
     private boolean extinguishedBeforeArrival;
 

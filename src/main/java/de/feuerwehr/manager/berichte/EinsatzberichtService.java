@@ -408,6 +408,8 @@ public class EinsatzberichtService {
         report.setHouseNumber(trimToNull(form.houseNumber()));
         report.setObjekt(trimToNull(form.objekt()));
         report.setEigentuemer(trimToNull(form.eigentuemer()));
+        report.setChargeable(form.chargeable());
+        report.setFireWatch(form.fireWatch());
         report.setExtinguishedBeforeArrival(form.extinguishedBeforeArrival());
         report.setMaliciousAlarm(form.maliciousAlarm());
         report.setFalseAlarm(form.falseAlarm());

@@ -125,6 +125,40 @@
         <input id="reporterPhone" name="reporterPhone" type="text" maxlength="64" th:readonly="${formMode == 'view'}"
                th:value="${form.reporterPhone}"/>
       </div>
+      <div class="form-group">
+        <span class="form-label" id="chargeable-label">Kostenpflichtig</span>
+        <div class="incident-damage-toggle" role="radiogroup" aria-labelledby="chargeable-label">
+          <label class="incident-damage-toggle__option">
+            <input type="radio" name="chargeable" value="false"
+                   th:disabled="${formMode == 'view'}"
+                   th:checked="${form.chargeable != null and !form.chargeable}"/>
+            <span>Nein</span>
+          </label>
+          <label class="incident-damage-toggle__option">
+            <input type="radio" name="chargeable" value="true"
+                   th:disabled="${formMode == 'view'}"
+                   th:checked="${form.chargeable != null and form.chargeable}"/>
+            <span>Ja</span>
+          </label>
+        </div>
+      </div>
+      <div class="form-group">
+        <span class="form-label" id="fire-watch-label">Brandwache</span>
+        <div class="incident-damage-toggle" role="radiogroup" aria-labelledby="fire-watch-label">
+          <label class="incident-damage-toggle__option">
+            <input type="radio" name="fireWatch" value="false"
+                   th:disabled="${formMode == 'view'}"
+                   th:checked="${form.fireWatch != null and !form.fireWatch}"/>
+            <span>Nein</span>
+          </label>
+          <label class="incident-damage-toggle__option">
+            <input type="radio" name="fireWatch" value="true"
+                   th:disabled="${formMode == 'view'}"
+                   th:checked="${form.fireWatch != null and form.fireWatch}"/>
+            <span>Ja</span>
+          </label>
+        </div>
+      </div>
     </div>
   </div>
 

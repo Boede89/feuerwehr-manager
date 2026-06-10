@@ -36,6 +36,8 @@ public class EinsatzberichtForm {
     private String houseNumber;
     private String objekt;
     private String eigentuemer;
+    private Boolean chargeable;
+    private Boolean fireWatch;
     private boolean extinguishedBeforeArrival;
     private boolean maliciousAlarm;
     private boolean falseAlarm;
@@ -82,6 +84,8 @@ public class EinsatzberichtForm {
         form.setHouseNumber(report.getHouseNumber());
         form.setObjekt(report.getObjekt());
         form.setEigentuemer(report.getEigentuemer());
+        form.setChargeable(report.getChargeable());
+        form.setFireWatch(report.getFireWatch());
         form.setExtinguishedBeforeArrival(report.isExtinguishedBeforeArrival());
         form.setMaliciousAlarm(report.isMaliciousAlarm());
         form.setFalseAlarm(report.isFalseAlarm());
@@ -129,6 +133,8 @@ public class EinsatzberichtForm {
                 houseNumber,
                 objekt,
                 eigentuemer,
+                chargeable,
+                fireWatch,
                 extinguishedBeforeArrival,
                 maliciousAlarm,
                 falseAlarm,

@@ -3521,10 +3521,13 @@ span.required { color: var(--error); }
   cursor: default;
 }
 
-.einsatzbericht-form-page .form-group label {
+.einsatzbericht-form-page .form-group label,
+.einsatzbericht-form-page .form-group .form-label {
+  display: block;
   font-size: 11px;
   font-weight: 600;
   color: var(--text-muted);
+  margin-bottom: 6px;
 }
 
 .einsatzbericht-form-page .form-group--full {
