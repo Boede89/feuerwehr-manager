@@ -3562,6 +3562,48 @@ span.required { color: var(--error); }
   align-items: start;
 }
 
+.incident-person-damage-details {
+  display: grid;
+  gap: 16px;
+}
+
+.person-damage-details-hint {
+  margin: 0;
+}
+
+.person-damage-category {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  padding: 12px 14px;
+  background: var(--bg-card-hover, rgba(0, 0, 0, 0.02));
+}
+
+.person-damage-category__title {
+  margin: 0 0 10px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.person-damage-entry + .person-damage-entry {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+}
+
+.person-damage-entry__title {
+  margin: 0 0 8px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.person-damage-entry__fields .form-group label {
+  font-size: var(--fs-xs);
+}
+
 .einsatzbericht-form-page .incident-form-stack {
   display: grid;
   gap: 14px;

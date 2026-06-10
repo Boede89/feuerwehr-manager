@@ -51,11 +51,18 @@
         if (idx === 3 && window.BerichteGeraete) {
           window.BerichteGeraete.onTabShow();
         }
+        if (idx === 4 && window.BerichteSchaeden) {
+          window.BerichteSchaeden.init(scope);
+        }
         if (idx === 6 && window.BerichteAnhaenge) {
           window.BerichteAnhaenge.load();
         }
       });
     });
+
+    if (window.BerichteSchaeden) {
+      window.BerichteSchaeden.init(scope);
+    }
 
     bindDamageAutoEnable('personDamagesEnabled', [
       'personsRescued',

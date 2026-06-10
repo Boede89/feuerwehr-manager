@@ -37,6 +37,7 @@ public record EinsatzberichtFormData(
         List<DeployedEquipmentAssignment> deployedEquipment,
         String einsatzkurzbericht,
         boolean personDamagesEnabled,
+        String personDamageDetailsJson,
         boolean animalDamagesEnabled,
         int personsRescued,
         int personsEvacuated,

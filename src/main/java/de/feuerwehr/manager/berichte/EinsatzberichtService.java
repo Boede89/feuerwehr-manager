@@ -678,15 +678,23 @@ public class EinsatzberichtService {
         report.setPersonDamagesEnabled(form.personDamagesEnabled());
         report.setAnimalDamagesEnabled(form.animalDamagesEnabled());
         if (form.personDamagesEnabled()) {
-            report.setPersonsRescued(Math.max(0, form.personsRescued()));
-            report.setPersonsInjured(Math.max(0, form.personsInjured()));
-            report.setPersonsRecovered(Math.max(0, form.personsRecovered()));
-            report.setPersonsDead(Math.max(0, form.personsDead()));
+            int rescued = Math.max(0, form.personsRescued());
+            int injured = Math.max(0, form.personsInjured());
+            int recovered = Math.max(0, form.personsRecovered());
+            int dead = Math.max(0, form.personsDead());
+            report.setPersonsRescued(rescued);
+            report.setPersonsInjured(injured);
+            report.setPersonsRecovered(recovered);
+            report.setPersonsDead(dead);
+            PersonDamageDetails details = PersonDamageDetailsSupport.parse(form.personDamageDetailsJson())
+                    .normalized(rescued, injured, recovered, dead);
+            report.setPersonDamageDetailsJson(PersonDamageDetailsSupport.serialize(details));
         } else {
             report.setPersonsRescued(0);
             report.setPersonsInjured(0);
             report.setPersonsRecovered(0);
             report.setPersonsDead(0);
+            report.setPersonDamageDetailsJson(PersonDamageDetailsSupport.emptyJson());
         }
         report.setPersonsEvacuated(0);
         report.setPersonsInjuredOwn(0);

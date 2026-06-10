@@ -240,6 +240,9 @@
     if (window.BerichteAnhaenge && window.BerichteAnhaenge.load) {
       window.BerichteAnhaenge.load();
     }
+    if (window.BerichteSchaeden && window.BerichteSchaeden.init) {
+      window.BerichteSchaeden.init(container);
+    }
   }
 
   function openModal(id) {

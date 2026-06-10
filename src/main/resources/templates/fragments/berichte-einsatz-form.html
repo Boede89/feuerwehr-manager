@@ -452,6 +452,10 @@
                th:readonly="${formMode == 'view'}" th:value="${form.personsDead}"/>
       </div>
     </div>
+    <div id="person-damage-details-wrap" class="incident-person-damage-details incident-section-block"
+         th:attr="data-readonly=${formMode == 'view' ? 'true' : 'false'},data-initial=${form.personDamageDetailsJson}"></div>
+    <input type="hidden" name="personDamageDetailsJson" id="personDamageDetailsJson" th:if="${formMode != 'view'}"
+           th:value="${form.personDamageDetailsJson}"/>
 
     <h4 class="incident-section-title">Tierschäden</h4>
     <div class="yes-no-radio incident-section-block" role="radiogroup" aria-label="Tierschäden">

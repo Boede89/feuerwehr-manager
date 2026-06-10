@@ -52,6 +52,7 @@ public class EinsatzberichtForm {
     private String deployedEquipmentJson;
     private String einsatzkurzbericht;
     private boolean personDamagesEnabled;
+    private String personDamageDetailsJson;
     private boolean animalDamagesEnabled;
     private int personsRescued;
     private int personsEvacuated;
@@ -100,6 +101,17 @@ public class EinsatzberichtForm {
         form.setReporterPhone(report.getReporterPhone());
         form.setEinsatzkurzbericht(report.getNotes());
         form.setPersonDamagesEnabled(report.isPersonDamagesEnabled());
+        if (report.isPersonDamagesEnabled()) {
+            PersonDamageDetails details = PersonDamageDetailsSupport.parse(report.getPersonDamageDetailsJson())
+                    .normalized(
+                            report.getPersonsRescued(),
+                            report.getPersonsInjured(),
+                            report.getPersonsRecovered(),
+                            report.getPersonsDead());
+            form.setPersonDamageDetailsJson(PersonDamageDetailsSupport.serialize(details));
+        } else {
+            form.setPersonDamageDetailsJson(PersonDamageDetailsSupport.emptyJson());
+        }
         form.setAnimalDamagesEnabled(report.isAnimalDamagesEnabled());
         form.setPersonsRescued(report.getPersonsRescued());
         form.setPersonsEvacuated(report.getPersonsEvacuated());
@@ -152,6 +164,7 @@ public class EinsatzberichtForm {
                 deployedEquipment != null ? deployedEquipment : List.of(),
                 einsatzkurzbericht,
                 personDamagesEnabled,
+                personDamageDetailsJson,
                 animalDamagesEnabled,
                 personsRescued,
                 personsEvacuated,
