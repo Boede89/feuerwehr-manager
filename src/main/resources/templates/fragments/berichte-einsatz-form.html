@@ -270,9 +270,6 @@
                             title="Am Einsatz beteiligt markieren">
                       Am Einsatz beteiligt
                     </button>
-                    <span class="incident-vehicle-involved-badge" th:if="${formMode == 'view'}">
-                      Am Einsatz beteiligt
-                    </span>
                     <span class="incident-vehicle-card__staerke" th:attr="data-staerke-badge=${v.vehicleId()}"
                           th:text="${v.besatzungsstaerke()}">0/0/0/0</span>
                   </div>
@@ -307,12 +304,14 @@
               Keine Fahrzeuge in dieser Einheit.
             </p>
           </section>
-          <section class="incident-kraefte-section incident-kraefte-section--virtual">
+          <section class="incident-kraefte-section incident-kraefte-section--virtual"
+                   th:if="${formMode != 'view' or !#lists.isEmpty(scene.crewPersons()) or !#lists.isEmpty(wache.crewPersons())}">
             <header class="incident-kraefte-section__head">
               <h3 class="incident-kraefte-section__title">Ohne Fahrzeug</h3>
             </header>
             <div class="incident-virtual-slots">
               <article class="incident-vehicle-card incident-vehicle-card--compact incident-vehicle-card--einsatzstelle"
+                       th:if="${formMode != 'view' or !#lists.isEmpty(scene.crewPersons())}"
                        th:attr="data-vehicle-id=${scene.vehicleId()}">
                 <header class="incident-vehicle-card__head">
                   <h5 class="incident-vehicle-card__name" th:text="${scene.name()}">Einsatzstelle</h5>
@@ -337,6 +336,7 @@
                 <p class="hint incident-vehicle-dropzone-hint" th:if="${formMode != 'view'}">Vor Ort, kein Fahrzeug</p>
               </article>
               <article class="incident-vehicle-card incident-vehicle-card--compact incident-vehicle-card--wache"
+                       th:if="${formMode != 'view' or !#lists.isEmpty(wache.crewPersons())}"
                        th:attr="data-vehicle-id=${wache.vehicleId()}">
                 <header class="incident-vehicle-card__head">
                   <h5 class="incident-vehicle-card__name" th:text="${wache.name()}">Wache</h5>
