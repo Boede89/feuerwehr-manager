@@ -134,10 +134,46 @@ public class EinsatzberichtService {
         return incidentReportRepository.findDistinctStichworteByUnitId(unitId, includeTestReports());
     }
 
+    public List<ForeignUnitOption> listForeignUnits(long reportUnitId) {
+        return unitRepository.findActiveVisible(testModeService.isEnabled()).stream()
+                .filter(unit -> unit.getId() != reportUnitId)
+                .map(unit -> new ForeignUnitOption(unit.getId(), unit.getName()))
+                .toList();
+    }
+
+    public List<ForeignPersonOption> listForeignPersonnel(long sourceUnitId, String query) {
+        String normalized = query != null ? query.trim() : "";
+        List<Person> persons;
+        if (normalized.length() < 2) {
+            persons = personalService.listPersons(sourceUnitId);
+        } else {
+            persons = personRepository.searchActiveByUnitId(sourceUnitId, normalized, includeTestReports());
+        }
+        return persons.stream()
+                .map(person -> new ForeignPersonOption(
+                        person.getId(),
+                        person.anwesenheitDisplayName(),
+                        Besatzungsstaerke.qualTier(person).name(),
+                        person.getUnit().getId(),
+                        person.getUnit().getName()))
+                .toList();
+    }
+
     public KraefteFahrzeugeState buildKraefteFahrzeugeState(long unitId, Long reportId) {
         List<Person> allPersons = listPersonsForForm(unitId);
-        Map<Long, Person> personById =
-                allPersons.stream().collect(Collectors.toMap(Person::getId, p -> p, (a, b) -> a, LinkedHashMap::new));
+        List<IncidentReportPersonnel> reportRows =
+                reportId != null ? incidentReportPersonnelRepository.findByIncidentReportId(reportId) : List.of();
+        Set<Long> extraPersonIds = new LinkedHashSet<>();
+        for (IncidentReportPersonnel row : reportRows) {
+            if (row.getPerson() != null) {
+                extraPersonIds.add(row.getPerson().getId());
+            }
+        }
+        Map<Long, Person> personById = new LinkedHashMap<>();
+        allPersons.forEach(person -> personById.put(person.getId(), person));
+        if (!extraPersonIds.isEmpty()) {
+            personRepository.findActiveByIdIn(extraPersonIds, includeTestReports()).forEach(person -> personById.putIfAbsent(person.getId(), person));
+        }
         List<Vehicle> unitVehicles = listVehiclesForForm(unitId);
 
         Map<Long, List<Long>> crewByVehicleId = new LinkedHashMap<>();
@@ -151,9 +187,12 @@ public class EinsatzberichtService {
         Map<Long, Boolean> involvedByVehicleId = new LinkedHashMap<>();
 
         Set<Long> diveraPersonIds = new HashSet<>();
-        Set<Long> onVehiclePersonIds = new HashSet<>();
-        Map<Long, IncidentPersonnelSource> sourceByPersonId = new LinkedHashMap<>();
-        Map<Long, Boolean> paByPersonId = new LinkedHashMap<>();
+        Set<Long> foreignPersonIds = new HashSet<>();
+        Set<Long> onVehicleRefIds = new HashSet<>();
+        Map<Long, IncidentPersonnelSource> sourceByRefId = new LinkedHashMap<>();
+        Map<Long, Boolean> paByRefId = new LinkedHashMap<>();
+        Map<Long, IncidentReportPersonnel> rowByRefId = new LinkedHashMap<>();
+        Map<Long, String> diveraUcrReserveNames = new LinkedHashMap<>();
 
         if (reportId != null) {
             for (IncidentReportVehicle reportVehicle :
@@ -162,17 +201,29 @@ public class EinsatzberichtService {
                     involvedByVehicleId.put(reportVehicle.getVehicle().getId(), reportVehicle.isInvolved());
                 }
             }
-            for (IncidentReportPersonnel row : incidentReportPersonnelRepository.findByIncidentReportId(reportId)) {
-                Person person = row.getPerson();
-                if (person == null) {
-                    continue;
-                }
-                sourceByPersonId.put(person.getId(), row.getSource());
+            for (IncidentReportPersonnel row : reportRows) {
+                long refId = personnelRefId(row);
+                rowByRefId.put(refId, row);
+                sourceByRefId.put(refId, row.getSource());
                 if (row.isUsesPa()) {
-                    paByPersonId.put(person.getId(), true);
+                    paByRefId.put(refId, true);
                 }
-                if (row.getSource() == IncidentPersonnelSource.DIVERA) {
-                    diveraPersonIds.add(person.getId());
+                if (row.getPerson() != null) {
+                    Person person = row.getPerson();
+                    if (row.getSource() == IncidentPersonnelSource.DIVERA) {
+                        diveraPersonIds.add(person.getId());
+                    }
+                    if (row.getSource() == IncidentPersonnelSource.FOREIGN
+                            || person.getUnit().getId() != unitId) {
+                        foreignPersonIds.add(person.getId());
+                    }
+                } else if (row.getDiveraUcrId() != null && !row.getDiveraUcrId().isBlank()) {
+                    try {
+                        long ucrId = Long.parseLong(row.getDiveraUcrId().trim());
+                        diveraUcrReserveNames.put(ucrId, row.getDisplayName());
+                    } catch (NumberFormatException ignored) {
+                        // ignore malformed UCR
+                    }
                 }
                 IncidentReportVehicle reportVehicle = row.getIncidentReportVehicle();
                 if (reportVehicle == null) {
@@ -180,66 +231,96 @@ public class EinsatzberichtService {
                 }
                 if (reportVehicle.getVehicle() != null) {
                     long vehicleId = reportVehicle.getVehicle().getId();
-                    crewByVehicleId.computeIfAbsent(vehicleId, k -> new ArrayList<>()).add(person.getId());
+                    crewByVehicleId.computeIfAbsent(vehicleId, k -> new ArrayList<>()).add(refId);
                     if (row.getVehicleRole() != null) {
                         roleByVehicleAndPerson
                                 .computeIfAbsent(vehicleId, k -> new LinkedHashMap<>())
-                                .put(person.getId(), row.getVehicleRole());
+                                .put(refId, row.getVehicleRole());
                     }
-                    onVehiclePersonIds.add(person.getId());
-                } else if (reportVehicle.getVehicle() == null) {
+                    onVehicleRefIds.add(refId);
+                } else {
                     String slotName = reportVehicle.getVehicleName();
                     if (IncidentCrewSupport.BETEILIGT_VEHICLE_NAME.equals(slotName)) {
-                        beteiligtCrewIds.add(person.getId());
-                        onVehiclePersonIds.add(person.getId());
+                        beteiligtCrewIds.add(refId);
+                        onVehicleRefIds.add(refId);
                     } else if (IncidentCrewSupport.EINSATZSTELLE_VEHICLE_NAME.equals(slotName)) {
-                        einsatzstelleCrewIds.add(person.getId());
-                        onVehiclePersonIds.add(person.getId());
+                        einsatzstelleCrewIds.add(refId);
+                        onVehicleRefIds.add(refId);
                     } else if (IncidentCrewSupport.WACHE_VEHICLE_NAME.equals(slotName)) {
-                        wacheCrewIds.add(person.getId());
-                        onVehiclePersonIds.add(person.getId());
+                        wacheCrewIds.add(refId);
+                        onVehicleRefIds.add(refId);
                     }
                 }
             }
         }
 
-        Map<Long, Integer> sortOrderByPersonId = new LinkedHashMap<>();
+        Map<Long, Integer> sortOrderByRefId = new LinkedHashMap<>();
         int sortIndex = 0;
         for (Person person : allPersons) {
-            sortOrderByPersonId.put(person.getId(), sortIndex++);
+            sortOrderByRefId.put(person.getId(), sortIndex++);
+        }
+        for (Long ucrId : diveraUcrReserveNames.keySet()) {
+            sortOrderByRefId.putIfAbsent(IncidentPersonnelRefs.refFromUcr(ucrId), sortIndex++);
         }
 
         List<KraefteFahrzeugeState.KraeftePersonView> manualPersons = new ArrayList<>();
         List<KraefteFahrzeugeState.KraeftePersonView> diveraPersons = new ArrayList<>();
+        List<KraefteFahrzeugeState.KraeftePersonView> foreignPersons = new ArrayList<>();
 
         for (Person person : allPersons) {
             if (diveraPersonIds.contains(person.getId())) {
-                if (!onVehiclePersonIds.contains(person.getId())) {
-                    diveraPersons.add(toPersonView(person, sortOrderByPersonId, null, false, "divera"));
+                if (!onVehicleRefIds.contains(person.getId())) {
+                    String unitLabel = person.getUnit().getId() != unitId ? person.getUnit().getName() : null;
+                    diveraPersons.add(toPersonView(person, sortOrderByRefId, null, false, "divera", unitLabel));
                 }
-            } else if (!onVehiclePersonIds.contains(person.getId())) {
-                manualPersons.add(toPersonView(person, sortOrderByPersonId, null, false, "manual"));
+            } else if (foreignPersonIds.contains(person.getId())) {
+                if (!onVehicleRefIds.contains(person.getId())) {
+                    foreignPersons.add(toPersonView(
+                            person, sortOrderByRefId, null, false, "foreign", person.getUnit().getName()));
+                }
+            } else if (!onVehicleRefIds.contains(person.getId())) {
+                manualPersons.add(toPersonView(person, sortOrderByRefId, null, false, "manual", null));
+            }
+        }
+        for (Map.Entry<Long, String> ucrEntry : diveraUcrReserveNames.entrySet()) {
+            long refId = IncidentPersonnelRefs.refFromUcr(ucrEntry.getKey());
+            if (!onVehicleRefIds.contains(refId)) {
+                diveraPersons.add(toUcrPersonView(
+                        refId, ucrEntry.getKey(), ucrEntry.getValue(), sortOrderByRefId.getOrDefault(refId, 0)));
+            }
+        }
+        for (Long foreignId : foreignPersonIds) {
+            Person person = personById.get(foreignId);
+            if (person != null
+                    && !allPersons.stream().map(Person::getId).anyMatch(id -> id.equals(foreignId))
+                    && !onVehicleRefIds.contains(foreignId)) {
+                boolean alreadyListed = foreignPersons.stream().anyMatch(view -> view.id() == foreignId);
+                if (!alreadyListed) {
+                    foreignPersons.add(toPersonView(
+                            person, sortOrderByRefId, null, false, "foreign", person.getUnit().getName()));
+                }
             }
         }
 
         List<KraefteFahrzeugeState.KraefteVehicleView> vehicles = new ArrayList<>();
         for (Vehicle vehicle : unitVehicles) {
-            List<Long> crewIds = crewByVehicleId.getOrDefault(vehicle.getId(), List.of());
+            List<Long> crewRefIds = crewByVehicleId.getOrDefault(vehicle.getId(), List.of());
             Map<Long, IncidentVehicleCrewRole> roles =
                     roleByVehicleAndPerson.getOrDefault(vehicle.getId(), Map.of());
-            List<Person> crew = crewIds.stream()
+            List<Person> crewPersons = crewRefIds.stream()
                     .map(personById::get)
                     .filter(Objects::nonNull)
                     .toList();
-            List<KraefteFahrzeugeState.KraeftePersonView> crewViews = crewIds.stream()
-                    .map(personById::get)
-                    .filter(Objects::nonNull)
-                    .map(p -> toPersonView(
-                            p,
-                            sortOrderByPersonId,
-                            roles.get(p.getId()),
-                            paByPersonId.getOrDefault(p.getId(), false),
-                            poolSourceFor(sourceByPersonId.get(p.getId()))))
+            List<KraefteFahrzeugeState.KraeftePersonView> crewViews = crewRefIds.stream()
+                    .map(refId -> toPersonViewFromRef(
+                            refId,
+                            personById,
+                            rowByRefId,
+                            sortOrderByRefId,
+                            roles.get(refId),
+                            paByRefId.getOrDefault(refId, false),
+                            sourceByRefId.get(refId),
+                            unitId))
                     .toList();
             Long einheitsfuehrerPersonId = null;
             Long maschinistPersonId = null;
@@ -251,7 +332,7 @@ public class EinsatzberichtService {
                 }
             }
             String typeKey = vehicle.getVehicleType();
-            boolean hasCrew = !crewIds.isEmpty();
+            boolean hasCrew = !crewRefIds.isEmpty();
             boolean involvedFromDb = involvedByVehicleId.getOrDefault(vehicle.getId(), false);
             boolean involvedInIncident = involvedFromDb;
             boolean manuallyInvolvedInIncident = involvedFromDb && !hasCrew;
@@ -260,54 +341,48 @@ public class EinsatzberichtService {
                     vehicle.getName(),
                     typeKey,
                     VehicleTypes.labelFor(typeKey),
-                    new ArrayList<>(crewIds),
+                    new ArrayList<>(crewRefIds),
                     crewViews,
-                    Besatzungsstaerke.format(crew),
+                    Besatzungsstaerke.format(crewPersons),
                     einheitsfuehrerPersonId,
                     maschinistPersonId,
                     involvedInIncident,
                     manuallyInvolvedInIncident));
         }
 
-        List<Person> beteiligtCrew = beteiligtCrewIds.stream()
-                .map(personById::get)
-                .filter(Objects::nonNull)
-                .toList();
         KraefteFahrzeugeState.KraefteVehicleView beteiligt = buildVirtualSlotView(
                 IncidentCrewSupport.BETEILIGT_VEHICLE_ID,
                 IncidentCrewSupport.BETEILIGT_VEHICLE_NAME,
                 beteiligtCrewIds,
-                beteiligtCrew,
-                sortOrderByPersonId,
-                sourceByPersonId,
-                paByPersonId);
-
-        List<Person> einsatzstelleCrew = einsatzstelleCrewIds.stream()
-                .map(personById::get)
-                .filter(Objects::nonNull)
-                .toList();
+                personById,
+                rowByRefId,
+                sortOrderByRefId,
+                sourceByRefId,
+                paByRefId,
+                unitId);
         KraefteFahrzeugeState.KraefteVehicleView einsatzstelle = buildVirtualSlotView(
                 IncidentCrewSupport.EINSATZSTELLE_VEHICLE_ID,
                 IncidentCrewSupport.EINSATZSTELLE_VEHICLE_NAME,
                 einsatzstelleCrewIds,
-                einsatzstelleCrew,
-                sortOrderByPersonId,
-                sourceByPersonId,
-                paByPersonId);
-        List<Person> wacheCrew = wacheCrewIds.stream()
-                .map(personById::get)
-                .filter(Objects::nonNull)
-                .toList();
+                personById,
+                rowByRefId,
+                sortOrderByRefId,
+                sourceByRefId,
+                paByRefId,
+                unitId);
         KraefteFahrzeugeState.KraefteVehicleView wache = buildVirtualSlotView(
                 IncidentCrewSupport.WACHE_VEHICLE_ID,
                 IncidentCrewSupport.WACHE_VEHICLE_NAME,
                 wacheCrewIds,
-                wacheCrew,
-                sortOrderByPersonId,
-                sourceByPersonId,
-                paByPersonId);
+                personById,
+                rowByRefId,
+                sortOrderByRefId,
+                sourceByRefId,
+                paByRefId,
+                unitId);
 
-        return new KraefteFahrzeugeState(manualPersons, diveraPersons, beteiligt, einsatzstelle, wache, vehicles);
+        return new KraefteFahrzeugeState(
+                manualPersons, diveraPersons, foreignPersons, beteiligt, einsatzstelle, wache, vehicles);
     }
 
     public String serializeKraefteFahrzeugeState(KraefteFahrzeugeState state) {
@@ -736,6 +811,12 @@ public class EinsatzberichtService {
     private void saveCrewAssignments(IncidentReport report, EinsatzberichtFormData form, long unitId) {
         long reportId = report.getId();
         Map<Long, IncidentPersonnelSource> existingSources = loadExistingSources(reportId);
+        Map<Long, String> existingUcrNames = loadExistingUcrNames(reportId);
+        List<IncidentReportPersonnel> previousReserveRows =
+                incidentReportPersonnelRepository.findByIncidentReportId(reportId).stream()
+                        .filter(row -> row.getIncidentReportVehicle() == null)
+                        .map(this::copyReserveRow)
+                        .toList();
         incidentReportPersonnelRepository.deleteByIncidentReportId(reportId);
         incidentReportVehicleRepository.deleteByIncidentReportId(reportId);
 
@@ -786,26 +867,87 @@ public class EinsatzberichtService {
             Set<Long> paPersonIds = assignment.paPersonIds() != null
                     ? assignment.paPersonIds().stream().filter(Objects::nonNull).collect(Collectors.toSet())
                     : Set.of();
-            for (Long personId : assignment.personIds()) {
-                if (personId == null || !assignedPersons.add(personId)) {
+            for (Long personRefId : assignment.personIds()) {
+                if (personRefId == null || !assignedPersons.add(personRefId)) {
                     continue;
                 }
-                Person person = resolvePersonForUnit(personId, unitId);
                 IncidentReportPersonnel row = new IncidentReportPersonnel();
                 row.setIncidentReport(report);
-                row.setPerson(person);
                 row.setIncidentReportVehicle(reportVehicle);
-                row.setDisplayName(person.anwesenheitDisplayName());
-                row.setSource(existingSources.getOrDefault(personId, IncidentPersonnelSource.MANUAL));
-                if (personId.equals(einheitsfuehrerPersonId)) {
+                if (IncidentPersonnelRefs.isUcrRef(personRefId)) {
+                    long ucrId = IncidentPersonnelRefs.ucrFromRef(personRefId);
+                    row.setPerson(null);
+                    row.setDiveraUcrId(String.valueOf(ucrId));
+                    row.setDisplayName(existingUcrNames.getOrDefault(
+                            ucrId, IncidentPersonnelRefs.displayNameForUcr(ucrId)));
+                    row.setSource(IncidentPersonnelSource.DIVERA);
+                } else {
+                    Person person = resolvePersonForReport(personRefId, unitId);
+                    row.setPerson(person);
+                    row.setDisplayName(person.anwesenheitDisplayName());
+                    IncidentPersonnelSource source =
+                            existingSources.getOrDefault(personRefId, IncidentPersonnelSource.MANUAL);
+                    row.setSource(source);
+                    if (person.getUnit().getId() != unitId) {
+                        row.setSource(IncidentPersonnelSource.FOREIGN);
+                        row.setForeignUnit(person.getUnit());
+                    }
+                }
+                if (personRefId.equals(einheitsfuehrerPersonId)) {
                     row.setVehicleRole(IncidentVehicleCrewRole.EINHEITSFUEHRER);
-                } else if (personId.equals(maschinistPersonId)) {
+                } else if (personRefId.equals(maschinistPersonId)) {
                     row.setVehicleRole(IncidentVehicleCrewRole.MASCHINIST);
                 }
-                row.setUsesPa(paPersonIds.contains(personId));
+                row.setUsesPa(paPersonIds.contains(personRefId));
                 incidentReportPersonnelRepository.save(row);
             }
         }
+        for (IncidentReportPersonnel reserve : previousReserveRows) {
+            long refId = personnelRefId(reserve);
+            if (assignedPersons.contains(refId)) {
+                continue;
+            }
+            IncidentReportPersonnel row = copyReserveRow(reserve);
+            row.setIncidentReport(report);
+            row.setIncidentReportVehicle(null);
+            incidentReportPersonnelRepository.save(row);
+        }
+        saveForeignReservePersons(report, form.foreignReservePersonIds(), unitId, assignedPersons);
+    }
+
+    private void saveForeignReservePersons(
+            IncidentReport report, List<Long> personIds, long unitId, Set<Long> assignedPersons) {
+        if (personIds == null || personIds.isEmpty()) {
+            return;
+        }
+        for (Long personId : personIds) {
+            if (personId == null || !assignedPersons.add(personId)) {
+                continue;
+            }
+            Person person = resolvePersonForReport(personId, unitId);
+            if (person.getUnit().getId() == unitId) {
+                continue;
+            }
+            IncidentReportPersonnel row = new IncidentReportPersonnel();
+            row.setIncidentReport(report);
+            row.setPerson(person);
+            row.setDisplayName(person.anwesenheitDisplayName());
+            row.setSource(IncidentPersonnelSource.FOREIGN);
+            row.setForeignUnit(person.getUnit());
+            row.setIncidentReportVehicle(null);
+            incidentReportPersonnelRepository.save(row);
+        }
+    }
+
+    private IncidentReportPersonnel copyReserveRow(IncidentReportPersonnel source) {
+        IncidentReportPersonnel copy = new IncidentReportPersonnel();
+        copy.setPerson(source.getPerson());
+        copy.setDisplayName(source.getDisplayName());
+        copy.setSource(source.getSource());
+        copy.setDiveraUcrId(source.getDiveraUcrId());
+        copy.setForeignUnit(source.getForeignUnit());
+        copy.setUsesPa(source.isUsesPa());
+        return copy;
     }
 
     private void syncPaAtemschutzRecords(IncidentReport report, EinsatzberichtFormData form, AppUserDetails actor) {
@@ -829,7 +971,10 @@ public class EinsatzberichtService {
             if (assignment.paPersonIds() == null) {
                 continue;
             }
-            assignment.paPersonIds().stream().filter(Objects::nonNull).forEach(result::add);
+            assignment.paPersonIds().stream()
+                    .filter(Objects::nonNull)
+                    .filter(id -> !IncidentPersonnelRefs.isUcrRef(id))
+                    .forEach(result::add);
         }
         return result;
     }
@@ -852,11 +997,24 @@ public class EinsatzberichtService {
     private Map<Long, IncidentPersonnelSource> loadExistingSources(long reportId) {
         Map<Long, IncidentPersonnelSource> sources = new HashMap<>();
         for (IncidentReportPersonnel row : incidentReportPersonnelRepository.findByIncidentReportId(reportId)) {
-            if (row.getPerson() != null) {
-                sources.put(row.getPerson().getId(), row.getSource());
-            }
+            sources.put(personnelRefId(row), row.getSource());
         }
         return sources;
+    }
+
+    private Map<Long, String> loadExistingUcrNames(long reportId) {
+        Map<Long, String> names = new HashMap<>();
+        for (IncidentReportPersonnel row : incidentReportPersonnelRepository.findByIncidentReportId(reportId)) {
+            if (row.getDiveraUcrId() == null || row.getDiveraUcrId().isBlank()) {
+                continue;
+            }
+            try {
+                names.put(Long.parseLong(row.getDiveraUcrId().trim()), row.getDisplayName());
+            } catch (NumberFormatException ignored) {
+                // ignore malformed UCR
+            }
+        }
+        return names;
     }
 
     private int countAssignedPersons(List<CrewAssignment> assignments) {
@@ -875,26 +1033,35 @@ public class EinsatzberichtService {
     private KraefteFahrzeugeState.KraefteVehicleView buildVirtualSlotView(
             long slotId,
             String slotName,
-            List<Long> crewIds,
-            List<Person> crew,
-            Map<Long, Integer> sortOrderByPersonId,
-            Map<Long, IncidentPersonnelSource> sourceByPersonId,
-            Map<Long, Boolean> paByPersonId) {
+            List<Long> crewRefIds,
+            Map<Long, Person> personById,
+            Map<Long, IncidentReportPersonnel> rowByRefId,
+            Map<Long, Integer> sortOrderByRefId,
+            Map<Long, IncidentPersonnelSource> sourceByRefId,
+            Map<Long, Boolean> paByRefId,
+            long reportUnitId) {
+        List<Person> crewPersons = crewRefIds.stream()
+                .map(personById::get)
+                .filter(Objects::nonNull)
+                .toList();
         return new KraefteFahrzeugeState.KraefteVehicleView(
                 slotId,
                 slotName,
                 null,
                 null,
-                new ArrayList<>(crewIds),
-                crew.stream()
-                        .map(p -> toPersonView(
-                                p,
-                                sortOrderByPersonId,
+                new ArrayList<>(crewRefIds),
+                crewRefIds.stream()
+                        .map(refId -> toPersonViewFromRef(
+                                refId,
+                                personById,
+                                rowByRefId,
+                                sortOrderByRefId,
                                 null,
-                                paByPersonId.getOrDefault(p.getId(), false),
-                                poolSourceFor(sourceByPersonId.get(p.getId()))))
+                                paByRefId.getOrDefault(refId, false),
+                                sourceByRefId.get(refId),
+                                reportUnitId))
                         .toList(),
-                Besatzungsstaerke.format(crew),
+                Besatzungsstaerke.format(crewPersons),
                 null,
                 null,
                 false,
@@ -902,29 +1069,103 @@ public class EinsatzberichtService {
     }
 
     private static String poolSourceFor(IncidentPersonnelSource source) {
-        return source == IncidentPersonnelSource.DIVERA ? "divera" : "manual";
+        if (source == IncidentPersonnelSource.DIVERA) {
+            return "divera";
+        }
+        if (source == IncidentPersonnelSource.FOREIGN) {
+            return "foreign";
+        }
+        return "manual";
     }
 
     private KraefteFahrzeugeState.KraeftePersonView toPersonView(
             Person person,
-            Map<Long, Integer> sortOrderByPersonId,
+            Map<Long, Integer> sortOrderByRefId,
             IncidentVehicleCrewRole vehicleRole,
             boolean usesPa,
-            String poolSource) {
+            String poolSource,
+            String unitLabel) {
         return new KraefteFahrzeugeState.KraeftePersonView(
                 person.getId(),
                 person.anwesenheitDisplayName(),
                 Besatzungsstaerke.qualTier(person).name(),
-                sortOrderByPersonId.getOrDefault(person.getId(), 0),
+                sortOrderByRefId.getOrDefault(person.getId(), 0),
                 vehicleRole != null ? vehicleRole.name() : null,
                 usesPa,
-                poolSource);
+                poolSource,
+                unitLabel,
+                person.getDiveraUcrId(),
+                false);
     }
 
-    private Person resolvePersonForUnit(long personId, long unitId) {
+    private KraefteFahrzeugeState.KraeftePersonView toUcrPersonView(
+            long refId, long ucrId, String displayName, int sortOrder) {
+        String label = displayName != null && !displayName.isBlank()
+                ? displayName
+                : IncidentPersonnelRefs.displayNameForUcr(ucrId);
+        return new KraefteFahrzeugeState.KraeftePersonView(
+                refId,
+                label,
+                Besatzungsstaerke.QualTier.MANNSCHAFT.name(),
+                sortOrder,
+                null,
+                false,
+                "divera",
+                null,
+                String.valueOf(ucrId),
+                true);
+    }
+
+    private KraefteFahrzeugeState.KraeftePersonView toPersonViewFromRef(
+            long refId,
+            Map<Long, Person> personById,
+            Map<Long, IncidentReportPersonnel> rowByRefId,
+            Map<Long, Integer> sortOrderByRefId,
+            IncidentVehicleCrewRole vehicleRole,
+            boolean usesPa,
+            IncidentPersonnelSource source,
+            long reportUnitId) {
+        if (IncidentPersonnelRefs.isUcrRef(refId)) {
+            long ucrId = IncidentPersonnelRefs.ucrFromRef(refId);
+            IncidentReportPersonnel row = rowByRefId.get(refId);
+            String displayName = row != null ? row.getDisplayName() : IncidentPersonnelRefs.displayNameForUcr(ucrId);
+            return toUcrPersonView(refId, ucrId, displayName, sortOrderByRefId.getOrDefault(refId, 0));
+        }
+        Person person = personById.get(refId);
+        if (person == null) {
+            IncidentReportPersonnel row = rowByRefId.get(refId);
+            String displayName = row != null ? row.getDisplayName() : "Unbekannt";
+            return new KraefteFahrzeugeState.KraeftePersonView(
+                    refId, displayName, Besatzungsstaerke.QualTier.MANNSCHAFT.name(), 0, null, usesPa, "manual", null, null, false);
+        }
+        String unitLabel = person.getUnit().getId() != reportUnitId ? person.getUnit().getName() : null;
+        return toPersonView(
+                person,
+                sortOrderByRefId,
+                vehicleRole,
+                usesPa,
+                poolSourceFor(source),
+                unitLabel);
+    }
+
+    private long personnelRefId(IncidentReportPersonnel row) {
+        if (row.getPerson() != null) {
+            return row.getPerson().getId();
+        }
+        if (row.getDiveraUcrId() != null && !row.getDiveraUcrId().isBlank()) {
+            try {
+                return IncidentPersonnelRefs.refFromUcr(Long.parseLong(row.getDiveraUcrId().trim()));
+            } catch (NumberFormatException e) {
+                throw new IllegalStateException("Ungültige DIVERA-UCR-ID: " + row.getDiveraUcrId());
+            }
+        }
+        throw new IllegalStateException("Personaleintrag ohne Person und ohne DIVERA-UCR");
+    }
+
+    private Person resolvePersonForReport(long personId, long reportUnitId) {
         Person person = personalService.requirePerson(personId);
-        if (person.getUnit().getId() != unitId) {
-            throw new IllegalArgumentException("Person gehört nicht zu dieser Einheit.");
+        if (person.getUnit().getId() == reportUnitId) {
+            return person;
         }
         return person;
     }
@@ -1067,34 +1308,59 @@ public class EinsatzberichtService {
             return;
         }
         boolean testData = testModeService.isEnabled();
-        Set<Long> alreadyPresent = incidentReportPersonnelRepository.findByIncidentReportId(report.getId()).stream()
+        Map<Long, String> displayNameByUcr = displayNamesByUcr(details);
+        Set<Long> alreadyPresentPersons = incidentReportPersonnelRepository.findByIncidentReportId(report.getId()).stream()
                 .map(IncidentReportPersonnel::getPerson)
                 .filter(Objects::nonNull)
                 .map(Person::getId)
                 .collect(Collectors.toCollection(HashSet::new));
-        Set<Long> assigned = new HashSet<>(alreadyPresent);
+        Set<String> alreadyPresentUcrs = incidentReportPersonnelRepository.findByIncidentReportId(report.getId()).stream()
+                .map(IncidentReportPersonnel::getDiveraUcrId)
+                .filter(ucr -> ucr != null && !ucr.isBlank())
+                .map(String::trim)
+                .collect(Collectors.toCollection(HashSet::new));
+        Set<Long> assignedPersons = new HashSet<>(alreadyPresentPersons);
         int added = 0;
         int unmatched = 0;
         for (Long ucrId : targetUcrIds) {
+            String ucr = String.valueOf(ucrId);
+            if (alreadyPresentUcrs.contains(ucr)) {
+                continue;
+            }
             Optional<Person> personOpt = resolvePersonForDiveraUcr(unitId, ucrId, testData);
-            if (personOpt.isEmpty()) {
-                unmatched++;
+            if (personOpt.isPresent()) {
+                Person person = personOpt.get();
+                if (!assignedPersons.add(person.getId())) {
+                    continue;
+                }
+                IncidentReportPersonnel row = new IncidentReportPersonnel();
+                row.setIncidentReport(report);
+                row.setPerson(person);
+                row.setIncidentReportVehicle(null);
+                row.setDisplayName(person.anwesenheitDisplayName());
+                row.setDiveraUcrId(ucr);
+                row.setSource(IncidentPersonnelSource.DIVERA);
+                if (person.getUnit().getId() != unitId) {
+                    row.setSource(IncidentPersonnelSource.FOREIGN);
+                    row.setForeignUnit(person.getUnit());
+                }
+                incidentReportPersonnelRepository.save(row);
+                added++;
                 continue;
             }
-            Person person = personOpt.get();
-            if (!assigned.add(person.getId())) {
-                continue;
-            }
+            unmatched++;
             IncidentReportPersonnel row = new IncidentReportPersonnel();
             row.setIncidentReport(report);
-            row.setPerson(person);
+            row.setPerson(null);
             row.setIncidentReportVehicle(null);
-            row.setDisplayName(person.anwesenheitDisplayName());
+            row.setDiveraUcrId(ucr);
+            row.setDisplayName(displayNameByUcr.getOrDefault(ucrId, IncidentPersonnelRefs.displayNameForUcr(ucrId)));
             row.setSource(IncidentPersonnelSource.DIVERA);
             incidentReportPersonnelRepository.save(row);
+            alreadyPresentUcrs.add(ucr);
             added++;
         }
-        report.setStrengthCrew(assigned.size());
+        report.setStrengthCrew(assignedPersons.size() + alreadyPresentUcrs.size());
         if (added > 0 || unmatched > 0) {
             log.info(
                     "[Divera→Personal] unit={} alarm={} report={} ucr={} neu={} ohneZuordnung={}",
@@ -1167,13 +1433,32 @@ public class EinsatzberichtService {
 
     private Optional<Person> resolvePersonForDiveraUcr(long unitId, long ucrId, boolean testData) {
         String ucr = String.valueOf(ucrId);
-        Optional<Person> direct = personRepository.findByUnitIdAndDiveraUcrId(unitId, ucr, testData);
-        if (direct.isPresent()) {
-            return direct;
+        Optional<Person> ownUnit = personRepository.findByUnitIdAndDiveraUcrId(unitId, ucr, testData);
+        if (ownUnit.isPresent()) {
+            return ownUnit;
         }
-        return personalService.listPersons(unitId).stream()
-                .filter(p -> ucr.equals(p.getDiveraUcrId()))
-                .findFirst();
+        return personRepository.findAllByDiveraUcrId(ucr, testData).stream().findFirst();
+    }
+
+    private static Map<Long, String> displayNamesByUcr(DiveraAlarmDetails details) {
+        Map<Long, String> names = new LinkedHashMap<>();
+        if (details.answeredHits() == null) {
+            return names;
+        }
+        for (var hit : details.answeredHits()) {
+            if (hit.ucrId() == null || hit.ucrId().isBlank()) {
+                continue;
+            }
+            try {
+                long ucrId = Long.parseLong(hit.ucrId().trim());
+                if (hit.displayName() != null && !hit.displayName().isBlank()) {
+                    names.put(ucrId, hit.displayName().trim());
+                }
+            } catch (NumberFormatException ignored) {
+                // ignore malformed UCR
+            }
+        }
+        return names;
     }
 
     private String writeDiveraResources(DiveraAlarmDetails details) {

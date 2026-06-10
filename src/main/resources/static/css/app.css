@@ -4107,6 +4107,65 @@ span.required { color: var(--error); }
   border-left-color: var(--lila);
 }
 
+.einsatzbericht-form-page .incident-crew-chip--foreign {
+  background: color-mix(in srgb, #0d9488 12%, var(--bg-card-hover));
+  border-color: rgba(13, 148, 136, 0.35);
+  border-left-color: #0d9488;
+}
+
+.einsatzbericht-form-page .incident-crew-chip--ucr-only {
+  font-style: italic;
+}
+
+.einsatzbericht-form-page .incident-foreign-person-actions {
+  margin-top: 10px;
+}
+
+.foreign-person-results {
+  margin-top: 12px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.foreign-person-results__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.foreign-person-results__item {
+  margin: 0 0 6px;
+}
+
+.foreign-person-results__btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  text-align: left;
+  cursor: pointer;
+}
+
+.foreign-person-results__btn:hover:not(:disabled) {
+  background: var(--bg-card-hover);
+}
+
+.foreign-person-results__btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.foreign-person-results__unit {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
 .einsatzbericht-form-page .incident-crew-chip--dragging {
   opacity: 0.5;
 }

@@ -1,6 +1,7 @@
 package de.feuerwehr.manager.berichte;
 
 import de.feuerwehr.manager.personal.Person;
+import de.feuerwehr.manager.unit.Unit;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -46,6 +47,13 @@ public class IncidentReportPersonnel {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     private IncidentPersonnelSource source = IncidentPersonnelSource.MANUAL;
+
+    @Column(name = "divera_ucr_id", length = 32)
+    private String diveraUcrId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "foreign_unit_id")
+    private Unit foreignUnit;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "vehicle_role", length = 24)

@@ -5,6 +5,7 @@ import java.util.List;
 public record KraefteFahrzeugeState(
         List<KraeftePersonView> manualPersons,
         List<KraeftePersonView> diveraPersons,
+        List<KraeftePersonView> foreignPersons,
         KraefteVehicleView beteiligt,
         KraefteVehicleView einsatzstelle,
         KraefteVehicleView wache,
@@ -24,7 +25,10 @@ public record KraefteFahrzeugeState(
             int sortOrder,
             String vehicleRole,
             boolean usesPa,
-            String poolSource) {}
+            String poolSource,
+            String unitLabel,
+            String diveraUcrId,
+            boolean ucrOnly) {}
 
     public record KraefteVehicleView(
             long vehicleId,

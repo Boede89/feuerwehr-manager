@@ -49,6 +49,7 @@ public class EinsatzberichtForm {
     private String reporterName;
     private String reporterPhone;
     private String crewAssignmentsJson;
+    private String foreignReservePersonIds;
     private String deployedEquipmentJson;
     private String einsatzkurzbericht;
     private boolean personDamagesEnabled;
@@ -166,6 +167,7 @@ public class EinsatzberichtForm {
                 reporterName,
                 reporterPhone,
                 crewAssignments != null ? crewAssignments : List.of(),
+                parseForeignReservePersonIds(foreignReservePersonIds),
                 deployedEquipment != null ? deployedEquipment : List.of(),
                 einsatzkurzbericht,
                 personDamagesEnabled,
@@ -184,5 +186,17 @@ public class EinsatzberichtForm {
                 animalsDead,
                 vehicleDamage,
                 equipmentDamage);
+    }
+
+    private static List<Long> parseForeignReservePersonIds(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(raw.split(","))
+                .map(String::trim)
+                .filter(part -> !part.isEmpty())
+                .map(Long::parseLong)
+                .distinct()
+                .toList();
     }
 }

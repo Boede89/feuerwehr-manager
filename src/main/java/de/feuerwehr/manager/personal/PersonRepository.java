@@ -81,4 +81,38 @@ public interface PersonRepository extends JpaRepository<Person, Long> {
             @Param("unitId") long unitId,
             @Param("diveraUcrId") String diveraUcrId,
             @Param("testData") boolean testData);
+
+    @Query("""
+            SELECT p FROM Person p
+            LEFT JOIN FETCH p.unit
+            LEFT JOIN FETCH p.qualificationType
+            WHERE p.diveraUcrId = :diveraUcrId
+              AND p.anonymizedAt IS NULL AND p.testData = :testData
+            ORDER BY p.unit.id
+            """)
+    List<Person> findAllByDiveraUcrId(
+            @Param("diveraUcrId") String diveraUcrId, @Param("testData") boolean testData);
+
+    @Query("""
+            SELECT p FROM Person p
+            LEFT JOIN FETCH p.unit
+            LEFT JOIN FETCH p.qualificationType
+            WHERE p.unit.id = :unitId AND p.anonymizedAt IS NULL AND p.testData = :testData
+              AND (
+                LOWER(p.lastName) LIKE LOWER(CONCAT('%', :query, '%'))
+                OR LOWER(p.firstName) LIKE LOWER(CONCAT('%', :query, '%'))
+                OR LOWER(CONCAT(p.lastName, ' ', p.firstName)) LIKE LOWER(CONCAT('%', :query, '%'))
+              )
+            ORDER BY p.lastName, p.firstName
+            """)
+    List<Person> searchActiveByUnitId(
+            @Param("unitId") long unitId, @Param("query") String query, @Param("testData") boolean testData);
+
+    @Query("""
+            SELECT p FROM Person p
+            LEFT JOIN FETCH p.unit
+            LEFT JOIN FETCH p.qualificationType
+            WHERE p.id IN :ids AND p.anonymizedAt IS NULL AND p.testData = :testData
+            """)
+    List<Person> findActiveByIdIn(@Param("ids") Collection<Long> ids, @Param("testData") boolean testData);
 }

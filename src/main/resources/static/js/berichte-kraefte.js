@@ -55,8 +55,10 @@
     return document.getElementById(tab + '-person-pool');
   }
 
+  var RESERVE_POOL_TABS = ['manual', 'divera', 'foreign'];
+
   function updatePoolCounts() {
-    ['manual', 'divera'].forEach(function (tab) {
+    RESERVE_POOL_TABS.forEach(function (tab) {
       var pool = poolForTab(tab);
       var countEl = document.getElementById(tab + '-pool-count');
       if (!pool || !countEl) {
@@ -67,7 +69,7 @@
   }
 
   function updateActiveEmptyHint() {
-    ['manual', 'divera'].forEach(function (tab) {
+    RESERVE_POOL_TABS.forEach(function (tab) {
       var pool = poolForTab(tab);
       var emptyHint = document.getElementById(tab + '-pool-empty');
       if (!pool || !emptyHint) {
@@ -176,6 +178,9 @@
     mirror.className = 'incident-crew-chip incident-crew-chip--involved-mirror';
     if (sourceChip.classList.contains('incident-crew-chip--divera')) {
       mirror.classList.add('incident-crew-chip--divera');
+    }
+    if (sourceChip.classList.contains('incident-crew-chip--foreign')) {
+      mirror.classList.add('incident-crew-chip--foreign');
     }
     mirror.dataset.personId = sourceChip.dataset.personId;
     mirror.dataset.qualTier = sourceChip.dataset.qualTier || '';
@@ -616,6 +621,23 @@
       assignments.push(assignment);
     });
     hidden.value = JSON.stringify(assignments);
+    syncForeignReserveIds();
+  }
+
+  function syncForeignReserveIds() {
+    var hidden = document.getElementById('foreignReservePersonIds');
+    var pool = poolForTab('foreign');
+    if (!hidden || !pool) {
+      return;
+    }
+    var ids = Array.from(pool.querySelectorAll('.incident-crew-chip'))
+      .map(function (chip) {
+        return Number(chip.dataset.personId);
+      })
+      .filter(function (id) {
+        return !isNaN(id) && id > 0;
+      });
+    hidden.value = ids.join(',');
   }
 
   function refreshBoard() {
@@ -747,7 +769,7 @@
       btn.classList.toggle('incident-reserve-tab--active', isActive);
       btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
     });
-    ['manual', 'divera'].forEach(function (poolTab) {
+    RESERVE_POOL_TABS.forEach(function (poolTab) {
       var pool = poolForTab(poolTab);
       if (!pool) {
         return;
@@ -770,6 +792,12 @@
     if (source === 'manual') {
       return poolForTab('manual');
     }
+    if (source === 'foreign') {
+      return poolForTab('foreign');
+    }
+    if (chip.classList.contains('incident-crew-chip--foreign')) {
+      return poolForTab('foreign');
+    }
     if (chip.classList.contains('incident-crew-chip--divera')) {
       return poolForTab('divera');
     }
@@ -789,10 +817,11 @@
     clearChipVehicleRole(draggedChip);
     clearChipPa(draggedChip);
     draggedChip.classList.remove('incident-crew-chip--vehicle-role');
+    draggedChip.classList.remove('incident-crew-chip--divera', 'incident-crew-chip--foreign');
     if (homePool.dataset.pool === 'divera') {
       draggedChip.classList.add('incident-crew-chip--divera');
-    } else {
-      draggedChip.classList.remove('incident-crew-chip--divera');
+    } else if (homePool.dataset.pool === 'foreign') {
+      draggedChip.classList.add('incident-crew-chip--foreign');
     }
     insertChipSorted(homePool, draggedChip);
     switchReserveTab(homePool.dataset.pool);
@@ -896,7 +925,7 @@
       zone.addEventListener('drop', onDropVehicle);
     });
 
-    ['manual-person-pool', 'divera-person-pool'].forEach(function (poolId) {
+    ['manual-person-pool', 'divera-person-pool', 'foreign-person-pool'].forEach(function (poolId) {
       var pool = document.getElementById(poolId);
       if (!pool) {
         return;
@@ -939,8 +968,44 @@
     refreshBoard();
   }
 
+  function addForeignPerson(person) {
+    if (!person || personOnBoard(String(person.id))) {
+      return false;
+    }
+    var pool = poolForTab('foreign');
+    if (!pool) {
+      return false;
+    }
+    var chip = document.createElement('div');
+    chip.className = 'incident-crew-chip incident-crew-chip--reserve incident-crew-chip--foreign';
+    chip.setAttribute('draggable', 'true');
+    chip.dataset.personId = String(person.id);
+    chip.dataset.qualTier = person.qualTier || 'MANNSCHAFT';
+    chip.dataset.personName = person.displayName || '';
+    chip.dataset.poolSource = 'foreign';
+    chip.dataset.sortOrder = '9999';
+    if (person.unitLabel) {
+      chip.dataset.unitLabel = person.unitLabel;
+    }
+    var label = person.displayName || '';
+    if (person.unitLabel) {
+      label += ' (' + person.unitLabel + ')';
+    }
+    chip.textContent = label;
+    insertChipSortedByName(pool, chip);
+    switchReserveTab('foreign');
+    refreshBoard();
+    return true;
+  }
+
+  function personOnBoard(personId) {
+    return !!document.querySelector('.incident-crew-chip[data-person-id="' + personId + '"]');
+  }
+
   window.BerichteKraefte = {
     init: bindBoard,
+    addForeignPerson: addForeignPerson,
+    refreshAfterForeignAdd: refreshBoard,
     onTabShow: function (tabIdx) {
       activeCrewTab = tabIdx;
       placeInvolvedCard(tabIdx);

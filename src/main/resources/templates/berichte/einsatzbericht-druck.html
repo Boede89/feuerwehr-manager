@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Einsatzbericht</title>
+  <style>
+    @page { size: A4; margin-top: 6mm; margin-bottom: 12mm; margin-left: 12mm; margin-right: 12mm; }
+    * { box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 9pt; line-height: 1.25; color: #333; margin: 0; padding: 4px 10px 10px; }
+    .header { text-align: center; padding: 0; margin: 0 0 4px 0; }
+    .header img { max-height: 120px; max-width: 320px; }
+    .eingereicht-text { font-size: 8pt; color: #666; }
+    .section { margin-bottom: 8px; }
+    .section-title { font-weight: bold; font-size: 10pt; margin-bottom: 4px; padding-bottom: 2px; border-bottom: 1px solid #dee2e6; }
+    .two-cols-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+    .two-cols-table td { vertical-align: top; padding: 0 8px 0 0; }
+    .two-cols-table td:first-child { width: 40%; }
+    .two-cols-table td:last-child { width: 60%; padding: 0 0 0 8px; }
+    .two-cols-table table { font-size: 9pt; table-layout: auto; width: 100%; }
+    .col-fahrzeug { width: 28px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 8pt; }
+    .stamm-inline { table-layout: fixed; }
+    th, td { border: 1px solid #dee2e6; padding: 4px 6px; text-align: left; }
+    th { background: #f8f9fa; font-weight: bold; }
+    .label-cell { width: 100px; background: #f8f9fa; font-weight: bold; }
+    .stamm-inline .label-cell { width: 90px; }
+    .col-staerke { width: 28px; }
+    .col-pa { width: 28px; text-align: center; }
+    .col-pa-x { font-size: 1.4em; font-weight: bold; }
+    .bottom-row { display: flex; gap: 24px; align-items: flex-end; margin-top: 20px; padding-top: 12px; border-top: 1px solid #333; }
+    .bottom-row .einsatzleiter-cell { flex: 1; }
+    .bottom-row .signature-cell { flex-shrink: 0; padding-top: 24px; }
+    .signature-line { border-bottom: 1px solid #333; width: 160px; height: 22px; }
+    .signature-label { font-size: 8pt; color: #666; margin-top: 2px; }
+  </style>
+</head>
+<body>
+  <div class="header" th:if="${unitLogoBase64 != null and !#strings.isEmpty(unitLogoBase64)}">
+    <img th:src="${unitLogoBase64}" alt=""/>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Stammdaten</div>
+    <table class="stamm-inline">
+      <tr>
+        <td class="label-cell">Datum</td>
+        <td th:text="${incidentDate}">01.01.2026</td>
+        <td class="label-cell">Typ</td>
+        <td colspan="3">Einsatz</td>
+      </tr>
+      <tr>
+        <td class="label-cell">Stichwort</td>
+        <td colspan="5" th:text="${stichwort}">—</td>
+      </tr>
+      <tr>
+        <td class="label-cell">Adresse</td>
+        <td colspan="3" th:text="${address}">—</td>
+        <td class="label-cell">Alarmierung durch</td>
+        <td th:text="${alarmierungDurch}">—</td>
+      </tr>
+      <tr>
+        <td class="label-cell">Einsatzbericht Nr.</td>
+        <td th:text="${incidentNumber}">—</td>
+        <td class="label-cell">Uhrzeit von</td>
+        <td th:text="${alarmTime}">—</td>
+        <td class="label-cell">Uhrzeit bis</td>
+        <td th:text="${endTime}">—</td>
+      </tr>
+      <tr>
+        <td class="label-cell">Einsatzdauer</td>
+        <td colspan="5" th:text="${duration}">—</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <table class="two-cols-table" width="100%">
+      <tr>
+        <td>
+          <div class="section-title">Personal</div>
+          <table width="100%">
+            <thead>
+            <tr><th>Name</th><th class="col-fahrzeug">Fzg</th><th class="col-pa">PA</th></tr>
+            </thead>
+            <tbody>
+            <tr th:each="row : ${personnel}">
+              <td th:text="${row.name()}">Name</td>
+              <td class="col-fahrzeug" th:text="${row.vehicle()}">—</td>
+              <td class="col-pa"><span th:if="${row.pa() == 'X'}" class="col-pa-x">X</span></td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(personnel)}"><td colspan="3">Keine Einträge</td></tr>
+            <tr>
+              <td colspan="3" class="label-cell"><strong th:text="'Anzahl Personal: ' + ${personnelCount}">Anzahl Personal: 0</strong></td>
+            </tr>
+            </tbody>
+          </table>
+        </td>
+        <td>
+          <div class="section-title">Fahrzeuge (Maschinist / Einheitsführer / Geräte)</div>
+          <table width="100%">
+            <thead>
+            <tr><th>Fahrzeug</th><th>Maschinist</th><th>Einheitsführer</th><th class="col-staerke">Stärke</th><th>Geräte</th></tr>
+            </thead>
+            <tbody>
+            <tr th:each="v : ${vehicles}">
+              <td th:text="${v.vehicle()}">HLF</td>
+              <td th:text="${v.maschinist()}">—</td>
+              <td th:text="${v.einheitsfuehrer()}">—</td>
+              <td class="col-staerke" th:text="${v.strength()}">0/0/0/0</td>
+              <td th:text="${v.equipment()}">—</td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(vehicles)}"><td colspan="5">Keine Fahrzeuge zugeordnet</td></tr>
+            <tr th:if="${!#lists.isEmpty(vehicles)}">
+              <td colspan="3" class="label-cell"><strong>Gesamtstärke</strong></td>
+              <td class="col-staerke"><strong th:text="${totalStrength}">0/0/0/0</strong></td>
+              <td></td>
+            </tr>
+            </tbody>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="bottom-row">
+    <div class="einsatzleiter-cell">
+      <strong>Einsatzleiter:</strong> <span th:text="${incidentCommander}">—</span><br/>
+      <span class="eingereicht-text" th:text="'Berichterstatter: ' + ${reporterName}">Berichterstatter: —</span>
+    </div>
+    <div class="signature-cell">
+      <div class="signature-line"></div>
+      <div class="signature-label">Unterschrift Einsatzleiter</div>
+    </div>
+  </div>
+</body>
+</html>

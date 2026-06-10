@@ -14,6 +14,8 @@
       <span class="incident-status-pill incident-status-pill--header"
             th:classappend="${' incident-status-pill--' + report.status.cssModifier()}"
             th:text="${report.status.label()}">Entwurf</span>
+      <a class="btn btn--outline"
+         th:href="@{/berichte/einsatzberichte/{id}/pdf(id=${report.id},unit=${unitId})}">PDF herunterladen</a>
       <a class="btn btn--primary" th:if="${canEditReport}"
          th:href="@{/berichte/einsatzberichte/{id}/bearbeiten(id=${report.id},unit=${unitId})}">Bearbeiten</a>
       <form th:if="${canRelease}" method="post"
@@ -52,6 +54,7 @@
 
   <script th:src="@{/js/berichte-einsatz-form.js}" defer></script>
   <script th:src="@{/js/berichte-kraefte.js}" defer></script>
+  <script th:src="@{/js/berichte-kraefte-foreign.js}" defer></script>
   <script th:src="@{/js/berichte-geraete.js}" defer></script>
   <script th:src="@{/js/berichte-schaeden.js}" defer></script>
   <script th:src="@{/js/berichte-anhaenge.js}" defer></script>

@@ -7,10 +7,14 @@ import de.feuerwehr.manager.berichte.EinsatzberichtAccess;
 import de.feuerwehr.manager.berichte.EinsatzberichtForm;
 import de.feuerwehr.manager.berichte.EinsatzberichtService;
 import de.feuerwehr.manager.berichte.EinsatzberichtListResponse;
+import de.feuerwehr.manager.berichte.EinsatzberichtPdfService;
+import de.feuerwehr.manager.berichte.ForeignPersonOption;
+import de.feuerwehr.manager.berichte.ForeignUnitOption;
 import de.feuerwehr.manager.berichte.IncidentReport;
 import de.feuerwehr.manager.berichte.IncidentReportStatus;
 import de.feuerwehr.manager.berichte.PersonDamageDetailsSupport;
 import de.feuerwehr.manager.berichte.VehicleEquipmentView;
+import de.feuerwehr.manager.pdf.PdfDownloadResponse;
 import de.feuerwehr.manager.divera.DiveraEinsatzberichtSyncService;
 import de.feuerwehr.manager.berichte.KraefteFahrzeugeState;
 import de.feuerwehr.manager.security.AccessControlService;
@@ -48,6 +52,7 @@ public class BerichteController {
     private final AccessControlService accessControlService;
     private final UserPermissionService userPermissionService;
     private final EinsatzberichtService einsatzberichtService;
+    private final EinsatzberichtPdfService einsatzberichtPdfService;
     private final DiveraEinsatzberichtSyncService diveraEinsatzberichtSyncService;
 
     @GetMapping
@@ -415,6 +420,48 @@ public class BerichteController {
                 showHistory && report != null
                         ? einsatzberichtService.listChanges(unitId, report.getId())
                         : List.of());
+    }
+
+    @GetMapping("/einsatzberichte/{id}/pdf")
+    public Object downloadEinsatzberichtPdf(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @PathVariable long id,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor);
+            requireModuleEnabled(unit.getId());
+            requireBerichteRead(actor, unit.getId());
+            IncidentReport report = einsatzberichtService.requireReport(unit.getId(), id);
+            byte[] pdf = einsatzberichtPdfService.renderPdf(unit.getId(), id);
+            return PdfDownloadResponse.attachment(einsatzberichtPdfService.suggestedFilename(report), pdf);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectBerichte(unitId, "einsatz");
+        }
+    }
+
+    @GetMapping("/einsatzberichte/foreign-units")
+    @ResponseBody
+    public List<ForeignUnitOption> foreignUnits(
+            @AuthenticationPrincipal AppUserDetails actor, @RequestParam(name = "unit") long unitId) {
+        accessControlService.requireUnitAccess(actor, unitId);
+        requireModuleEnabled(unitId);
+        requireBerichteRead(actor, unitId);
+        return einsatzberichtService.listForeignUnits(unitId);
+    }
+
+    @GetMapping("/einsatzberichte/foreign-personnel")
+    @ResponseBody
+    public List<ForeignPersonOption> foreignPersonnel(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @RequestParam(name = "sourceUnit") long sourceUnitId,
+            @RequestParam(name = "q", defaultValue = "") String query) {
+        accessControlService.requireUnitAccess(actor, unitId);
+        requireModuleEnabled(unitId);
+        requireBerichteRead(actor, unitId);
+        return einsatzberichtService.listForeignPersonnel(sourceUnitId, query);
     }
 
     @GetMapping("/einsatzberichte/vehicle-equipment")

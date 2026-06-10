@@ -199,6 +199,8 @@
     }
     var returnPath = '/berichte?tab=einsatz&year=' + filters.year;
     var html = '';
+    html += '<a class="btn btn--outline" href="/berichte/einsatzberichte/' + meta.reportId +
+      '/pdf?unit=' + encodeURIComponent(unitId) + '">PDF herunterladen</a>';
     if (meta.canEdit === 'true') {
       html += '<a class="btn btn--primary" href="/berichte/einsatzberichte/' + meta.reportId +
         '/bearbeiten?unit=' + encodeURIComponent(unitId) + '">Bearbeiten</a>';
