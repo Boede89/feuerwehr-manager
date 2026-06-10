@@ -320,7 +320,6 @@ public class EinsatzberichtService {
     }
 
     @Transactional
-    @Transactional
     public void delete(long unitId, long reportId) {
         IncidentReport report = requireReport(unitId, reportId);
         long id = report.getId();
