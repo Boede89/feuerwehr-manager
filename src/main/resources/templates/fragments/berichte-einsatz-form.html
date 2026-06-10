@@ -261,10 +261,10 @@
                             th:if="${formMode != 'view'}"
                             th:attr="aria-pressed=${v.involvedInIncident() ? 'true' : 'false'}"
                             title="Am Einsatz beteiligt markieren">
-                      Einsatz
+                      Am Einsatz beteiligt
                     </button>
                     <span class="incident-vehicle-involved-badge" th:if="${formMode == 'view' and v.involvedInIncident()}">
-                      Einsatz
+                      Am Einsatz beteiligt
                     </span>
                     <span class="incident-vehicle-card__staerke" th:attr="data-staerke-badge=${v.vehicleId()}"
                           th:text="${v.besatzungsstaerke()}">0/0/0/0</span>

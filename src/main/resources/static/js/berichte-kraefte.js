@@ -842,10 +842,6 @@
       if (suppressChipClick || isBoardReadonly()) {
         return;
       }
-      var chip = e.target.closest('.incident-crew-chip');
-      if (!chip) {
-        return;
-      }
       var involvedToggle = e.target.closest('.incident-vehicle-involved-toggle');
       if (involvedToggle) {
         e.stopPropagation();
@@ -860,6 +856,10 @@
           toggleManualVehicleInvolvement(vehicleCard);
           return;
         }
+      }
+      var chip = e.target.closest('.incident-crew-chip');
+      if (!chip) {
+        return;
       }
       if (isReserveChip(chip) && activeCrewTab === 1) {
         e.stopPropagation();
