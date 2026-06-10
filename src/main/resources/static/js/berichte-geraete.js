@@ -181,6 +181,9 @@
     section.appendChild(title);
     var list = document.createElement('div');
     list.className = 'incident-deployed-equipment-group__list';
+    items.sort(function (a, b) {
+      return a.name.localeCompare(b.name, 'de');
+    });
     items.forEach(function (item) {
       var label = document.createElement('label');
       label.className = 'incident-deployed-equipment-item';
