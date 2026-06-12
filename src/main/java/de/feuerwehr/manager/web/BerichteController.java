@@ -1,8 +1,9 @@
 package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.berichte.AnwesenheitslisteAccess;
-import de.feuerwehr.manager.berichte.AnwesenheitslisteEinsatzFormBridge;
 import de.feuerwehr.manager.berichte.AnwesenheitslisteListResponse;
+import de.feuerwehr.manager.berichte.AnwesenheitFormBundle;
+import de.feuerwehr.manager.berichte.KraefteCrewJsonSupport;
 import de.feuerwehr.manager.berichte.AnwesenheitslisteService;
 import de.feuerwehr.manager.berichte.AnwesenheitslisteTerminSyncService;
 import de.feuerwehr.manager.berichte.AttendanceReport;
@@ -414,8 +415,7 @@ public class BerichteController {
             Unit unit = resolveUnit(unitId, actor, model);
             requireModuleEnabled(unit.getId());
             requireBerichteWrite(actor, unit.getId());
-            populateAnwesenheitEinsatzFormModel(
-                    model, unit.getId(), null, anwesenheitslisteService.newEinsatzForm(unit.getId()));
+            applyAnwesenheitFormBundle(model, anwesenheitslisteService.buildFormBundle(unit.getId(), null));
             model.addAttribute("formMode", "create");
             model.addAttribute("pageTitle", "Neue Anwesenheitsliste");
             model.addAttribute("pageSubtitle", "Entwurf — wird nach dem Speichern zur Freigabe vorgelegt");
@@ -438,9 +438,9 @@ public class BerichteController {
             Unit unit = resolveUnit(unitId, actor, model);
             requireModuleEnabled(unit.getId());
             requireBerichteRead(actor, unit.getId());
-            AttendanceReport report = anwesenheitslisteService.requireReport(unit.getId(), id);
-            EinsatzberichtForm form = AnwesenheitslisteEinsatzFormBridge.toEinsatzForm(report);
-            populateAnwesenheitEinsatzFormModel(model, unit.getId(), report, form);
+            AnwesenheitFormBundle bundle = anwesenheitslisteService.buildFormBundle(unit.getId(), id);
+            AttendanceReport report = bundle.report();
+            applyAnwesenheitFormBundle(model, bundle);
             model.addAttribute("formMode", "view");
             boolean canApprove = canApprove(actor, unit.getId());
             model.addAttribute("canWrite", canWrite(actor, unit.getId()));
@@ -482,8 +482,7 @@ public class BerichteController {
             if (!AnwesenheitslisteAccess.canEdit(report, actor, canApprove)) {
                 throw new IllegalArgumentException("Diese Anwesenheitsliste kann nicht bearbeitet werden.");
             }
-            EinsatzberichtForm form = AnwesenheitslisteEinsatzFormBridge.toEinsatzForm(report);
-            populateAnwesenheitEinsatzFormModel(model, unit.getId(), report, form);
+            applyAnwesenheitFormBundle(model, anwesenheitslisteService.buildFormBundle(unit.getId(), id));
             model.addAttribute("formMode", "edit");
             model.addAttribute("canDeleteReport", AnwesenheitslisteAccess.canDelete(report, actor, canApprove));
             model.addAttribute("pageTitle", "Anwesenheitsliste bearbeiten");
@@ -672,37 +671,14 @@ public class BerichteController {
         return einsatzberichtService.listVehicleEquipment(unitId, vehicleIds);
     }
 
-    private void populateAnwesenheitEinsatzFormModel(
-            Model model, long unitId, AttendanceReport report, EinsatzberichtForm form) {
-        if (report != null) {
-            anwesenheitslisteService.enrichEinsatzFormFromTermin(report, form);
-        }
-        Long reportId = report != null ? report.getId() : null;
-        KraefteFahrzeugeState kraefteState = anwesenheitslisteService.buildKraefteFahrzeugeState(unitId, reportId);
-        model.addAttribute("report", report);
-        model.addAttribute("form", form);
-        model.addAttribute("unitPersons", einsatzberichtService.listPersonsForForm(unitId));
-        model.addAttribute("knownStichworte", anwesenheitslisteService.listKnownStichworte(unitId));
-        model.addAttribute("kraefteState", kraefteState);
-        model.addAttribute("kraefteInitialJson", einsatzberichtService.serializeKraefteFahrzeugeState(kraefteState));
-        model.addAttribute(
-                "allowForeignUnitPersonnel", einsatzberichtService.isForeignUnitPersonnelAllowed(unitId));
-        if (form.getCrewAssignmentsJson() == null || form.getCrewAssignmentsJson().isBlank()) {
-            if (reportId != null) {
-                form.setCrewAssignmentsJson(anwesenheitslisteService.buildCrewJsonFromPersonnel(unitId, reportId));
-            } else {
-                form.setCrewAssignmentsJson(buildCrewJson(kraefteState));
-            }
-        }
-        if (form.getDeployedEquipmentJson() == null || form.getDeployedEquipmentJson().isBlank()) {
-            form.setDeployedEquipmentJson("[]");
-        }
-        if (form.getPersonDamageDetailsJson() == null || form.getPersonDamageDetailsJson().isBlank()) {
-            form.setPersonDamageDetailsJson(PersonDamageDetailsSupport.emptyJson());
-        }
-        if (form.getDamagePerpetratorJson() == null || form.getDamagePerpetratorJson().isBlank()) {
-            form.setDamagePerpetratorJson(DamagePerpetratorSupport.emptyJson());
-        }
+    private void applyAnwesenheitFormBundle(Model model, AnwesenheitFormBundle bundle) {
+        model.addAttribute("report", bundle.report());
+        model.addAttribute("form", bundle.form());
+        model.addAttribute("unitPersons", bundle.unitPersons());
+        model.addAttribute("knownStichworte", bundle.knownStichworte());
+        model.addAttribute("kraefteState", bundle.kraefteState());
+        model.addAttribute("kraefteInitialJson", bundle.kraefteInitialJson());
+        model.addAttribute("allowForeignUnitPersonnel", bundle.allowForeignUnitPersonnel());
         model.addAttribute("showChangeHistory", false);
         model.addAttribute("reportChanges", List.of());
     }
@@ -807,58 +783,7 @@ public class BerichteController {
     }
 
     private static String buildCrewJson(KraefteFahrzeugeState state) {
-        StringBuilder sb = new StringBuilder("[");
-        boolean first = true;
-        first = appendCrewAssignment(sb, state.beteiligt(), first);
-        first = appendCrewAssignment(sb, state.einsatzstelle(), first);
-        first = appendCrewAssignment(sb, state.wache(), first);
-        for (KraefteFahrzeugeState.KraefteVehicleView vehicle : state.vehicles()) {
-            first = appendCrewAssignment(sb, vehicle, first);
-        }
-        sb.append(']');
-        return sb.toString();
-    }
-
-    private static boolean appendCrewAssignment(
-            StringBuilder sb, KraefteFahrzeugeState.KraefteVehicleView vehicle, boolean first) {
-        if (!first) {
-            sb.append(',');
-        }
-        sb.append("{\"vehicleId\":").append(vehicle.vehicleId()).append(",\"personIds\":[");
-        List<Long> ids = vehicle.crewPersonIds();
-        for (int i = 0; i < ids.size(); i++) {
-            if (i > 0) {
-                sb.append(',');
-            }
-            sb.append(ids.get(i));
-        }
-        sb.append(']');
-        if (vehicle.einheitsfuehrerPersonId() != null) {
-            sb.append(",\"einheitsfuehrerPersonId\":").append(vehicle.einheitsfuehrerPersonId());
-        }
-        if (vehicle.maschinistPersonId() != null) {
-            sb.append(",\"maschinistPersonId\":").append(vehicle.maschinistPersonId());
-        }
-        List<Long> paIds = vehicle.crewPersons().stream()
-                .filter(KraefteFahrzeugeState.KraeftePersonView::usesPa)
-                .map(KraefteFahrzeugeState.KraeftePersonView::id)
-                .toList();
-        if (!paIds.isEmpty()) {
-            sb.append(",\"paPersonIds\":[");
-            for (int i = 0; i < paIds.size(); i++) {
-                if (i > 0) {
-                    sb.append(',');
-                }
-                sb.append(paIds.get(i));
-            }
-            sb.append(']');
-        }
-        if (vehicle.vehicleId() > 0) {
-            sb.append(",\"involvedInIncident\":").append(vehicle.involvedInIncident());
-            sb.append(",\"manuallyInvolvedInIncident\":").append(vehicle.manuallyInvolvedInIncident());
-        }
-        sb.append('}');
-        return false;
+        return KraefteCrewJsonSupport.buildCrewJson(state);
     }
 
     private Unit resolveUnit(Long unitId, AppUserDetails actor, Model model) {

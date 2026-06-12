@@ -115,7 +115,42 @@ public class AnwesenheitslisteService {
         return einsatzberichtService.buildKraefteFahrzeugeState(unitId, null);
     }
 
-    public void enrichEinsatzFormFromTermin(AttendanceReport report, EinsatzberichtForm form) {
+    @Transactional(readOnly = true)
+    public AnwesenheitFormBundle buildFormBundle(long unitId, Long reportId) {
+        AttendanceReport report = reportId != null ? requireReport(unitId, reportId) : null;
+        EinsatzberichtForm form =
+                report != null ? AnwesenheitslisteEinsatzFormBridge.toEinsatzForm(report) : newEinsatzForm(unitId);
+        if (report != null) {
+            enrichEinsatzFormFromTermin(report, form);
+        }
+        KraefteFahrzeugeState kraefteState = buildKraefteFahrzeugeState(unitId, reportId);
+        if (form.getCrewAssignmentsJson() == null || form.getCrewAssignmentsJson().isBlank()) {
+            if (reportId != null) {
+                form.setCrewAssignmentsJson(buildCrewJsonFromPersonnel(unitId, reportId));
+            } else {
+                form.setCrewAssignmentsJson(KraefteCrewJsonSupport.buildCrewJson(kraefteState));
+            }
+        }
+        if (form.getDeployedEquipmentJson() == null || form.getDeployedEquipmentJson().isBlank()) {
+            form.setDeployedEquipmentJson("[]");
+        }
+        if (form.getPersonDamageDetailsJson() == null || form.getPersonDamageDetailsJson().isBlank()) {
+            form.setPersonDamageDetailsJson(PersonDamageDetailsSupport.emptyJson());
+        }
+        if (form.getDamagePerpetratorJson() == null || form.getDamagePerpetratorJson().isBlank()) {
+            form.setDamagePerpetratorJson(DamagePerpetratorSupport.emptyJson());
+        }
+        return new AnwesenheitFormBundle(
+                report,
+                form,
+                kraefteState,
+                einsatzberichtService.serializeKraefteFahrzeugeState(kraefteState),
+                einsatzberichtService.listPersonsForForm(unitId),
+                listKnownStichworte(unitId),
+                einsatzberichtService.isForeignUnitPersonnelAllowed(unitId));
+    }
+
+    private void enrichEinsatzFormFromTermin(AttendanceReport report, EinsatzberichtForm form) {
         if (report == null || form == null || report.getUnitTermin() == null) {
             return;
         }
@@ -134,6 +169,7 @@ public class AnwesenheitslisteService {
         }
     }
 
+    @Transactional(readOnly = true)
     public String buildCrewJsonFromPersonnel(long unitId, long attendanceReportId) {
         List<Long> personIds = listPersonnel(attendanceReportId).stream()
                 .map(AttendanceReportPersonnel::getPerson)
