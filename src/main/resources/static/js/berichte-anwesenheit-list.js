@@ -180,6 +180,9 @@
     if (window.BerichteAnhaenge && window.BerichteAnhaenge.load) {
       window.BerichteAnhaenge.load();
     }
+    if (window.BerichteAnwesenheitAddress) {
+      window.BerichteAnwesenheitAddress.init(container);
+    }
   }
 
   function openModal(id) {

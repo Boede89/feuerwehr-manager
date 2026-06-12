@@ -3779,6 +3779,17 @@ span.required { color: var(--error); }
   align-items: start;
 }
 
+.einsatzbericht-form-page .field-with-action {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.einsatzbericht-form-page .field-with-action__input {
+  flex: 1;
+  min-width: 0;
+}
+
 .einsatzbericht-form-page .incident-form-grid-3 {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

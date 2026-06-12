@@ -114,6 +114,10 @@
       dateInput.addEventListener('change', refreshSuggestedNumber);
     }
 
+    if (anwesenheit && window.BerichteAnwesenheitAddress) {
+      window.BerichteAnwesenheitAddress.init(scope);
+    }
+
     switchTab(0);
   }
 

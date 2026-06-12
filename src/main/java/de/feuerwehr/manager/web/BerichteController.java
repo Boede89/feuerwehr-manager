@@ -416,7 +416,7 @@ public class BerichteController {
             Unit unit = resolveUnit(unitId, actor, model);
             requireModuleEnabled(unit.getId());
             requireBerichteWrite(actor, unit.getId());
-            applyAnwesenheitFormBundle(model, anwesenheitslisteService.buildFormBundle(unit.getId(), null));
+            applyAnwesenheitFormBundle(model, unit.getId(), anwesenheitslisteService.buildFormBundle(unit.getId(), null));
             model.addAttribute("formMode", "create");
             model.addAttribute("pageTitle", "Neue Anwesenheitsliste");
             model.addAttribute("pageSubtitle", "Entwurf — wird nach dem Speichern zur Freigabe vorgelegt");
@@ -438,7 +438,7 @@ public class BerichteController {
         requireBerichteRead(actor, unit.getId());
         AnwesenheitFormBundle bundle = anwesenheitslisteService.buildFormBundle(unit.getId(), id);
         AttendanceReport report = bundle.report();
-        applyAnwesenheitFormBundle(model, bundle);
+        applyAnwesenheitFormBundle(model, unit.getId(), bundle);
         model.addAttribute("formMode", "view");
         boolean canApprove = canApprove(actor, unit.getId());
         model.addAttribute("canEditReport", AnwesenheitslisteAccess.canEdit(report, actor, canApprove));
@@ -468,7 +468,7 @@ public class BerichteController {
             requireBerichteRead(actor, unit.getId());
             AnwesenheitFormBundle bundle = anwesenheitslisteService.buildFormBundle(unit.getId(), id);
             AttendanceReport report = bundle.report();
-            applyAnwesenheitFormBundle(model, bundle);
+            applyAnwesenheitFormBundle(model, unit.getId(), bundle);
             model.addAttribute("formMode", "view");
             boolean canApprove = canApprove(actor, unit.getId());
             model.addAttribute("canWrite", canWrite(actor, unit.getId()));
@@ -510,7 +510,7 @@ public class BerichteController {
             if (!AnwesenheitslisteAccess.canEdit(report, actor, canApprove)) {
                 throw new IllegalArgumentException("Diese Anwesenheitsliste kann nicht bearbeitet werden.");
             }
-            applyAnwesenheitFormBundle(model, anwesenheitslisteService.buildFormBundle(unit.getId(), id));
+            applyAnwesenheitFormBundle(model, unit.getId(), anwesenheitslisteService.buildFormBundle(unit.getId(), id));
             model.addAttribute("formMode", "edit");
             model.addAttribute("canDeleteReport", AnwesenheitslisteAccess.canDelete(report, actor, canApprove));
             model.addAttribute("pageTitle", "Anwesenheitsliste bearbeiten");
@@ -699,7 +699,7 @@ public class BerichteController {
         return einsatzberichtService.listVehicleEquipment(unitId, vehicleIds);
     }
 
-    private void applyAnwesenheitFormBundle(Model model, AnwesenheitFormBundle bundle) {
+    private void applyAnwesenheitFormBundle(Model model, long unitId, AnwesenheitFormBundle bundle) {
         model.addAttribute("report", bundle.report());
         model.addAttribute("form", bundle.form());
         model.addAttribute("unitPersons", bundle.unitPersons());
@@ -707,6 +707,7 @@ public class BerichteController {
         model.addAttribute("kraefteState", bundle.kraefteState());
         model.addAttribute("kraefteInitialJson", bundle.kraefteInitialJson());
         model.addAttribute("allowForeignUnitPersonnel", bundle.allowForeignUnitPersonnel());
+        model.addAttribute("unitAddressJson", anwesenheitslisteService.buildUnitAddressJson(unitId));
         model.addAttribute("showChangeHistory", false);
         model.addAttribute("reportChanges", List.of());
     }

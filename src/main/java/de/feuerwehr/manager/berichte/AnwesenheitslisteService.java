@@ -116,6 +116,18 @@ public class AnwesenheitslisteService {
     }
 
     @Transactional(readOnly = true)
+    public String buildUnitAddressJson(long unitId) {
+        Unit unit = unitRepository
+                .findById(unitId)
+                .orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden."));
+        try {
+            return objectMapper.writeValueAsString(UnitAddressSupport.fromUnit(unit));
+        } catch (Exception e) {
+            return "{}";
+        }
+    }
+
+    @Transactional(readOnly = true)
     public AnwesenheitFormBundle buildFormBundle(long unitId, Long reportId) {
         AttendanceReport report = reportId != null ? requireReport(unitId, reportId) : null;
         EinsatzberichtForm form =
