@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('Termine', ~{::main})}">
+<main class="termine-page">
+  <div class="page-header">
+    <div>
+      <h2>Termine</h2>
+      <p>Kalender und Terminplanung · <strong th:text="${currentUnitName}">—</strong></p>
+    </div>
+    <button type="button" class="btn btn--primary" th:if="${canWrite}" disabled title="Folgt in einem nächsten Schritt">
+      + Neuer Termin
+    </button>
+  </div>
+
+  <div th:replace="~{fragments/testmode-banner :: banner}"></div>
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
+
+  <nav class="tab-bar termine-module-tabs" aria-label="Terminbereiche">
+    <a class="tab-btn" th:each="t : ${termineTabs}"
+       th:classappend="${termineTab == t.key()} ? ' tab-btn--active' : ''"
+       th:href="@{/termine(unit=${unitId}, tab=${t.key()})}"
+       th:text="${t.label()}">Reiter</a>
+  </nav>
+
+  <div th:if="${termineTab == 'dienstplan'}" class="termine-module-panel">
+    <div class="page-header termine-panel-header">
+      <div>
+        <h3>Dienstplan</h3>
+        <p>Übungsabende, Dienste und dienstplanbezogene Termine</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card__body">
+        <p class="hint">Noch keine Termine vorhanden. Die Verwaltung folgt im nächsten Schritt.</p>
+      </div>
+    </div>
+  </div>
+
+  <div th:if="${termineTab == 'fahrzeuge'}" class="termine-module-panel">
+    <div class="page-header termine-panel-header">
+      <div>
+        <h3>Fahrzeuge</h3>
+        <p>Werkstatt, TÜV, Auslieferung und fahrzeugbezogene Termine</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card__body">
+        <p class="hint">Noch keine Termine vorhanden. Die Verwaltung folgt im nächsten Schritt.</p>
+      </div>
+    </div>
+  </div>
+
+  <div th:if="${termineTab == 'sonstiges'}" class="termine-module-panel">
+    <div class="page-header termine-panel-header">
+      <div>
+        <h3>Sonstiges</h3>
+        <p>Weitere Termine, die nicht zum Dienstplan oder zu Fahrzeugen gehören</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card__body">
+        <p class="hint">Noch keine Termine vorhanden. Die Verwaltung folgt im nächsten Schritt.</p>
+      </div>
+    </div>
+  </div>
+</main>
+</html>

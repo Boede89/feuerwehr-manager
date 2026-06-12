@@ -6,7 +6,7 @@ public enum AppModule {
     RESERVIERUNGEN("reservierungen", "Reservierungen", "Fahrzeug- und Gerätereservierungen", "🚒", false),
     ATEMSCHUTZ("atemschutz", "Atemschutz", "Tauglichkeiten und Nachweise", "🛡️", true),
     BERICHTE("berichte", "Berichte", "Einsatz- und Dienstberichte", "📋", true),
-    TERMINE("termine", "Termine", "Kalender und Terminplanung", "📅", false),
+    TERMINE("termine", "Termine", "Kalender und Terminplanung", "📅", true),
     AUSWERTUNG("auswertung", "Auswertung", "Statistiken und Auswertungen", "📊", false);
 
     private final String key;
