@@ -42,6 +42,13 @@ public class TermineService {
     }
 
     @Transactional(readOnly = true)
+    public List<MeineTerminView> listMyTermine(long unitId, long personId) {
+        List<UnitTermin> termins = unitTerminRepository.findMineByUnitAndPerson(unitId, personId);
+        termins.forEach(this::touchTerminCollections);
+        return termins.stream().map(this::toMeineTerminView).toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<String> listKnownDienstplanThemen(long unitId) {
         LinkedHashSet<String> themen = new LinkedHashSet<>();
         unitTerminRepository
@@ -222,6 +229,20 @@ public class TermineService {
                 termin.getInstructorPersons().stream().map(Person::getId).toList(),
                 termin.getAssignedGroups().stream().map(PersonGroup::getId).toList(),
                 termin.getAssignedPersons().stream().map(Person::getId).toList());
+    }
+
+    private MeineTerminView toMeineTerminView(UnitTermin termin) {
+        return new MeineTerminView(
+                termin.getId(),
+                termin.getCategory(),
+                termin.getCategory().displayLabel(),
+                termin.getStartAt().toLocalDate(),
+                termin.getTitle(),
+                termin.getStartAt().toLocalTime(),
+                termin.getEndAt() != null ? termin.getEndAt().toLocalTime() : null,
+                formatInstructorLabel(termin),
+                termin.getStartAt(),
+                termin.getEndAt() != null ? termin.getEndAt() : termin.getStartAt());
     }
 
     private String formatInstructorLabel(UnitTermin termin) {

@@ -30,4 +30,17 @@ public interface UnitTerminRepository extends JpaRepository<UnitTermin, Long> {
             WHERE t.id = :id AND t.unit.id = :unitId
             """)
     Optional<UnitTermin> findByIdAndUnitId(@Param("id") long id, @Param("unitId") long unitId);
+
+    @Query("""
+            SELECT DISTINCT t FROM UnitTermin t
+            LEFT JOIN FETCH t.instructorPersons
+            WHERE t.unit.id = :unitId
+            AND (
+                t.audienceAll = true
+                OR EXISTS (SELECT 1 FROM t.assignedPersons ap WHERE ap.id = :personId)
+                OR EXISTS (SELECT 1 FROM t.assignedGroups ag JOIN ag.members m WHERE m.id = :personId)
+            )
+            ORDER BY t.startAt ASC, t.id ASC
+            """)
+    List<UnitTermin> findMineByUnitAndPerson(@Param("unitId") long unitId, @Param("personId") long personId);
 }

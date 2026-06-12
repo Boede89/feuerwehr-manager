@@ -1,16 +1,22 @@
 package de.feuerwehr.manager.web;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import de.feuerwehr.manager.personal.PersonRepository;
 import de.feuerwehr.manager.personal.PersonalGroupService;
 import de.feuerwehr.manager.personal.PersonalInstructorGroupService;
 import de.feuerwehr.manager.personal.PersonalService;
+import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.UserPermissionService;
 import de.feuerwehr.manager.settings.AppModule;
 import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.termine.CreateDienstplanTerminRequest;
+import de.feuerwehr.manager.termine.MeineTerminView;
 import de.feuerwehr.manager.termine.TermineService;
 import de.feuerwehr.manager.termine.TermineTab;
+import java.util.List;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
 import de.feuerwehr.manager.web.dto.ActionResultDto;
@@ -42,6 +48,9 @@ public class TermineController {
     private final PersonalService personalService;
     private final PersonalGroupService personalGroupService;
     private final PersonalInstructorGroupService personalInstructorGroupService;
+    private final PersonRepository personRepository;
+    private final TestModeService testModeService;
+    private final ObjectMapper objectMapper;
 
     @GetMapping
     public String index(
@@ -58,6 +67,9 @@ public class TermineController {
             model.addAttribute("termineTab", termineTab.key());
             model.addAttribute("termineTabs", TermineTab.values());
             model.addAttribute("canWrite", canWrite(actor, unit.getId()));
+            if (termineTab == TermineTab.MEINE) {
+                addMyTermineModel(actor, unit.getId(), model);
+            }
             if (termineTab == TermineTab.DIENSTPLAN) {
                 model.addAttribute("dienstplanTermine", termineService.listDienstplanTermine(unit.getId()));
                 model.addAttribute("knownDienstplanThemen", termineService.listKnownDienstplanThemen(unit.getId()));
@@ -152,6 +164,26 @@ public class TermineController {
 
     private boolean canWrite(AppUserDetails actor, long unitId) {
         return userPermissionService.hasPermission(actor, unitId, "termine.write");
+    }
+
+    private void addMyTermineModel(AppUserDetails actor, long unitId, Model model) {
+        var linkedPerson = personRepository.findActiveByUserIdAndUnitId(
+                actor.getUserId(), unitId, testModeService.isEnabled());
+        boolean hasLinkedPerson = linkedPerson.isPresent();
+        model.addAttribute("hasLinkedPerson", hasLinkedPerson);
+        List<MeineTerminView> myTermine = linkedPerson
+                .map(person -> termineService.listMyTermine(unitId, person.getId()))
+                .orElse(List.of());
+        model.addAttribute("myTermine", myTermine);
+        model.addAttribute("myTermineJson", serializeMyTermineJson(myTermine));
+    }
+
+    private String serializeMyTermineJson(List<MeineTerminView> termine) {
+        try {
+            return objectMapper.writeValueAsString(termine);
+        } catch (JsonProcessingException e) {
+            return "[]";
+        }
     }
 
     private static String redirectHome(Long unitId) {

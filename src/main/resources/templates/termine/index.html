@@ -23,16 +23,96 @@
        th:text="${t.label()}">Reiter</a>
   </nav>
 
-  <div th:if="${termineTab == 'meine'}" class="termine-module-panel">
-    <div class="page-header termine-panel-header">
-      <div>
-        <h3>Meine Termine</h3>
-        <p>Termine, bei denen Sie eingetragen oder zugeordnet sind</p>
+  <div th:if="${termineTab == 'meine'}" id="termine-meine-panel" class="termine-module-panel">
+    <div class="page-header termine-panel-header termine-meine-header">
+      <div class="termine-meine-header__main">
+        <div class="termine-meine-header__text">
+          <h3>Meine Termine</h3>
+          <p>Termine, bei denen Sie eingetragen oder zugeordnet sind</p>
+        </div>
+        <div class="filter-bar berichte-einsatz-filter termine-meine-header__filter"
+             th:if="${hasLinkedPerson and !#lists.isEmpty(myTermine)}">
+          <select id="meine-filter-zeit" class="berichte-filter-select berichte-filter-select--status"
+                  aria-label="Zeitraum filtern">
+            <option value="alle">Alle</option>
+            <option value="bevorstehend" selected>Bevorstehende</option>
+            <option value="vergangen">Vergangene</option>
+          </select>
+        </div>
+        <div class="termine-meine-view-toggle btn-group"
+             th:if="${hasLinkedPerson and !#lists.isEmpty(myTermine)}" role="group" aria-label="Ansicht">
+          <button type="button" class="tab-btn tab-btn--active" data-meine-view="list">Liste</button>
+          <button type="button" class="tab-btn" data-meine-view="calendar">Kalender</button>
+        </div>
       </div>
     </div>
-    <div class="card">
+
+    <div class="card" th:if="${!hasLinkedPerson}">
       <div class="card__body">
-        <p class="hint">Noch keine persönlichen Termine vorhanden. Die Anzeige folgt im nächsten Schritt.</p>
+        <p class="hint">Ihr Benutzerkonto ist keiner Person in dieser Einheit zugeordnet. Termine können daher nicht personalisiert angezeigt werden.</p>
+      </div>
+    </div>
+
+    <div class="card" th:if="${hasLinkedPerson and #lists.isEmpty(myTermine)}">
+      <div class="card__body">
+        <p class="hint">Keine Termine für Sie vorhanden.</p>
+      </div>
+    </div>
+
+    <div class="card" id="meine-list-wrap" th:if="${hasLinkedPerson and !#lists.isEmpty(myTermine)}">
+      <div class="card__body card__body--flush">
+        <p id="meine-filter-empty" class="hint dienstplan-filter-empty" hidden>
+          Keine Termine für den gewählten Filter gefunden.
+        </p>
+        <div class="table-wrap" id="meine-table-wrap">
+          <table class="data-table termine-meine-table">
+            <thead>
+            <tr>
+              <th>Datum</th>
+              <th>Bereich</th>
+              <th>Thema</th>
+              <th>Beginn</th>
+              <th>Ende</th>
+              <th>Ausbilder</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="termin : ${myTermine}" class="meine-termin-row"
+                th:attr="data-id=${termin.id()},
+                         data-datum=${termin.datum()},
+                         data-ende=${termin.ende() != null ? #temporals.format(termin.ende(), 'HH:mm') : #temporals.format(termin.beginn(), 'HH:mm')},
+                         data-start-at=${termin.startAt()},
+                         data-end-at=${termin.endAt()}">
+              <td th:text="${#temporals.format(termin.datum(), 'dd.MM.yyyy')}">01.01.2026</td>
+              <td th:text="${termin.categoryLabel()}">Dienstplan</td>
+              <td th:text="${termin.thema()}">Thema</td>
+              <td th:text="${#temporals.format(termin.beginn(), 'HH:mm')}">19:00</td>
+              <td th:text="${termin.ende() != null ? #temporals.format(termin.ende(), 'HH:mm') : '—'}">22:00</td>
+              <td th:text="${termin.ausbilderName() != null ? termin.ausbilderName() : '—'}">—</td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="meine-calendar-wrap" hidden th:if="${hasLinkedPerson and !#lists.isEmpty(myTermine)}">
+      <div class="card__body">
+        <div class="termine-calendar">
+          <div class="termine-calendar__nav">
+            <button type="button" class="btn btn--outline btn--sm" id="meine-cal-prev" aria-label="Vorheriger Monat">‹</button>
+            <h4 class="termine-calendar__month" id="meine-cal-month-label">Monat</h4>
+            <button type="button" class="btn btn--outline btn--sm" id="meine-cal-next" aria-label="Nächster Monat">›</button>
+          </div>
+          <div class="termine-calendar__weekdays" aria-hidden="true">
+            <span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span>
+          </div>
+          <div id="meine-cal-grid" class="termine-calendar__grid" role="grid" aria-label="Kalender"></div>
+          <div id="meine-cal-day-events" class="termine-calendar__day-events" hidden>
+            <h4 class="termine-calendar__day-title" id="meine-cal-day-title"></h4>
+            <ul id="meine-cal-day-list" class="termine-calendar__day-list"></ul>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -221,6 +301,11 @@
       </div>
     </div>
   </div>
+
+  <th:block th:if="${termineTab == 'meine' and hasLinkedPerson and !#lists.isEmpty(myTermine)}">
+    <script id="termine-meine-data" type="application/json" th:utext="${myTermineJson}">[]</script>
+    <script th:src="@{/js/termine-meine.js}" defer></script>
+  </th:block>
 
   <th:block th:if="${termineTab == 'dienstplan'}">
     <script id="termine-instructor-groups-data" type="application/json" th:utext="${instructorGroupsJson}">[]</script>

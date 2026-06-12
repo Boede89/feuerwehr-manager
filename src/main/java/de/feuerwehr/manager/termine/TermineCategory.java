@@ -26,4 +26,12 @@ public enum TermineCategory {
         }
         return DIENSTPLAN;
     }
+
+    public String displayLabel() {
+        return switch (this) {
+            case DIENSTPLAN -> "Dienstplan";
+            case FAHRZEUGE -> "Fahrzeuge";
+            case SONSTIGES -> "Sonstiges";
+        };
+    }
 }
