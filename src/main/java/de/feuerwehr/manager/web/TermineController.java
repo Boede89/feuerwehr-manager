@@ -1,20 +1,27 @@
 package de.feuerwehr.manager.web;
 
+import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.UserPermissionService;
 import de.feuerwehr.manager.settings.AppModule;
 import de.feuerwehr.manager.settings.ModuleSettingsService;
+import de.feuerwehr.manager.termine.CreateDienstplanTerminRequest;
+import de.feuerwehr.manager.termine.TermineService;
 import de.feuerwehr.manager.termine.TermineTab;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
+import de.feuerwehr.manager.web.dto.ActionResultDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
@@ -26,6 +33,8 @@ public class TermineController {
     private final ModuleSettingsService moduleSettingsService;
     private final AccessControlService accessControlService;
     private final UserPermissionService userPermissionService;
+    private final TermineService termineService;
+    private final PersonalService personalService;
 
     @GetMapping
     public String index(
@@ -42,10 +51,32 @@ public class TermineController {
             model.addAttribute("termineTab", termineTab.key());
             model.addAttribute("termineTabs", TermineTab.values());
             model.addAttribute("canWrite", canWrite(actor, unit.getId()));
+            if (termineTab == TermineTab.DIENSTPLAN) {
+                model.addAttribute("dienstplanTermine", termineService.listDienstplanTermine(unit.getId()));
+                model.addAttribute("knownDienstplanThemen", termineService.listKnownDienstplanThemen(unit.getId()));
+                model.addAttribute("unitPersons", personalService.listPersons(unit.getId()));
+            }
             return "termine/index";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return redirectHome(unitId);
+        }
+    }
+
+    @PostMapping("/api/dienstplan")
+    @ResponseBody
+    public ActionResultDto createDienstplanTermin(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @RequestBody CreateDienstplanTerminRequest body) {
+        try {
+            requireModuleEnabled(unitId);
+            requireTermineWrite(actor, unitId);
+            accessControlService.requireUnitAccess(actor, unitId);
+            termineService.createDienstplanTermin(unitId, actor.getUserId(), body);
+            return ActionResultDto.success("Termin wurde erstellt.");
+        } catch (IllegalArgumentException e) {
+            return ActionResultDto.failure(e.getMessage());
         }
     }
 
@@ -67,6 +98,10 @@ public class TermineController {
 
     private void requireTermineRead(AppUserDetails actor, long unitId) {
         userPermissionService.requirePermission(actor, unitId, "termine.read");
+    }
+
+    private void requireTermineWrite(AppUserDetails actor, long unitId) {
+        userPermissionService.requirePermission(actor, unitId, "termine.write");
     }
 
     private boolean canWrite(AppUserDetails actor, long unitId) {

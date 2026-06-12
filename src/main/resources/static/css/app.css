@@ -3410,6 +3410,13 @@ span.required { color: var(--error); }
 .termine-page .termine-panel-header { margin-bottom: 1rem; }
 .termine-page .termine-panel-header h3 { margin: 0 0 0.25rem; font-size: 1.15rem; }
 .termine-page .termine-panel-header p { margin: 0; color: var(--text-muted); font-size: 0.9rem; }
+.termine-dienstplan-table { width: 100%; }
+.termine-dienstplan-table th:nth-child(1),
+.termine-dienstplan-table td:nth-child(1) { width: 7.5rem; white-space: nowrap; }
+.termine-dienstplan-table th:nth-child(3),
+.termine-dienstplan-table td:nth-child(3),
+.termine-dienstplan-table th:nth-child(4),
+.termine-dienstplan-table td:nth-child(4) { width: 6.5rem; white-space: nowrap; }
 
 /* ── Einsatzbericht-Formular (1:1 FW-Hub incident-form) ─────────────────────── */
 .einsatzbericht-form-page {

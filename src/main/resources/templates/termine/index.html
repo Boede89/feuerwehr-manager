@@ -7,8 +7,8 @@
       <h2>Termine</h2>
       <p>Kalender und Terminplanung · <strong th:text="${currentUnitName}">—</strong></p>
     </div>
-    <button type="button" class="btn btn--primary"
-            th:if="${canWrite and termineTab != 'meine'}" disabled title="Folgt in einem nächsten Schritt">
+    <button type="button" class="btn btn--primary" id="termine-new-dienstplan-btn"
+            th:if="${canWrite and termineTab == 'dienstplan'}">
       + Neuer Termin
     </button>
   </div>
@@ -37,19 +37,104 @@
     </div>
   </div>
 
-  <div th:if="${termineTab == 'dienstplan'}" class="termine-module-panel">
+  <div th:if="${termineTab == 'dienstplan'}" id="termine-dienstplan-panel" class="termine-module-panel"
+       th:attr="data-unit-id=${unitId},data-can-write=${canWrite}">
     <div class="page-header termine-panel-header">
       <div>
         <h3>Dienstplan</h3>
         <p>Übungsabende, Dienste und dienstplanbezogene Termine</p>
       </div>
     </div>
-    <div class="card">
+
+    <div class="card" th:if="${!#lists.isEmpty(dienstplanTermine)}">
+      <div class="card__body card__body--flush">
+        <div class="table-wrap">
+          <table class="data-table termine-dienstplan-table">
+            <thead>
+            <tr>
+              <th>Datum</th>
+              <th>Thema</th>
+              <th>Dienstbeginn</th>
+              <th>Dienstende</th>
+              <th>Ausbilder</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="termin : ${dienstplanTermine}">
+              <td th:text="${#temporals.format(termin.datum(), 'dd.MM.yyyy')}">01.01.2026</td>
+              <td th:text="${termin.thema()}">Thema</td>
+              <td th:text="${#temporals.format(termin.dienstBeginn(), 'HH:mm')}">19:00</td>
+              <td th:text="${termin.dienstEnde() != null ? #temporals.format(termin.dienstEnde(), 'HH:mm') : '—'}">22:00</td>
+              <td th:text="${termin.ausbilderName() != null ? termin.ausbilderName() : '—'}">—</td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" th:if="${#lists.isEmpty(dienstplanTermine)}">
       <div class="card__body">
-        <p class="hint">Noch keine Termine vorhanden. Die Verwaltung folgt im nächsten Schritt.</p>
+        <p class="hint">Noch keine Termine vorhanden.</p>
+        <button type="button" class="btn btn--primary" id="termine-new-dienstplan-empty-btn" th:if="${canWrite}">
+          Ersten Termin erstellen
+        </button>
       </div>
     </div>
   </div>
+
+  <div id="modal-dienstplan-termin" class="modal-overlay" th:if="${canWrite and termineTab == 'dienstplan'}">
+    <div class="modal" role="dialog" aria-labelledby="dienstplan-termin-modal-title">
+      <div class="modal__header">
+        <h3 id="dienstplan-termin-modal-title">Neuer Dienstplan-Termin</h3>
+        <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal__body">
+        <div class="form-grid form-grid--2">
+          <div class="form-group">
+            <label for="dienstplan-termin-datum">Datum <span class="required">*</span></label>
+            <input id="dienstplan-termin-datum" class="field" type="date" required/>
+          </div>
+          <div class="form-group form-group--full">
+            <label for="dienstplan-termin-thema">Thema <span class="required">*</span></label>
+            <div class="combo-suggest" data-combo-suggest data-combo-min="0">
+              <input id="dienstplan-termin-thema" class="field combo-suggest__input" type="text"
+                     maxlength="150" required autocomplete="off" placeholder="Thema eingeben …"/>
+              <ul class="combo-suggest__list" role="listbox" hidden>
+                <li class="combo-suggest__option" th:each="thema : ${knownDienstplanThemen}"
+                    th:attr="data-value=${thema}" th:text="${thema}">Thema</li>
+              </ul>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="dienstplan-termin-beginn">Uhrzeit Dienstbeginn <span class="required">*</span></label>
+            <input id="dienstplan-termin-beginn" class="field" type="time" value="19:00" required/>
+          </div>
+          <div class="form-group">
+            <label for="dienstplan-termin-ende">Uhrzeit Dienstende <span class="required">*</span></label>
+            <input id="dienstplan-termin-ende" class="field" type="time" value="22:00" required/>
+          </div>
+          <div class="form-group form-group--full">
+            <label for="dienstplan-termin-ausbilder">Ausbilder</label>
+            <select id="dienstplan-termin-ausbilder" class="field">
+              <option value="">— Kein Ausbilder —</option>
+              <option th:each="p : ${unitPersons}" th:value="${p.id}"
+                      th:text="${p.anwesenheitDisplayName()}">Name</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--primary" id="dienstplan-save-termin">Speichern</button>
+        <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <th:block th:if="${termineTab == 'dienstplan'}">
+    <script th:src="@{/js/combo-suggest.js}" defer></script>
+    <script th:src="@{/js/termine-dienstplan.js}" defer></script>
+  </th:block>
 
   <div th:if="${termineTab == 'fahrzeuge'}" class="termine-module-panel">
     <div class="page-header termine-panel-header">
