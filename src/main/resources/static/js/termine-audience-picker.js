@@ -67,6 +67,33 @@
     function syncAllSummaries() {
       syncSummary('groups');
       syncSummary('persons');
+      syncAudienceAllState();
+    }
+
+    function getAudienceAllCheckbox() {
+      return document.getElementById(prefix + '-audience-all');
+    }
+
+    function getAudiencePick() {
+      return document.getElementById(prefix + '-audience-pick');
+    }
+
+    function hasAudienceSelection() {
+      return selectedIds('groups').length > 0 || selectedIds('persons').length > 0;
+    }
+
+    function syncAudienceAllState() {
+      var audienceAll = getAudienceAllCheckbox();
+      var pick = getAudiencePick();
+      if (!audienceAll) {
+        return;
+      }
+      if (hasAudienceSelection()) {
+        audienceAll.checked = false;
+      }
+      if (pick) {
+        pick.hidden = audienceAll.checked;
+      }
     }
 
     function resetCheckboxes(kind) {
@@ -99,6 +126,7 @@
         }
       });
       syncSummary(kind);
+      syncAudienceAllState();
     }
 
     function snapshot(kind) {
@@ -120,6 +148,7 @@
         }
       });
       syncSummary(kind);
+      syncAudienceAllState();
     }
 
     function resetSearch(kind) {
@@ -177,6 +206,7 @@
         personsSnapshot = null;
       }
       syncSummary(kind);
+      syncAudienceAllState();
       closePicker(kind);
     }
 
@@ -246,6 +276,16 @@
           openPicker('persons');
         });
       }
+      var audienceAll = getAudienceAllCheckbox();
+      if (audienceAll) {
+        audienceAll.addEventListener('change', function () {
+          if (audienceAll.checked) {
+            resetAll();
+          }
+          syncAudienceAllState();
+        });
+      }
+
       ['groups', 'persons'].forEach(function (kind) {
         var overlay = document.getElementById('modal-' + prefix + '-' + kind);
         var applyBtn = document.getElementById(prefix + '-' + kind + '-apply');
