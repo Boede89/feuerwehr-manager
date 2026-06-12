@@ -75,11 +75,6 @@ public class AnwesenheitslistePdfService {
                         : "Anwesenheit");
         model.put("title", nullToDash(report.getTitle()));
         model.put("address", formatAddress(report, unit));
-        model.put(
-                "reportNumber",
-                report.getReportNumber() != null && !report.getReportNumber().isBlank()
-                        ? report.getReportNumber().trim()
-                        : "—");
         model.put("startTime", formatTime(report.getStartTime()));
         model.put("endTime", formatTime(report.getEndTime()));
         model.put("duration", formatDuration(report.getStartTime(), report.getEndTime()));
@@ -104,7 +99,7 @@ public class AnwesenheitslistePdfService {
             return;
         }
         String vehicleLabel = vehicle.vehicleId() == IncidentCrewSupport.BETEILIGT_VEHICLE_ID
-                ? "Anw."
+                ? "—"
                 : vehicle.name();
         for (KraefteFahrzeugeState.KraeftePersonView person : vehicle.crewPersons()) {
             String name = person.displayName();
