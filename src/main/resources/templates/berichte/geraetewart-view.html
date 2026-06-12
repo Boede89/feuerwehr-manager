@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout(${pageTitle}, ~{::main})}">
+<main class="einsatzbericht-form-page" data-berichte-form="geraetewart">
+  <meta name="berichte-api-base" content="/berichte/geraetewartmitteilungen"/>
+
+  <div class="page-header">
+    <div>
+      <h2 th:text="${pageTitle}">Gerätewartmitteilung</h2>
+      <p th:text="${pageSubtitle}">—</p>
+    </div>
+    <div class="einsatzbericht-form-actions">
+      <a class="btn btn--outline" th:href="@{/berichte(unit=${unitId}, tab='geraetewart')}">Zurück</a>
+      <a class="btn btn--outline"
+         th:href="@{/berichte/geraetewartmitteilungen/{id}/pdf(id=${report.id},unit=${unitId})}">PDF herunterladen</a>
+      <a class="btn btn--primary" th:if="${canEditReport}"
+         th:href="@{/berichte/geraetewartmitteilungen/{id}/bearbeiten(id=${report.id},unit=${unitId})}">Bearbeiten</a>
+    </div>
+  </div>
+
+  <div th:replace="~{fragments/testmode-banner :: banner}"></div>
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
+
+  <div class="card">
+    <div class="card__body card__body--flush">
+      <div id="einsatzbericht-view" class="einsatzbericht-form--view">
+        <th:block th:replace="~{fragments/berichte-geraetewart-form :: form(formMode='view')}"></th:block>
+      </div>
+    </div>
+  </div>
+
+  <script th:src="@{/js/berichte-api-base.js}" defer></script>
+  <script th:src="@{/js/berichte-geraetewart-form.js}" defer></script>
+</main>
+</html>

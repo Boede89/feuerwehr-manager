@@ -20,6 +20,12 @@ import de.feuerwehr.manager.berichte.ForeignPersonOption;
 import de.feuerwehr.manager.berichte.ForeignUnitOption;
 import de.feuerwehr.manager.berichte.IncidentReport;
 import de.feuerwehr.manager.berichte.IncidentReportStatus;
+import de.feuerwehr.manager.berichte.GeraetewartmitteilungAccess;
+import de.feuerwehr.manager.berichte.GeraetewartmitteilungListResponse;
+import de.feuerwehr.manager.berichte.GeraetewartmitteilungForm;
+import de.feuerwehr.manager.berichte.GeraetewartmitteilungPdfService;
+import de.feuerwehr.manager.berichte.GeraetewartmitteilungService;
+import de.feuerwehr.manager.berichte.EquipmentMaintenanceReport;
 import de.feuerwehr.manager.berichte.DamagePerpetratorSupport;
 import de.feuerwehr.manager.berichte.PersonDamageDetailsSupport;
 import de.feuerwehr.manager.berichte.VehicleEquipmentView;
@@ -67,6 +73,8 @@ public class BerichteController {
     private final AnwesenheitslisteService anwesenheitslisteService;
     private final AnwesenheitslistePdfService anwesenheitslistePdfService;
     private final AnwesenheitslisteTerminSyncService anwesenheitslisteTerminSyncService;
+    private final GeraetewartmitteilungService geraetewartmitteilungService;
+    private final GeraetewartmitteilungPdfService geraetewartmitteilungPdfService;
 
     @GetMapping
     public String index(
@@ -101,6 +109,8 @@ public class BerichteController {
                 if (sync.success() && sync.created() > 0) {
                     model.addAttribute("message", sync.message());
                 }
+                model.addAttribute("filterYear", filterYear != null ? filterYear : LocalDate.now().getYear());
+            } else if (berichteTab == BerichteTab.GERAETEWART) {
                 model.addAttribute("filterYear", filterYear != null ? filterYear : LocalDate.now().getYear());
             }
             return "berichte/index";
@@ -732,6 +742,214 @@ public class BerichteController {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return redirectBerichte(unitId, "anwesenheit");
         }
+    }
+
+    @GetMapping("/geraetewartmitteilungen/list")
+    @ResponseBody
+    public GeraetewartmitteilungListResponse listGeraetewartmitteilungen(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "year", required = false) Integer year) {
+        Unit unit = resolveUnit(unitId, actor);
+        requireModuleEnabled(unit.getId());
+        requireBerichteRead(actor, unit.getId());
+        int filterYear = year != null ? year : LocalDate.now().getYear();
+        return geraetewartmitteilungService.listForYear(unit.getId(), filterYear);
+    }
+
+    @GetMapping("/geraetewartmitteilungen/neu")
+    public String newGeraetewartmitteilung(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            Model model,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor, model);
+            requireModuleEnabled(unit.getId());
+            requireBerichteWrite(actor, unit.getId());
+            applyGeraetewartFormModel(model, unit.getId(), null, geraetewartmitteilungService.newForm(), "create");
+            model.addAttribute("pageTitle", "Neue Gerätewartmitteilung");
+            model.addAttribute("pageSubtitle", "Einsatz oder Übung");
+            return "berichte/geraetewart-form";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectBerichte(unitId, "geraetewart");
+        }
+    }
+
+    @GetMapping("/geraetewartmitteilungen/{id}/modal")
+    public String modalGeraetewartmitteilung(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @PathVariable long id,
+            Model model) {
+        Unit unit = resolveUnit(unitId, actor, model);
+        requireModuleEnabled(unit.getId());
+        requireBerichteRead(actor, unit.getId());
+        EquipmentMaintenanceReport report = geraetewartmitteilungService.requireReport(unit.getId(), id);
+        applyGeraetewartFormModel(
+                model, unit.getId(), report, geraetewartmitteilungService.toForm(report), "view");
+        model.addAttribute("canEditReport", GeraetewartmitteilungAccess.canEdit(report, actor));
+        String title = report.getTyp() != null ? report.getTyp().label() : "Gerätewartmitteilung";
+        model.addAttribute("modalTitle", title + " · " + formatModalDate(report.getEventDate()));
+        return "berichte/geraetewart-modal-body";
+    }
+
+    @GetMapping("/geraetewartmitteilungen/{id}")
+    public String viewGeraetewartmitteilung(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @PathVariable long id,
+            Model model,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor, model);
+            requireModuleEnabled(unit.getId());
+            requireBerichteRead(actor, unit.getId());
+            EquipmentMaintenanceReport report = geraetewartmitteilungService.requireReport(unit.getId(), id);
+            applyGeraetewartFormModel(
+                    model, unit.getId(), report, geraetewartmitteilungService.toForm(report), "view");
+            model.addAttribute("canEditReport", GeraetewartmitteilungAccess.canEdit(report, actor));
+            model.addAttribute("pageTitle", "Gerätewartmitteilung");
+            model.addAttribute("pageSubtitle", report.getTyp() != null ? report.getTyp().label() : "");
+            return "berichte/geraetewart-view";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectBerichte(unitId, "geraetewart");
+        }
+    }
+
+    @GetMapping("/geraetewartmitteilungen/{id}/bearbeiten")
+    public String editGeraetewartmitteilung(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @PathVariable long id,
+            Model model,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor, model);
+            requireModuleEnabled(unit.getId());
+            requireBerichteRead(actor, unit.getId());
+            EquipmentMaintenanceReport report = geraetewartmitteilungService.requireReport(unit.getId(), id);
+            if (!GeraetewartmitteilungAccess.canEdit(report, actor)) {
+                throw new IllegalArgumentException("Diese Gerätewartmitteilung kann nicht bearbeitet werden.");
+            }
+            applyGeraetewartFormModel(
+                    model, unit.getId(), report, geraetewartmitteilungService.toForm(report), "edit");
+            model.addAttribute("canDeleteReport", GeraetewartmitteilungAccess.canDelete(report, actor));
+            model.addAttribute("pageTitle", "Gerätewartmitteilung bearbeiten");
+            model.addAttribute("pageSubtitle", report.getTyp() != null ? report.getTyp().label() : "");
+            return "berichte/geraetewart-form";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectBerichte(unitId, "geraetewart");
+        }
+    }
+
+    @PostMapping("/geraetewartmitteilungen")
+    public String createGeraetewartmitteilung(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @ModelAttribute GeraetewartmitteilungForm form,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor);
+            requireModuleEnabled(unit.getId());
+            requireBerichteWrite(actor, unit.getId());
+            geraetewartmitteilungService.create(unit.getId(), form, actor);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "Gerätewartmitteilung wurde gespeichert.");
+            return redirectBerichte(unit.getId(), "geraetewart");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectBerichte(unitId, "geraetewart");
+        }
+    }
+
+    @PostMapping("/geraetewartmitteilungen/{id}")
+    public String updateGeraetewartmitteilung(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @PathVariable long id,
+            @ModelAttribute GeraetewartmitteilungForm form,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor);
+            requireModuleEnabled(unit.getId());
+            requireBerichteRead(actor, unit.getId());
+            geraetewartmitteilungService.update(unit.getId(), id, form, actor);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "Gerätewartmitteilung wurde aktualisiert.");
+            return redirectBerichte(unit.getId(), "geraetewart");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectBerichte(unitId, "geraetewart");
+        }
+    }
+
+    @PostMapping("/geraetewartmitteilungen/{id}/delete")
+    public String deleteGeraetewartmitteilung(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @PathVariable long id,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor);
+            requireModuleEnabled(unit.getId());
+            requireBerichteRead(actor, unit.getId());
+            geraetewartmitteilungService.delete(unit.getId(), id, actor);
+            redirectAttributes.addFlashAttribute("message", "Gerätewartmitteilung wurde gelöscht.");
+            return redirectBerichte(unit.getId(), "geraetewart");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectBerichte(unitId, "geraetewart");
+        }
+    }
+
+    @GetMapping("/geraetewartmitteilungen/vehicle-equipment")
+    @ResponseBody
+    public List<VehicleEquipmentView> geraetewartVehicleEquipment(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "vehicleIds") List<Long> vehicleIds) {
+        Unit unit = resolveUnit(unitId, actor);
+        requireModuleEnabled(unit.getId());
+        return einsatzberichtService.listVehicleEquipment(unit.getId(), vehicleIds);
+    }
+
+    @GetMapping("/geraetewartmitteilungen/{id}/pdf")
+    public Object downloadGeraetewartmitteilungPdf(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @PathVariable long id,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor);
+            requireModuleEnabled(unit.getId());
+            requireBerichteRead(actor, unit.getId());
+            EquipmentMaintenanceReport report = geraetewartmitteilungService.requireReport(unit.getId(), id);
+            byte[] pdf = geraetewartmitteilungPdfService.renderPdf(unit.getId(), id);
+            return PdfDownloadResponse.attachment(geraetewartmitteilungPdfService.suggestedFilename(report), pdf);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectBerichte(unitId, "geraetewart");
+        }
+    }
+
+    private void applyGeraetewartFormModel(
+            Model model, long unitId, EquipmentMaintenanceReport report, GeraetewartmitteilungForm form, String formMode) {
+        model.addAttribute("report", report);
+        model.addAttribute("form", form);
+        model.addAttribute("formMode", formMode);
+        model.addAttribute("unitPersons", einsatzberichtService.listPersonsForForm(unitId));
+        model.addAttribute("vehiclesJson", geraetewartmitteilungService.buildVehiclesJson(unitId));
+    }
+
+    private static String formatModalDate(LocalDate date) {
+        if (date == null) {
+            return "—";
+        }
+        return date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
     }
 
     private void populateEinsatzFormModel(

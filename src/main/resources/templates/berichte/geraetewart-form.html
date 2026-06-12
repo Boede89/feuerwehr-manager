@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout(${pageTitle}, ~{::main})}">
+<main class="einsatzbericht-form-page" data-berichte-form="geraetewart">
+  <meta name="berichte-api-base" content="/berichte/geraetewartmitteilungen"/>
+
+  <div class="page-header">
+    <div>
+      <h2 th:text="${pageTitle}">Neue Gerätewartmitteilung</h2>
+      <p th:text="${pageSubtitle}">Einsatz oder Übung</p>
+    </div>
+    <div class="einsatzbericht-form-actions">
+      <a class="btn btn--outline" th:href="@{/berichte(unit=${unitId}, tab='geraetewart')}">Abbrechen</a>
+      <form th:if="${formMode == 'edit' and canDeleteReport}" method="post"
+            th:action="@{/berichte/geraetewartmitteilungen/{id}/delete(id=${report.id})}"
+            class="bar-form"
+            data-confirm
+            data-confirm-title="Gerätewartmitteilung löschen?"
+            data-confirm-message="Diese Aktion kann nicht rückgängig gemacht werden."
+            data-confirm-label="Löschen"
+            data-confirm-variant="danger">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <button type="submit" class="btn btn--danger">Löschen</button>
+      </form>
+      <a class="btn btn--outline" th:if="${formMode == 'edit'}"
+         th:href="@{/berichte/geraetewartmitteilungen/{id}/pdf(id=${report.id},unit=${unitId})}">PDF herunterladen</a>
+      <button type="submit" class="btn btn--primary" form="geraetewart-form">Speichern</button>
+    </div>
+  </div>
+
+  <div th:replace="~{fragments/testmode-banner :: banner}"></div>
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
+
+  <div class="card">
+    <div class="card__body card__body--flush">
+      <form id="geraetewart-form" method="post"
+            th:action="${formMode == 'edit'} ? @{/berichte/geraetewartmitteilungen/{id}(id=${report.id},unit=${unitId})} : @{/berichte/geraetewartmitteilungen(unit=${unitId})}">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <th:block th:replace="~{fragments/berichte-geraetewart-form :: form}"></th:block>
+      </form>
+    </div>
+  </div>
+
+  <script th:src="@{/js/combo-suggest.js}" defer></script>
+  <script th:src="@{/js/berichte-api-base.js}" defer></script>
+  <script th:src="@{/js/berichte-geraetewart-form.js}" defer></script>
+</main>
+</html>
