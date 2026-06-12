@@ -17,6 +17,8 @@
        th:href="@{/personal(unit=${unitId}, tab='mitglieder')}">Mitglieder</a>
     <a class="tab-btn" th:classappend="${personalTab == 'gruppen'} ? ' tab-btn--active' : ''"
        th:href="@{/personal(unit=${unitId}, tab='gruppen')}">Gruppen</a>
+    <a class="tab-btn" th:classappend="${personalTab == 'ausbildergruppen'} ? ' tab-btn--active' : ''"
+       th:href="@{/personal(unit=${unitId}, tab='ausbildergruppen')}">Ausbildergruppen</a>
   </nav>
 
   <!-- Tab: Mitglieder -->
@@ -151,6 +153,93 @@
     </div>
 
     <script th:src="@{/js/personal-groups.js}"></script>
+  </div>
+
+  <!-- Tab: Ausbildergruppen -->
+  <div th:if="${personalTab == 'ausbildergruppen'}" class="personal-module-panel">
+    <div class="card">
+      <div class="card__header card__header--toolbar">
+        <span th:text="'Ausbildergruppen (' + ${instructorGroupCount} + ')'">Ausbildergruppen</span>
+        <button type="button" class="btn btn--primary btn--sm" data-open-modal="modal-instructor-group-form">+ Ausbildergruppe</button>
+      </div>
+      <div class="card__body card__body--flush" th:if="${!#lists.isEmpty(instructorGroups)}">
+        <table class="data-table" id="personal-instructor-groups-table">
+          <thead>
+          <tr>
+            <th>Thema</th>
+            <th>Ausbilder</th>
+            <th>Aktionen</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="g : ${instructorGroups}" class="instructor-group-row"
+              th:attr="data-id=${g.id},
+                       data-thema=${g.thema},
+                       data-member-ids=${g.memberIdsCsv()}">
+            <td><strong th:text="${g.thema}">Thema</strong></td>
+            <td class="text-muted text-sm"
+                th:text="${#lists.isEmpty(g.members)} ? '—' : ${g.memberNamesLabel()}">Ausbilder</td>
+            <td>
+              <div class="btn-group">
+                <button type="button" class="btn btn--outline btn--sm" data-edit-instructor-group>Bearb.</button>
+                <form method="post" th:action="@{/personal/ausbilder-groups/{id}/delete(id=${g.id})}" class="table-inline-form"
+                      data-confirm="Ausbildergruppe wirklich löschen?">
+                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                  <input type="hidden" name="unit" th:value="${unitId}"/>
+                  <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card__body" th:if="${#lists.isEmpty(instructorGroups)}">
+        <p class="hint" style="margin:0;">Noch keine Ausbildergruppen angelegt. Klicken Sie auf <strong>+ Ausbildergruppe</strong>.</p>
+      </div>
+    </div>
+
+    <div id="modal-instructor-group-form" class="modal-overlay">
+      <div class="modal modal--wide" role="dialog" aria-labelledby="modal-instructor-group-title">
+        <div class="modal__header">
+          <h3 id="modal-instructor-group-title">Ausbildergruppe anlegen</h3>
+          <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
+        </div>
+        <form method="post" th:action="@{/personal/ausbilder-groups}" id="form-instructor-group"
+              th:attr="data-create-action=@{/personal/ausbilder-groups}">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <input type="hidden" name="unit" th:value="${unitId}"/>
+          <div class="modal__body">
+            <div class="form-group">
+              <label for="instructor-group-thema">Thema <span class="required">*</span></label>
+              <input type="text" id="instructor-group-thema" name="thema" required maxlength="150"
+                     placeholder="z. B. Atemschutz, Technische Hilfeleistung"/>
+              <p class="hint text-sm">Wird beim Anlegen eines Dienstplan-Termins mit diesem Thema für die Ausbilder-Vorauswahl genutzt.</p>
+            </div>
+            <div class="form-group">
+              <label>Ausbilder</label>
+              <p class="hint" style="margin:0 0 0.5rem;">Personen, die bei diesem Thema standardmäßig als Ausbilder vorgeschlagen werden.</p>
+              <div class="member-picker" th:if="${!#lists.isEmpty(persons)}">
+                <label class="checkbox-row member-picker__item" th:each="p : ${persons}">
+                  <input type="checkbox" name="personIds" th:value="${p.id}"
+                         th:attr="data-person-id=${p.id}"/>
+                  <span th:text="${p.displayName()}">Name</span>
+                </label>
+              </div>
+              <p class="hint" th:if="${#lists.isEmpty(persons)}" style="margin:0;">
+                Noch keine Mitglieder vorhanden — legen Sie zuerst Personen an.
+              </p>
+            </div>
+          </div>
+          <div class="modal__footer">
+            <button type="submit" class="btn btn--primary">Speichern</button>
+            <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script th:src="@{/js/personal-ausbilder-groups.js}"></script>
   </div>
 </main>
 </html>

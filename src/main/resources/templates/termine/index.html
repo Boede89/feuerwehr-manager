@@ -147,7 +147,7 @@
               <option th:each="p : ${unitPersons}" th:value="${p.id}"
                       th:text="${p.anwesenheitDisplayName()}">Name</option>
             </select>
-            <p class="hint text-sm">Optional. Strg gedrückt halten für Mehrfachauswahl.</p>
+            <p class="hint text-sm">Optional. Bei bekanntem Thema werden Ausbilder aus den Ausbildergruppen vorgeschlagen. Strg gedrückt halten für Mehrfachauswahl.</p>
           </div>
         </div>
       </div>
@@ -159,6 +159,9 @@
   </div>
 
   <th:block th:if="${termineTab == 'dienstplan'}">
+    <script th:inline="javascript">
+      window.TERMINE_INSTRUCTOR_GROUPS = /*[[${instructorGroupsForTermin}]]*/ [];
+    </script>
     <script th:src="@{/js/combo-suggest.js}" defer></script>
     <script th:src="@{/js/termine-dienstplan.js}" defer></script>
   </th:block>

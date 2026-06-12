@@ -24,6 +24,7 @@ public class UnitDatabaseBackupService {
     private static final String VEHICLE_IDS = "SELECT id FROM vehicles WHERE unit_id = ?";
     private static final String CARRIER_IDS = "SELECT id FROM atemschutz_carriers WHERE unit_id = ?";
     private static final String GROUP_IDS = "SELECT id FROM person_groups WHERE unit_id = ?";
+    private static final String INSTRUCTOR_GROUP_IDS = "SELECT id FROM instructor_groups WHERE unit_id = ?";
     private static final String TERMIN_IDS = "SELECT id FROM unit_termine WHERE unit_id = ?";
     private static final String ROLE_IDS = "SELECT id FROM unit_roles WHERE unit_id = ?";
     private static final String UNIT_USER_IDS =
@@ -40,6 +41,7 @@ public class UnitDatabaseBackupService {
             "DELETE FROM vehicle_equipment_categories WHERE vehicle_id IN (" + VEHICLE_IDS + ")",
             "DELETE FROM atemschutz_fitness_records WHERE carrier_id IN (" + CARRIER_IDS + ")",
             "DELETE FROM person_group_members WHERE group_id IN (" + GROUP_IDS + ")",
+            "DELETE FROM instructor_group_members WHERE group_id IN (" + INSTRUCTOR_GROUP_IDS + ")",
             "DELETE FROM person_course_completions WHERE person_id IN (" + PERSON_IDS + ")",
             "DELETE FROM person_attendance WHERE person_id IN (" + PERSON_IDS + ")",
             "DELETE FROM person_divera_rics WHERE person_id IN (" + PERSON_IDS + ")",
@@ -58,6 +60,7 @@ public class UnitDatabaseBackupService {
             "DELETE FROM unit_atemschutz_settings WHERE unit_id = ?",
             "DELETE FROM atemschutz_carriers WHERE unit_id = ?",
             "DELETE FROM person_groups WHERE unit_id = ?",
+            "DELETE FROM instructor_groups WHERE unit_id = ?",
             "DELETE FROM persons WHERE unit_id = ?",
             "DELETE FROM courses WHERE unit_id = ?",
             "DELETE FROM qualification_types WHERE unit_id = ?",
@@ -107,6 +110,12 @@ public class UnitDatabaseBackupService {
         exportTable(
                 "person_group_members",
                 "SELECT pgm.* FROM person_group_members pgm JOIN person_groups pg ON pgm.group_id = pg.id WHERE pg.unit_id = ?",
+                params,
+                out);
+        exportTable("instructor_groups", "SELECT * FROM instructor_groups WHERE unit_id = ?", params, out);
+        exportTable(
+                "instructor_group_members",
+                "SELECT igm.* FROM instructor_group_members igm JOIN instructor_groups ig ON igm.group_id = ig.id WHERE ig.unit_id = ?",
                 params,
                 out);
         exportPersonChild("person_course_completions", out, unitId);

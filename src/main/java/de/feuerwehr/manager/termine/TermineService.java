@@ -3,6 +3,7 @@ package de.feuerwehr.manager.termine;
 import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.personal.PersonGroup;
 import de.feuerwehr.manager.personal.PersonGroupRepository;
+import de.feuerwehr.manager.personal.PersonalInstructorGroupService;
 import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
@@ -29,6 +30,7 @@ public class TermineService {
     private final UserRepository userRepository;
     private final PersonalService personalService;
     private final PersonGroupRepository personGroupRepository;
+    private final PersonalInstructorGroupService personalInstructorGroupService;
     private final TestModeService testModeService;
 
     @Transactional(readOnly = true)
@@ -41,7 +43,12 @@ public class TermineService {
 
     @Transactional(readOnly = true)
     public List<String> listKnownDienstplanThemen(long unitId) {
-        return unitTerminRepository.findDistinctTitlesByUnitAndCategory(unitId, TermineCategory.DIENSTPLAN);
+        LinkedHashSet<String> themen = new LinkedHashSet<>();
+        unitTerminRepository
+                .findDistinctTitlesByUnitAndCategory(unitId, TermineCategory.DIENSTPLAN)
+                .forEach(themen::add);
+        personalInstructorGroupService.listThemen(unitId).forEach(themen::add);
+        return themen.stream().sorted(String.CASE_INSENSITIVE_ORDER).toList();
     }
 
     @Transactional

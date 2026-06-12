@@ -8,6 +8,8 @@
 
   var unitId = panel.getAttribute('data-unit-id');
   var canWrite = panel.getAttribute('data-can-write') === 'true';
+  var instructorGroups = Array.isArray(window.TERMINE_INSTRUCTOR_GROUPS) ? window.TERMINE_INSTRUCTOR_GROUPS : [];
+  var lastAppliedThema = '';
 
   function getCsrfToken() {
     var meta = document.querySelector('meta[name="csrf-token"]');
@@ -82,6 +84,7 @@
         option.selected = false;
       });
     }
+    lastAppliedThema = '';
     var audienceAll = document.getElementById('dienstplan-audience-all');
     var groups = document.getElementById('dienstplan-audience-groups');
     var persons = document.getElementById('dienstplan-audience-persons');
@@ -108,6 +111,73 @@
       return;
     }
     pick.hidden = audienceAll.checked;
+  }
+
+  function normalizeThema(value) {
+    return (value || '').trim();
+  }
+
+  function themaMatches(left, right) {
+    if (!left || !right) {
+      return false;
+    }
+    return left.localeCompare(right, 'de', { sensitivity: 'accent' }) === 0;
+  }
+
+  function instructorIdsForThema(thema) {
+    var ids = [];
+    instructorGroups.forEach(function (group) {
+      if (!group || !themaMatches(group.thema, thema)) {
+        return;
+      }
+      (group.personIds || []).forEach(function (id) {
+        var numericId = Number(id);
+        if (Number.isFinite(numericId) && numericId > 0 && ids.indexOf(numericId) === -1) {
+          ids.push(numericId);
+        }
+      });
+    });
+    return ids;
+  }
+
+  function applyInstructorsForThema(thema, force) {
+    var normalized = normalizeThema(thema);
+    if (!normalized) {
+      lastAppliedThema = '';
+      return;
+    }
+    if (!force && normalized === lastAppliedThema) {
+      return;
+    }
+    var ausbilder = document.getElementById('dienstplan-termin-ausbilder');
+    if (!ausbilder) {
+      return;
+    }
+    var ids = instructorIdsForThema(normalized);
+    if (ids.length === 0) {
+      lastAppliedThema = normalized;
+      return;
+    }
+    ids.forEach(function (id) {
+      var option = ausbilder.querySelector('option[value="' + id + '"]');
+      if (option) {
+        option.selected = true;
+      }
+    });
+    lastAppliedThema = normalized;
+  }
+
+  function bindThemaInstructorAutofill() {
+    var themaInput = document.getElementById('dienstplan-termin-thema');
+    if (!themaInput) {
+      return;
+    }
+    themaInput.addEventListener('change', function () {
+      applyInstructorsForThema(themaInput.value, true);
+    });
+    themaInput.addEventListener('blur', function () {
+      applyInstructorsForThema(themaInput.value, false);
+    });
   }
 
   function selectedOptionValues(selectEl) {
@@ -200,6 +270,8 @@
     audienceAllCheckbox.addEventListener('change', syncAudiencePickVisibility);
     syncAudiencePickVisibility();
   }
+
+  bindThemaInstructorAutofill();
 
   if (canWrite) {
     var newBtn = document.getElementById('termine-new-dienstplan-btn');

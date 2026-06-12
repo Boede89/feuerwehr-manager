@@ -7,7 +7,9 @@ import de.feuerwehr.manager.personal.EquipmentType;
 import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.personal.PersonCourseCompletion;
 import de.feuerwehr.manager.personal.PersonStatus;
+import de.feuerwehr.manager.personal.InstructorGroup;
 import de.feuerwehr.manager.personal.PersonalGroupService;
+import de.feuerwehr.manager.personal.PersonalInstructorGroupService;
 import de.feuerwehr.manager.personal.PersonalMemberService;
 import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.personal.PersonGroup;
@@ -55,6 +57,7 @@ public class PersonalController {
     private final PersonalService personalService;
     private final PersonalMemberService personalMemberService;
     private final PersonalGroupService personalGroupService;
+    private final PersonalInstructorGroupService personalInstructorGroupService;
     private final AccessControlService accessControlService;
     private final AccountMailService accountMailService;
 
@@ -74,6 +77,11 @@ public class PersonalController {
             List<PersonGroup> groups = personalGroupService.listGroups(unit.getId());
             model.addAttribute("groups", groups);
             model.addAttribute("groupCount", groups.size());
+        }
+        if ("ausbildergruppen".equals(personalTab)) {
+            List<InstructorGroup> instructorGroups = personalInstructorGroupService.listGroups(unit.getId());
+            model.addAttribute("instructorGroups", instructorGroups);
+            model.addAttribute("instructorGroupCount", instructorGroups.size());
         }
         return "personal/index";
     }
@@ -130,6 +138,60 @@ public class PersonalController {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
         return "redirect:/personal?unit=" + unit + "&tab=gruppen";
+    }
+
+    @PostMapping("/ausbilder-groups")
+    public String createInstructorGroup(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam String thema,
+            @RequestParam(name = "personIds", required = false) List<Long> personIds,
+            RedirectAttributes redirectAttributes) {
+        try {
+            accessControlService.requireUnitAccess(actor, unit);
+            personalInstructorGroupService.createGroup(unit, thema, personIds);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "Ausbildergruppe wurde angelegt.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/personal?unit=" + unit + "&tab=ausbildergruppen";
+    }
+
+    @PostMapping("/ausbilder-groups/{groupId}")
+    public String updateInstructorGroup(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long groupId,
+            @RequestParam long unit,
+            @RequestParam String thema,
+            @RequestParam(name = "personIds", required = false) List<Long> personIds,
+            RedirectAttributes redirectAttributes) {
+        try {
+            accessControlService.requireUnitAccess(actor, unit);
+            personalInstructorGroupService.updateGroup(groupId, thema, personIds);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "Ausbildergruppe wurde gespeichert.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/personal?unit=" + unit + "&tab=ausbildergruppen";
+    }
+
+    @PostMapping("/ausbilder-groups/{groupId}/delete")
+    public String deleteInstructorGroup(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long groupId,
+            @RequestParam long unit,
+            RedirectAttributes redirectAttributes) {
+        try {
+            accessControlService.requireUnitAccess(actor, unit);
+            personalInstructorGroupService.deleteGroup(groupId);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "Ausbildergruppe wurde gelöscht.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/personal?unit=" + unit + "&tab=ausbildergruppen";
     }
 
     @GetMapping("/new")
@@ -799,6 +861,9 @@ public class PersonalController {
     private static String normalizePersonalTab(String tab) {
         if ("gruppen".equals(tab)) {
             return "gruppen";
+        }
+        if ("ausbildergruppen".equals(tab)) {
+            return "ausbildergruppen";
         }
         return "mitglieder";
     }
