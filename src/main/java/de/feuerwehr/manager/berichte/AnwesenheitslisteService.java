@@ -135,6 +135,7 @@ public class AnwesenheitslisteService {
         if (report != null) {
             enrichEinsatzFormFromTermin(report, form);
         }
+        unitRepository.findById(unitId).ifPresent(unit -> UnitAddressSupport.applyDefaultsToForm(form, unit));
         KraefteFahrzeugeState kraefteState = buildKraefteFahrzeugeState(unitId, reportId);
         if (form.getCrewAssignmentsJson() == null || form.getCrewAssignmentsJson().isBlank()) {
             if (reportId != null) {
@@ -444,7 +445,13 @@ public class AnwesenheitslisteService {
         report.setTitle(termin.getTitle());
         report.setTerminCategory(termin.getCategory());
         String location = termin.getLocation() != null ? termin.getLocation().trim() : "";
-        report.setLocation(location.isBlank() ? "—" : location);
+        if (location.isBlank()) {
+            UnitAddressSupport.UnitAddress unitAddress = UnitAddressSupport.fromUnit(report.getUnit());
+            String unitCity = unitAddress.location();
+            report.setLocation(unitCity != null && !unitCity.isBlank() ? unitCity : "—");
+        } else {
+            report.setLocation(location);
+        }
         termin.getInstructorPersons().size();
         String instructors = formatInstructorNames(termin);
         if (instructors != null && !instructors.isBlank()) {

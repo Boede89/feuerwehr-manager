@@ -23,6 +23,19 @@ class UnitAddressSupportTest {
     }
 
     @Test
+    void applyDefaultsToForm_fillsMissingPostalCodeAndLocation() {
+        Unit unit = new Unit();
+        unit.setPostalCity("54321 Beispielstadt");
+        EinsatzberichtForm form = new EinsatzberichtForm();
+        form.setLocation("—");
+
+        UnitAddressSupport.applyDefaultsToForm(form, unit);
+
+        assertThat(form.getPostalCode()).isEqualTo("54321");
+        assertThat(form.getLocation()).isEqualTo("Beispielstadt");
+    }
+
+    @Test
     void parseStreet_keepsUnsplittableLineInStreetField() {
         UnitAddressSupport.StreetParts parts = UnitAddressSupport.parseStreet("Feuerwehrhaus");
 

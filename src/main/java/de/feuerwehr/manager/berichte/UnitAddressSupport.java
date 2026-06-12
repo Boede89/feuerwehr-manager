@@ -22,6 +22,25 @@ public final class UnitAddressSupport {
         return new UnitAddress(postal.city(), postal.postalCode(), streetParts.street(), streetParts.houseNumber());
     }
 
+    public static void applyDefaultsToForm(EinsatzberichtForm form, Unit unit) {
+        if (form == null || unit == null) {
+            return;
+        }
+        UnitAddress address = fromUnit(unit);
+        if (isBlank(form.getPostalCode()) && !isBlank(address.postalCode())) {
+            form.setPostalCode(address.postalCode());
+        }
+        if (isBlank(form.getLocation()) || "—".equals(form.getLocation().trim())) {
+            if (!isBlank(address.location())) {
+                form.setLocation(address.location());
+            }
+        }
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
     public static StreetParts parseStreet(String streetLine) {
         if (streetLine == null || streetLine.isBlank()) {
             return new StreetParts(null, null);
