@@ -1,4 +1,7 @@
--- Anwesenheitslisten (angelehnt an Einsatzberichte, verknüpft mit Terminen)
+-- Schema für Anwesenheitslisten (korrigierte V72 — FK auf unit_termine)
+
+DROP TABLE IF EXISTS attendance_report_personnel;
+DROP TABLE IF EXISTS attendance_reports;
 
 CREATE TABLE attendance_reports (
     id                  BIGINT AUTO_INCREMENT PRIMARY KEY,
