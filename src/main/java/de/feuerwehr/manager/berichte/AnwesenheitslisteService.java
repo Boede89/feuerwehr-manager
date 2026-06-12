@@ -10,12 +10,15 @@ import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.termine.TermineCategory;
 import de.feuerwehr.manager.termine.UnitTermin;
+import de.feuerwehr.manager.termine.UnitTerminRepository;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -42,6 +45,7 @@ public class AnwesenheitslisteService {
     private final PersonalService personalService;
     private final TestModeService testModeService;
     private final EinsatzberichtService einsatzberichtService;
+    private final UnitTerminRepository unitTerminRepository;
     private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
@@ -247,6 +251,7 @@ public class AnwesenheitslisteService {
         applyCreator(report, actor);
         AttendanceReport saved = attendanceReportRepository.save(report);
         saveCrewAsPersonnel(saved, crewAssignments, unitId);
+        syncLinkedTerminSchedule(saved);
         return saved;
     }
 
@@ -272,6 +277,7 @@ public class AnwesenheitslisteService {
         AnwesenheitslisteEinsatzFormBridge.applyEinsatzForm(report, form);
         AttendanceReport saved = attendanceReportRepository.save(report);
         saveCrewAsPersonnel(saved, crewAssignments, unitId);
+        syncLinkedTerminSchedule(saved);
         return saved;
     }
 
@@ -357,7 +363,7 @@ public class AnwesenheitslisteService {
             return false;
         }
         AttendanceReport report = newDraft(unitId);
-        applyTerminFields(report, termin);
+        applyTerminFields(report, termin, true);
         report.setStatus(IncidentReportStatus.ENTWURF);
         report.setCreatedByName("Terminplan");
         report.setUnitTermin(termin);
@@ -377,7 +383,7 @@ public class AnwesenheitslisteService {
                     if (report.getStatus() != IncidentReportStatus.ENTWURF) {
                         return;
                     }
-                    applyTerminFields(report, termin);
+                    applyTerminFields(report, termin, false);
                     attendanceReportRepository.save(report);
                 });
     }
@@ -469,10 +475,12 @@ public class AnwesenheitslisteService {
         }
     }
 
-    private void applyTerminFields(AttendanceReport report, UnitTermin termin) {
-        report.setEventDate(termin.getStartAt().toLocalDate());
-        report.setStartTime(termin.getStartAt().toLocalTime());
-        report.setEndTime(termin.getEndAt() != null ? termin.getEndAt().toLocalTime() : null);
+    private void applyTerminFields(AttendanceReport report, UnitTermin termin, boolean includeSchedule) {
+        if (includeSchedule) {
+            report.setEventDate(termin.getStartAt().toLocalDate());
+            report.setStartTime(termin.getStartAt().toLocalTime());
+            report.setEndTime(termin.getEndAt() != null ? termin.getEndAt().toLocalTime() : null);
+        }
         report.setTitle(termin.getTitle());
         report.setTerminCategory(termin.getCategory());
         String location = termin.getLocation() != null ? termin.getLocation().trim() : "";
@@ -488,6 +496,35 @@ public class AnwesenheitslisteService {
         if (instructors != null && !instructors.isBlank()) {
             report.setInstructorResponsible(instructors);
         }
+    }
+
+    /** Übernimmt Datum/Uhrzeit aus der Anwesenheitsliste in den verknüpften Termin. */
+    private void syncLinkedTerminSchedule(AttendanceReport report) {
+        if (report == null || report.getUnitTermin() == null || report.getEventDate() == null) {
+            return;
+        }
+        UnitTermin termin = report.getUnitTermin();
+        if (termin.getId() == null) {
+            return;
+        }
+        LocalDate date = report.getEventDate();
+        LocalTime start = report.getStartTime();
+        if (start == null) {
+            return;
+        }
+        LocalDateTime startAt = LocalDateTime.of(date, start);
+        termin.setStartAt(startAt);
+        LocalTime end = report.getEndTime();
+        if (end != null) {
+            LocalDateTime endAt = LocalDateTime.of(date, end);
+            if (!endAt.isAfter(startAt)) {
+                endAt = endAt.plusDays(1);
+            }
+            termin.setEndAt(endAt);
+        } else {
+            termin.setEndAt(null);
+        }
+        unitTerminRepository.save(termin);
     }
 
     private static String formatInstructorNames(UnitTermin termin) {
