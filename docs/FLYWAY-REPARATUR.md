@@ -1,5 +1,26 @@
 # Flyway-Reparatur (App startet nicht / Container „Restarting“)
 
+## V72 — Anwesenheitslisten
+
+Symptom:
+
+```text
+Detected failed migration to version 72 (attendance reports).
+```
+
+```bash
+cd /opt/feuerwehr/feuerwehr-manager
+git pull
+chmod +x scripts/repair-flyway-v72.sh
+./scripts/repair-flyway-v72.sh
+```
+
+Das Skript entfernt halbfertige Tabellen, löscht den fehlgeschlagenen Flyway-Eintrag und startet die App neu — V72 läuft dann einmalig sauber durch.
+
+---
+
+## V37 — Atemschutz-Kursauswahl
+
 Symptom:
 
 ```text
