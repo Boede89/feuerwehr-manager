@@ -63,6 +63,21 @@ public class AttendanceReport {
     @Column(nullable = false, length = 300)
     private String location = "";
 
+    @Column(name = "postal_code", length = 10)
+    private String postalCode;
+
+    @Column(length = 128)
+    private String district;
+
+    @Column(length = 255)
+    private String street;
+
+    @Column(name = "house_number", length = 20)
+    private String houseNumber;
+
+    @Column(length = 255)
+    private String objekt;
+
     @Column(name = "instructor_responsible", length = 255)
     private String instructorResponsible;
 

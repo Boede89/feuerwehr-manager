@@ -184,10 +184,26 @@ public class AnwesenheitslistePdfService {
     }
 
     private static String formatAddress(AttendanceReport report, Unit unit) {
-        if (report.getLocation() != null && !report.getLocation().isBlank()) {
-            return report.getLocation().trim();
-        }
         List<String> parts = new ArrayList<>();
+        if (report.getStreet() != null && !report.getStreet().isBlank()) {
+            String street = report.getStreet().trim();
+            if (report.getHouseNumber() != null && !report.getHouseNumber().isBlank()) {
+                street += " " + report.getHouseNumber().trim();
+            }
+            parts.add(street);
+        }
+        if (report.getPostalCode() != null && !report.getPostalCode().isBlank()) {
+            parts.add(report.getPostalCode().trim());
+        }
+        if (report.getLocation() != null && !report.getLocation().isBlank()) {
+            parts.add(report.getLocation().trim());
+        }
+        if (parts.isEmpty() && report.getObjekt() != null && !report.getObjekt().isBlank()) {
+            return report.getObjekt().trim();
+        }
+        if (!parts.isEmpty()) {
+            return String.join(", ", parts);
+        }
         UnitAddressSupport.UnitAddress unitAddress = UnitAddressSupport.fromUnit(unit);
         if (unitAddress.street() != null && !unitAddress.street().isBlank()) {
             String street = unitAddress.street().trim();

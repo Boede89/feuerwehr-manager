@@ -161,7 +161,9 @@ public class AnwesenheitslisteService {
         if (report != null) {
             enrichEinsatzFormFromTermin(report, form);
         }
-        unitRepository.findById(unitId).ifPresent(unit -> UnitAddressSupport.applyDefaultsToForm(form, unit));
+        unitRepository
+                .findById(unitId)
+                .ifPresent(unit -> UnitAddressSupport.applyDefaultsToFormIfBlank(form, unit));
         KraefteFahrzeugeState kraefteState = buildKraefteFahrzeugeState(unitId, reportId);
         if (form.getCrewAssignmentsJson() == null || form.getCrewAssignmentsJson().isBlank()) {
             if (reportId != null) {
@@ -251,7 +253,7 @@ public class AnwesenheitslisteService {
         applyCreator(report, actor);
         AttendanceReport saved = attendanceReportRepository.save(report);
         saveCrewAsPersonnel(saved, crewAssignments, unitId);
-        syncLinkedTerminSchedule(saved);
+        syncLinkedTerminFromReport(saved);
         return saved;
     }
 
@@ -277,7 +279,7 @@ public class AnwesenheitslisteService {
         AnwesenheitslisteEinsatzFormBridge.applyEinsatzForm(report, form);
         AttendanceReport saved = attendanceReportRepository.save(report);
         saveCrewAsPersonnel(saved, crewAssignments, unitId);
-        syncLinkedTerminSchedule(saved);
+        syncLinkedTerminFromReport(saved);
         return saved;
     }
 
@@ -364,6 +366,7 @@ public class AnwesenheitslisteService {
         }
         AttendanceReport report = newDraft(unitId);
         applyTerminFields(report, termin, true);
+        UnitAddressSupport.applyDefaultsToReportIfBlank(report, report.getUnit());
         report.setStatus(IncidentReportStatus.ENTWURF);
         report.setCreatedByName("Terminplan");
         report.setUnitTermin(termin);
@@ -374,18 +377,8 @@ public class AnwesenheitslisteService {
 
     @Transactional
     public void refreshDraftFromTermin(long unitId, UnitTermin termin) {
-        if (termin == null || termin.getId() == null) {
-            return;
-        }
-        attendanceReportRepository
-                .findByUnitIdAndUnitTerminId(unitId, termin.getId(), includeTestReports())
-                .ifPresent(report -> {
-                    if (report.getStatus() != IncidentReportStatus.ENTWURF) {
-                        return;
-                    }
-                    applyTerminFields(report, termin, false);
-                    attendanceReportRepository.save(report);
-                });
+        // Bestehende Anwesenheitslisten-Entwürfe werden nicht mehr vom Termin überschrieben.
+        // Stammdaten werden in der Anwesenheitsliste gepflegt und beim Speichern in den Termin zurückgeschrieben.
     }
 
     @Transactional
@@ -498,31 +491,36 @@ public class AnwesenheitslisteService {
         }
     }
 
-    /** Übernimmt Datum/Uhrzeit aus der Anwesenheitsliste in den verknüpften Termin. */
-    private void syncLinkedTerminSchedule(AttendanceReport report) {
-        if (report == null || report.getUnitTermin() == null || report.getEventDate() == null) {
+    /** Übernimmt geänderte Stammdaten aus der Anwesenheitsliste in den verknüpften Termin. */
+    private void syncLinkedTerminFromReport(AttendanceReport report) {
+        if (report == null || report.getUnitTermin() == null) {
             return;
         }
         UnitTermin termin = report.getUnitTermin();
         if (termin.getId() == null) {
             return;
         }
+        if (report.getTitle() != null && !report.getTitle().isBlank()) {
+            termin.setTitle(report.getTitle().trim());
+        }
+        if (report.getLocation() != null) {
+            termin.setLocation(report.getLocation().trim());
+        }
         LocalDate date = report.getEventDate();
         LocalTime start = report.getStartTime();
-        if (start == null) {
-            return;
-        }
-        LocalDateTime startAt = LocalDateTime.of(date, start);
-        termin.setStartAt(startAt);
-        LocalTime end = report.getEndTime();
-        if (end != null) {
-            LocalDateTime endAt = LocalDateTime.of(date, end);
-            if (!endAt.isAfter(startAt)) {
-                endAt = endAt.plusDays(1);
+        if (date != null && start != null) {
+            LocalDateTime startAt = LocalDateTime.of(date, start);
+            termin.setStartAt(startAt);
+            LocalTime end = report.getEndTime();
+            if (end != null) {
+                LocalDateTime endAt = LocalDateTime.of(date, end);
+                if (!endAt.isAfter(startAt)) {
+                    endAt = endAt.plusDays(1);
+                }
+                termin.setEndAt(endAt);
+            } else {
+                termin.setEndAt(null);
             }
-            termin.setEndAt(endAt);
-        } else {
-            termin.setEndAt(null);
         }
         unitTerminRepository.save(termin);
     }

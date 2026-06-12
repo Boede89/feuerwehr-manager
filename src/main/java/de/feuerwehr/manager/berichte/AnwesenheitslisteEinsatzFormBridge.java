@@ -16,6 +16,11 @@ public final class AnwesenheitslisteEinsatzFormBridge {
         form.setEndTime(report.getEndTime());
         form.setStichwort(report.getTitle());
         form.setLocation(report.getLocation() != null ? report.getLocation() : "");
+        form.setPostalCode(report.getPostalCode());
+        form.setDistrict(report.getDistrict());
+        form.setStreet(report.getStreet());
+        form.setHouseNumber(report.getHouseNumber());
+        form.setObjekt(report.getObjekt());
         form.setIncidentCommander(report.getInstructorResponsible());
         form.setEinsatzkurzbericht(report.getNotes());
         form.setPersonDamageDetailsJson(PersonDamageDetailsSupport.emptyJson());
@@ -36,11 +41,23 @@ public final class AnwesenheitslisteEinsatzFormBridge {
             report.setTitle(form.getStichwort().trim());
         }
         report.setLocation(form.getLocation() != null ? form.getLocation().trim() : "");
+        report.setPostalCode(trimOrNull(form.getPostalCode()));
+        report.setDistrict(trimOrNull(form.getDistrict()));
+        report.setStreet(trimOrNull(form.getStreet()));
+        report.setHouseNumber(trimOrNull(form.getHouseNumber()));
+        report.setObjekt(trimOrNull(form.getObjekt()));
         String instructor = form.getIncidentCommander();
         report.setInstructorResponsible(instructor != null && !instructor.isBlank() ? instructor.trim() : null);
         report.setNotes(form.getEinsatzkurzbericht());
         if (form.getIncidentNumber() != null && !form.getIncidentNumber().isBlank()) {
             report.setReportNumber(form.getIncidentNumber().trim());
         }
+    }
+
+    private static String trimOrNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 }

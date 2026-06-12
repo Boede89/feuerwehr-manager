@@ -23,6 +23,10 @@ public final class UnitAddressSupport {
     }
 
     public static void applyDefaultsToForm(EinsatzberichtForm form, Unit unit) {
+        applyDefaultsToFormIfBlank(form, unit);
+    }
+
+    public static void applyDefaultsToFormIfBlank(EinsatzberichtForm form, Unit unit) {
         if (form == null || unit == null) {
             return;
         }
@@ -34,6 +38,33 @@ public final class UnitAddressSupport {
             if (!isBlank(address.location())) {
                 form.setLocation(address.location());
             }
+        }
+        if (isBlank(form.getStreet()) && !isBlank(address.street())) {
+            form.setStreet(address.street());
+        }
+        if (isBlank(form.getHouseNumber()) && !isBlank(address.houseNumber())) {
+            form.setHouseNumber(address.houseNumber());
+        }
+    }
+
+    public static void applyDefaultsToReportIfBlank(AttendanceReport report, Unit unit) {
+        if (report == null || unit == null) {
+            return;
+        }
+        UnitAddress address = fromUnit(unit);
+        if (isBlank(report.getPostalCode()) && !isBlank(address.postalCode())) {
+            report.setPostalCode(address.postalCode());
+        }
+        if (isBlank(report.getLocation()) || "—".equals(report.getLocation().trim())) {
+            if (!isBlank(address.location())) {
+                report.setLocation(address.location());
+            }
+        }
+        if (isBlank(report.getStreet()) && !isBlank(address.street())) {
+            report.setStreet(address.street());
+        }
+        if (isBlank(report.getHouseNumber()) && !isBlank(address.houseNumber())) {
+            report.setHouseNumber(address.houseNumber());
         }
     }
 
