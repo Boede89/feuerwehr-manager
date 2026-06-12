@@ -115,13 +115,23 @@ public class AnwesenheitslisteService {
         if (attendanceReportId == null) {
             return einsatzberichtService.buildKraefteFahrzeugeState(unitId, null);
         }
-        List<Long> personIds = listPersonnel(attendanceReportId).stream()
+        AttendanceReport report = requireReport(unitId, attendanceReportId);
+        List<Long> anwesendPersonIds = listPersonnel(attendanceReportId).stream()
                 .map(AttendanceReportPersonnel::getPerson)
                 .filter(Objects::nonNull)
                 .map(Person::getId)
                 .distinct()
                 .toList();
-        return einsatzberichtService.buildKraefteFahrzeugeStateWithAnwesend(unitId, personIds);
+        Set<Long> manualPoolPersonIds = null;
+        if (report.getUnitTermin() != null) {
+            UnitTermin termin = report.getUnitTermin();
+            touchTerminAudience(termin);
+            manualPoolPersonIds = resolveAudiencePersons(unitId, termin).stream()
+                    .map(Person::getId)
+                    .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        }
+        return einsatzberichtService.buildKraefteFahrzeugeStateForAnwesenheit(
+                unitId, anwesendPersonIds, manualPoolPersonIds);
     }
 
     @Transactional(readOnly = true)
@@ -136,9 +146,12 @@ public class AnwesenheitslisteService {
         }
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AnwesenheitFormBundle buildFormBundle(long unitId, Long reportId) {
         AttendanceReport report = reportId != null ? requireReport(unitId, reportId) : null;
+        if (report != null) {
+            clearLegacyTerminPersonnelPreload(report, unitId);
+        }
         EinsatzberichtForm form =
                 report != null ? AnwesenheitslisteEinsatzFormBridge.toEinsatzForm(report) : newEinsatzForm(unitId);
         if (report != null) {
@@ -349,8 +362,7 @@ public class AnwesenheitslisteService {
         report.setCreatedByName("Terminplan");
         report.setUnitTermin(termin);
         report.setReportNumber(suggestReportNumber(unitId, report.getEventDate()));
-        AttendanceReport saved = attendanceReportRepository.save(report);
-        populatePersonnelFromTermin(saved, unitId, termin);
+        attendanceReportRepository.save(report);
         return true;
     }
 
@@ -410,20 +422,30 @@ public class AnwesenheitslisteService {
         }
     }
 
-    private void populatePersonnelFromTermin(AttendanceReport report, long unitId, UnitTermin termin) {
-        touchTerminAudience(termin);
-        List<Person> persons = resolveAudiencePersons(unitId, termin).stream()
-                .sorted(Comparator.comparing(Person::anwesenheitDisplayName, String.CASE_INSENSITIVE_ORDER))
+    /**
+     * Entfernt alte Termin-Vorauswahl aus der DB (früher fälschlich als „anwesend“ gespeichert).
+     * Betrifft nur automatisch angelegte Entwürfe, bei denen noch alle Zielgruppen-Mitglieder eingetragen sind.
+     */
+    private void clearLegacyTerminPersonnelPreload(AttendanceReport report, long unitId) {
+        if (report.getUnitTermin() == null || report.getStatus() != IncidentReportStatus.ENTWURF) {
+            return;
+        }
+        if (report.getCreatedByName() == null || !"Terminplan".equals(report.getCreatedByName().trim())) {
+            return;
+        }
+        List<Long> personnelIds = listPersonnel(report.getId()).stream()
+                .map(AttendanceReportPersonnel::getPerson)
+                .filter(Objects::nonNull)
+                .map(Person::getId)
                 .toList();
-        int order = 0;
-        for (Person person : persons) {
-            AttendanceReportPersonnel row = new AttendanceReportPersonnel();
-            row.setAttendanceReport(report);
-            row.setPerson(person);
-            row.setDisplayName(person.anwesenheitDisplayName());
-            row.setAttendanceStatus(AttendancePersonStatus.PRESENT);
-            row.setSortOrder(order++);
-            attendanceReportPersonnelRepository.save(row);
+        if (personnelIds.isEmpty()) {
+            return;
+        }
+        Set<Long> audienceIds = resolveAudiencePersons(unitId, report.getUnitTermin()).stream()
+                .map(Person::getId)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        if (new LinkedHashSet<>(personnelIds).equals(audienceIds)) {
+            attendanceReportPersonnelRepository.deleteByReportId(report.getId());
         }
     }
 
@@ -501,9 +523,12 @@ public class AnwesenheitslisteService {
         }
         LinkedHashSet<Long> personIds = new LinkedHashSet<>();
         for (CrewAssignment assignment : crewAssignments) {
-            if (assignment.personIds() != null) {
-                assignment.personIds().stream().filter(Objects::nonNull).forEach(personIds::add);
+            if (assignment.vehicleId() == null
+                    || assignment.vehicleId() != IncidentCrewSupport.BETEILIGT_VEHICLE_ID
+                    || assignment.personIds() == null) {
+                continue;
             }
+            assignment.personIds().stream().filter(Objects::nonNull).forEach(personIds::add);
         }
         int order = 0;
         for (Long personId : personIds) {

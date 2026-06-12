@@ -177,16 +177,20 @@ public class EinsatzberichtService {
     }
 
     public KraefteFahrzeugeState buildKraefteFahrzeugeState(long unitId, Long reportId) {
-        return buildKraefteFahrzeugeState(unitId, reportId, null);
+        return buildKraefteFahrzeugeState(unitId, reportId, null, null);
     }
 
-    /** Kräfte-Board mit vorausgewähltem Personal im Slot „Am Einsatz beteiligt“ (Anwesenheitslisten). */
-    public KraefteFahrzeugeState buildKraefteFahrzeugeStateWithAnwesend(long unitId, List<Long> anwesendPersonIds) {
-        return buildKraefteFahrzeugeState(unitId, null, anwesendPersonIds);
+    /**
+     * Kräfte-Board für Anwesenheitslisten: Termin-Zielgruppe im Reserve-Pool links,
+     * explizit gespeicherte Anwesenheit im Slot „Anwesend“.
+     */
+    public KraefteFahrzeugeState buildKraefteFahrzeugeStateForAnwesenheit(
+            long unitId, List<Long> anwesendPersonIds, Set<Long> manualPoolPersonIds) {
+        return buildKraefteFahrzeugeState(unitId, null, anwesendPersonIds, manualPoolPersonIds);
     }
 
     private KraefteFahrzeugeState buildKraefteFahrzeugeState(
-            long unitId, Long reportId, List<Long> presetAnwesendPersonIds) {
+            long unitId, Long reportId, List<Long> presetAnwesendPersonIds, Set<Long> manualPoolPersonIds) {
         List<Person> allPersons = listPersonsForForm(unitId);
         List<IncidentReportPersonnel> reportRows =
                 reportId != null ? incidentReportPersonnelRepository.findByIncidentReportId(reportId) : List.of();
@@ -337,6 +341,11 @@ public class EinsatzberichtService {
         List<KraefteFahrzeugeState.KraeftePersonView> diveraPersons = new ArrayList<>();
         List<KraefteFahrzeugeState.KraeftePersonView> foreignPersons = new ArrayList<>();
 
+        if (manualPoolPersonIds != null && !manualPoolPersonIds.isEmpty()) {
+            personRepository
+                    .findActiveByIdIn(manualPoolPersonIds, includeTestReports())
+                    .forEach(person -> personById.putIfAbsent(person.getId(), person));
+        }
         for (Person person : allPersons) {
             if (diveraPersonIds.contains(person.getId())) {
                 if (!onVehicleRefIds.contains(person.getId())) {
@@ -344,6 +353,11 @@ public class EinsatzberichtService {
                             person, sortOrderByRefId, null, false, "divera", unitLabelForPerson(person, unitId)));
                 }
             } else if (!onVehicleRefIds.contains(person.getId())) {
+                if (manualPoolPersonIds != null
+                        && !manualPoolPersonIds.isEmpty()
+                        && !manualPoolPersonIds.contains(person.getId())) {
+                    continue;
+                }
                 manualPersons.add(toPersonView(person, sortOrderByRefId, null, false, "manual", null));
             }
         }
