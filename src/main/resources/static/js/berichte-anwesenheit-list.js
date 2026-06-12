@@ -156,16 +156,24 @@
 
     document.getElementById('btn-attendance-modal-close-footer')?.addEventListener('click', closeModal);
     document.getElementById('btn-attendance-modal-release')?.addEventListener('click', function () {
-      if (!confirm('Anwesenheitsliste wirklich freigeben?')) {
-        return;
-      }
-      postAction('/berichte/anwesenheitslisten/' + meta.reportId + '/freigeben', returnPath);
+      var ask = window.FwConfirm && window.FwConfirm.releaseReport
+        ? window.FwConfirm.releaseReport('Anwesenheitsliste')
+        : Promise.resolve(window.confirm('Anwesenheitsliste wirklich freigeben?'));
+      ask.then(function (ok) {
+        if (ok) {
+          postAction('/berichte/anwesenheitslisten/' + meta.reportId + '/freigeben', returnPath);
+        }
+      });
     });
     document.getElementById('btn-attendance-modal-archive')?.addEventListener('click', function () {
-      if (!confirm('Anwesenheitsliste wirklich archivieren?')) {
-        return;
-      }
-      postAction('/berichte/anwesenheitslisten/' + meta.reportId + '/archivieren', returnPath);
+      var ask = window.FwConfirm && window.FwConfirm.archiveReport
+        ? window.FwConfirm.archiveReport('Anwesenheitsliste')
+        : Promise.resolve(window.confirm('Anwesenheitsliste wirklich archivieren?'));
+      ask.then(function (ok) {
+        if (ok) {
+          postAction('/berichte/anwesenheitslisten/' + meta.reportId + '/archivieren', returnPath);
+        }
+      });
     });
   }
 
@@ -254,7 +262,9 @@
             '/bearbeiten?unit=' + encodeURIComponent(unitId) + '">Bearbeiten</a>' : '') +
           (canDeleteItem(r) ?
             '<form method="post" action="/berichte/anwesenheitslisten/' + r.id + '/delete" class="table-inline-form" ' +
-            'onsubmit="return confirm(\'Anwesenheitsliste wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.\');">' +
+            'data-confirm data-confirm-title="Anwesenheitsliste löschen?" ' +
+            'data-confirm-message="Diese Aktion kann nicht rückgängig gemacht werden." ' +
+            'data-confirm-label="Löschen" data-confirm-variant="danger">' +
             '<input type="hidden" name="' + esc(csrfParam) + '" value="' + esc(csrfToken) + '"/>' +
             '<input type="hidden" name="unit" value="' + esc(unitId) + '"/>' +
             '<input type="hidden" name="year" value="' + filters.year + '"/>' +

@@ -104,10 +104,14 @@
 
     wrap.querySelectorAll('[data-action="delete"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        if (!confirm('Anhang wirklich löschen?')) {
-          return;
-        }
-        deleteAttachment(wrap, btn.dataset.id);
+        var ask = window.FwConfirm && window.FwConfirm.deleteAttachment
+          ? window.FwConfirm.deleteAttachment()
+          : Promise.resolve(window.confirm('Anhang wirklich löschen?'));
+        ask.then(function (ok) {
+          if (ok) {
+            deleteAttachment(wrap, btn.dataset.id);
+          }
+        });
       });
     });
 

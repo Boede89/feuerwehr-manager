@@ -14,7 +14,11 @@
       <form th:if="${formMode == 'edit' and canDeleteReport}" method="post"
             th:action="@{/berichte/anwesenheitslisten/{id}/delete(id=${report.id})}"
             class="bar-form"
-            onsubmit="return confirm('Anwesenheitsliste wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.');">
+            data-confirm
+            data-confirm-title="Anwesenheitsliste löschen?"
+            data-confirm-message="Diese Aktion kann nicht rückgängig gemacht werden."
+            data-confirm-label="Löschen"
+            data-confirm-variant="danger">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="unit" th:value="${unitId}"/>
         <button type="submit" class="btn btn--danger">Löschen</button>

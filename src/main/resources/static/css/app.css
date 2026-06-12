@@ -2492,6 +2492,25 @@ body.modal-open {
   background: var(--bg-card-hover);
 }
 
+.confirm-dialog {
+  z-index: 1200;
+}
+
+.confirm-dialog__box {
+  max-width: 440px;
+}
+
+.confirm-dialog__message {
+  margin: 0;
+  color: var(--text);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.confirm-dialog__footer {
+  flex-wrap: wrap;
+}
+
 .text-nowrap {
   white-space: nowrap;
 }

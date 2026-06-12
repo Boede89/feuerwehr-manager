@@ -110,7 +110,9 @@
             '/bearbeiten?unit=' + encodeURIComponent(unitId) + '">Bearbeiten</a>' : '') +
           (canDeleteItem(r) ?
             '<form method="post" action="/berichte/einsatzberichte/' + r.id + '/delete" class="table-inline-form" ' +
-            'onsubmit="return confirm(\'Einsatzbericht wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.\');">' +
+            'data-confirm data-confirm-title="Einsatzbericht löschen?" ' +
+            'data-confirm-message="Diese Aktion kann nicht rückgängig gemacht werden." ' +
+            'data-confirm-label="Löschen" data-confirm-variant="danger">' +
             '<input type="hidden" name="' + esc(root.dataset.csrfParam || '_csrf') + '" value="' + esc(csrfToken) + '"/>' +
             '<input type="hidden" name="unit" value="' + esc(unitId) + '"/>' +
             '<input type="hidden" name="year" value="' + filters.year + '"/>' +
@@ -216,16 +218,24 @@
 
     document.getElementById('btn-modal-close-footer')?.addEventListener('click', closeModal);
     document.getElementById('btn-modal-release')?.addEventListener('click', function () {
-      if (!confirm('Einsatzbericht wirklich freigeben?')) {
-        return;
-      }
-      postAction('/berichte/einsatzberichte/' + meta.reportId + '/freigeben', returnPath);
+      var ask = window.FwConfirm && window.FwConfirm.releaseReport
+        ? window.FwConfirm.releaseReport('Einsatzbericht')
+        : Promise.resolve(window.confirm('Einsatzbericht wirklich freigeben?'));
+      ask.then(function (ok) {
+        if (ok) {
+          postAction('/berichte/einsatzberichte/' + meta.reportId + '/freigeben', returnPath);
+        }
+      });
     });
     document.getElementById('btn-modal-archive')?.addEventListener('click', function () {
-      if (!confirm('Einsatzbericht wirklich archivieren?')) {
-        return;
-      }
-      postAction('/berichte/einsatzberichte/' + meta.reportId + '/archivieren', returnPath);
+      var ask = window.FwConfirm && window.FwConfirm.archiveReport
+        ? window.FwConfirm.archiveReport('Einsatzbericht')
+        : Promise.resolve(window.confirm('Einsatzbericht wirklich archivieren?'));
+      ask.then(function (ok) {
+        if (ok) {
+          postAction('/berichte/einsatzberichte/' + meta.reportId + '/archivieren', returnPath);
+        }
+      });
     });
   }
 

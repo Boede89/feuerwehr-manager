@@ -21,7 +21,11 @@
       <form th:if="${canRelease}" method="post"
             th:action="@{/berichte/einsatzberichte/{id}/freigeben(id=${report.id})}"
             class="bar-form"
-            onsubmit="return confirm('Einsatzbericht wirklich freigeben?');">
+            data-confirm
+            data-confirm-title="Einsatzbericht freigeben?"
+            data-confirm-message="Nach der Freigabe ist der Bericht für die normale Bearbeitung gesperrt. Administratoren können weiterhin Änderungen vornehmen."
+            data-confirm-label="Freigeben"
+            data-confirm-variant="success">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="unit" th:value="${unitId}"/>
         <input type="hidden" name="returnUrl" th:value="${einsatzListPath != null ? einsatzListPath : '/berichte?tab=einsatz'}"/>
@@ -30,7 +34,10 @@
       <form th:if="${canArchive}" method="post"
             th:action="@{/berichte/einsatzberichte/{id}/archivieren(id=${report.id})}"
             class="bar-form"
-            onsubmit="return confirm('Einsatzbericht wirklich archivieren?');">
+            data-confirm
+            data-confirm-title="Einsatzbericht archivieren?"
+            data-confirm-message="Der Bericht wird ins Archiv verschoben und erscheint standardmäßig nicht mehr in der aktiven Liste."
+            data-confirm-label="Archivieren">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="unit" th:value="${unitId}"/>
         <input type="hidden" name="returnUrl" th:value="${einsatzListPath != null ? einsatzListPath : '/berichte?tab=einsatz'}"/>
