@@ -177,7 +177,7 @@ public class EinsatzberichtService {
     }
 
     public KraefteFahrzeugeState buildKraefteFahrzeugeState(long unitId, Long reportId) {
-        return buildKraefteFahrzeugeState(unitId, reportId, null, null);
+        return buildKraefteFahrzeugeState(unitId, reportId, null, null, null);
     }
 
     /**
@@ -186,11 +186,21 @@ public class EinsatzberichtService {
      */
     public KraefteFahrzeugeState buildKraefteFahrzeugeStateForAnwesenheit(
             long unitId, List<Long> anwesendPersonIds, Set<Long> manualPoolPersonIds) {
-        return buildKraefteFahrzeugeState(unitId, null, anwesendPersonIds, manualPoolPersonIds);
+        return buildKraefteFahrzeugeState(unitId, null, anwesendPersonIds, manualPoolPersonIds, null);
+    }
+
+    /** Kräfte-Board aus gespeicherter Crew-JSON (Fahrzeuge, Anwesend, Rollen). */
+    public KraefteFahrzeugeState buildKraefteFahrzeugeStateForAnwesenheitWithAssignments(
+            long unitId, List<CrewAssignment> crewAssignments, Set<Long> manualPoolPersonIds) {
+        return buildKraefteFahrzeugeState(unitId, null, null, manualPoolPersonIds, crewAssignments);
     }
 
     private KraefteFahrzeugeState buildKraefteFahrzeugeState(
-            long unitId, Long reportId, List<Long> presetAnwesendPersonIds, Set<Long> manualPoolPersonIds) {
+            long unitId,
+            Long reportId,
+            List<Long> presetAnwesendPersonIds,
+            Set<Long> manualPoolPersonIds,
+            List<CrewAssignment> presetCrewAssignments) {
         List<Person> allPersons = listPersonsForForm(unitId);
         List<IncidentReportPersonnel> reportRows =
                 reportId != null ? incidentReportPersonnelRepository.findByIncidentReportId(reportId) : List.of();
@@ -307,7 +317,19 @@ public class EinsatzberichtService {
             });
         }
 
-        if (presetAnwesendPersonIds != null && !presetAnwesendPersonIds.isEmpty()) {
+        if (presetCrewAssignments != null && !presetCrewAssignments.isEmpty()) {
+            applyPresetCrewAssignments(
+                    presetCrewAssignments,
+                    personById,
+                    crewByVehicleId,
+                    roleByVehicleAndPerson,
+                    beteiligtCrewIds,
+                    einsatzstelleCrewIds,
+                    wacheCrewIds,
+                    involvedByVehicleId,
+                    onVehicleRefIds,
+                    paByRefId);
+        } else if (presetAnwesendPersonIds != null && !presetAnwesendPersonIds.isEmpty()) {
             LinkedHashSet<Long> presetIds = new LinkedHashSet<>();
             for (Long pid : presetAnwesendPersonIds) {
                 if (pid != null) {
@@ -449,6 +471,108 @@ public class EinsatzberichtService {
 
         return new KraefteFahrzeugeState(
                 manualPersons, diveraPersons, foreignPersons, beteiligt, einsatzstelle, wache, vehicles);
+    }
+
+    private void applyPresetCrewAssignments(
+            List<CrewAssignment> assignments,
+            Map<Long, Person> personById,
+            Map<Long, List<Long>> crewByVehicleId,
+            Map<Long, Map<Long, IncidentVehicleCrewRole>> roleByVehicleAndPerson,
+            List<Long> beteiligtCrewIds,
+            List<Long> einsatzstelleCrewIds,
+            List<Long> wacheCrewIds,
+            Map<Long, Boolean> involvedByVehicleId,
+            Set<Long> onVehicleRefIds,
+            Map<Long, Boolean> paByRefId) {
+        LinkedHashSet<Long> allPersonIds = new LinkedHashSet<>();
+        for (CrewAssignment assignment : assignments) {
+            if (assignment.personIds() != null) {
+                assignment.personIds().stream().filter(Objects::nonNull).forEach(allPersonIds::add);
+            }
+            if (assignment.einheitsfuehrerPersonId() != null) {
+                allPersonIds.add(assignment.einheitsfuehrerPersonId());
+            }
+            if (assignment.maschinistPersonId() != null) {
+                allPersonIds.add(assignment.maschinistPersonId());
+            }
+            if (assignment.paPersonIds() != null) {
+                assignment.paPersonIds().stream().filter(Objects::nonNull).forEach(allPersonIds::add);
+            }
+        }
+        if (!allPersonIds.isEmpty()) {
+            personRepository
+                    .findActiveByIdIn(allPersonIds, includeTestReports())
+                    .forEach(person -> personById.putIfAbsent(person.getId(), person));
+        }
+        for (CrewAssignment assignment : assignments) {
+            long vehicleId = assignment.vehicleId();
+            List<Long> personIds =
+                    assignment.personIds() != null ? assignment.personIds() : List.of();
+            if (vehicleId == IncidentCrewSupport.BETEILIGT_VEHICLE_ID) {
+                for (Long personId : personIds) {
+                    if (personId != null && !onVehicleRefIds.contains(personId)) {
+                        beteiligtCrewIds.add(personId);
+                        onVehicleRefIds.add(personId);
+                    }
+                }
+            } else if (vehicleId == IncidentCrewSupport.EINSATZSTELLE_VEHICLE_ID) {
+                for (Long personId : personIds) {
+                    if (personId != null && !onVehicleRefIds.contains(personId)) {
+                        einsatzstelleCrewIds.add(personId);
+                        onVehicleRefIds.add(personId);
+                    }
+                }
+            } else if (vehicleId == IncidentCrewSupport.WACHE_VEHICLE_ID) {
+                for (Long personId : personIds) {
+                    if (personId != null && !onVehicleRefIds.contains(personId)) {
+                        wacheCrewIds.add(personId);
+                        onVehicleRefIds.add(personId);
+                    }
+                }
+            } else if (vehicleId > 0) {
+                List<Long> crewList = crewByVehicleId.computeIfAbsent(vehicleId, k -> new ArrayList<>());
+                Map<Long, IncidentVehicleCrewRole> roles =
+                        roleByVehicleAndPerson.computeIfAbsent(vehicleId, k -> new LinkedHashMap<>());
+                for (Long personId : personIds) {
+                    if (personId == null || onVehicleRefIds.contains(personId)) {
+                        continue;
+                    }
+                    crewList.add(personId);
+                    onVehicleRefIds.add(personId);
+                }
+                if (assignment.einheitsfuehrerPersonId() != null) {
+                    Long efId = assignment.einheitsfuehrerPersonId();
+                    roles.put(efId, IncidentVehicleCrewRole.EINHEITSFUEHRER);
+                    if (!onVehicleRefIds.contains(efId)) {
+                        crewList.add(efId);
+                        onVehicleRefIds.add(efId);
+                    }
+                }
+                if (assignment.maschinistPersonId() != null) {
+                    Long maId = assignment.maschinistPersonId();
+                    roles.put(maId, IncidentVehicleCrewRole.MASCHINIST);
+                    if (!onVehicleRefIds.contains(maId)) {
+                        crewList.add(maId);
+                        onVehicleRefIds.add(maId);
+                    }
+                }
+                if (assignment.involvedInIncident() != null) {
+                    involvedByVehicleId.put(vehicleId, assignment.isInvolvedInIncident());
+                } else if (!personIds.isEmpty()) {
+                    involvedByVehicleId.put(vehicleId, true);
+                }
+                if (Boolean.TRUE.equals(assignment.manuallyInvolvedInIncident()) && personIds.isEmpty()) {
+                    involvedByVehicleId.put(vehicleId, true);
+                }
+            }
+            if (assignment.paPersonIds() != null) {
+                for (Long paId : assignment.paPersonIds()) {
+                    if (paId != null) {
+                        paByRefId.put(paId, true);
+                    }
+                }
+            }
+        }
     }
 
     public String serializeKraefteFahrzeugeState(KraefteFahrzeugeState state) {

@@ -78,6 +78,12 @@ public class AttendanceReport {
     @Column(length = 255)
     private String objekt;
 
+    @Column(name = "crew_assignments_json", columnDefinition = "TEXT")
+    private String crewAssignmentsJson;
+
+    @Column(name = "deployed_equipment_json", columnDefinition = "TEXT")
+    private String deployedEquipmentJson;
+
     @Column(name = "instructor_responsible", length = 255)
     private String instructorResponsible;
 

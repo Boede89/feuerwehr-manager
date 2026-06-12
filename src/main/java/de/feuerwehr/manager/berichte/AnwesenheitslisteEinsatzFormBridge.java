@@ -21,6 +21,8 @@ public final class AnwesenheitslisteEinsatzFormBridge {
         form.setStreet(report.getStreet());
         form.setHouseNumber(report.getHouseNumber());
         form.setObjekt(report.getObjekt());
+        form.setCrewAssignmentsJson(report.getCrewAssignmentsJson());
+        form.setDeployedEquipmentJson(report.getDeployedEquipmentJson());
         form.setIncidentCommander(report.getInstructorResponsible());
         form.setEinsatzkurzbericht(report.getNotes());
         form.setPersonDamageDetailsJson(PersonDamageDetailsSupport.emptyJson());
@@ -46,6 +48,8 @@ public final class AnwesenheitslisteEinsatzFormBridge {
         report.setStreet(trimOrNull(form.getStreet()));
         report.setHouseNumber(trimOrNull(form.getHouseNumber()));
         report.setObjekt(trimOrNull(form.getObjekt()));
+        report.setCrewAssignmentsJson(normalizeJson(form.getCrewAssignmentsJson()));
+        report.setDeployedEquipmentJson(normalizeJson(form.getDeployedEquipmentJson()));
         String instructor = form.getIncidentCommander();
         report.setInstructorResponsible(instructor != null && !instructor.isBlank() ? instructor.trim() : null);
         report.setNotes(form.getEinsatzkurzbericht());
@@ -55,6 +59,13 @@ public final class AnwesenheitslisteEinsatzFormBridge {
     }
 
     private static String trimOrNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    private static String normalizeJson(String value) {
         if (value == null || value.isBlank()) {
             return null;
         }

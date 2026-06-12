@@ -120,12 +120,6 @@ public class AnwesenheitslisteService {
             return einsatzberichtService.buildKraefteFahrzeugeState(unitId, null);
         }
         AttendanceReport report = requireReport(unitId, attendanceReportId);
-        List<Long> anwesendPersonIds = listPersonnel(attendanceReportId).stream()
-                .map(AttendanceReportPersonnel::getPerson)
-                .filter(Objects::nonNull)
-                .map(Person::getId)
-                .distinct()
-                .toList();
         Set<Long> manualPoolPersonIds = null;
         if (report.getUnitTermin() != null) {
             UnitTermin termin = report.getUnitTermin();
@@ -134,6 +128,20 @@ public class AnwesenheitslisteService {
                     .map(Person::getId)
                     .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
         }
+        String storedCrewJson = report.getCrewAssignmentsJson();
+        if (storedCrewJson != null && !storedCrewJson.isBlank()) {
+            List<CrewAssignment> assignments = einsatzberichtService.parseCrewAssignments(storedCrewJson);
+            if (!assignments.isEmpty()) {
+                return einsatzberichtService.buildKraefteFahrzeugeStateForAnwesenheitWithAssignments(
+                        unitId, assignments, manualPoolPersonIds);
+            }
+        }
+        List<Long> anwesendPersonIds = listPersonnel(attendanceReportId).stream()
+                .map(AttendanceReportPersonnel::getPerson)
+                .filter(Objects::nonNull)
+                .map(Person::getId)
+                .distinct()
+                .toList();
         return einsatzberichtService.buildKraefteFahrzeugeStateForAnwesenheit(
                 unitId, anwesendPersonIds, manualPoolPersonIds);
     }
