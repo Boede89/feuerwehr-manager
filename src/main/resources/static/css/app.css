@@ -4995,11 +4995,29 @@ span.required { color: var(--error); }
 }
 
 .berichte-einsatz-header {
-  margin-bottom: 0;
+  margin-bottom: 1rem;
 }
 
-.berichte-einsatz-header h2 {
+.berichte-einsatz-header__main {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.berichte-einsatz-header__text h2 {
   margin: 0 0 4px;
+}
+
+.berichte-einsatz-header__text p {
+  margin: 0;
+}
+
+.berichte-einsatz-header__filter {
+  margin: 0;
+  align-self: center;
 }
 
 .incident-modal[hidden] {

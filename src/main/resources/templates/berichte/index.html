@@ -30,24 +30,25 @@
                 data-csrf-param=${_csrf.parameterName},
                 data-csrf-header=${_csrf.headerName}">
     <div class="page-header berichte-einsatz-header">
-      <div>
-        <h2>Einsatzberichte</h2>
-        <p>Verwaltung und Dokumentation</p>
+      <div class="berichte-einsatz-header__main">
+        <div class="berichte-einsatz-header__text">
+          <h2>Einsatzberichte</h2>
+          <p>Verwaltung und Dokumentation</p>
+        </div>
+        <div class="filter-bar berichte-einsatz-filter berichte-einsatz-header__filter">
+          <select id="filter-year" class="berichte-filter-select" aria-label="Jahr filtern"></select>
+          <select id="filter-stichwort" class="berichte-filter-select berichte-filter-select--stichwort" aria-label="Stichwort filtern">
+            <option value="">Alle Stichworte</option>
+          </select>
+          <select id="filter-status" class="berichte-filter-select berichte-filter-select--status" aria-label="Status filtern">
+            <option value="">Alle Status</option>
+            <option value="entwurf">Entwurf</option>
+            <option value="freigegeben">Freigegeben</option>
+            <option value="archiviert">Archiviert</option>
+          </select>
+        </div>
       </div>
       <a th:if="${canWrite}" class="btn btn--primary" th:href="@{/berichte/einsatzberichte/neu(unit=${unitId})}">+ Neuer Bericht</a>
-    </div>
-
-    <div class="filter-bar berichte-einsatz-filter">
-      <select id="filter-year" class="berichte-filter-select" aria-label="Jahr filtern"></select>
-      <select id="filter-stichwort" class="berichte-filter-select berichte-filter-select--stichwort" aria-label="Stichwort filtern">
-        <option value="">Alle Stichworte</option>
-      </select>
-      <select id="filter-status" class="berichte-filter-select berichte-filter-select--status" aria-label="Status filtern">
-        <option value="">Alle Status</option>
-        <option value="entwurf">Entwurf</option>
-        <option value="freigegeben">Freigegeben</option>
-        <option value="archiviert">Archiviert</option>
-      </select>
     </div>
 
     <div id="incident-table-wrap"></div>
