@@ -64,8 +64,8 @@ public class TermineController {
                 model.addAttribute("unitPersons", personalService.listPersons(unit.getId()));
                 model.addAttribute("unitPersonGroups", personalGroupService.listGroups(unit.getId()));
                 model.addAttribute(
-                        "instructorGroupsForTermin",
-                        personalInstructorGroupService.listGroupsForTermin(unit.getId()));
+                        "instructorGroupsJson",
+                        personalInstructorGroupService.serializeGroupsForTerminJson(unit.getId()));
             }
             return "termine/index";
         } catch (IllegalArgumentException e) {

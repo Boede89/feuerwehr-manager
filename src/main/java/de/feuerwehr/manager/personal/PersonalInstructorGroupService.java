@@ -1,5 +1,7 @@
 package de.feuerwehr.manager.personal;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
@@ -20,6 +22,7 @@ public class PersonalInstructorGroupService {
     private final PersonRepository personRepository;
     private final UnitRepository unitRepository;
     private final TestModeService testModeService;
+    private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
     public List<InstructorGroup> listGroups(long unitId) {
@@ -63,6 +66,15 @@ public class PersonalInstructorGroupService {
                         group.getThema(),
                         group.getMembers().stream().map(Person::getId).toList()))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public String serializeGroupsForTerminJson(long unitId) {
+        try {
+            return objectMapper.writeValueAsString(listGroupsForTermin(unitId));
+        } catch (JsonProcessingException e) {
+            return "[]";
+        }
     }
 
     @Transactional

@@ -8,8 +8,12 @@
 
   var unitId = panel.getAttribute('data-unit-id');
   var canWrite = panel.getAttribute('data-can-write') === 'true';
-  var instructorGroups = Array.isArray(window.TERMINE_INSTRUCTOR_GROUPS) ? window.TERMINE_INSTRUCTOR_GROUPS : [];
+  var instructorGroups = [];
+  if (Array.isArray(window.TERMINE_INSTRUCTOR_GROUPS)) {
+    instructorGroups = window.TERMINE_INSTRUCTOR_GROUPS;
+  }
   var lastAppliedThema = '';
+  var zeitFilter = 'bevorstehend';
 
   function getCsrfToken() {
     var meta = document.querySelector('meta[name="csrf-token"]');
@@ -217,6 +221,78 @@
     lastAppliedThema = normalized;
   }
 
+  function parseTerminEnd(row) {
+    var datum = row.getAttribute('data-datum');
+    var ende = row.getAttribute('data-ende') || row.getAttribute('data-beginn') || '23:59';
+    if (!datum) {
+      return null;
+    }
+    var dateParts = datum.split('-');
+    var timeParts = ende.split(':');
+    if (dateParts.length !== 3) {
+      return null;
+    }
+    return new Date(
+      Number(dateParts[0]),
+      Number(dateParts[1]) - 1,
+      Number(dateParts[2]),
+      Number(timeParts[0] || 0),
+      Number(timeParts[1] || 0)
+    );
+  }
+
+  function isTerminVergangen(row) {
+    var endAt = parseTerminEnd(row);
+    if (!endAt) {
+      return false;
+    }
+    return endAt.getTime() < Date.now();
+  }
+
+  function rowMatchesZeitFilter(row) {
+    if (zeitFilter === 'alle') {
+      return true;
+    }
+    var vergangen = isTerminVergangen(row);
+    if (zeitFilter === 'vergangen') {
+      return vergangen;
+    }
+    return !vergangen;
+  }
+
+  function applyZeitFilter() {
+    var rows = document.querySelectorAll('.dienstplan-termin-row');
+    var visibleCount = 0;
+    rows.forEach(function (row) {
+      var show = rowMatchesZeitFilter(row);
+      row.hidden = !show;
+      if (show) {
+        visibleCount++;
+      }
+    });
+    var emptyHint = document.getElementById('dienstplan-filter-empty');
+    var tableWrap = document.getElementById('dienstplan-table-wrap');
+    if (emptyHint) {
+      emptyHint.hidden = visibleCount > 0;
+    }
+    if (tableWrap) {
+      tableWrap.hidden = visibleCount === 0;
+    }
+  }
+
+  function bindZeitFilter() {
+    var select = document.getElementById('dienstplan-filter-zeit');
+    if (!select) {
+      return;
+    }
+    zeitFilter = select.value || 'alle';
+    select.addEventListener('change', function () {
+      zeitFilter = select.value || 'alle';
+      applyZeitFilter();
+    });
+    applyZeitFilter();
+  }
+
   function bindThemaInstructorAutofill() {
     var themaInput = document.getElementById('dienstplan-termin-thema');
     if (!themaInput) {
@@ -392,6 +468,7 @@
   }
 
   bindThemaInstructorAutofill();
+  bindZeitFilter();
 
   if (canWrite) {
     var newBtn = document.getElementById('termine-new-dienstplan-btn');
