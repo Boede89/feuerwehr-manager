@@ -71,13 +71,17 @@ public class TermineController {
                 addMyTermineModel(actor, unit.getId(), model);
             }
             if (termineTab == TermineTab.DIENSTPLAN) {
+                addTerminFormModel(unit.getId(), model);
                 model.addAttribute("dienstplanTermine", termineService.listDienstplanTermine(unit.getId()));
                 model.addAttribute("knownDienstplanThemen", termineService.listKnownDienstplanThemen(unit.getId()));
-                model.addAttribute("unitPersons", personalService.listPersons(unit.getId()));
-                model.addAttribute("unitPersonGroups", personalGroupService.listGroups(unit.getId()));
                 model.addAttribute(
                         "instructorGroupsJson",
                         personalInstructorGroupService.serializeGroupsForTerminJson(unit.getId()));
+            }
+            if (termineTab == TermineTab.SONSTIGES) {
+                addTerminFormModel(unit.getId(), model);
+                model.addAttribute("sonstigesTermine", termineService.listSonstigesTermine(unit.getId()));
+                model.addAttribute("knownSonstigesBeschreibungen", termineService.listKnownSonstigesBeschreibungen(unit.getId()));
             }
             return "termine/index";
         } catch (IllegalArgumentException e) {
@@ -116,6 +120,58 @@ public class TermineController {
             accessControlService.requireUnitAccess(actor, unitId);
             termineService.updateDienstplanTermin(unitId, terminId, body);
             return ActionResultDto.success("Termin wurde gespeichert.");
+        } catch (IllegalArgumentException e) {
+            return ActionResultDto.failure(e.getMessage());
+        }
+    }
+
+    @PostMapping("/api/sonstiges")
+    @ResponseBody
+    public ActionResultDto createSonstigesTermin(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @RequestBody CreateDienstplanTerminRequest body) {
+        try {
+            requireModuleEnabled(unitId);
+            requireTermineWrite(actor, unitId);
+            accessControlService.requireUnitAccess(actor, unitId);
+            termineService.createSonstigesTermin(unitId, actor.getUserId(), body);
+            return ActionResultDto.success("Termin wurde erstellt.");
+        } catch (IllegalArgumentException e) {
+            return ActionResultDto.failure(e.getMessage());
+        }
+    }
+
+    @PutMapping("/api/sonstiges/{terminId}")
+    @ResponseBody
+    public ActionResultDto updateSonstigesTermin(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @PathVariable long terminId,
+            @RequestBody CreateDienstplanTerminRequest body) {
+        try {
+            requireModuleEnabled(unitId);
+            requireTermineWrite(actor, unitId);
+            accessControlService.requireUnitAccess(actor, unitId);
+            termineService.updateSonstigesTermin(unitId, terminId, body);
+            return ActionResultDto.success("Termin wurde gespeichert.");
+        } catch (IllegalArgumentException e) {
+            return ActionResultDto.failure(e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/api/sonstiges/{terminId}")
+    @ResponseBody
+    public ActionResultDto deleteSonstigesTermin(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @PathVariable long terminId) {
+        try {
+            requireModuleEnabled(unitId);
+            requireTermineWrite(actor, unitId);
+            accessControlService.requireUnitAccess(actor, unitId);
+            termineService.deleteSonstigesTermin(unitId, terminId);
+            return ActionResultDto.success("Termin wurde gelöscht.");
         } catch (IllegalArgumentException e) {
             return ActionResultDto.failure(e.getMessage());
         }
@@ -164,6 +220,11 @@ public class TermineController {
 
     private boolean canWrite(AppUserDetails actor, long unitId) {
         return userPermissionService.hasPermission(actor, unitId, "termine.write");
+    }
+
+    private void addTerminFormModel(long unitId, Model model) {
+        model.addAttribute("unitPersons", personalService.listPersons(unitId));
+        model.addAttribute("unitPersonGroups", personalGroupService.listGroups(unitId));
     }
 
     private void addMyTermineModel(AppUserDetails actor, long unitId, Model model) {

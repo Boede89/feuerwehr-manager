@@ -69,6 +69,17 @@ class TermineServiceTest {
     }
 
     @Test
+    void listSonstigesTermineUsesSonstigesCategory() {
+        when(unitTerminRepository.findByUnitAndCategoryWithInstructor(1L, TermineCategory.SONSTIGES))
+                .thenReturn(List.of());
+
+        termineService.listSonstigesTermine(1L);
+
+        org.mockito.Mockito.verify(unitTerminRepository)
+                .findByUnitAndCategoryWithInstructor(1L, TermineCategory.SONSTIGES);
+    }
+
+    @Test
     void listMyTermineMapsRepositoryResults() {
         Person person = new Person();
         person.setId(7L);

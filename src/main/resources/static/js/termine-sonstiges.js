@@ -1,99 +1,84 @@
 (function () {
   'use strict';
 
-  var panel = document.getElementById('termine-dienstplan-panel');
+  var panel = document.getElementById('termine-sonstiges-panel');
   if (!panel) {
     return;
   }
 
   var unitId = panel.getAttribute('data-unit-id');
   var canWrite = panel.getAttribute('data-can-write') === 'true';
-  var THEMA_CUSTOM_VALUE = '__custom__';
-  var instructorGroups = loadInstructorGroups();
-  var lastAppliedThema = '';
+  var CUSTOM_VALUE = '__custom__';
   var zeitFilter = 'bevorstehend';
   var ausbilderPickerSnapshot = null;
-  var audiencePicker = window.createTermineAudiencePicker({ prefix: 'dienstplan' });
+  var audiencePicker = window.createTermineAudiencePicker({ prefix: 'sonstiges' });
 
-  function loadInstructorGroups() {
-    var el = document.getElementById('termine-instructor-groups-data');
-    if (!el) {
-      return [];
-    }
-    try {
-      var parsed = JSON.parse(el.textContent || '[]');
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (e) {
-      return [];
-    }
+  function getBeschreibungSelect() {
+    return document.getElementById('sonstiges-termin-beschreibung');
   }
 
-  function getThemaSelect() {
-    return document.getElementById('dienstplan-termin-thema');
+  function getBeschreibungCustomInput() {
+    return document.getElementById('sonstiges-termin-beschreibung-custom');
   }
 
-  function getThemaCustomInput() {
-    return document.getElementById('dienstplan-termin-thema-custom');
-  }
-
-  function syncThemaCustomVisibility() {
-    var select = getThemaSelect();
-    var custom = getThemaCustomInput();
+  function syncBeschreibungCustomVisibility() {
+    var select = getBeschreibungSelect();
+    var custom = getBeschreibungCustomInput();
     if (!select || !custom) {
       return;
     }
-    var customMode = select.value === THEMA_CUSTOM_VALUE;
+    var customMode = select.value === CUSTOM_VALUE;
     custom.hidden = !customMode;
     custom.required = customMode;
     select.required = !customMode;
   }
 
-  function getThemaValue() {
-    var select = getThemaSelect();
+  function getBeschreibungValue() {
+    var select = getBeschreibungSelect();
     if (!select) {
       return '';
     }
-    if (select.value === THEMA_CUSTOM_VALUE) {
-      var custom = getThemaCustomInput();
+    if (select.value === CUSTOM_VALUE) {
+      var custom = getBeschreibungCustomInput();
       return custom ? custom.value.trim() : '';
     }
     return select.value.trim();
   }
 
-  function setThemaValue(value) {
-    var select = getThemaSelect();
-    var custom = getThemaCustomInput();
+  function setBeschreibungValue(value) {
+    var select = getBeschreibungSelect();
+    var custom = getBeschreibungCustomInput();
     if (!select) {
       return;
     }
-    var normalized = normalizeThema(value);
+    var normalized = (value || '').trim();
     if (!normalized) {
       select.value = '';
       if (custom) {
         custom.value = '';
       }
-      syncThemaCustomVisibility();
+      syncBeschreibungCustomVisibility();
       return;
     }
     var matched = false;
     Array.from(select.options).forEach(function (option) {
-      if (!option.value || option.value === THEMA_CUSTOM_VALUE) {
+      if (!option.value || option.value === CUSTOM_VALUE) {
         return;
       }
-      if (themaMatches(option.value, normalized)) {
+      if (option.value.localeCompare(normalized, 'de', { sensitivity: 'accent' }) === 0) {
         select.value = option.value;
         matched = true;
       }
     });
     if (!matched) {
-      select.value = THEMA_CUSTOM_VALUE;
+      select.value = CUSTOM_VALUE;
       if (custom) {
         custom.value = normalized;
       }
     } else if (custom) {
       custom.value = '';
     }
-    syncThemaCustomVisibility();
+    syncBeschreibungCustomVisibility();
   }
 
   function getCsrfToken() {
@@ -140,7 +125,7 @@
     if (!overlay) {
       return;
     }
-    if (overlay.id === 'modal-dienstplan-termin') {
+    if (overlay.id === 'modal-sonstiges-termin') {
       cancelAusbilderPicker();
       audiencePicker.cancelAllPickers();
     }
@@ -159,14 +144,14 @@
   }
 
   function setModalTitle(text) {
-    var title = document.getElementById('dienstplan-termin-modal-title');
+    var title = document.getElementById('sonstiges-termin-modal-title');
     if (title) {
       title.textContent = text;
     }
   }
 
   function getEditingTerminId() {
-    var hidden = document.getElementById('dienstplan-termin-id');
+    var hidden = document.getElementById('sonstiges-termin-id');
     if (!hidden || !hidden.value) {
       return null;
     }
@@ -175,21 +160,21 @@
   }
 
   function setEditingTerminId(id) {
-    var hidden = document.getElementById('dienstplan-termin-id');
+    var hidden = document.getElementById('sonstiges-termin-id');
     if (hidden) {
       hidden.value = id ? String(id) : '';
     }
   }
 
   function resetAusbilderCheckboxes() {
-    document.querySelectorAll('.dienstplan-ausbilder-cb').forEach(function (cb) {
+    document.querySelectorAll('.sonstiges-ausbilder-cb').forEach(function (cb) {
       cb.checked = false;
     });
     syncAusbilderSummary();
   }
 
   function setAusbilderCheckboxes(idsCsv) {
-    document.querySelectorAll('.dienstplan-ausbilder-cb').forEach(function (cb) {
+    document.querySelectorAll('.sonstiges-ausbilder-cb').forEach(function (cb) {
       cb.checked = false;
     });
     if (idsCsv) {
@@ -198,7 +183,7 @@
         if (!id) {
           return;
         }
-        var cb = document.querySelector('.dienstplan-ausbilder-cb[value="' + id + '"]');
+        var cb = document.querySelector('.sonstiges-ausbilder-cb[value="' + id + '"]');
         if (cb) {
           cb.checked = true;
         }
@@ -208,17 +193,17 @@
   }
 
   function snapshotAusbilderSelection() {
-    return Array.from(document.querySelectorAll('.dienstplan-ausbilder-cb:checked')).map(function (cb) {
+    return Array.from(document.querySelectorAll('.sonstiges-ausbilder-cb:checked')).map(function (cb) {
       return cb.value;
     });
   }
 
   function restoreAusbilderSelection(ids) {
-    document.querySelectorAll('.dienstplan-ausbilder-cb').forEach(function (cb) {
+    document.querySelectorAll('.sonstiges-ausbilder-cb').forEach(function (cb) {
       cb.checked = false;
     });
     (ids || []).forEach(function (id) {
-      var cb = document.querySelector('.dienstplan-ausbilder-cb[value="' + id + '"]');
+      var cb = document.querySelector('.sonstiges-ausbilder-cb[value="' + id + '"]');
       if (cb) {
         cb.checked = true;
       }
@@ -243,10 +228,10 @@
   }
 
   function syncAusbilderSummary() {
-    var summary = document.getElementById('dienstplan-ausbilder-summary');
-    var empty = document.getElementById('dienstplan-ausbilder-empty');
-    var count = document.getElementById('dienstplan-ausbilder-count');
-    var checked = document.querySelectorAll('.dienstplan-ausbilder-cb:checked');
+    var summary = document.getElementById('sonstiges-ausbilder-summary');
+    var empty = document.getElementById('sonstiges-ausbilder-empty');
+    var count = document.getElementById('sonstiges-ausbilder-count');
+    var checked = document.querySelectorAll('.sonstiges-ausbilder-cb:checked');
     var names = [];
     checked.forEach(function (cb) {
       var name = ausbilderDisplayName(cb);
@@ -273,9 +258,9 @@
   }
 
   function resetAusbilderSearch() {
-    var search = document.getElementById('dienstplan-ausbilder-search');
-    var emptyHint = document.getElementById('dienstplan-ausbilder-search-empty');
-    var picker = document.getElementById('dienstplan-ausbilder-picker');
+    var search = document.getElementById('sonstiges-ausbilder-search');
+    var emptyHint = document.getElementById('sonstiges-ausbilder-search-empty');
+    var picker = document.getElementById('sonstiges-ausbilder-picker');
     if (!search || !picker) {
       return;
     }
@@ -289,7 +274,7 @@
   }
 
   function openAusbilderPickerModal() {
-    var overlay = document.getElementById('modal-dienstplan-ausbilder');
+    var overlay = document.getElementById('modal-sonstiges-ausbilder');
     if (!overlay) {
       return;
     }
@@ -297,7 +282,7 @@
     resetAusbilderSearch();
     overlay.classList.add('active');
     document.body.classList.add('modal-open');
-    var search = document.getElementById('dienstplan-ausbilder-search');
+    var search = document.getElementById('sonstiges-ausbilder-search');
     if (search) {
       window.setTimeout(function () {
         search.focus();
@@ -306,7 +291,7 @@
   }
 
   function closeAusbilderPickerModal() {
-    var overlay = document.getElementById('modal-dienstplan-ausbilder');
+    var overlay = document.getElementById('modal-sonstiges-ausbilder');
     if (!overlay) {
       return;
     }
@@ -331,7 +316,7 @@
   }
 
   function selectedAusbilderIds() {
-    return Array.from(document.querySelectorAll('.dienstplan-ausbilder-cb:checked'))
+    return Array.from(document.querySelectorAll('.sonstiges-ausbilder-cb:checked'))
       .map(function (cb) {
         return Number(cb.value);
       })
@@ -340,26 +325,16 @@
       });
   }
 
-  function checkAusbilderByIds(ids) {
-    ids.forEach(function (id) {
-      var cb = document.querySelector('.dienstplan-ausbilder-cb[value="' + id + '"]');
-      if (cb) {
-        cb.checked = true;
-      }
-    });
-    syncAusbilderSummary();
-  }
-
-  function resetDienstplanModal() {
+  function resetSonstigesModal() {
     setEditingTerminId(null);
-    setModalTitle('Neuer Dienstplan-Termin');
-    var datum = document.getElementById('dienstplan-termin-datum');
-    var beginn = document.getElementById('dienstplan-termin-beginn');
-    var ende = document.getElementById('dienstplan-termin-ende');
+    setModalTitle('Neuer Termin');
+    var datum = document.getElementById('sonstiges-termin-datum');
+    var beginn = document.getElementById('sonstiges-termin-beginn');
+    var ende = document.getElementById('sonstiges-termin-ende');
     if (datum) {
       datum.value = '';
     }
-    setThemaValue('');
+    setBeschreibungValue('');
     if (beginn) {
       beginn.value = '19:00';
     }
@@ -367,8 +342,7 @@
       ende.value = '22:00';
     }
     resetAusbilderCheckboxes();
-    lastAppliedThema = '';
-    var audienceAll = document.getElementById('dienstplan-audience-all');
+    var audienceAll = document.getElementById('sonstiges-audience-all');
     if (audienceAll) {
       audienceAll.checked = true;
     }
@@ -377,61 +351,12 @@
   }
 
   function syncAudiencePickVisibility() {
-    var audienceAll = document.getElementById('dienstplan-audience-all');
-    var pick = document.getElementById('dienstplan-audience-pick');
+    var audienceAll = document.getElementById('sonstiges-audience-all');
+    var pick = document.getElementById('sonstiges-audience-pick');
     if (!audienceAll || !pick) {
       return;
     }
     pick.hidden = audienceAll.checked;
-  }
-
-  function normalizeThema(value) {
-    return (value || '').trim();
-  }
-
-  function themaMatches(left, right) {
-    if (!left || !right) {
-      return false;
-    }
-    return left.localeCompare(right, 'de', { sensitivity: 'accent' }) === 0;
-  }
-
-  function instructorIdsForThema(thema) {
-    var ids = [];
-    instructorGroups.forEach(function (group) {
-      if (!group || !themaMatches(group.thema, thema)) {
-        return;
-      }
-      (group.personIds || []).forEach(function (id) {
-        var numericId = Number(id);
-        if (Number.isFinite(numericId) && numericId > 0 && ids.indexOf(numericId) === -1) {
-          ids.push(numericId);
-        }
-      });
-    });
-    return ids;
-  }
-
-  function applyInstructorsForThema(thema, force) {
-    if (getEditingTerminId() && !force) {
-      return;
-    }
-    var normalized = normalizeThema(thema);
-    if (!normalized) {
-      lastAppliedThema = '';
-      return;
-    }
-    if (!force && normalized === lastAppliedThema) {
-      return;
-    }
-    var ids = instructorIdsForThema(normalized);
-    if (force) {
-      resetAusbilderCheckboxes();
-    }
-    if (ids.length > 0) {
-      checkAusbilderByIds(ids);
-    }
-    lastAppliedThema = normalized;
   }
 
   function parseTerminEnd(row) {
@@ -474,7 +399,7 @@
   }
 
   function applyZeitFilter() {
-    var rows = document.querySelectorAll('.dienstplan-termin-row');
+    var rows = document.querySelectorAll('.sonstiges-termin-row');
     var visibleCount = 0;
     rows.forEach(function (row) {
       var show = rowMatchesZeitFilter(row);
@@ -483,8 +408,8 @@
         visibleCount++;
       }
     });
-    var emptyHint = document.getElementById('dienstplan-filter-empty');
-    var tableWrap = document.getElementById('dienstplan-table-wrap');
+    var emptyHint = document.getElementById('sonstiges-filter-empty');
+    var tableWrap = document.getElementById('sonstiges-table-wrap');
     if (emptyHint) {
       emptyHint.hidden = visibleCount > 0;
     }
@@ -494,11 +419,11 @@
   }
 
   function bindZeitFilter() {
-    var select = document.getElementById('dienstplan-filter-zeit');
+    var select = document.getElementById('sonstiges-filter-zeit');
     if (!select) {
       return;
     }
-    zeitFilter = select.value || 'alle';
+    zeitFilter = select.value || 'bevorstehend';
     select.addEventListener('change', function () {
       zeitFilter = select.value || 'alle';
       applyZeitFilter();
@@ -507,12 +432,12 @@
   }
 
   function bindAusbilderPicker() {
-    var openBtn = document.getElementById('dienstplan-ausbilder-open-btn');
-    var applyBtn = document.getElementById('dienstplan-ausbilder-apply');
-    var overlay = document.getElementById('modal-dienstplan-ausbilder');
-    var search = document.getElementById('dienstplan-ausbilder-search');
-    var picker = document.getElementById('dienstplan-ausbilder-picker');
-    var emptyHint = document.getElementById('dienstplan-ausbilder-search-empty');
+    var openBtn = document.getElementById('sonstiges-ausbilder-open-btn');
+    var applyBtn = document.getElementById('sonstiges-ausbilder-apply');
+    var overlay = document.getElementById('modal-sonstiges-ausbilder');
+    var search = document.getElementById('sonstiges-ausbilder-search');
+    var picker = document.getElementById('sonstiges-ausbilder-picker');
+    var emptyHint = document.getElementById('sonstiges-ausbilder-search-empty');
 
     if (openBtn) {
       openBtn.addEventListener('click', openAusbilderPickerModal);
@@ -520,7 +445,7 @@
     if (applyBtn) {
       applyBtn.addEventListener('click', applyAusbilderPicker);
     }
-    document.querySelectorAll('[data-close-ausbilder-modal]').forEach(function (btn) {
+    document.querySelectorAll('[data-close-sonstiges-ausbilder-modal]').forEach(function (btn) {
       btn.addEventListener('click', cancelAusbilderPicker);
     });
     if (overlay) {
@@ -550,36 +475,27 @@
     syncAusbilderSummary();
   }
 
-  function bindThemaInstructorAutofill() {
-    var themaSelect = getThemaSelect();
-    var themaCustom = getThemaCustomInput();
-    if (!themaSelect) {
+  function bindBeschreibungSelect() {
+    var select = getBeschreibungSelect();
+    var custom = getBeschreibungCustomInput();
+    if (!select) {
       return;
     }
-    themaSelect.addEventListener('change', function () {
-      syncThemaCustomVisibility();
-      if (themaSelect.value === THEMA_CUSTOM_VALUE) {
-        if (themaCustom) {
-          themaCustom.focus();
-        }
-        return;
+    select.addEventListener('change', function () {
+      syncBeschreibungCustomVisibility();
+      if (select.value === CUSTOM_VALUE && custom) {
+        custom.focus();
       }
-      applyInstructorsForThema(themaSelect.value, true);
     });
-    if (themaCustom) {
-      themaCustom.addEventListener('input', function () {
-        applyInstructorsForThema(themaCustom.value, true);
-      });
-    }
-    syncThemaCustomVisibility();
+    syncBeschreibungCustomVisibility();
   }
 
   function openCreateModal() {
-    resetDienstplanModal();
-    openModal('modal-dienstplan-termin');
-    var themaSelect = getThemaSelect();
-    if (themaSelect) {
-      themaSelect.focus();
+    resetSonstigesModal();
+    openModal('modal-sonstiges-termin');
+    var select = getBeschreibungSelect();
+    if (select) {
+      select.focus();
     }
   }
 
@@ -587,18 +503,18 @@
     if (!row) {
       return;
     }
-    resetDienstplanModal();
+    resetSonstigesModal();
     setEditingTerminId(row.getAttribute('data-id'));
     setModalTitle('Termin bearbeiten');
 
-    var datum = document.getElementById('dienstplan-termin-datum');
-    var beginn = document.getElementById('dienstplan-termin-beginn');
-    var ende = document.getElementById('dienstplan-termin-ende');
-    var audienceAll = document.getElementById('dienstplan-audience-all');
+    var datum = document.getElementById('sonstiges-termin-datum');
+    var beginn = document.getElementById('sonstiges-termin-beginn');
+    var ende = document.getElementById('sonstiges-termin-ende');
+    var audienceAll = document.getElementById('sonstiges-audience-all');
     if (datum) {
       datum.value = row.getAttribute('data-datum') || '';
     }
-    setThemaValue(row.getAttribute('data-thema') || '');
+    setBeschreibungValue(row.getAttribute('data-beschreibung') || '');
     if (beginn) {
       beginn.value = row.getAttribute('data-beginn') || '19:00';
     }
@@ -611,21 +527,20 @@
     audiencePicker.setGroupsFromCsv(row.getAttribute('data-group-ids'));
     audiencePicker.setPersonsFromCsv(row.getAttribute('data-person-ids'));
     setAusbilderCheckboxes(row.getAttribute('data-instructor-ids'));
-    lastAppliedThema = getThemaValue();
     syncAudiencePickVisibility();
-    openModal('modal-dienstplan-termin');
-    var themaSelect = getThemaSelect();
-    if (themaSelect) {
-      themaSelect.focus();
+    openModal('modal-sonstiges-termin');
+    var select = getBeschreibungSelect();
+    if (select) {
+      select.focus();
     }
   }
 
   function buildSaveBody() {
-    var datum = document.getElementById('dienstplan-termin-datum');
-    var beginn = document.getElementById('dienstplan-termin-beginn');
-    var ende = document.getElementById('dienstplan-termin-ende');
-    var audienceAll = document.getElementById('dienstplan-audience-all');
-    var themaValue = getThemaValue();
+    var datum = document.getElementById('sonstiges-termin-datum');
+    var beginn = document.getElementById('sonstiges-termin-beginn');
+    var ende = document.getElementById('sonstiges-termin-ende');
+    var audienceAll = document.getElementById('sonstiges-audience-all');
+    var beschreibungValue = getBeschreibungValue();
     if (!datum || !beginn || !ende) {
       return null;
     }
@@ -640,7 +555,7 @@
     }
     var body = {
       terminDatum: datum.value,
-      thema: themaValue,
+      thema: beschreibungValue,
       dienstBeginn: beginn.value,
       dienstEnde: ende.value,
       instructorPersonIds: selectedAusbilderIds(),
@@ -650,23 +565,23 @@
     };
     if (!body.terminDatum || !body.thema || !body.dienstBeginn || !body.dienstEnde) {
       if (typeof toast === 'function') {
-        toast('Bitte Datum, Thema, Dienstbeginn und Dienstende ausfüllen.', 'warning');
+        toast('Bitte Datum, Beschreibung, Beginn und Ende ausfüllen.', 'warning');
       }
       return null;
     }
     return body;
   }
 
-  function saveDienstplanTermin() {
+  function saveSonstigesTermin() {
     var body = buildSaveBody();
     if (!body) {
       return;
     }
     var terminId = getEditingTerminId();
-    var url = '/termine/api/dienstplan?unit=' + encodeURIComponent(unitId);
+    var url = '/termine/api/sonstiges?unit=' + encodeURIComponent(unitId);
     var method = 'POST';
     if (terminId) {
-      url = '/termine/api/dienstplan/' + encodeURIComponent(terminId) + '?unit=' + encodeURIComponent(unitId);
+      url = '/termine/api/sonstiges/' + encodeURIComponent(terminId) + '?unit=' + encodeURIComponent(unitId);
       method = 'PUT';
     }
     apiFetch(url, {
@@ -675,14 +590,14 @@
     }).then(notifyResult);
   }
 
-  function deleteDienstplanTermin(terminId) {
+  function deleteSonstigesTermin(terminId) {
     if (!terminId) {
       return;
     }
     if (!window.confirm('Termin wirklich löschen?')) {
       return;
     }
-    apiFetch('/termine/api/dienstplan/' + encodeURIComponent(terminId) + '?unit=' + encodeURIComponent(unitId), {
+    apiFetch('/termine/api/sonstiges/' + encodeURIComponent(terminId) + '?unit=' + encodeURIComponent(unitId), {
       method: 'DELETE'
     }).then(notifyResult);
   }
@@ -707,7 +622,7 @@
     }
   });
 
-  var audienceAllCheckbox = document.getElementById('dienstplan-audience-all');
+  var audienceAllCheckbox = document.getElementById('sonstiges-audience-all');
   if (audienceAllCheckbox) {
     audienceAllCheckbox.addEventListener('change', syncAudiencePickVisibility);
     syncAudiencePickVisibility();
@@ -715,13 +630,13 @@
 
   audiencePicker.bind();
   bindAusbilderPicker();
-  bindThemaInstructorAutofill();
+  bindBeschreibungSelect();
   bindZeitFilter();
 
   if (canWrite) {
-    var newBtn = document.getElementById('termine-new-dienstplan-btn');
-    var emptyBtn = document.getElementById('termine-new-dienstplan-empty-btn');
-    var saveBtn = document.getElementById('dienstplan-save-termin');
+    var newBtn = document.getElementById('termine-new-sonstiges-btn');
+    var emptyBtn = document.getElementById('termine-new-sonstiges-empty-btn');
+    var saveBtn = document.getElementById('sonstiges-save-termin');
     if (newBtn) {
       newBtn.addEventListener('click', openCreateModal);
     }
@@ -729,17 +644,17 @@
       emptyBtn.addEventListener('click', openCreateModal);
     }
     if (saveBtn) {
-      saveBtn.addEventListener('click', saveDienstplanTermin);
+      saveBtn.addEventListener('click', saveSonstigesTermin);
     }
-    document.querySelectorAll('[data-edit-dienstplan-termin]').forEach(function (btn) {
+    document.querySelectorAll('[data-edit-sonstiges-termin]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        openEditModal(btn.closest('.dienstplan-termin-row'));
+        openEditModal(btn.closest('.sonstiges-termin-row'));
       });
     });
-    document.querySelectorAll('[data-delete-dienstplan-termin]').forEach(function (btn) {
+    document.querySelectorAll('[data-delete-sonstiges-termin]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        var row = btn.closest('.dienstplan-termin-row');
-        deleteDienstplanTermin(row ? row.getAttribute('data-id') : null);
+        var row = btn.closest('.sonstiges-termin-row');
+        deleteSonstigesTermin(row ? row.getAttribute('data-id') : null);
       });
     });
   }

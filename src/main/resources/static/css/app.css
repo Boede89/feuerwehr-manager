@@ -3593,11 +3593,20 @@ span.required { color: var(--error); }
   cursor: pointer;
 }
 .termine-audience-pick {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.75rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-.termine-audience-select { min-height: 7.5rem; }
+.termine-audience-field {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  width: 100%;
+}
+.termine-audience-empty {
+  margin: 0;
+}
 .termine-ausbilder-field {
   display: flex;
   flex-direction: column;
@@ -3625,9 +3634,6 @@ span.required { color: var(--error); }
 }
 .modal-overlay--stack {
   z-index: 300;
-}
-@media (max-width: 720px) {
-  .termine-audience-pick { grid-template-columns: 1fr; }
 }
 
 /* ── Einsatzbericht-Formular (1:1 FW-Hub incident-form) ─────────────────────── */

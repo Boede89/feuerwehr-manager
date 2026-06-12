@@ -35,8 +35,17 @@ public class TermineService {
 
     @Transactional(readOnly = true)
     public List<DienstplanTerminView> listDienstplanTermine(long unitId) {
-        List<UnitTermin> termins =
-                unitTerminRepository.findByUnitAndCategoryWithInstructor(unitId, TermineCategory.DIENSTPLAN);
+        return listTermineByCategory(unitId, TermineCategory.DIENSTPLAN);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DienstplanTerminView> listSonstigesTermine(long unitId) {
+        return listTermineByCategory(unitId, TermineCategory.SONSTIGES);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DienstplanTerminView> listTermineByCategory(long unitId, TermineCategory category) {
+        List<UnitTermin> termins = unitTerminRepository.findByUnitAndCategoryWithInstructor(unitId, category);
         termins.forEach(this::touchTerminCollections);
         return termins.stream().map(this::toDienstplanView).toList();
     }
@@ -51,15 +60,36 @@ public class TermineService {
     @Transactional(readOnly = true)
     public List<String> listKnownDienstplanThemen(long unitId) {
         LinkedHashSet<String> themen = new LinkedHashSet<>();
-        unitTerminRepository
-                .findDistinctTitlesByUnitAndCategory(unitId, TermineCategory.DIENSTPLAN)
-                .forEach(themen::add);
+        listKnownTitles(unitId, TermineCategory.DIENSTPLAN).forEach(themen::add);
         personalInstructorGroupService.listThemen(unitId).forEach(themen::add);
         return themen.stream().sorted(String.CASE_INSENSITIVE_ORDER).toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<String> listKnownSonstigesBeschreibungen(long unitId) {
+        return listKnownTitles(unitId, TermineCategory.SONSTIGES);
+    }
+
+    @Transactional(readOnly = true)
+    public List<String> listKnownTitles(long unitId, TermineCategory category) {
+        return unitTerminRepository.findDistinctTitlesByUnitAndCategory(unitId, category).stream()
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .toList();
+    }
+
     @Transactional
     public void createDienstplanTermin(long unitId, long userId, CreateDienstplanTerminRequest request) {
+        createTermin(unitId, userId, TermineCategory.DIENSTPLAN, request);
+    }
+
+    @Transactional
+    public void createSonstigesTermin(long unitId, long userId, CreateDienstplanTerminRequest request) {
+        createTermin(unitId, userId, TermineCategory.SONSTIGES, request);
+    }
+
+    @Transactional
+    public void createTermin(
+            long unitId, long userId, TermineCategory category, CreateDienstplanTerminRequest request) {
         ParsedDienstplanFields parsed = parseDienstplanRequest(request);
         Unit unit = unitRepository
                 .findById(unitId)
@@ -69,38 +99,59 @@ public class TermineService {
                 .orElseThrow(() -> new IllegalArgumentException("Benutzer nicht gefunden."));
         UnitTermin termin = new UnitTermin();
         termin.setUnit(unit);
-        termin.setCategory(TermineCategory.DIENSTPLAN);
+        termin.setCategory(category);
         termin.setCreatedBy(createdBy);
-        applyDienstplanFields(unitId, termin, parsed, request);
+        applyTerminFields(unitId, termin, parsed, request);
         unitTerminRepository.save(termin);
     }
 
     @Transactional
     public void updateDienstplanTermin(long unitId, long terminId, CreateDienstplanTerminRequest request) {
+        updateTermin(unitId, terminId, TermineCategory.DIENSTPLAN, request);
+    }
+
+    @Transactional
+    public void updateSonstigesTermin(long unitId, long terminId, CreateDienstplanTerminRequest request) {
+        updateTermin(unitId, terminId, TermineCategory.SONSTIGES, request);
+    }
+
+    @Transactional
+    public void updateTermin(
+            long unitId, long terminId, TermineCategory category, CreateDienstplanTerminRequest request) {
         ParsedDienstplanFields parsed = parseDienstplanRequest(request);
-        UnitTermin termin = requireDienstplanTermin(unitId, terminId);
-        applyDienstplanFields(unitId, termin, parsed, request);
+        UnitTermin termin = requireCategoryTermin(unitId, terminId, category);
+        applyTerminFields(unitId, termin, parsed, request);
         unitTerminRepository.save(termin);
     }
 
     @Transactional
     public void deleteDienstplanTermin(long unitId, long terminId) {
-        UnitTermin termin = requireDienstplanTermin(unitId, terminId);
+        deleteTermin(unitId, terminId, TermineCategory.DIENSTPLAN);
+    }
+
+    @Transactional
+    public void deleteSonstigesTermin(long unitId, long terminId) {
+        deleteTermin(unitId, terminId, TermineCategory.SONSTIGES);
+    }
+
+    @Transactional
+    public void deleteTermin(long unitId, long terminId, TermineCategory category) {
+        UnitTermin termin = requireCategoryTermin(unitId, terminId, category);
         unitTerminRepository.delete(termin);
     }
 
-    private UnitTermin requireDienstplanTermin(long unitId, long terminId) {
+    private UnitTermin requireCategoryTermin(long unitId, long terminId, TermineCategory category) {
         UnitTermin termin = unitTerminRepository
                 .findByIdAndUnitId(terminId, unitId)
                 .orElseThrow(() -> new IllegalArgumentException("Termin nicht gefunden."));
-        if (termin.getCategory() != TermineCategory.DIENSTPLAN) {
+        if (termin.getCategory() != category) {
             throw new IllegalArgumentException("Termin nicht gefunden.");
         }
         touchTerminCollections(termin);
         return termin;
     }
 
-    private void applyDienstplanFields(
+    private void applyTerminFields(
             long unitId, UnitTermin termin, ParsedDienstplanFields parsed, CreateDienstplanTerminRequest request) {
         termin.setTitle(parsed.thema());
         termin.setStartAt(parsed.startAt());
@@ -124,7 +175,7 @@ public class TermineService {
         }
         String thema = trimToNull(request.thema());
         if (thema == null) {
-            throw new IllegalArgumentException("Bitte ein Thema angeben.");
+            throw new IllegalArgumentException("Bitte ein Thema bzw. eine Beschreibung angeben.");
         }
         LocalDateTime startAt = LocalDateTime.of(request.terminDatum(), request.dienstBeginn());
         LocalDateTime endAt = LocalDateTime.of(request.terminDatum(), request.dienstEnde());
