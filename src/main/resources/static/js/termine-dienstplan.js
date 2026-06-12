@@ -88,6 +88,48 @@
     }
   }
 
+  function resetAusbilderCheckboxes() {
+    document.querySelectorAll('.dienstplan-ausbilder-cb').forEach(function (cb) {
+      cb.checked = false;
+    });
+  }
+
+  function setAusbilderCheckboxes(idsCsv) {
+    resetAusbilderCheckboxes();
+    if (!idsCsv) {
+      return;
+    }
+    idsCsv.split(',').forEach(function (rawId) {
+      var id = rawId.trim();
+      if (!id) {
+        return;
+      }
+      var cb = document.querySelector('.dienstplan-ausbilder-cb[value="' + id + '"]');
+      if (cb) {
+        cb.checked = true;
+      }
+    });
+  }
+
+  function selectedAusbilderIds() {
+    return Array.from(document.querySelectorAll('.dienstplan-ausbilder-cb:checked'))
+      .map(function (cb) {
+        return Number(cb.value);
+      })
+      .filter(function (id) {
+        return Number.isFinite(id) && id > 0;
+      });
+  }
+
+  function checkAusbilderByIds(ids) {
+    ids.forEach(function (id) {
+      var cb = document.querySelector('.dienstplan-ausbilder-cb[value="' + id + '"]');
+      if (cb) {
+        cb.checked = true;
+      }
+    });
+  }
+
   function selectOptionsByIds(selectEl, idsCsv) {
     if (!selectEl) {
       return;
@@ -117,7 +159,6 @@
     var thema = document.getElementById('dienstplan-termin-thema');
     var beginn = document.getElementById('dienstplan-termin-beginn');
     var ende = document.getElementById('dienstplan-termin-ende');
-    var ausbilder = document.getElementById('dienstplan-termin-ausbilder');
     if (datum) {
       datum.value = '';
     }
@@ -130,11 +171,7 @@
     if (ende) {
       ende.value = '22:00';
     }
-    if (ausbilder) {
-      Array.from(ausbilder.options).forEach(function (option) {
-        option.selected = false;
-      });
-    }
+    resetAusbilderCheckboxes();
     lastAppliedThema = '';
     var audienceAll = document.getElementById('dienstplan-audience-all');
     var groups = document.getElementById('dienstplan-audience-groups');
@@ -203,21 +240,12 @@
     if (!force && normalized === lastAppliedThema) {
       return;
     }
-    var ausbilder = document.getElementById('dienstplan-termin-ausbilder');
-    if (!ausbilder) {
-      return;
-    }
     var ids = instructorIdsForThema(normalized);
     if (ids.length === 0) {
       lastAppliedThema = normalized;
       return;
     }
-    ids.forEach(function (id) {
-      var option = ausbilder.querySelector('option[value="' + id + '"]');
-      if (option) {
-        option.selected = true;
-      }
-    });
+    checkAusbilderByIds(ids);
     lastAppliedThema = normalized;
   }
 
@@ -343,8 +371,6 @@
     var audienceAll = document.getElementById('dienstplan-audience-all');
     var groups = document.getElementById('dienstplan-audience-groups');
     var persons = document.getElementById('dienstplan-audience-persons');
-    var ausbilder = document.getElementById('dienstplan-termin-ausbilder');
-
     if (datum) {
       datum.value = row.getAttribute('data-datum') || '';
     }
@@ -362,7 +388,7 @@
     }
     selectOptionsByIds(groups, row.getAttribute('data-group-ids'));
     selectOptionsByIds(persons, row.getAttribute('data-person-ids'));
-    selectOptionsByIds(ausbilder, row.getAttribute('data-instructor-ids'));
+    setAusbilderCheckboxes(row.getAttribute('data-instructor-ids'));
     lastAppliedThema = normalizeThema(thema ? thema.value : '');
     syncAudiencePickVisibility();
     openModal('modal-dienstplan-termin');
@@ -376,7 +402,6 @@
     var thema = document.getElementById('dienstplan-termin-thema');
     var beginn = document.getElementById('dienstplan-termin-beginn');
     var ende = document.getElementById('dienstplan-termin-ende');
-    var ausbilder = document.getElementById('dienstplan-termin-ausbilder');
     var audienceAll = document.getElementById('dienstplan-audience-all');
     var groups = document.getElementById('dienstplan-audience-groups');
     var persons = document.getElementById('dienstplan-audience-persons');
@@ -397,7 +422,7 @@
       thema: thema.value.trim(),
       dienstBeginn: beginn.value,
       dienstEnde: ende.value,
-      instructorPersonIds: selectedOptionValues(ausbilder),
+      instructorPersonIds: selectedAusbilderIds(),
       audienceAll: appliesToAll,
       groupIds: groupIds,
       personIds: personIds

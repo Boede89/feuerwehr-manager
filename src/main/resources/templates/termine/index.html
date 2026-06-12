@@ -171,12 +171,16 @@
             </div>
           </div>
           <div class="form-group form-group--full">
-            <label for="dienstplan-termin-ausbilder">Ausbilder</label>
-            <select id="dienstplan-termin-ausbilder" class="field termine-audience-select" multiple size="5">
-              <option th:each="p : ${unitPersons}" th:value="${p.id}"
-                      th:text="${p.anwesenheitDisplayName()}">Name</option>
-            </select>
-            <p class="hint text-sm">Optional. Bei bekanntem Thema werden Ausbilder aus den Ausbildergruppen vorgeschlagen. Strg gedrückt halten für Mehrfachauswahl.</p>
+            <span class="form-label">Ausbilder</span>
+            <p class="hint text-sm" style="margin:0 0 0.5rem;">Optional. Bei bekanntem Thema werden Ausbilder aus den Ausbildergruppen vorgeschlagen.</p>
+            <div id="dienstplan-ausbilder-picker" class="member-picker" th:if="${!#lists.isEmpty(unitPersons)}">
+              <label class="checkbox-row member-picker__item" th:each="p : ${unitPersons}">
+                <input type="checkbox" class="dienstplan-ausbilder-cb" th:value="${p.id}"
+                       th:attr="data-person-id=${p.id}"/>
+                <span th:text="${p.anwesenheitDisplayName()}">Name</span>
+              </label>
+            </div>
+            <p class="hint text-sm" th:if="${#lists.isEmpty(unitPersons)}">Noch keine Personen im Personalbereich angelegt.</p>
           </div>
         </div>
       </div>
