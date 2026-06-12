@@ -523,8 +523,7 @@ public class AnwesenheitslisteService {
         }
         LinkedHashSet<Long> personIds = new LinkedHashSet<>();
         for (CrewAssignment assignment : crewAssignments) {
-            if (assignment.vehicleId() == null
-                    || assignment.vehicleId() != IncidentCrewSupport.BETEILIGT_VEHICLE_ID
+            if (assignment.vehicleId() != IncidentCrewSupport.BETEILIGT_VEHICLE_ID
                     || assignment.personIds() == null) {
                 continue;
             }
