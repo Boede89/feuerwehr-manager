@@ -21,7 +21,7 @@ INSERT INTO flyway_schema_history (
     'attendance reports',
     'SQL',
     'V72__attendance_reports.sql',
-    814325931,
+    -1857380341,
     'manual-repair',
     NOW(),
     0,
