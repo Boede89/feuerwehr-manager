@@ -95,7 +95,7 @@ class TermineServiceTest {
         PersonGroup group = new PersonGroup();
         group.setId(2L);
         group.setName("Gruppe 1");
-        group.setMembers(new LinkedHashSet<>(Set.of(person)));
+        group.setMembers(List.of(person));
         UnitTermin groupTermin = new UnitTermin();
         groupTermin.setId(8L);
         groupTermin.setCategory(TermineCategory.DIENSTPLAN);
