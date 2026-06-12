@@ -3443,6 +3443,34 @@ span.required { color: var(--error); }
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .termine-audience-select { min-height: 7.5rem; }
+.termine-ausbilder-field {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+.termine-ausbilder-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  width: 100%;
+}
+.termine-ausbilder-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: var(--bg-card-hover);
+  border: 1px solid var(--border);
+  font-size: var(--fs-sm);
+  line-height: 1.35;
+}
+.termine-ausbilder-empty {
+  margin: 0;
+}
+.modal-overlay--stack {
+  z-index: 300;
+}
 @media (max-width: 720px) {
   .termine-audience-pick { grid-template-columns: 1fr; }
 }

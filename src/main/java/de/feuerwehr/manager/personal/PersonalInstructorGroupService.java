@@ -173,5 +173,31 @@ public class PersonalInstructorGroupService {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    public record InstructorGroupTerminPayload(String thema, List<Long> personIds) {}
+    public static final class InstructorGroupTerminPayload {
+        private String thema;
+        private List<Long> personIds;
+
+        public InstructorGroupTerminPayload() {}
+
+        public InstructorGroupTerminPayload(String thema, List<Long> personIds) {
+            this.thema = thema;
+            this.personIds = personIds;
+        }
+
+        public String getThema() {
+            return thema;
+        }
+
+        public void setThema(String thema) {
+            this.thema = thema;
+        }
+
+        public List<Long> getPersonIds() {
+            return personIds;
+        }
+
+        public void setPersonIds(List<Long> personIds) {
+            this.personIds = personIds;
+        }
+    }
 }
