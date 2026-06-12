@@ -61,7 +61,54 @@
     }
   }
 
+  function setModalTitle(text) {
+    var title = document.getElementById('dienstplan-termin-modal-title');
+    if (title) {
+      title.textContent = text;
+    }
+  }
+
+  function getEditingTerminId() {
+    var hidden = document.getElementById('dienstplan-termin-id');
+    if (!hidden || !hidden.value) {
+      return null;
+    }
+    var id = Number(hidden.value);
+    return Number.isFinite(id) && id > 0 ? id : null;
+  }
+
+  function setEditingTerminId(id) {
+    var hidden = document.getElementById('dienstplan-termin-id');
+    if (hidden) {
+      hidden.value = id ? String(id) : '';
+    }
+  }
+
+  function selectOptionsByIds(selectEl, idsCsv) {
+    if (!selectEl) {
+      return;
+    }
+    Array.from(selectEl.options).forEach(function (option) {
+      option.selected = false;
+    });
+    if (!idsCsv) {
+      return;
+    }
+    idsCsv.split(',').forEach(function (rawId) {
+      var id = rawId.trim();
+      if (!id) {
+        return;
+      }
+      var option = selectEl.querySelector('option[value="' + id + '"]');
+      if (option) {
+        option.selected = true;
+      }
+    });
+  }
+
   function resetDienstplanModal() {
+    setEditingTerminId(null);
+    setModalTitle('Neuer Dienstplan-Termin');
     var datum = document.getElementById('dienstplan-termin-datum');
     var thema = document.getElementById('dienstplan-termin-thema');
     var beginn = document.getElementById('dienstplan-termin-beginn');
@@ -141,6 +188,9 @@
   }
 
   function applyInstructorsForThema(thema, force) {
+    if (getEditingTerminId() && !force) {
+      return;
+    }
     var normalized = normalizeThema(thema);
     if (!normalized) {
       lastAppliedThema = '';
@@ -202,7 +252,50 @@
     }
   }
 
-  function saveDienstplanTermin() {
+  function openEditModal(row) {
+    if (!row) {
+      return;
+    }
+    resetDienstplanModal();
+    setEditingTerminId(row.getAttribute('data-id'));
+    setModalTitle('Termin bearbeiten');
+
+    var datum = document.getElementById('dienstplan-termin-datum');
+    var thema = document.getElementById('dienstplan-termin-thema');
+    var beginn = document.getElementById('dienstplan-termin-beginn');
+    var ende = document.getElementById('dienstplan-termin-ende');
+    var audienceAll = document.getElementById('dienstplan-audience-all');
+    var groups = document.getElementById('dienstplan-audience-groups');
+    var persons = document.getElementById('dienstplan-audience-persons');
+    var ausbilder = document.getElementById('dienstplan-termin-ausbilder');
+
+    if (datum) {
+      datum.value = row.getAttribute('data-datum') || '';
+    }
+    if (thema) {
+      thema.value = row.getAttribute('data-thema') || '';
+    }
+    if (beginn) {
+      beginn.value = row.getAttribute('data-beginn') || '19:00';
+    }
+    if (ende) {
+      ende.value = row.getAttribute('data-ende') || '22:00';
+    }
+    if (audienceAll) {
+      audienceAll.checked = row.getAttribute('data-audience-all') === 'true';
+    }
+    selectOptionsByIds(groups, row.getAttribute('data-group-ids'));
+    selectOptionsByIds(persons, row.getAttribute('data-person-ids'));
+    selectOptionsByIds(ausbilder, row.getAttribute('data-instructor-ids'));
+    lastAppliedThema = normalizeThema(thema ? thema.value : '');
+    syncAudiencePickVisibility();
+    openModal('modal-dienstplan-termin');
+    if (thema) {
+      thema.focus();
+    }
+  }
+
+  function buildSaveBody() {
     var datum = document.getElementById('dienstplan-termin-datum');
     var thema = document.getElementById('dienstplan-termin-thema');
     var beginn = document.getElementById('dienstplan-termin-beginn');
@@ -212,7 +305,7 @@
     var groups = document.getElementById('dienstplan-audience-groups');
     var persons = document.getElementById('dienstplan-audience-persons');
     if (!datum || !thema || !beginn || !ende) {
-      return;
+      return null;
     }
     var appliesToAll = !audienceAll || audienceAll.checked;
     var groupIds = appliesToAll ? [] : selectedOptionValues(groups);
@@ -221,7 +314,7 @@
       if (typeof toast === 'function') {
         toast('Bitte mindestens eine Gruppe oder Person auswählen, oder „Alle“ aktiv lassen.', 'warning');
       }
-      return;
+      return null;
     }
     var body = {
       terminDatum: datum.value,
@@ -237,11 +330,38 @@
       if (typeof toast === 'function') {
         toast('Bitte Datum, Thema, Dienstbeginn und Dienstende ausfüllen.', 'warning');
       }
+      return null;
+    }
+    return body;
+  }
+
+  function saveDienstplanTermin() {
+    var body = buildSaveBody();
+    if (!body) {
       return;
     }
-    apiFetch('/termine/api/dienstplan?unit=' + encodeURIComponent(unitId), {
-      method: 'POST',
+    var terminId = getEditingTerminId();
+    var url = '/termine/api/dienstplan?unit=' + encodeURIComponent(unitId);
+    var method = 'POST';
+    if (terminId) {
+      url = '/termine/api/dienstplan/' + encodeURIComponent(terminId) + '?unit=' + encodeURIComponent(unitId);
+      method = 'PUT';
+    }
+    apiFetch(url, {
+      method: method,
       body: JSON.stringify(body)
+    }).then(notifyResult);
+  }
+
+  function deleteDienstplanTermin(terminId) {
+    if (!terminId) {
+      return;
+    }
+    if (!window.confirm('Termin wirklich löschen?')) {
+      return;
+    }
+    apiFetch('/termine/api/dienstplan/' + encodeURIComponent(terminId) + '?unit=' + encodeURIComponent(unitId), {
+      method: 'DELETE'
     }).then(notifyResult);
   }
 
@@ -286,5 +406,16 @@
     if (saveBtn) {
       saveBtn.addEventListener('click', saveDienstplanTermin);
     }
+    document.querySelectorAll('[data-edit-dienstplan-termin]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        openEditModal(btn.closest('.dienstplan-termin-row'));
+      });
+    });
+    document.querySelectorAll('[data-delete-dienstplan-termin]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var row = btn.closest('.dienstplan-termin-row');
+        deleteDienstplanTermin(row ? row.getAttribute('data-id') : null);
+      });
+    });
   }
 })();

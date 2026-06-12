@@ -58,16 +58,32 @@
               <th>Dienstende</th>
               <th>Personen/Gruppen</th>
               <th>Ausbilder</th>
+              <th th:if="${canWrite}">Aktionen</th>
             </tr>
             </thead>
             <tbody>
-            <tr th:each="termin : ${dienstplanTermine}">
+            <tr th:each="termin : ${dienstplanTermine}" class="dienstplan-termin-row"
+                th:attr="data-id=${termin.id},
+                         data-datum=${termin.datum()},
+                         data-thema=${termin.thema()},
+                         data-beginn=${#temporals.format(termin.dienstBeginn(), 'HH:mm')},
+                         data-ende=${termin.dienstEnde() != null ? #temporals.format(termin.dienstEnde(), 'HH:mm') : ''},
+                         data-audience-all=${termin.audienceAll()},
+                         data-group-ids=${termin.audienceGroupIdsCsv()},
+                         data-person-ids=${termin.audiencePersonIdsCsv()},
+                         data-instructor-ids=${termin.instructorPersonIdsCsv()}">
               <td th:text="${#temporals.format(termin.datum(), 'dd.MM.yyyy')}">01.01.2026</td>
               <td th:text="${termin.thema()}">Thema</td>
               <td th:text="${#temporals.format(termin.dienstBeginn(), 'HH:mm')}">19:00</td>
               <td th:text="${termin.dienstEnde() != null ? #temporals.format(termin.dienstEnde(), 'HH:mm') : '—'}">22:00</td>
               <td th:text="${termin.personenGruppenLabel()}">Alle</td>
               <td th:text="${termin.ausbilderName() != null ? termin.ausbilderName() : '—'}">—</td>
+              <td th:if="${canWrite}">
+                <div class="btn-group">
+                  <button type="button" class="btn btn--outline btn--sm" data-edit-dienstplan-termin>Bearb.</button>
+                  <button type="button" class="btn btn--danger btn--sm" data-delete-dienstplan-termin>Löschen</button>
+                </div>
+              </td>
             </tr>
             </tbody>
           </table>
@@ -92,6 +108,7 @@
         <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
       </div>
       <div class="modal__body">
+        <input type="hidden" id="dienstplan-termin-id" value=""/>
         <div class="form-grid form-grid--2">
           <div class="form-group">
             <label for="dienstplan-termin-datum">Datum <span class="required">*</span></label>

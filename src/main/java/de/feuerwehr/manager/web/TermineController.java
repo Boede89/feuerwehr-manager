@@ -18,8 +18,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -83,6 +86,41 @@ public class TermineController {
             accessControlService.requireUnitAccess(actor, unitId);
             termineService.createDienstplanTermin(unitId, actor.getUserId(), body);
             return ActionResultDto.success("Termin wurde erstellt.");
+        } catch (IllegalArgumentException e) {
+            return ActionResultDto.failure(e.getMessage());
+        }
+    }
+
+    @PutMapping("/api/dienstplan/{terminId}")
+    @ResponseBody
+    public ActionResultDto updateDienstplanTermin(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @PathVariable long terminId,
+            @RequestBody CreateDienstplanTerminRequest body) {
+        try {
+            requireModuleEnabled(unitId);
+            requireTermineWrite(actor, unitId);
+            accessControlService.requireUnitAccess(actor, unitId);
+            termineService.updateDienstplanTermin(unitId, terminId, body);
+            return ActionResultDto.success("Termin wurde gespeichert.");
+        } catch (IllegalArgumentException e) {
+            return ActionResultDto.failure(e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/api/dienstplan/{terminId}")
+    @ResponseBody
+    public ActionResultDto deleteDienstplanTermin(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @PathVariable long terminId) {
+        try {
+            requireModuleEnabled(unitId);
+            requireTermineWrite(actor, unitId);
+            accessControlService.requireUnitAccess(actor, unitId);
+            termineService.deleteDienstplanTermin(unitId, terminId);
+            return ActionResultDto.success("Termin wurde gelöscht.");
         } catch (IllegalArgumentException e) {
             return ActionResultDto.failure(e.getMessage());
         }

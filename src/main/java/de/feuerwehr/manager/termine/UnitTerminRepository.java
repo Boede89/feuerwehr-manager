@@ -1,6 +1,7 @@
 package de.feuerwehr.manager.termine;
 
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -23,4 +24,10 @@ public interface UnitTerminRepository extends JpaRepository<UnitTermin, Long> {
             """)
     List<String> findDistinctTitlesByUnitAndCategory(
             @Param("unitId") long unitId, @Param("category") TermineCategory category);
+
+    @Query("""
+            SELECT t FROM UnitTermin t
+            WHERE t.id = :id AND t.unit.id = :unitId
+            """)
+    Optional<UnitTermin> findByIdAndUnitId(@Param("id") long id, @Param("unitId") long unitId);
 }

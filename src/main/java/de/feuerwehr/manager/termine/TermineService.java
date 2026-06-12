@@ -53,6 +53,56 @@ public class TermineService {
 
     @Transactional
     public void createDienstplanTermin(long unitId, long userId, CreateDienstplanTerminRequest request) {
+        ParsedDienstplanFields parsed = parseDienstplanRequest(request);
+        Unit unit = unitRepository
+                .findById(unitId)
+                .orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden."));
+        User createdBy = userRepository
+                .findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Benutzer nicht gefunden."));
+        UnitTermin termin = new UnitTermin();
+        termin.setUnit(unit);
+        termin.setCategory(TermineCategory.DIENSTPLAN);
+        termin.setCreatedBy(createdBy);
+        applyDienstplanFields(unitId, termin, parsed, request);
+        unitTerminRepository.save(termin);
+    }
+
+    @Transactional
+    public void updateDienstplanTermin(long unitId, long terminId, CreateDienstplanTerminRequest request) {
+        ParsedDienstplanFields parsed = parseDienstplanRequest(request);
+        UnitTermin termin = requireDienstplanTermin(unitId, terminId);
+        applyDienstplanFields(unitId, termin, parsed, request);
+        unitTerminRepository.save(termin);
+    }
+
+    @Transactional
+    public void deleteDienstplanTermin(long unitId, long terminId) {
+        UnitTermin termin = requireDienstplanTermin(unitId, terminId);
+        unitTerminRepository.delete(termin);
+    }
+
+    private UnitTermin requireDienstplanTermin(long unitId, long terminId) {
+        UnitTermin termin = unitTerminRepository
+                .findByIdAndUnitId(terminId, unitId)
+                .orElseThrow(() -> new IllegalArgumentException("Termin nicht gefunden."));
+        if (termin.getCategory() != TermineCategory.DIENSTPLAN) {
+            throw new IllegalArgumentException("Termin nicht gefunden.");
+        }
+        touchTerminCollections(termin);
+        return termin;
+    }
+
+    private void applyDienstplanFields(
+            long unitId, UnitTermin termin, ParsedDienstplanFields parsed, CreateDienstplanTerminRequest request) {
+        termin.setTitle(parsed.thema());
+        termin.setStartAt(parsed.startAt());
+        termin.setEndAt(parsed.endAt());
+        termin.setInstructorPersons(resolveAssignedPersons(unitId, request.instructorPersonIds()));
+        applyAudience(unitId, termin, request);
+    }
+
+    private ParsedDienstplanFields parseDienstplanRequest(CreateDienstplanTerminRequest request) {
         if (request == null) {
             throw new IllegalArgumentException("Bitte alle Pflichtfelder ausfüllen.");
         }
@@ -74,24 +124,10 @@ public class TermineService {
         if (!endAt.isAfter(startAt)) {
             throw new IllegalArgumentException("Dienstende muss nach Dienstbeginn liegen.");
         }
-
-        Unit unit = unitRepository
-                .findById(unitId)
-                .orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden."));
-        User createdBy = userRepository
-                .findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Benutzer nicht gefunden."));
-        UnitTermin termin = new UnitTermin();
-        termin.setUnit(unit);
-        termin.setCategory(TermineCategory.DIENSTPLAN);
-        termin.setTitle(thema);
-        termin.setStartAt(startAt);
-        termin.setEndAt(endAt);
-        termin.setInstructorPersons(resolveAssignedPersons(unitId, request.instructorPersonIds()));
-        termin.setCreatedBy(createdBy);
-        applyAudience(unitId, termin, request);
-        unitTerminRepository.save(termin);
+        return new ParsedDienstplanFields(thema, startAt, endAt);
     }
+
+    private record ParsedDienstplanFields(String thema, LocalDateTime startAt, LocalDateTime endAt) {}
 
     private void applyAudience(long unitId, UnitTermin termin, CreateDienstplanTerminRequest request) {
         if (request.appliesToAll()) {
@@ -174,15 +210,18 @@ public class TermineService {
     }
 
     private DienstplanTerminView toDienstplanView(UnitTermin termin) {
-        String ausbilderName = formatInstructorLabel(termin);
         return new DienstplanTerminView(
                 termin.getId(),
                 termin.getStartAt().toLocalDate(),
                 termin.getTitle(),
                 termin.getStartAt().toLocalTime(),
                 termin.getEndAt() != null ? termin.getEndAt().toLocalTime() : null,
-                ausbilderName,
-                formatAudienceLabel(termin));
+                formatInstructorLabel(termin),
+                formatAudienceLabel(termin),
+                termin.isAudienceAll(),
+                termin.getInstructorPersons().stream().map(Person::getId).toList(),
+                termin.getAssignedGroups().stream().map(PersonGroup::getId).toList(),
+                termin.getAssignedPersons().stream().map(Person::getId).toList());
     }
 
     private String formatInstructorLabel(UnitTermin termin) {
