@@ -77,23 +77,44 @@
   </th:block>
 
   <!-- Anwesenheitslisten -->
-  <div th:if="${berichteTab == 'anwesenheit'}" class="berichte-module-panel">
-    <div class="card">
-      <div class="card__header card__header--toolbar">
-        <span>Anwesenheitslisten</span>
-        <div class="toolbar-actions" th:if="${canWrite}">
-          <form method="post" th:action="@{/berichte/platzhalter(unit=${unitId})}" class="bar-form">
-            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-            <input type="hidden" name="tab" value="anwesenheit"/>
-            <button type="submit" class="btn btn--primary btn--sm">+ Neue Anwesenheitsliste</button>
-          </form>
+  <div th:if="${berichteTab == 'anwesenheit'}" id="berichte-anwesenheit-panel" class="berichte-module-panel"
+       th:attr="data-unit-id=${unitId},
+                data-filter-year=${filterYear},
+                data-current-user-id=${currentUserId},
+                data-is-admin=${isAdmin},
+                data-can-approve=${canApprove},
+                data-csrf-token=${_csrf.token},
+                data-csrf-param=${_csrf.parameterName}">
+    <div class="page-header berichte-einsatz-header">
+      <div class="berichte-einsatz-header__main">
+        <div class="berichte-einsatz-header__text">
+          <h2>Anwesenheitslisten</h2>
+          <p>Verwaltung und Dokumentation</p>
+        </div>
+        <div class="filter-bar berichte-einsatz-filter berichte-einsatz-header__filter">
+          <select id="filter-year-anwesenheit" class="berichte-filter-select" aria-label="Jahr filtern"></select>
+          <select id="filter-category-anwesenheit" class="berichte-filter-select" aria-label="Bereich filtern">
+            <option value="">Alle Bereiche</option>
+            <option value="dienstplan">Dienstplan</option>
+            <option value="sonstiges">Sonstiges</option>
+          </select>
+          <select id="filter-status-anwesenheit" class="berichte-filter-select berichte-filter-select--status" aria-label="Status filtern">
+            <option value="">Alle Status</option>
+            <option value="entwurf">Entwurf</option>
+            <option value="freigegeben">Freigegeben</option>
+            <option value="archiviert">Archiviert</option>
+          </select>
         </div>
       </div>
-      <div class="card__body">
-        <p class="hint" style="margin:0;">Anwesenheitslisten werden als Nächstes umgesetzt.</p>
-      </div>
+      <a th:if="${canWrite}" class="btn btn--primary" th:href="@{/berichte/anwesenheitslisten/neu(unit=${unitId})}">+ Neue Anwesenheitsliste</a>
     </div>
+
+    <div id="attendance-table-wrap"></div>
   </div>
+
+  <th:block th:if="${berichteTab == 'anwesenheit'}">
+    <script th:src="@{/js/berichte-anwesenheit-list.js}" defer></script>
+  </th:block>
 
   <!-- Gerätewartmitteilungen -->
   <div th:if="${berichteTab == 'geraetewart'}" class="berichte-module-panel">

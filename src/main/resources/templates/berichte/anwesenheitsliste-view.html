@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout(${pageTitle}, ~{::main})}">
+<main class="einsatzbericht-form-page einsatzbericht-view-page">
+  <div class="page-header">
+    <div>
+      <a class="btn btn--outline btn--sm page-back" th:if="${backUrl != null}" th:href="${backUrl}">← Zurück</a>
+      <a class="btn btn--outline btn--sm page-back" th:unless="${backUrl != null}"
+         th:href="@{/berichte(unit=${unitId}, tab='anwesenheit')}">← Zurück</a>
+      <h2 th:text="${pageTitle}">Anwesenheitsliste</h2>
+      <p th:text="${pageSubtitle}">Anzeige</p>
+    </div>
+    <div class="einsatzbericht-form-actions">
+      <span class="incident-status-pill incident-status-pill--header"
+            th:classappend="${' incident-status-pill--' + report.status.cssModifier()}"
+            th:text="${report.status.label()}">Entwurf</span>
+      <a class="btn btn--primary" th:if="${canEditReport}"
+         th:href="@{/berichte/anwesenheitslisten/{id}/bearbeiten(id=${report.id},unit=${unitId})}">Bearbeiten</a>
+      <form th:if="${canRelease}" method="post"
+            th:action="@{/berichte/anwesenheitslisten/{id}/freigeben(id=${report.id})}"
+            class="bar-form"
+            onsubmit="return confirm('Anwesenheitsliste wirklich freigeben?');">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <input type="hidden" name="returnUrl"
+               th:value="${anwesenheitListPath != null ? anwesenheitListPath : '/berichte?tab=anwesenheit'}"/>
+        <button type="submit" class="btn btn--primary btn--success">Freigeben</button>
+      </form>
+      <form th:if="${canArchive}" method="post"
+            th:action="@{/berichte/anwesenheitslisten/{id}/archivieren(id=${report.id})}"
+            class="bar-form"
+            onsubmit="return confirm('Anwesenheitsliste wirklich archivieren?');">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <input type="hidden" name="returnUrl"
+               th:value="${anwesenheitListPath != null ? anwesenheitListPath : '/berichte?tab=anwesenheit'}"/>
+        <button type="submit" class="btn btn--outline">Archivieren</button>
+      </form>
+    </div>
+  </div>
+
+  <div th:replace="~{fragments/testmode-banner :: banner}"></div>
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
+
+  <div class="card">
+    <div class="card__body card__body--flush">
+      <div id="anwesenheitsliste-view" class="einsatzbericht-form--view">
+        <th:block th:replace="~{fragments/berichte-anwesenheit-form :: form}"></th:block>
+      </div>
+    </div>
+  </div>
+
+  <script type="application/json" id="anwesenheit-unit-persons-data">[]</script>
+  <script th:src="@{/js/berichte-anwesenheit-form.js}" defer></script>
+</main>
+</html>

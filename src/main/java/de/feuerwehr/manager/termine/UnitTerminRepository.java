@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.termine;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -43,4 +44,12 @@ public interface UnitTerminRepository extends JpaRepository<UnitTermin, Long> {
             ORDER BY t.startAt ASC, t.id ASC
             """)
     List<UnitTermin> findMineByUnitAndPerson(@Param("unitId") long unitId, @Param("personId") long personId);
+
+    @Query("""
+            SELECT t FROM UnitTermin t
+            WHERE t.unit.id = :unitId AND t.category IN :categories
+            ORDER BY t.startAt ASC, t.id ASC
+            """)
+    List<UnitTermin> findByUnitIdAndCategoryIn(
+            @Param("unitId") long unitId, @Param("categories") Collection<TermineCategory> categories);
 }

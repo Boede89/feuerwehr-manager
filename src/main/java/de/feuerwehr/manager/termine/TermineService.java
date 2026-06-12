@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.termine;
 
+import de.feuerwehr.manager.berichte.AnwesenheitslisteTerminSyncService;
 import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.personal.PersonGroup;
 import de.feuerwehr.manager.personal.PersonGroupRepository;
@@ -32,6 +33,7 @@ public class TermineService {
     private final PersonGroupRepository personGroupRepository;
     private final PersonalInstructorGroupService personalInstructorGroupService;
     private final TestModeService testModeService;
+    private final AnwesenheitslisteTerminSyncService anwesenheitslisteTerminSyncService;
 
     @Transactional(readOnly = true)
     public List<DienstplanTerminView> listDienstplanTermine(long unitId) {
@@ -103,6 +105,7 @@ public class TermineService {
         termin.setCreatedBy(createdBy);
         applyTerminFields(unitId, termin, parsed, request);
         unitTerminRepository.save(termin);
+        anwesenheitslisteTerminSyncService.syncSingleTermin(unitId, termin);
     }
 
     @Transactional
@@ -122,6 +125,7 @@ public class TermineService {
         UnitTermin termin = requireCategoryTermin(unitId, terminId, category);
         applyTerminFields(unitId, termin, parsed, request);
         unitTerminRepository.save(termin);
+        anwesenheitslisteTerminSyncService.syncSingleTermin(unitId, termin);
     }
 
     @Transactional
@@ -137,6 +141,7 @@ public class TermineService {
     @Transactional
     public void deleteTermin(long unitId, long terminId, TermineCategory category) {
         UnitTermin termin = requireCategoryTermin(unitId, terminId, category);
+        anwesenheitslisteTerminSyncService.onTerminDeleted(unitId, terminId);
         unitTerminRepository.delete(termin);
     }
 

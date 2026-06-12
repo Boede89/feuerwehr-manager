@@ -3,6 +3,7 @@ package de.feuerwehr.manager.termine;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
+import de.feuerwehr.manager.berichte.AnwesenheitslisteTerminSyncService;
 import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.personal.PersonGroup;
 import de.feuerwehr.manager.personal.PersonGroupRepository;
@@ -47,6 +48,9 @@ class TermineServiceTest {
 
     @Mock
     private PersonalInstructorGroupService personalInstructorGroupService;
+
+    @Mock
+    private AnwesenheitslisteTerminSyncService anwesenheitslisteTerminSyncService;
 
     @InjectMocks
     private TermineService termineService;

@@ -1,5 +1,11 @@
 package de.feuerwehr.manager.web;
 
+import de.feuerwehr.manager.berichte.AnwesenheitslisteAccess;
+import de.feuerwehr.manager.berichte.AnwesenheitslisteForm;
+import de.feuerwehr.manager.berichte.AnwesenheitslisteListResponse;
+import de.feuerwehr.manager.berichte.AnwesenheitslisteService;
+import de.feuerwehr.manager.berichte.AnwesenheitslisteTerminSyncService;
+import de.feuerwehr.manager.berichte.AttendanceReport;
 import de.feuerwehr.manager.berichte.BerichteTab;
 import de.feuerwehr.manager.berichte.CrewAssignment;
 import de.feuerwehr.manager.berichte.DeployedEquipmentAssignment;
@@ -55,6 +61,8 @@ public class BerichteController {
     private final EinsatzberichtService einsatzberichtService;
     private final EinsatzberichtPdfService einsatzberichtPdfService;
     private final DiveraEinsatzberichtSyncService diveraEinsatzberichtSyncService;
+    private final AnwesenheitslisteService anwesenheitslisteService;
+    private final AnwesenheitslisteTerminSyncService anwesenheitslisteTerminSyncService;
 
     @GetMapping
     public String index(
@@ -81,6 +89,13 @@ public class BerichteController {
                     model.addAttribute(
                             "message",
                             sync.created() + " Einsatzbericht/Einsatzberichte aus DIVERA als Entwurf übernommen.");
+                }
+                model.addAttribute("filterYear", filterYear != null ? filterYear : LocalDate.now().getYear());
+            } else if (berichteTab == BerichteTab.ANWESENHEIT) {
+                AnwesenheitslisteTerminSyncService.SyncResult sync =
+                        anwesenheitslisteTerminSyncService.syncTerminsForUnit(unit.getId());
+                if (sync.success() && sync.created() > 0) {
+                    model.addAttribute("message", sync.message());
                 }
                 model.addAttribute("filterYear", filterYear != null ? filterYear : LocalDate.now().getYear());
             }
@@ -364,6 +379,245 @@ public class BerichteController {
         }
     }
 
+    @GetMapping("/anwesenheitslisten/list")
+    @ResponseBody
+    public AnwesenheitslisteListResponse listAnwesenheitslisten(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "year", required = false) Integer year) {
+        Unit unit = resolveUnit(unitId, actor);
+        requireModuleEnabled(unit.getId());
+        requireBerichteRead(actor, unit.getId());
+        int filterYear = year != null ? year : LocalDate.now().getYear();
+        return anwesenheitslisteService.listForYear(unit.getId(), filterYear);
+    }
+
+    @GetMapping("/anwesenheitslisten/suggest-number")
+    @ResponseBody
+    public String suggestAttendanceNumber(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        Unit unit = resolveUnit(unitId, actor);
+        requireModuleEnabled(unit.getId());
+        requireBerichteRead(actor, unit.getId());
+        return anwesenheitslisteService.suggestReportNumber(unit.getId(), date);
+    }
+
+    @GetMapping("/anwesenheitslisten/neu")
+    public String newAnwesenheitsliste(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            Model model,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor, model);
+            requireModuleEnabled(unit.getId());
+            requireBerichteWrite(actor, unit.getId());
+            populateAnwesenheitFormModel(model, unit.getId(), null, anwesenheitslisteService.newForm(unit.getId()));
+            model.addAttribute("formMode", "create");
+            model.addAttribute("pageTitle", "Neue Anwesenheitsliste");
+            model.addAttribute("pageSubtitle", "Entwurf — wird nach dem Speichern zur Freigabe vorgelegt");
+            return "berichte/anwesenheitsliste-form";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectBerichte(unitId, "anwesenheit");
+        }
+    }
+
+    @GetMapping("/anwesenheitslisten/{id}")
+    public String viewAnwesenheitsliste(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "returnUrl", required = false) String returnUrl,
+            @PathVariable long id,
+            Model model,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor, model);
+            requireModuleEnabled(unit.getId());
+            requireBerichteRead(actor, unit.getId());
+            AttendanceReport report = anwesenheitslisteService.requireReport(unit.getId(), id);
+            AnwesenheitslisteForm form = AnwesenheitslisteForm.fromReport(
+                    report, anwesenheitslisteService.listPersonnel(id));
+            populateAnwesenheitFormModel(model, unit.getId(), report, form);
+            model.addAttribute("formMode", "view");
+            boolean canApprove = canApprove(actor, unit.getId());
+            model.addAttribute("canWrite", canWrite(actor, unit.getId()));
+            model.addAttribute("canApprove", canApprove);
+            model.addAttribute("canEditReport", AnwesenheitslisteAccess.canEdit(report, actor, canApprove));
+            model.addAttribute("canRelease", AnwesenheitslisteAccess.canRelease(report, canApprove, actor));
+            model.addAttribute("canArchive", AnwesenheitslisteAccess.canArchive(report, canApprove, actor));
+            String safeReturn = sanitizeReturnUrl(returnUrl);
+            model.addAttribute("anwesenheitListPath", safeReturn);
+            model.addAttribute("backUrl", buildBackUrl(safeReturn, unit.getId()));
+            model.addAttribute("pageTitle", "Anwesenheitsliste");
+            model.addAttribute(
+                    "pageSubtitle",
+                    report.getReportNumber() != null ? report.getReportNumber() : "Anzeige");
+            return "berichte/anwesenheitsliste-view";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            String safeReturn = sanitizeReturnUrl(returnUrl);
+            if (safeReturn != null) {
+                return "redirect:" + safeReturn;
+            }
+            return redirectBerichte(unitId, "anwesenheit");
+        }
+    }
+
+    @GetMapping("/anwesenheitslisten/{id}/bearbeiten")
+    public String editAnwesenheitsliste(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @PathVariable long id,
+            Model model,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor, model);
+            requireModuleEnabled(unit.getId());
+            requireBerichteRead(actor, unit.getId());
+            AttendanceReport report = anwesenheitslisteService.requireReport(unit.getId(), id);
+            boolean canApprove = canApprove(actor, unit.getId());
+            if (!AnwesenheitslisteAccess.canEdit(report, actor, canApprove)) {
+                throw new IllegalArgumentException("Diese Anwesenheitsliste kann nicht bearbeitet werden.");
+            }
+            AnwesenheitslisteForm form = AnwesenheitslisteForm.fromReport(
+                    report, anwesenheitslisteService.listPersonnel(id));
+            populateAnwesenheitFormModel(model, unit.getId(), report, form);
+            model.addAttribute("formMode", "edit");
+            model.addAttribute("canDeleteReport", AnwesenheitslisteAccess.canDelete(report, actor, canApprove));
+            model.addAttribute("pageTitle", "Anwesenheitsliste bearbeiten");
+            model.addAttribute(
+                    "pageSubtitle",
+                    (report.getReportNumber() != null ? report.getReportNumber() : "Entwurf")
+                            + " · "
+                            + report.getStatus().label());
+            return "berichte/anwesenheitsliste-form";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectBerichte(unitId, "anwesenheit");
+        }
+    }
+
+    @PostMapping("/anwesenheitslisten")
+    public String createAnwesenheitsliste(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @ModelAttribute AnwesenheitslisteForm form,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor);
+            requireModuleEnabled(unit.getId());
+            requireBerichteWrite(actor, unit.getId());
+            var personnel = anwesenheitslisteService.parsePersonnelJson(form.getPersonnelJson());
+            anwesenheitslisteService.create(unit.getId(), form.toData(personnel), actor);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "Anwesenheitsliste wurde gespeichert.");
+            return redirectBerichte(unit.getId(), "anwesenheit");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectBerichte(unitId, "anwesenheit");
+        }
+    }
+
+    @PostMapping("/anwesenheitslisten/{id}")
+    public String updateAnwesenheitsliste(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @PathVariable long id,
+            @ModelAttribute AnwesenheitslisteForm form,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor);
+            requireModuleEnabled(unit.getId());
+            requireBerichteRead(actor, unit.getId());
+            boolean canApprove = canApprove(actor, unit.getId());
+            var personnel = anwesenheitslisteService.parsePersonnelJson(form.getPersonnelJson());
+            anwesenheitslisteService.update(unit.getId(), id, form.toData(personnel), actor, canApprove);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "Anwesenheitsliste wurde aktualisiert.");
+            return redirectBerichte(unit.getId(), "anwesenheit");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectBerichte(unitId, "anwesenheit");
+        }
+    }
+
+    @PostMapping("/anwesenheitslisten/{id}/delete")
+    public String deleteAnwesenheitsliste(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "year", required = false) Integer filterYear,
+            @RequestParam(name = "status", required = false) String filterStatus,
+            @PathVariable long id,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor);
+            requireModuleEnabled(unit.getId());
+            requireBerichteRead(actor, unit.getId());
+            boolean canApprove = canApprove(actor, unit.getId());
+            anwesenheitslisteService.delete(unit.getId(), id, actor, canApprove);
+            redirectAttributes.addFlashAttribute("message", "Anwesenheitsliste wurde gelöscht.");
+            return redirectBerichte(unit.getId(), "anwesenheit", filterYear, null, filterStatus);
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectBerichte(unitId, "anwesenheit", filterYear, null, filterStatus);
+        }
+    }
+
+    @PostMapping("/anwesenheitslisten/{id}/freigeben")
+    public String releaseAnwesenheitsliste(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "returnUrl", required = false) String returnUrl,
+            @PathVariable long id,
+            RedirectAttributes redirectAttributes) {
+        return changeAnwesenheitslisteStatus(
+                actor, unitId, id, IncidentReportStatus.FREIGEGEBEN, returnUrl, redirectAttributes, "freigegeben");
+    }
+
+    @PostMapping("/anwesenheitslisten/{id}/archivieren")
+    public String archiveAnwesenheitsliste(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "returnUrl", required = false) String returnUrl,
+            @PathVariable long id,
+            RedirectAttributes redirectAttributes) {
+        return changeAnwesenheitslisteStatus(
+                actor, unitId, id, IncidentReportStatus.ARCHIVIERT, returnUrl, redirectAttributes, "archiviert");
+    }
+
+    private String changeAnwesenheitslisteStatus(
+            AppUserDetails actor,
+            Long unitId,
+            long id,
+            IncidentReportStatus newStatus,
+            String returnUrl,
+            RedirectAttributes redirectAttributes,
+            String actionLabel) {
+        try {
+            Unit unit = resolveUnit(unitId, actor);
+            requireModuleEnabled(unit.getId());
+            requireBerichteRead(actor, unit.getId());
+            boolean canApprove = canApprove(actor, unit.getId());
+            anwesenheitslisteService.transitionStatus(unit.getId(), id, newStatus, actor, canApprove);
+            redirectAttributes.addFlashAttribute("message", "Anwesenheitsliste wurde " + actionLabel + ".");
+            String safeReturn = sanitizeReturnUrl(returnUrl);
+            if (safeReturn != null) {
+                return "redirect:" + buildBackUrl(safeReturn, unit.getId());
+            }
+            return redirectBerichte(unit.getId(), "anwesenheit");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            String safeReturn = sanitizeReturnUrl(returnUrl);
+            if (safeReturn != null && unitId != null) {
+                return "redirect:" + buildBackUrl(safeReturn, unitId);
+            }
+            return redirectBerichte(unitId, "anwesenheit");
+        }
+    }
+
     @PostMapping("/platzhalter")
     public String placeholderCreate(
             @AuthenticationPrincipal AppUserDetails actor,
@@ -380,6 +634,21 @@ public class BerichteController {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return redirectBerichte(unitId, tab);
         }
+    }
+
+    private void populateAnwesenheitFormModel(
+            Model model, long unitId, AttendanceReport report, AnwesenheitslisteForm form) {
+        Long reportId = report != null ? report.getId() : null;
+        if (reportId != null
+                && (form.getPersonnelJson() == null || form.getPersonnelJson().isBlank())) {
+            form.setPersonnelJson(anwesenheitslisteService.buildPersonnelJson(reportId));
+        }
+        if (form.getPersonnelJson() == null) {
+            form.setPersonnelJson("[]");
+        }
+        model.addAttribute("report", report);
+        model.addAttribute("form", form);
+        model.addAttribute("unitPersonsJson", anwesenheitslisteService.buildUnitPersonsJson(unitId));
     }
 
     private void populateEinsatzFormModel(

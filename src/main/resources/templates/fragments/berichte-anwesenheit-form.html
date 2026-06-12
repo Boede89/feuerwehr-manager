@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<th:block th:fragment="form">
+  <div th:classappend="${formMode == 'view' ? ' einsatzbericht-form--view' : ''}">
+    <nav class="tab-bar incident-form-tabs" aria-label="Anwesenheitsliste-Bereiche">
+      <button type="button" class="tab-btn incident-tab tab-btn--active" data-tab="0">Basisdaten</button>
+      <button type="button" class="tab-btn incident-tab" data-tab="1">Personal</button>
+    </nav>
+
+    <div class="incident-tab-panel" data-panel="0">
+      <div class="incident-form-grid-2">
+        <div class="form-group">
+          <label for="reportNumber">Listennummer</label>
+          <input id="reportNumber" name="reportNumber" type="text" maxlength="32"
+                 th:readonly="${formMode == 'view'}"
+                 th:attr="data-auto-number=${formMode == 'create' ? 'true' : null},data-unit-id=${unitId}"
+                 th:value="${form.reportNumber}"/>
+          <p class="hint text-sm" th:if="${formMode == 'create'}" style="margin:0;">
+            Format: Datum-Laufnummer (pro Jahr). Vorschlag aus höchster vorhandener Nummer — manuell anpassbar.
+          </p>
+        </div>
+        <div class="form-group">
+          <label for="eventDate">Datum <span class="required">*</span></label>
+          <input id="eventDate" name="eventDate" type="date" required
+                 th:readonly="${formMode == 'view'}" th:value="${form.eventDate}"/>
+        </div>
+        <div class="form-group">
+          <label for="startTime">Beginn</label>
+          <input id="startTime" name="startTime" type="time" th:readonly="${formMode == 'view'}"
+                 th:value="${form.startTime != null ? #temporals.format(form.startTime, 'HH:mm') : ''}"/>
+        </div>
+        <div class="form-group">
+          <label for="endTime">Ende</label>
+          <input id="endTime" name="endTime" type="time" th:readonly="${formMode == 'view'}"
+                 th:value="${form.endTime != null ? #temporals.format(form.endTime, 'HH:mm') : ''}"/>
+        </div>
+        <div class="form-group form-group--full">
+          <label for="title">Bezeichnung <span class="required">*</span></label>
+          <input id="title" name="title" type="text" maxlength="150" required
+                 th:readonly="${formMode == 'view'}"
+                 placeholder="Thema / Beschreibung des Termins" th:value="${form.title}"/>
+        </div>
+        <div class="form-group form-group--full" th:if="${report != null and report.terminCategory != null}">
+          <label>Terminbereich</label>
+          <p class="field-readonly" th:text="${report.terminCategory.displayLabel()}">Dienstplan</p>
+        </div>
+        <div class="form-group form-group--full">
+          <label for="location">Ort</label>
+          <input id="location" name="location" type="text" maxlength="300"
+                 th:readonly="${formMode == 'view'}"
+                 placeholder="Treffpunkt / Ort" th:value="${form.location}"/>
+        </div>
+        <div class="form-group form-group--full">
+          <label for="notes">Notizen</label>
+          <textarea id="notes" name="notes" rows="3"
+                    th:readonly="${formMode == 'view'}"
+                    placeholder="Optionale Anmerkungen …"
+                    th:text="${form.notes}"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="incident-tab-panel" data-panel="1" hidden>
+      <input type="hidden" id="personnelJson" name="personnelJson" th:value="${form.personnelJson}"/>
+      <script type="application/json" id="anwesenheit-personnel-data" th:utext="${form.personnelJson}">[]</script>
+      <div id="anwesenheit-personnel-root"
+           th:attr="data-readonly=${formMode == 'view' ? 'true' : 'false'}">
+        <div class="toolbar-actions" th:if="${formMode != 'view'}" style="margin-bottom:12px;">
+          <button type="button" class="btn btn--outline btn--sm" id="btn-add-personnel">+ Person hinzufügen</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table" id="anwesenheit-personnel-table">
+            <thead>
+            <tr>
+              <th>Name</th>
+              <th>Status</th>
+              <th th:if="${formMode != 'view'}">Aktion</th>
+            </tr>
+            </thead>
+            <tbody id="anwesenheit-personnel-body"></tbody>
+          </table>
+        </div>
+        <p class="hint text-sm" id="anwesenheit-personnel-empty" style="margin:12px 0 0;" hidden>
+          Noch keine Personen eingetragen.
+        </p>
+      </div>
+    </div>
+  </div>
+</th:block>
+</html>
