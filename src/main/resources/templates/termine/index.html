@@ -143,11 +143,11 @@
           </div>
           <div class="form-group form-group--full">
             <label for="dienstplan-termin-ausbilder">Ausbilder</label>
-            <select id="dienstplan-termin-ausbilder" class="field">
-              <option value="">— Kein Ausbilder —</option>
+            <select id="dienstplan-termin-ausbilder" class="field termine-audience-select" multiple size="5">
               <option th:each="p : ${unitPersons}" th:value="${p.id}"
                       th:text="${p.anwesenheitDisplayName()}">Name</option>
             </select>
+            <p class="hint text-sm">Optional. Strg gedrückt halten für Mehrfachauswahl.</p>
           </div>
         </div>
       </div>

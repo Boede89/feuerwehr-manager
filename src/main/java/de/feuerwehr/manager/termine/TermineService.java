@@ -35,7 +35,7 @@ public class TermineService {
     public List<DienstplanTerminView> listDienstplanTermine(long unitId) {
         List<UnitTermin> termins =
                 unitTerminRepository.findByUnitAndCategoryWithInstructor(unitId, TermineCategory.DIENSTPLAN);
-        termins.forEach(this::touchAudienceCollections);
+        termins.forEach(this::touchTerminCollections);
         return termins.stream().map(this::toDienstplanView).toList();
     }
 
@@ -74,15 +74,13 @@ public class TermineService {
         User createdBy = userRepository
                 .findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Benutzer nicht gefunden."));
-        Person instructor = resolveInstructor(unitId, request.instructorPersonId());
-
         UnitTermin termin = new UnitTermin();
         termin.setUnit(unit);
         termin.setCategory(TermineCategory.DIENSTPLAN);
         termin.setTitle(thema);
         termin.setStartAt(startAt);
         termin.setEndAt(endAt);
-        termin.setInstructorPerson(instructor);
+        termin.setInstructorPersons(resolveAssignedPersons(unitId, request.instructorPersonIds()));
         termin.setCreatedBy(createdBy);
         applyAudience(unitId, termin, request);
         unitTerminRepository.save(termin);
@@ -152,13 +150,6 @@ public class TermineService {
         return group;
     }
 
-    private Person resolveInstructor(long unitId, Long personId) {
-        if (personId == null) {
-            return null;
-        }
-        return requireUnitPerson(unitId, personId);
-    }
-
     private Person requireUnitPerson(long unitId, long personId) {
         Person person = personalService.requirePerson(personId);
         if (person.getUnit() == null || person.getUnit().getId() != unitId) {
@@ -167,7 +158,8 @@ public class TermineService {
         return person;
     }
 
-    private void touchAudienceCollections(UnitTermin termin) {
+    private void touchTerminCollections(UnitTermin termin) {
+        termin.getInstructorPersons().size();
         if (!termin.isAudienceAll()) {
             termin.getAssignedPersons().size();
             termin.getAssignedGroups().size();
@@ -175,10 +167,7 @@ public class TermineService {
     }
 
     private DienstplanTerminView toDienstplanView(UnitTermin termin) {
-        String ausbilderName = null;
-        if (termin.getInstructorPerson() != null) {
-            ausbilderName = termin.getInstructorPerson().anwesenheitDisplayName();
-        }
+        String ausbilderName = formatInstructorLabel(termin);
         return new DienstplanTerminView(
                 termin.getId(),
                 termin.getStartAt().toLocalDate(),
@@ -187,6 +176,17 @@ public class TermineService {
                 termin.getEndAt() != null ? termin.getEndAt().toLocalTime() : null,
                 ausbilderName,
                 formatAudienceLabel(termin));
+    }
+
+    private String formatInstructorLabel(UnitTermin termin) {
+        List<String> names = termin.getInstructorPersons().stream()
+                .sorted(Comparator.comparing(Person::anwesenheitDisplayName, String.CASE_INSENSITIVE_ORDER))
+                .map(Person::anwesenheitDisplayName)
+                .toList();
+        if (names.isEmpty()) {
+            return null;
+        }
+        return String.join(", ", names);
     }
 
     private String formatAudienceLabel(UnitTermin termin) {

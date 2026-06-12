@@ -78,7 +78,9 @@
       ende.value = '22:00';
     }
     if (ausbilder) {
-      ausbilder.value = '';
+      Array.from(ausbilder.options).forEach(function (option) {
+        option.selected = false;
+      });
     }
     var audienceAll = document.getElementById('dienstplan-audience-all');
     var groups = document.getElementById('dienstplan-audience-groups');
@@ -156,7 +158,7 @@
       thema: thema.value.trim(),
       dienstBeginn: beginn.value,
       dienstEnde: ende.value,
-      instructorPersonId: ausbilder && ausbilder.value ? Number(ausbilder.value) : null,
+      instructorPersonIds: selectedOptionValues(ausbilder),
       audienceAll: appliesToAll,
       groupIds: groupIds,
       personIds: personIds

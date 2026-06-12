@@ -48,7 +48,7 @@ class TermineServiceTest {
                 "Atemschutz",
                 LocalTime.of(20, 0),
                 LocalTime.of(19, 0),
-                null,
+                List.of(),
                 true,
                 List.of(),
                 List.of());

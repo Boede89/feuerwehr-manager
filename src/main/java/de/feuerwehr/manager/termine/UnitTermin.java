@@ -59,9 +59,12 @@ public class UnitTermin {
     @Column(length = 500)
     private String description;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "instructor_person_id")
-    private Person instructorPerson;
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "termin_instructor_assignments",
+            joinColumns = @JoinColumn(name = "termin_id"),
+            inverseJoinColumns = @JoinColumn(name = "person_id"))
+    private Set<Person> instructorPersons = new LinkedHashSet<>();
 
     @Column(name = "audience_all", nullable = false)
     private boolean audienceAll = true;

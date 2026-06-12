@@ -9,7 +9,7 @@ public record CreateDienstplanTerminRequest(
         String thema,
         LocalTime dienstBeginn,
         LocalTime dienstEnde,
-        Long instructorPersonId,
+        List<Long> instructorPersonIds,
         Boolean audienceAll,
         List<Long> personIds,
         List<Long> groupIds) {

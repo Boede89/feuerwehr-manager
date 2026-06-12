@@ -9,7 +9,7 @@ public interface UnitTerminRepository extends JpaRepository<UnitTermin, Long> {
 
     @Query("""
             SELECT t FROM UnitTermin t
-            LEFT JOIN FETCH t.instructorPerson
+            LEFT JOIN FETCH t.instructorPersons
             WHERE t.unit.id = :unitId AND t.category = :category
             ORDER BY t.startAt ASC, t.id ASC
             """)
