@@ -115,9 +115,26 @@
     </div>
 
     <div id="attendance-table-wrap"></div>
+
+    <div id="modal-attendance" class="incident-modal" style="display:none" aria-hidden="true">
+      <div class="modal__backdrop"></div>
+      <div class="modal__box modal__box--xl">
+        <div class="modal__header">
+          <h3 id="modal-attendance-title">Anwesenheitsliste</h3>
+          <button type="button" class="modal__close" id="btn-close-attendance-modal" aria-label="Schließen">✕</button>
+        </div>
+        <div class="modal__body modal__body--incident" id="modal-attendance-body-scroll"></div>
+        <div class="modal__footer" id="modal-attendance-footer"></div>
+      </div>
+    </div>
   </div>
 
   <th:block th:if="${berichteTab == 'anwesenheit'}">
+    <script th:src="@{/js/berichte-api-base.js}" defer></script>
+    <script th:src="@{/js/berichte-einsatz-form.js}" defer></script>
+    <script th:src="@{/js/berichte-kraefte.js}" defer></script>
+    <script th:src="@{/js/berichte-geraete.js}" defer></script>
+    <script th:src="@{/js/berichte-anhaenge.js}" defer></script>
     <script th:src="@{/js/berichte-anwesenheit-list.js}" defer></script>
   </th:block>
 

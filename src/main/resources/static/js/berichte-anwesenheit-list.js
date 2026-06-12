@@ -104,6 +104,121 @@
     });
   }
 
+  function closeModal() {
+    var modal = document.getElementById('modal-attendance');
+    if (modal) {
+      modal.style.display = 'none';
+    }
+    document.body.classList.remove('modal-open');
+    var scroll = document.getElementById('modal-attendance-body-scroll');
+    if (scroll) {
+      scroll.innerHTML = '';
+    }
+    var footer = document.getElementById('modal-attendance-footer');
+    if (footer) {
+      footer.innerHTML = '';
+    }
+  }
+
+  function postAction(url, returnPath) {
+    var form = document.createElement('form');
+    form.method = 'post';
+    form.action = url;
+    form.innerHTML =
+      '<input type="hidden" name="' + esc(csrfParam) + '" value="' + esc(csrfToken) + '"/>' +
+      '<input type="hidden" name="unit" value="' + esc(unitId) + '"/>' +
+      '<input type="hidden" name="returnUrl" value="' + esc(returnPath) + '"/>';
+    document.body.appendChild(form);
+    form.submit();
+  }
+
+  function buildFooter(meta) {
+    var footer = document.getElementById('modal-attendance-footer');
+    if (!footer) {
+      return;
+    }
+    var returnPath = '/berichte?tab=anwesenheit&year=' + filters.year;
+    var html = '';
+    if (meta.canEdit === 'true') {
+      html += '<a class="btn btn--primary" href="/berichte/anwesenheitslisten/' + meta.reportId +
+        '/bearbeiten?unit=' + encodeURIComponent(unitId) + '">Bearbeiten</a>';
+    }
+    if (meta.canRelease === 'true') {
+      html += '<button type="button" class="btn btn--primary btn--success" id="btn-attendance-modal-release">Freigeben</button>';
+    }
+    if (meta.canArchive === 'true') {
+      html += '<button type="button" class="btn btn--outline" id="btn-attendance-modal-archive">Archivieren</button>';
+    }
+    html += '<button type="button" class="btn btn--outline" id="btn-attendance-modal-close-footer">Schließen</button>';
+    footer.innerHTML = html;
+
+    document.getElementById('btn-attendance-modal-close-footer')?.addEventListener('click', closeModal);
+    document.getElementById('btn-attendance-modal-release')?.addEventListener('click', function () {
+      if (!confirm('Anwesenheitsliste wirklich freigeben?')) {
+        return;
+      }
+      postAction('/berichte/anwesenheitslisten/' + meta.reportId + '/freigeben', returnPath);
+    });
+    document.getElementById('btn-attendance-modal-archive')?.addEventListener('click', function () {
+      if (!confirm('Anwesenheitsliste wirklich archivieren?')) {
+        return;
+      }
+      postAction('/berichte/anwesenheitslisten/' + meta.reportId + '/archivieren', returnPath);
+    });
+  }
+
+  function initModalContent(container) {
+    if (window.BerichteEinsatzForm && window.BerichteEinsatzForm.init) {
+      window.BerichteEinsatzForm.init(container);
+    }
+    if (window.BerichteKraefte && window.BerichteKraefte.init) {
+      window.BerichteKraefte.init();
+    }
+    if (window.BerichteGeraete && window.BerichteGeraete.initView) {
+      window.BerichteGeraete.initView();
+    }
+    if (window.BerichteAnhaenge && window.BerichteAnhaenge.load) {
+      window.BerichteAnhaenge.load();
+    }
+  }
+
+  function openModal(id) {
+    var modal = document.getElementById('modal-attendance');
+    var title = document.getElementById('modal-attendance-title');
+    var scroll = document.getElementById('modal-attendance-body-scroll');
+    if (!modal || !scroll) {
+      return;
+    }
+    title.textContent = 'Lade...';
+    scroll.innerHTML = '<p class="text-muted text-sm">Lade...</p>';
+    modal.style.display = 'flex';
+    document.body.classList.add('modal-open');
+
+    fetch('/berichte/anwesenheitslisten/' + id + '/modal?unit=' + encodeURIComponent(unitId), {
+      credentials: 'same-origin'
+    })
+      .then(function (res) {
+        if (!res.ok) {
+          throw new Error('Anwesenheitsliste konnte nicht geladen werden');
+        }
+        return res.text();
+      })
+      .then(function (html) {
+        scroll.innerHTML = html;
+        var metaRoot = scroll.querySelector('.einsatzbericht-modal-root');
+        if (!metaRoot) {
+          throw new Error('Ungültige Antwort');
+        }
+        title.textContent = metaRoot.dataset.title || 'Anwesenheitsliste';
+        buildFooter(metaRoot.dataset);
+        initModalContent(scroll);
+      })
+      .catch(function (err) {
+        title.textContent = 'Fehler';
+        scroll.innerHTML = '<p class="error-msg">' + esc(err.message) + '</p>';
+      });
+  }
+
   function renderTable() {
     var wrap = document.getElementById('attendance-table-wrap');
     if (!wrap) {
@@ -129,8 +244,7 @@
           esc(r.statusLabel) + '</span></td>' +
           '<td><span class="text-muted text-sm">' + (r.terminSource ? 'Termin' : 'Manuell') + '</span></td>' +
           '<td><div class="btn-group">' +
-          '<a class="btn btn--outline btn--sm" href="/berichte/anwesenheitslisten/' + r.id +
-            '?unit=' + encodeURIComponent(unitId) + '">Anzeigen</a>' +
+          '<button type="button" class="btn btn--outline btn--sm" data-action="view" data-id="' + r.id + '">Anzeigen</button>' +
           (canEditItem(r) ? '<a class="btn btn--outline btn--sm" href="/berichte/anwesenheitslisten/' + r.id +
             '/bearbeiten?unit=' + encodeURIComponent(unitId) + '">Bearbeiten</a>' : '') +
           (canDeleteItem(r) ?
@@ -144,6 +258,12 @@
           '</div></td></tr>';
       }).join('') +
       '</tbody></table></div>';
+
+    wrap.querySelectorAll('[data-action="view"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        openModal(btn.dataset.id);
+      });
+    });
   }
 
   function loadList() {
@@ -217,6 +337,9 @@
       });
     }
   }
+
+  document.getElementById('btn-close-attendance-modal')?.addEventListener('click', closeModal);
+  document.querySelector('#modal-attendance .modal__backdrop')?.addEventListener('click', closeModal);
 
   initFilters();
   loadList();

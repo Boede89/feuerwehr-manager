@@ -40,6 +40,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -424,6 +425,33 @@ public class BerichteController {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return redirectBerichte(unitId, "anwesenheit");
         }
+    }
+
+    @GetMapping("/anwesenheitslisten/{id}/modal")
+    public String modalAnwesenheitsliste(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @PathVariable long id,
+            Model model) {
+        Unit unit = resolveUnit(unitId, actor, model);
+        requireModuleEnabled(unit.getId());
+        requireBerichteRead(actor, unit.getId());
+        AnwesenheitFormBundle bundle = anwesenheitslisteService.buildFormBundle(unit.getId(), id);
+        AttendanceReport report = bundle.report();
+        applyAnwesenheitFormBundle(model, bundle);
+        model.addAttribute("formMode", "view");
+        boolean canApprove = canApprove(actor, unit.getId());
+        model.addAttribute("canEditReport", AnwesenheitslisteAccess.canEdit(report, actor, canApprove));
+        model.addAttribute("canRelease", AnwesenheitslisteAccess.canRelease(report, canApprove, actor));
+        model.addAttribute("canArchive", AnwesenheitslisteAccess.canArchive(report, canApprove, actor));
+        String title = report.getTitle() != null && !report.getTitle().isBlank() ? report.getTitle() : "Anwesenheitsliste";
+        String dateLabel = report.getEventDate() != null
+                ? report.getEventDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+                : "";
+        model.addAttribute(
+                "modalTitle",
+                dateLabel.isEmpty() ? title : title + " — " + dateLabel);
+        return "berichte/anwesenheitsliste-modal-body";
     }
 
     @GetMapping("/anwesenheitslisten/{id}")
