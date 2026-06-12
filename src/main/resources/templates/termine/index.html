@@ -39,20 +39,20 @@
 
   <div th:if="${termineTab == 'dienstplan'}" id="termine-dienstplan-panel" class="termine-module-panel"
        th:attr="data-unit-id=${unitId},data-can-write=${canWrite}">
-    <div class="page-header termine-panel-header">
-      <div>
+    <div class="page-header termine-panel-header termine-dienstplan-header">
+      <div class="termine-dienstplan-header__text">
         <h3>Dienstplan</h3>
         <p>Übungsabende, Dienste und dienstplanbezogene Termine</p>
       </div>
-    </div>
-
-    <div class="filter-bar berichte-einsatz-filter" th:if="${!#lists.isEmpty(dienstplanTermine)}">
-      <select id="dienstplan-filter-zeit" class="berichte-filter-select berichte-filter-select--status"
-              aria-label="Zeitraum filtern">
-        <option value="alle">Alle</option>
-        <option value="bevorstehend" selected>Bevorstehende</option>
-        <option value="vergangen">Vergangene</option>
-      </select>
+      <div class="filter-bar berichte-einsatz-filter termine-dienstplan-header__filter"
+           th:if="${!#lists.isEmpty(dienstplanTermine)}">
+        <select id="dienstplan-filter-zeit" class="berichte-filter-select berichte-filter-select--status"
+                aria-label="Zeitraum filtern">
+          <option value="alle">Alle</option>
+          <option value="bevorstehend" selected>Bevorstehende</option>
+          <option value="vergangen">Vergangene</option>
+        </select>
+      </div>
     </div>
 
     <div class="card" th:if="${!#lists.isEmpty(dienstplanTermine)}">
