@@ -15,7 +15,9 @@ chmod +x scripts/repair-flyway-v72.sh
 ./scripts/repair-flyway-v72.sh
 ```
 
-Das Skript entfernt halbfertige Tabellen, löscht den fehlgeschlagenen Flyway-Eintrag und startet die App neu — V72 läuft dann einmalig sauber durch.
+Das Skript legt das Schema an, markiert V72 in Flyway als erfolgreich (SQL-Typ + Checksum) und baut die App neu (`--build`), damit die korrigierte Migration im JAR liegt.
+
+**Ursache des ersten Fehlers:** Tippfehler `unit_termines` statt `unit_termine` in V72.
 
 ---
 

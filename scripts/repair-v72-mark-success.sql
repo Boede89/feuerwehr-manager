@@ -1,7 +1,9 @@
+-- Alle V72-Einträge entfernen (inkl. fehlgeschlagener Reste vom letzten Start)
 DELETE FROM flyway_schema_history WHERE version = '72';
 
 SET @next_rank := (SELECT COALESCE(MAX(installed_rank), 0) + 1 FROM flyway_schema_history);
 
+-- SQL-Migration korrekt markieren (Checksum der korrigierten V72-Datei)
 INSERT INTO flyway_schema_history (
     installed_rank,
     version,
@@ -17,9 +19,9 @@ INSERT INTO flyway_schema_history (
     @next_rank,
     '72',
     'attendance reports',
-    'JDBC',
-    'db.migration.V72__attendance_reports',
-    NULL,
+    'SQL',
+    'V72__attendance_reports.sql',
+    814325931,
     'manual-repair',
     NOW(),
     0,
