@@ -31,7 +31,7 @@ public class TermineController {
     public String index(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
-            @RequestParam(name = "tab", defaultValue = "dienstplan") String tab,
+            @RequestParam(name = "tab", defaultValue = "meine") String tab,
             Model model,
             RedirectAttributes redirectAttributes) {
         try {

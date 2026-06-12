@@ -1,6 +1,7 @@
 package de.feuerwehr.manager.termine;
 
 public enum TermineTab {
+    MEINE("meine", "Meine Termine"),
     DIENSTPLAN("dienstplan", "Dienstplan"),
     FAHRZEUGE("fahrzeuge", "Fahrzeuge"),
     SONSTIGES("sonstiges", "Sonstiges");
@@ -23,13 +24,13 @@ public enum TermineTab {
 
     public static TermineTab fromKey(String key) {
         if (key == null || key.isBlank()) {
-            return DIENSTPLAN;
+            return MEINE;
         }
         for (TermineTab tab : values()) {
             if (tab.key.equalsIgnoreCase(key.trim())) {
                 return tab;
             }
         }
-        return DIENSTPLAN;
+        return MEINE;
     }
 }

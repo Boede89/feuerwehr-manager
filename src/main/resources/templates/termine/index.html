@@ -7,7 +7,8 @@
       <h2>Termine</h2>
       <p>Kalender und Terminplanung · <strong th:text="${currentUnitName}">—</strong></p>
     </div>
-    <button type="button" class="btn btn--primary" th:if="${canWrite}" disabled title="Folgt in einem nächsten Schritt">
+    <button type="button" class="btn btn--primary"
+            th:if="${canWrite and termineTab != 'meine'}" disabled title="Folgt in einem nächsten Schritt">
       + Neuer Termin
     </button>
   </div>
@@ -21,6 +22,20 @@
        th:href="@{/termine(unit=${unitId}, tab=${t.key()})}"
        th:text="${t.label()}">Reiter</a>
   </nav>
+
+  <div th:if="${termineTab == 'meine'}" class="termine-module-panel">
+    <div class="page-header termine-panel-header">
+      <div>
+        <h3>Meine Termine</h3>
+        <p>Termine, bei denen Sie eingetragen oder zugeordnet sind</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card__body">
+        <p class="hint">Noch keine persönlichen Termine vorhanden. Die Anzeige folgt im nächsten Schritt.</p>
+      </div>
+    </div>
+  </div>
 
   <div th:if="${termineTab == 'dienstplan'}" class="termine-module-panel">
     <div class="page-header termine-panel-header">
