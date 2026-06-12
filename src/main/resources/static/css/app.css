@@ -3425,10 +3425,18 @@ span.required { color: var(--error); }
 .termine-meine-header__main {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
   flex: 1;
   min-width: 0;
+  width: 100%;
+}
+.termine-meine-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
 }
 .termine-meine-header__text h3 {
   margin: 0 0 0.25rem;
@@ -3444,7 +3452,7 @@ span.required { color: var(--error); }
   align-self: center;
 }
 .termine-meine-view-toggle {
-  margin-left: auto;
+  margin-left: 0;
 }
 .termine-meine-table { width: 100%; }
 .termine-meine-table th:nth-child(1),
@@ -3471,6 +3479,9 @@ span.required { color: var(--error); }
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 0.35rem;
 }
+.termine-calendar__grid {
+  align-items: stretch;
+}
 .termine-calendar__weekdays span {
   text-align: center;
   font-size: var(--fs-sm);
@@ -3479,23 +3490,67 @@ span.required { color: var(--error); }
   padding: 0.25rem 0;
 }
 .termine-calendar__day {
-  min-height: 2.6rem;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-height: 5.5rem;
+  padding: 0.35rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--bg-card);
   color: var(--text);
   font-size: var(--fs-sm);
   cursor: pointer;
+  text-align: left;
 }
-.termine-calendar__day:hover:not(:disabled) {
+.termine-calendar__day:hover:not(.termine-calendar__day--outside) {
   background: var(--bg-card-hover);
 }
 .termine-calendar__day--outside {
   visibility: hidden;
+  pointer-events: none;
+}
+.termine-calendar__day-num {
+  font-weight: 600;
+  line-height: 1.2;
+  margin-bottom: 0.2rem;
+}
+.termine-calendar__day--today {
+  border-color: var(--rot, #c62828);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rot, #c62828) 45%, transparent);
+}
+.termine-calendar__day--today .termine-calendar__day-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 999px;
+  background: var(--rot, #c62828);
+  color: #fff;
+}
+.termine-calendar__day-events-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+.termine-calendar__day-pill {
+  display: block;
+  padding: 0.14rem 0.32rem;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--rot, #c62828) 12%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, var(--rot, #c62828) 30%, transparent);
+  font-size: 0.68rem;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .termine-calendar__day--has-event {
-  border-color: var(--rot, #c62828);
-  font-weight: 700;
+  border-color: color-mix(in srgb, var(--rot, #c62828) 35%, var(--border));
 }
 .termine-calendar__day--selected {
   background: var(--bg-card-hover);

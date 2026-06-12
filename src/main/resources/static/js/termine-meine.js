@@ -110,11 +110,15 @@
     activeView = view === 'calendar' ? 'calendar' : 'list';
     var listWrap = document.getElementById('meine-list-wrap');
     var calendarWrap = document.getElementById('meine-calendar-wrap');
+    var filterWrap = document.getElementById('meine-list-filter-wrap');
     if (listWrap) {
       listWrap.hidden = activeView !== 'list';
     }
     if (calendarWrap) {
       calendarWrap.hidden = activeView !== 'calendar';
+    }
+    if (filterWrap) {
+      filterWrap.hidden = activeView !== 'list';
     }
     document.querySelectorAll('[data-meine-view]').forEach(function (btn) {
       var isActive = btn.getAttribute('data-meine-view') === activeView;
@@ -124,6 +128,42 @@
       initCalendarMonth();
       renderCalendar();
     }
+  }
+
+  function isToday(year, month, day) {
+    var now = new Date();
+    return now.getFullYear() === year && now.getMonth() === month && now.getDate() === day;
+  }
+
+  function bindDaySelection(cell, year, month, day, key) {
+    function selectDay() {
+      selectedDay = key;
+      renderCalendar();
+      renderDayEvents(year, month, day);
+    }
+    cell.addEventListener('click', selectDay);
+    cell.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        selectDay();
+      }
+    });
+  }
+
+  function appendInlineEvents(cell, dayEvents) {
+    if (!dayEvents.length) {
+      return;
+    }
+    var eventsEl = document.createElement('div');
+    eventsEl.className = 'termine-calendar__day-events-inline';
+    dayEvents.forEach(function (event) {
+      var pill = document.createElement('span');
+      pill.className = 'termine-calendar__day-pill';
+      pill.title = (event.categoryLabel || 'Termin') + ': ' + (event.thema || '—');
+      pill.textContent = formatTime(event.startAt) + ' ' + (event.thema || 'Termin');
+      eventsEl.appendChild(pill);
+    });
+    cell.appendChild(eventsEl);
   }
 
   function bindViewToggle() {
@@ -226,33 +266,37 @@
     var totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
 
     for (var i = 0; i < totalCells; i++) {
-      var cell = document.createElement('button');
-      cell.type = 'button';
+      var cell = document.createElement('div');
       cell.className = 'termine-calendar__day';
+      cell.setAttribute('role', 'button');
+      cell.tabIndex = 0;
       var dayNum = i - startOffset + 1;
       if (dayNum < 1 || dayNum > daysInMonth) {
         cell.classList.add('termine-calendar__day--outside');
-        cell.disabled = true;
-        cell.textContent = '';
+        cell.setAttribute('aria-hidden', 'true');
       } else {
         var dayEvents = eventsForDay(calendarYear, calendarMonth, dayNum);
-        cell.textContent = String(dayNum);
+        var cellKey = dateKey(calendarYear, calendarMonth, dayNum);
+        var dayNumEl = document.createElement('span');
+        dayNumEl.className = 'termine-calendar__day-num';
+        dayNumEl.textContent = String(dayNum);
+        cell.appendChild(dayNumEl);
+        appendInlineEvents(cell, dayEvents);
         if (dayEvents.length > 0) {
           cell.classList.add('termine-calendar__day--has-event');
-          cell.setAttribute('aria-label', dayNum + '. ' + monthNames[calendarMonth] + ', ' + dayEvents.length + ' Termin(e)');
         }
-        var selectedKey = selectedDay;
-        var cellKey = dateKey(calendarYear, calendarMonth, dayNum);
-        if (selectedKey === cellKey) {
+        if (isToday(calendarYear, calendarMonth, dayNum)) {
+          cell.classList.add('termine-calendar__day--today');
+        }
+        if (selectedDay === cellKey) {
           cell.classList.add('termine-calendar__day--selected');
         }
-        (function (year, month, day, key) {
-          cell.addEventListener('click', function () {
-            selectedDay = key;
-            renderCalendar();
-            renderDayEvents(year, month, day);
-          });
-        })(calendarYear, calendarMonth, dayNum, cellKey);
+        var ariaParts = [dayNum + '. ' + monthNames[calendarMonth]];
+        if (dayEvents.length > 0) {
+          ariaParts.push(dayEvents.length + ' Termin(e)');
+        }
+        cell.setAttribute('aria-label', ariaParts.join(', '));
+        bindDaySelection(cell, calendarYear, calendarMonth, dayNum, cellKey);
       }
       grid.appendChild(cell);
     }

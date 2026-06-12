@@ -30,19 +30,19 @@
           <h3>Meine Termine</h3>
           <p>Termine, bei denen Sie eingetragen oder zugeordnet sind</p>
         </div>
-        <div class="filter-bar berichte-einsatz-filter termine-meine-header__filter"
-             th:if="${hasLinkedPerson and !#lists.isEmpty(myTermine)}">
-          <select id="meine-filter-zeit" class="berichte-filter-select berichte-filter-select--status"
-                  aria-label="Zeitraum filtern">
-            <option value="alle">Alle</option>
-            <option value="bevorstehend" selected>Bevorstehende</option>
-            <option value="vergangen">Vergangene</option>
-          </select>
-        </div>
-        <div class="termine-meine-view-toggle btn-group"
-             th:if="${hasLinkedPerson and !#lists.isEmpty(myTermine)}" role="group" aria-label="Ansicht">
-          <button type="button" class="tab-btn tab-btn--active" data-meine-view="list">Liste</button>
-          <button type="button" class="tab-btn" data-meine-view="calendar">Kalender</button>
+        <div class="termine-meine-header__actions" th:if="${hasLinkedPerson and !#lists.isEmpty(myTermine)}">
+          <div id="meine-list-filter-wrap" class="filter-bar berichte-einsatz-filter termine-meine-header__filter">
+            <select id="meine-filter-zeit" class="berichte-filter-select berichte-filter-select--status"
+                    aria-label="Zeitraum filtern">
+              <option value="alle">Alle</option>
+              <option value="bevorstehend" selected>Bevorstehende</option>
+              <option value="vergangen">Vergangene</option>
+            </select>
+          </div>
+          <div class="termine-meine-view-toggle btn-group" role="group" aria-label="Ansicht">
+            <button type="button" class="tab-btn tab-btn--active" data-meine-view="list">Liste</button>
+            <button type="button" class="tab-btn" data-meine-view="calendar">Kalender</button>
+          </div>
         </div>
       </div>
     </div>
