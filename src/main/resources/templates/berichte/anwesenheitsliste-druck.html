@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Anwesenheitsliste</title>
+  <style>
+    @page { size: A4; margin-top: 6mm; margin-bottom: 12mm; margin-left: 12mm; margin-right: 12mm; }
+    * { box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 9pt; line-height: 1.25; color: #333; margin: 0; padding: 4px 10px 10px; }
+    .header { text-align: center; padding: 0; margin: 0 0 4px 0; }
+    .header img { max-height: 120px; max-width: 320px; }
+    .eingereicht-text { font-size: 8pt; color: #666; }
+    .section { margin-bottom: 8px; }
+    .section-title { font-weight: bold; font-size: 10pt; margin-bottom: 4px; padding-bottom: 2px; border-bottom: 1px solid #dee2e6; }
+    .two-cols-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+    .two-cols-table td { vertical-align: top; padding: 0 8px 0 0; }
+    .two-cols-table td:first-child { width: 40%; }
+    .two-cols-table td:last-child { width: 60%; padding: 0 0 0 8px; }
+    .two-cols-table table { font-size: 9pt; table-layout: auto; width: 100%; }
+    .col-fahrzeug { width: 26px; max-width: 26px; padding: 2px 3px; text-align: left; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 8pt; }
+    .stamm-inline { table-layout: fixed; }
+    th, td { border: 1px solid #dee2e6; padding: 4px 6px; text-align: left; }
+    th { background: #f8f9fa; font-weight: bold; }
+    .label-cell { width: 100px; background: #f8f9fa; font-weight: bold; }
+    .stamm-inline .label-cell { width: 90px; }
+    .col-staerke { width: 28px; }
+    .personnel-table { table-layout: fixed; width: 100%; }
+    .personnel-table .col-name { width: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 2px 4px; }
+    .personnel-table .col-fahrzeug { width: 26px; max-width: 26px; padding: 2px 3px; }
+    .personnel-table th.col-pa,
+    .personnel-table td.col-pa {
+      width: 14px;
+      max-width: 14px;
+      min-width: 14px;
+      padding: 1px 0;
+      text-align: center;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .personnel-table th.col-pa { font-weight: bold; font-size: 6pt; vertical-align: middle; }
+    .personnel-table td.col-pa { font-size: 7pt; }
+    .col-pa-x { display: inline-block; font-size: 7pt; font-weight: bold; line-height: 1; }
+    .kurzbericht-cell { white-space: pre-wrap; }
+    .bottom-row { display: flex; gap: 24px; align-items: flex-end; margin-top: 20px; padding-top: 12px; border-top: 1px solid #333; }
+    .bottom-row .verantwortlicher-cell { flex: 1; }
+    .bottom-row .signature-cell { flex-shrink: 0; padding-top: 24px; }
+    .signature-line { border-bottom: 1px solid #333; width: 160px; height: 22px; }
+    .signature-label { font-size: 8pt; color: #666; margin-top: 2px; }
+  </style>
+</head>
+<body>
+  <div class="header" th:if="${unitLogoBase64 != null and !#strings.isEmpty(unitLogoBase64)}">
+    <img th:src="${unitLogoBase64}" alt=""/>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Stammdaten</div>
+    <table class="stamm-inline">
+      <tr>
+        <td class="label-cell">Datum</td>
+        <td th:text="${eventDate}">01.01.2026</td>
+        <td class="label-cell">Typ</td>
+        <td colspan="3" th:text="${typ}">Dienstplan</td>
+      </tr>
+      <tr>
+        <td class="label-cell">Thema/Bezeichnung</td>
+        <td colspan="5" th:text="${title}">—</td>
+      </tr>
+      <tr>
+        <td class="label-cell">Adresse</td>
+        <td colspan="5" th:text="${address}">—</td>
+      </tr>
+      <tr>
+        <td class="label-cell">Listen-Nr.</td>
+        <td th:text="${reportNumber}">—</td>
+        <td colspan="4"></td>
+      </tr>
+      <tr>
+        <td class="label-cell">Beginn</td>
+        <td th:text="${startTime}">—</td>
+        <td class="label-cell">Ende</td>
+        <td th:text="${endTime}">—</td>
+        <td class="label-cell">Dauer</td>
+        <td th:text="${duration}">—</td>
+      </tr>
+      <tr th:if="${bericht != null and bericht != '—'}">
+        <td class="label-cell">Bericht</td>
+        <td colspan="5" class="kurzbericht-cell" th:text="${bericht}">—</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <table class="two-cols-table" width="100%">
+      <tr>
+        <td>
+          <div class="section-title">Personal</div>
+          <table class="personnel-table" width="100%">
+            <colgroup>
+              <col class="col-name"/>
+              <col class="col-fahrzeug" style="width:26px;"/>
+              <col class="col-pa" style="width:14px;"/>
+            </colgroup>
+            <thead>
+            <tr><th class="col-name">Name</th><th class="col-fahrzeug">Fzg</th><th class="col-pa">PA</th></tr>
+            </thead>
+            <tbody>
+            <tr th:each="row : ${personnel}">
+              <td class="col-name" th:text="${row.name()}">Name</td>
+              <td class="col-fahrzeug" th:text="${row.vehicle()}">—</td>
+              <td class="col-pa"><span th:if="${row.pa() == 'X'}" class="col-pa-x">X</span></td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(personnel)}"><td colspan="3">Keine Einträge</td></tr>
+            <tr>
+              <td colspan="3" class="label-cell"><strong th:text="'Anzahl Personal: ' + ${personnelCount}">Anzahl Personal: 0</strong></td>
+            </tr>
+            </tbody>
+          </table>
+        </td>
+        <td>
+          <div class="section-title">Fahrzeuge (Maschinist / Einheitsführer / Geräte)</div>
+          <table width="100%">
+            <thead>
+            <tr><th>Fahrzeug</th><th>Maschinist</th><th>Einheitsführer</th><th class="col-staerke">Stärke</th><th>Geräte</th></tr>
+            </thead>
+            <tbody>
+            <tr th:each="v : ${vehicles}">
+              <td th:text="${v.vehicle()}">HLF</td>
+              <td th:text="${v.maschinist()}">—</td>
+              <td th:text="${v.einheitsfuehrer()}">—</td>
+              <td class="col-staerke" th:text="${v.strength()}">0/0/0/0</td>
+              <td th:text="${v.equipment()}">—</td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(vehicles)}"><td colspan="5">Keine Fahrzeuge zugeordnet</td></tr>
+            <tr th:if="${!#lists.isEmpty(vehicles)}">
+              <td colspan="3" class="label-cell"><strong>Gesamtstärke</strong></td>
+              <td class="col-staerke"><strong th:text="${totalStrength}">0/0/0/0</strong></td>
+              <td></td>
+            </tr>
+            </tbody>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="bottom-row">
+    <div class="verantwortlicher-cell">
+      <strong>Ausbilder/Verantwortlicher:</strong> <span th:text="${instructorResponsible}">—</span><br/>
+      <span class="eingereicht-text" th:text="${submittedInfo}">Eingereicht am … von …</span>
+    </div>
+    <div class="signature-cell">
+      <div class="signature-line"></div>
+      <div class="signature-label">Unterschrift Ausbilder/Verantwortlicher</div>
+    </div>
+  </div>
+</body>
+</html>

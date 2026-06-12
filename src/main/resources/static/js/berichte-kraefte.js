@@ -941,15 +941,18 @@
       });
     }
 
-    var form = document.getElementById('einsatzbericht-form');
-    if (form) {
+    ['einsatzbericht-form', 'anwesenheitsliste-form'].forEach(function (formId) {
+      var form = document.getElementById(formId);
+      if (!form) {
+        return;
+      }
       form.addEventListener('submit', function () {
         if (window.BerichteSchaeden && window.BerichteSchaeden.syncBeforeSave) {
           window.BerichteSchaeden.syncBeforeSave();
         }
         syncHiddenJson();
       }, true);
-    }
+    });
 
     var diveraCountEl = document.getElementById('divera-pool-count');
     var hasDivera = diveraCountEl && Number(diveraCountEl.textContent) > 0;
@@ -957,6 +960,36 @@
     placeInvolvedCard(1);
     refreshBoard();
     bindCommanderAutoInvolved();
+  }
+
+  function addUnitPerson(person) {
+    if (!person || person.id == null || personOnBoard(String(person.id))) {
+      return false;
+    }
+    var poolChip = document.querySelector(
+      '.incident-person-pool--reserve .incident-crew-chip[data-person-id="' + person.id + '"]'
+    );
+    if (poolChip) {
+      moveChipToInvolved(poolChip);
+      return true;
+    }
+    var zone = involvedDropzone();
+    if (!zone) {
+      return false;
+    }
+    var chip = document.createElement('div');
+    chip.className = 'incident-crew-chip';
+    chip.setAttribute('draggable', 'true');
+    chip.dataset.personId = String(person.id);
+    chip.dataset.qualTier = person.qualTier || 'MANNSCHAFT';
+    chip.dataset.personName = person.displayName || person.name || '';
+    chip.dataset.poolSource = 'manual';
+    chip.dataset.sortOrder = String(person.sortOrder != null ? person.sortOrder : 9999);
+    chip.textContent = person.displayName || person.name || '';
+    insertChipSortedByName(zone, chip);
+    applyCrewInvolvementToAllVehicles();
+    refreshBoard();
+    return true;
   }
 
   function addForeignPerson(person) {
@@ -1039,6 +1072,7 @@
   window.BerichteKraefte = {
     init: bindBoard,
     addForeignPerson: addForeignPerson,
+    addUnitPerson: addUnitPerson,
     ensurePersonInvolved: ensurePersonInvolved,
     refreshAfterForeignAdd: refreshBoard,
     onTabShow: function (tabIdx) {

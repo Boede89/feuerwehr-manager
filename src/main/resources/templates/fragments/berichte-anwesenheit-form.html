@@ -159,8 +159,12 @@
                th:hidden="${!#lists.isEmpty(kraefteState.diveraPersons())}">Noch keine DIVERA-Rückmeldungen.</p>
             <p class="hint incident-person-pool-empty" id="manual-pool-empty" hidden
                th:hidden="${!#lists.isEmpty(kraefteState.manualPersons())}">Alle zugewiesen.</p>
-            <div class="incident-foreign-person-actions" th:if="${allowForeignUnitPersonnel}">
-              <button type="button" class="btn btn--outline btn--sm" id="foreign-person-open-btn">
+            <div class="incident-foreign-person-actions" th:if="${formMode != 'view'}">
+              <button type="button" class="btn btn--outline btn--sm" id="unit-person-open-btn">
+                Weitere Personen hinzufügen
+              </button>
+              <button type="button" class="btn btn--outline btn--sm" id="foreign-person-open-btn"
+                      th:if="${allowForeignUnitPersonnel}">
                 Personal aus anderer Einheit wählen
               </button>
             </div>
@@ -378,6 +382,26 @@
          th:attr="data-report-id=${report.id},data-unit-id=${unitId},data-readonly=${formMode == 'view' or report.status.name() != 'ENTWURF' ? 'true' : 'false'}">
     </div>
   </div>
+  </div>
+
+  <script type="application/json" id="unit-person-picker-data" th:if="${formMode != 'view' and unitPersonsJson != null}"
+          th:utext="${unitPersonsJson}"></script>
+
+  <div id="unit-person-modal" class="incident-modal" hidden aria-hidden="true" th:if="${formMode != 'view'}">
+    <div class="modal__backdrop"></div>
+    <div class="modal__box">
+      <div class="modal__header">
+        <h3>Weitere Personen hinzufügen</h3>
+        <button type="button" class="modal__close" id="unit-person-modal-close" aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal__body">
+        <label for="unit-person-search">Suchen</label>
+        <input type="search" id="unit-person-search" class="field" placeholder="Name …" autocomplete="off"/>
+        <div id="unit-person-results" class="foreign-person-results">
+          <p class="hint">Person auswählen, um sie als anwesend zu markieren.</p>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div id="foreign-person-modal" class="incident-modal" hidden aria-hidden="true"

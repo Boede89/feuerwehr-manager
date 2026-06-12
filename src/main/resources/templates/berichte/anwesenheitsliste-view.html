@@ -16,6 +16,8 @@
       <span class="incident-status-pill incident-status-pill--header"
             th:classappend="${' incident-status-pill--' + report.status.cssModifier()}"
             th:text="${report.status.label()}">Entwurf</span>
+      <a class="btn btn--outline"
+         th:href="@{/berichte/anwesenheitslisten/{id}/pdf(id=${report.id},unit=${unitId})}">PDF herunterladen</a>
       <a class="btn btn--primary" th:if="${canEditReport}"
          th:href="@{/berichte/anwesenheitslisten/{id}/bearbeiten(id=${report.id},unit=${unitId})}">Bearbeiten</a>
       <form th:if="${canRelease}" method="post"

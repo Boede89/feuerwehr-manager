@@ -14,6 +14,7 @@ import de.feuerwehr.manager.berichte.EinsatzberichtAccess;
 import de.feuerwehr.manager.berichte.EinsatzberichtForm;
 import de.feuerwehr.manager.berichte.EinsatzberichtService;
 import de.feuerwehr.manager.berichte.EinsatzberichtListResponse;
+import de.feuerwehr.manager.berichte.AnwesenheitslistePdfService;
 import de.feuerwehr.manager.berichte.EinsatzberichtPdfService;
 import de.feuerwehr.manager.berichte.ForeignPersonOption;
 import de.feuerwehr.manager.berichte.ForeignUnitOption;
@@ -64,6 +65,7 @@ public class BerichteController {
     private final EinsatzberichtPdfService einsatzberichtPdfService;
     private final DiveraEinsatzberichtSyncService diveraEinsatzberichtSyncService;
     private final AnwesenheitslisteService anwesenheitslisteService;
+    private final AnwesenheitslistePdfService anwesenheitslistePdfService;
     private final AnwesenheitslisteTerminSyncService anwesenheitslisteTerminSyncService;
 
     @GetMapping
@@ -708,8 +710,28 @@ public class BerichteController {
         model.addAttribute("kraefteInitialJson", bundle.kraefteInitialJson());
         model.addAttribute("allowForeignUnitPersonnel", bundle.allowForeignUnitPersonnel());
         model.addAttribute("unitAddressJson", anwesenheitslisteService.buildUnitAddressJson(unitId));
+        model.addAttribute("unitPersonsJson", anwesenheitslisteService.buildUnitPersonsJson(unitId));
         model.addAttribute("showChangeHistory", false);
         model.addAttribute("reportChanges", List.of());
+    }
+
+    @GetMapping("/anwesenheitslisten/{id}/pdf")
+    public Object downloadAnwesenheitslistePdf(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @PathVariable long id,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor);
+            requireModuleEnabled(unit.getId());
+            requireBerichteRead(actor, unit.getId());
+            AttendanceReport report = anwesenheitslisteService.requireReport(unit.getId(), id);
+            byte[] pdf = anwesenheitslistePdfService.renderPdf(unit.getId(), id);
+            return PdfDownloadResponse.attachment(anwesenheitslistePdfService.suggestedFilename(report), pdf);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectBerichte(unitId, "anwesenheit");
+        }
     }
 
     private void populateEinsatzFormModel(

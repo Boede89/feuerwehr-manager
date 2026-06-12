@@ -19,6 +19,8 @@
         <input type="hidden" name="unit" th:value="${unitId}"/>
         <button type="submit" class="btn btn--danger">Löschen</button>
       </form>
+      <a class="btn btn--outline" th:if="${formMode == 'edit'}"
+         th:href="@{/berichte/anwesenheitslisten/{id}/pdf(id=${report.id},unit=${unitId})}">PDF herunterladen</a>
       <button type="submit" class="btn btn--primary" form="anwesenheitsliste-form">Speichern</button>
     </div>
   </div>
@@ -42,6 +44,7 @@
   <script th:src="@{/js/berichte-einsatz-form.js}" defer></script>
   <script th:src="@{/js/berichte-kraefte.js}" defer></script>
   <script th:src="@{/js/berichte-kraefte-foreign.js}" defer></script>
+  <script th:src="@{/js/berichte-anwesenheit-unit-person.js}" defer></script>
   <script th:src="@{/js/berichte-geraete.js}" defer></script>
   <script th:if="${report != null}" th:src="@{/js/berichte-anhaenge.js}" defer></script>
 </main>

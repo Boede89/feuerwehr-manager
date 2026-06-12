@@ -112,7 +112,16 @@ public class AnwesenheitslisteService {
 
     @Transactional(readOnly = true)
     public KraefteFahrzeugeState buildKraefteFahrzeugeState(long unitId, Long attendanceReportId) {
-        return einsatzberichtService.buildKraefteFahrzeugeState(unitId, null);
+        if (attendanceReportId == null) {
+            return einsatzberichtService.buildKraefteFahrzeugeState(unitId, null);
+        }
+        List<Long> personIds = listPersonnel(attendanceReportId).stream()
+                .map(AttendanceReportPersonnel::getPerson)
+                .filter(Objects::nonNull)
+                .map(Person::getId)
+                .distinct()
+                .toList();
+        return einsatzberichtService.buildKraefteFahrzeugeStateWithAnwesend(unitId, personIds);
     }
 
     @Transactional(readOnly = true)

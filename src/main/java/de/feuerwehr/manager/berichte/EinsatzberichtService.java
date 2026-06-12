@@ -177,6 +177,16 @@ public class EinsatzberichtService {
     }
 
     public KraefteFahrzeugeState buildKraefteFahrzeugeState(long unitId, Long reportId) {
+        return buildKraefteFahrzeugeState(unitId, reportId, null);
+    }
+
+    /** Kräfte-Board mit vorausgewähltem Personal im Slot „Am Einsatz beteiligt“ (Anwesenheitslisten). */
+    public KraefteFahrzeugeState buildKraefteFahrzeugeStateWithAnwesend(long unitId, List<Long> anwesendPersonIds) {
+        return buildKraefteFahrzeugeState(unitId, null, anwesendPersonIds);
+    }
+
+    private KraefteFahrzeugeState buildKraefteFahrzeugeState(
+            long unitId, Long reportId, List<Long> presetAnwesendPersonIds) {
         List<Person> allPersons = listPersonsForForm(unitId);
         List<IncidentReportPersonnel> reportRows =
                 reportId != null ? incidentReportPersonnelRepository.findByIncidentReportId(reportId) : List.of();
@@ -291,6 +301,27 @@ public class EinsatzberichtService {
                     onVehicleRefIds.add(commanderId);
                 }
             });
+        }
+
+        if (presetAnwesendPersonIds != null && !presetAnwesendPersonIds.isEmpty()) {
+            LinkedHashSet<Long> presetIds = new LinkedHashSet<>();
+            for (Long pid : presetAnwesendPersonIds) {
+                if (pid != null) {
+                    presetIds.add(pid);
+                }
+            }
+            if (!presetIds.isEmpty()) {
+                personRepository
+                        .findActiveByIdIn(presetIds, includeTestReports())
+                        .forEach(person -> personById.putIfAbsent(person.getId(), person));
+                for (Long pid : presetAnwesendPersonIds) {
+                    if (pid == null || onVehicleRefIds.contains(pid)) {
+                        continue;
+                    }
+                    beteiligtCrewIds.add(pid);
+                    onVehicleRefIds.add(pid);
+                }
+            }
         }
 
         Map<Long, Integer> sortOrderByRefId = new LinkedHashMap<>();

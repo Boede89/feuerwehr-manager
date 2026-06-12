@@ -139,6 +139,8 @@
     }
     var returnPath = '/berichte?tab=anwesenheit&year=' + filters.year;
     var html = '';
+    html += '<a class="btn btn--outline" href="/berichte/anwesenheitslisten/' + meta.reportId +
+      '/pdf?unit=' + encodeURIComponent(unitId) + '">PDF herunterladen</a>';
     if (meta.canEdit === 'true') {
       html += '<a class="btn btn--primary" href="/berichte/anwesenheitslisten/' + meta.reportId +
         '/bearbeiten?unit=' + encodeURIComponent(unitId) + '">Bearbeiten</a>';
