@@ -60,7 +60,9 @@
   }
 
   function apiBase(wrap) {
-    return '/berichte/einsatzberichte/' + wrap.dataset.reportId + '/anhaenge?unit=' + wrap.dataset.unitId;
+    var prefix = wrap.dataset.apiBase
+      || (window.BerichteApiBase ? window.BerichteApiBase.path() : '/berichte/einsatzberichte');
+    return prefix + '/' + wrap.dataset.reportId + '/anhaenge?unit=' + wrap.dataset.unitId;
   }
 
   function isReadonly(wrap) {

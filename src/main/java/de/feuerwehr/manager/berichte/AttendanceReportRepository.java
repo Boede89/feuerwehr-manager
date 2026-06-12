@@ -58,4 +58,14 @@ public interface AttendanceReportRepository extends JpaRepository<AttendanceRepo
             @Param("unitId") long unitId,
             @Param("yearPrefix") String yearPrefix,
             @Param("includeTestReports") boolean includeTestReports);
+
+    @Query("""
+            SELECT DISTINCT r.title FROM AttendanceReport r
+            WHERE r.unit.id = :unitId
+              AND r.title IS NOT NULL AND TRIM(r.title) <> ''
+              AND (r.testData = FALSE OR :includeTestReports = TRUE)
+            ORDER BY r.title ASC
+            """)
+    List<String> findDistinctTitlesByUnit(
+            @Param("unitId") long unitId, @Param("includeTestReports") boolean includeTestReports);
 }

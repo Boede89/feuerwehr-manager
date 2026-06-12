@@ -74,7 +74,8 @@
     if (select.options.length > 1) {
       return;
     }
-    fetch('/berichte/einsatzberichte/foreign-units?unit=' + encodeURIComponent(unitId), {
+    var apiBase = window.BerichteApiBase ? window.BerichteApiBase.path() : '/berichte/einsatzberichte';
+    fetch(apiBase + '/foreign-units?unit=' + encodeURIComponent(unitId), {
       headers: { Accept: 'application/json' }
     })
       .then(function (response) {
@@ -133,7 +134,8 @@
     if (!reportUnitId || !selectedUnitId) {
       return;
     }
-    var url = '/berichte/einsatzberichte/foreign-personnel?unit=' + encodeURIComponent(reportUnitId)
+    var apiBase = window.BerichteApiBase ? window.BerichteApiBase.path() : '/berichte/einsatzberichte';
+    var url = apiBase + '/foreign-personnel?unit=' + encodeURIComponent(reportUnitId)
       + '&sourceUnit=' + encodeURIComponent(selectedUnitId);
     if (query && query.trim()) {
       url += '&q=' + encodeURIComponent(query.trim());

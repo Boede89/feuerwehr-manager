@@ -22,6 +22,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -40,6 +41,7 @@ public class AnwesenheitslisteService {
     private final PersonRepository personRepository;
     private final PersonalService personalService;
     private final TestModeService testModeService;
+    private final EinsatzberichtService einsatzberichtService;
     private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
@@ -96,14 +98,42 @@ public class AnwesenheitslisteService {
         }
     }
 
-    public AnwesenheitslisteForm newForm(long unitId) {
-        LocalDate today = LocalDate.now();
-        AnwesenheitslisteForm form = new AnwesenheitslisteForm();
-        form.setEventDate(today);
-        form.setReportNumber(suggestReportNumber(unitId, today));
-        form.setTitle("");
-        form.setLocation("");
+    public EinsatzberichtForm newEinsatzForm(long unitId) {
+        EinsatzberichtForm form = einsatzberichtService.newForm(unitId);
+        form.setIncidentNumber(suggestReportNumber(unitId, form.getIncidentDate()));
+        form.setStichwort("");
         return form;
+    }
+
+    @Transactional(readOnly = true)
+    public List<String> listKnownStichworte(long unitId) {
+        return attendanceReportRepository.findDistinctTitlesByUnit(unitId, includeTestReports());
+    }
+
+    @Transactional(readOnly = true)
+    public KraefteFahrzeugeState buildKraefteFahrzeugeState(long unitId, Long attendanceReportId) {
+        return einsatzberichtService.buildKraefteFahrzeugeState(unitId, null);
+    }
+
+    public String buildCrewJsonFromPersonnel(long unitId, long attendanceReportId) {
+        List<Long> personIds = listPersonnel(attendanceReportId).stream()
+                .map(AttendanceReportPersonnel::getPerson)
+                .filter(Objects::nonNull)
+                .map(Person::getId)
+                .distinct()
+                .toList();
+        if (personIds.isEmpty()) {
+            return "[]";
+        }
+        StringBuilder sb = new StringBuilder("[{\"vehicleId\":-3,\"personIds\":[");
+        for (int i = 0; i < personIds.size(); i++) {
+            if (i > 0) {
+                sb.append(',');
+            }
+            sb.append(personIds.get(i));
+        }
+        sb.append("]}]");
+        return sb.toString();
     }
 
     public String suggestReportNumber(long unitId, LocalDate date) {
@@ -114,6 +144,45 @@ public class AnwesenheitslisteService {
                 date,
                 attendanceReportRepository.findReportNumbersForYear(
                         unitId, yearPrefix(date.getYear()), includeTestReports()));
+    }
+
+    @Transactional
+    public AttendanceReport createFromEinsatzForm(
+            long unitId, EinsatzberichtForm form, List<CrewAssignment> crewAssignments, AppUserDetails actor) {
+        validateEinsatzForm(form);
+        AttendanceReport report = newDraft(unitId);
+        AnwesenheitslisteEinsatzFormBridge.applyEinsatzForm(report, form);
+        report.setStatus(IncidentReportStatus.ENTWURF);
+        report.setReportNumber(resolveReportNumberForCreate(unitId, report.getEventDate(), form.getIncidentNumber()));
+        applyCreator(report, actor);
+        AttendanceReport saved = attendanceReportRepository.save(report);
+        saveCrewAsPersonnel(saved, crewAssignments, unitId);
+        return saved;
+    }
+
+    @Transactional
+    public AttendanceReport updateFromEinsatzForm(
+            long unitId,
+            long reportId,
+            EinsatzberichtForm form,
+            List<CrewAssignment> crewAssignments,
+            AppUserDetails actor,
+            boolean canApprove) {
+        validateEinsatzForm(form);
+        AttendanceReport report = requireReport(unitId, reportId);
+        ensureWritableInTestMode(report);
+        if (!AnwesenheitslisteAccess.canEdit(report, actor, canApprove)) {
+            throw new IllegalArgumentException("Diese Anwesenheitsliste kann nicht bearbeitet werden.");
+        }
+        if (report.getStatus() != IncidentReportStatus.ENTWURF
+                && (actor == null || !actor.getRole().isAdminLevel())) {
+            throw new IllegalArgumentException(
+                    "Freigegebene oder archivierte Listen können nur von Administratoren geändert werden.");
+        }
+        AnwesenheitslisteEinsatzFormBridge.applyEinsatzForm(report, form);
+        AttendanceReport saved = attendanceReportRepository.save(report);
+        saveCrewAsPersonnel(saved, crewAssignments, unitId);
+        return saved;
     }
 
     @Transactional
@@ -307,7 +376,51 @@ public class AnwesenheitslisteService {
         report.setEndTime(termin.getEndAt() != null ? termin.getEndAt().toLocalTime() : null);
         report.setTitle(termin.getTitle());
         report.setTerminCategory(termin.getCategory());
-        report.setLocation(termin.getLocation() != null ? termin.getLocation() : "");
+        String location = termin.getLocation() != null ? termin.getLocation().trim() : "";
+        report.setLocation(location.isBlank() ? "—" : location);
+    }
+
+    private void validateEinsatzForm(EinsatzberichtForm form) {
+        if (form == null) {
+            throw new IllegalArgumentException("Bitte alle Pflichtfelder ausfüllen.");
+        }
+        if (form.getIncidentDate() == null) {
+            throw new IllegalArgumentException("Bitte ein Datum angeben.");
+        }
+        if (form.getStichwort() == null || form.getStichwort().isBlank()) {
+            throw new IllegalArgumentException("Bitte eine Bezeichnung angeben.");
+        }
+        if (form.getLocation() == null || form.getLocation().isBlank()) {
+            throw new IllegalArgumentException("Bitte einen Ort angeben.");
+        }
+    }
+
+    private void saveCrewAsPersonnel(AttendanceReport report, List<CrewAssignment> crewAssignments, long unitId) {
+        attendanceReportPersonnelRepository.deleteByReportId(report.getId());
+        if (crewAssignments == null || crewAssignments.isEmpty()) {
+            return;
+        }
+        LinkedHashSet<Long> personIds = new LinkedHashSet<>();
+        for (CrewAssignment assignment : crewAssignments) {
+            if (assignment.personIds() != null) {
+                assignment.personIds().stream().filter(Objects::nonNull).forEach(personIds::add);
+            }
+        }
+        int order = 0;
+        for (Long personId : personIds) {
+            var personOpt = personRepository.findActiveById(personId, includeTestReports());
+            if (personOpt.isEmpty()) {
+                continue;
+            }
+            Person person = personOpt.get();
+            AttendanceReportPersonnel row = new AttendanceReportPersonnel();
+            row.setAttendanceReport(report);
+            row.setPerson(person);
+            row.setDisplayName(person.anwesenheitDisplayName());
+            row.setAttendanceStatus(AttendancePersonStatus.PRESENT);
+            row.setSortOrder(order++);
+            attendanceReportPersonnelRepository.save(row);
+        }
     }
 
     private void savePersonnel(AttendanceReport report, List<AnwesenheitslistePersonnelRow> rows, long unitId) {

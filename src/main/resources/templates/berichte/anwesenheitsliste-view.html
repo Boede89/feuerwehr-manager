@@ -2,6 +2,8 @@
 <html lang="de" xmlns:th="http://www.thymeleaf.org"
       th:replace="~{fragments/layout :: layout(${pageTitle}, ~{::main})}">
 <main class="einsatzbericht-form-page einsatzbericht-view-page">
+  <meta name="berichte-api-base" content="/berichte/anwesenheitslisten"/>
+
   <div class="page-header">
     <div>
       <a class="btn btn--outline btn--sm page-back" th:if="${backUrl != null}" th:href="${backUrl}">← Zurück</a>
@@ -44,13 +46,18 @@
 
   <div class="card">
     <div class="card__body card__body--flush">
-      <div id="anwesenheitsliste-view" class="einsatzbericht-form--view">
-        <th:block th:replace="~{fragments/berichte-anwesenheit-form :: form}"></th:block>
+      <div id="einsatzbericht-view" class="einsatzbericht-form--view">
+        <th:block th:replace="~{fragments/berichte-einsatz-form :: form}"></th:block>
       </div>
     </div>
   </div>
 
-  <script type="application/json" id="anwesenheit-unit-persons-data">[]</script>
-  <script th:src="@{/js/berichte-anwesenheit-form.js}" defer></script>
+  <script th:src="@{/js/berichte-api-base.js}" defer></script>
+  <script th:src="@{/js/berichte-einsatz-form.js}" defer></script>
+  <script th:src="@{/js/berichte-kraefte.js}" defer></script>
+  <script th:src="@{/js/berichte-kraefte-foreign.js}" defer></script>
+  <script th:src="@{/js/berichte-geraete.js}" defer></script>
+  <script th:src="@{/js/berichte-schaeden.js}" defer></script>
+  <script th:src="@{/js/berichte-anhaenge.js}" defer></script>
 </main>
 </html>

@@ -1,7 +1,7 @@
 package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.berichte.AnwesenheitslisteAccess;
-import de.feuerwehr.manager.berichte.AnwesenheitslisteForm;
+import de.feuerwehr.manager.berichte.AnwesenheitslisteEinsatzFormBridge;
 import de.feuerwehr.manager.berichte.AnwesenheitslisteListResponse;
 import de.feuerwehr.manager.berichte.AnwesenheitslisteService;
 import de.feuerwehr.manager.berichte.AnwesenheitslisteTerminSyncService;
@@ -414,7 +414,8 @@ public class BerichteController {
             Unit unit = resolveUnit(unitId, actor, model);
             requireModuleEnabled(unit.getId());
             requireBerichteWrite(actor, unit.getId());
-            populateAnwesenheitFormModel(model, unit.getId(), null, anwesenheitslisteService.newForm(unit.getId()));
+            populateAnwesenheitEinsatzFormModel(
+                    model, unit.getId(), null, anwesenheitslisteService.newEinsatzForm(unit.getId()));
             model.addAttribute("formMode", "create");
             model.addAttribute("pageTitle", "Neue Anwesenheitsliste");
             model.addAttribute("pageSubtitle", "Entwurf — wird nach dem Speichern zur Freigabe vorgelegt");
@@ -438,9 +439,8 @@ public class BerichteController {
             requireModuleEnabled(unit.getId());
             requireBerichteRead(actor, unit.getId());
             AttendanceReport report = anwesenheitslisteService.requireReport(unit.getId(), id);
-            AnwesenheitslisteForm form = AnwesenheitslisteForm.fromReport(
-                    report, anwesenheitslisteService.listPersonnel(id));
-            populateAnwesenheitFormModel(model, unit.getId(), report, form);
+            EinsatzberichtForm form = AnwesenheitslisteEinsatzFormBridge.toEinsatzForm(report);
+            populateAnwesenheitEinsatzFormModel(model, unit.getId(), report, form);
             model.addAttribute("formMode", "view");
             boolean canApprove = canApprove(actor, unit.getId());
             model.addAttribute("canWrite", canWrite(actor, unit.getId()));
@@ -482,9 +482,8 @@ public class BerichteController {
             if (!AnwesenheitslisteAccess.canEdit(report, actor, canApprove)) {
                 throw new IllegalArgumentException("Diese Anwesenheitsliste kann nicht bearbeitet werden.");
             }
-            AnwesenheitslisteForm form = AnwesenheitslisteForm.fromReport(
-                    report, anwesenheitslisteService.listPersonnel(id));
-            populateAnwesenheitFormModel(model, unit.getId(), report, form);
+            EinsatzberichtForm form = AnwesenheitslisteEinsatzFormBridge.toEinsatzForm(report);
+            populateAnwesenheitEinsatzFormModel(model, unit.getId(), report, form);
             model.addAttribute("formMode", "edit");
             model.addAttribute("canDeleteReport", AnwesenheitslisteAccess.canDelete(report, actor, canApprove));
             model.addAttribute("pageTitle", "Anwesenheitsliste bearbeiten");
@@ -504,14 +503,15 @@ public class BerichteController {
     public String createAnwesenheitsliste(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
-            @ModelAttribute AnwesenheitslisteForm form,
+            @ModelAttribute EinsatzberichtForm form,
             RedirectAttributes redirectAttributes) {
         try {
             Unit unit = resolveUnit(unitId, actor);
             requireModuleEnabled(unit.getId());
             requireBerichteWrite(actor, unit.getId());
-            var personnel = anwesenheitslisteService.parsePersonnelJson(form.getPersonnelJson());
-            anwesenheitslisteService.create(unit.getId(), form.toData(personnel), actor);
+            List<CrewAssignment> crewAssignments =
+                    einsatzberichtService.parseCrewAssignments(form.getCrewAssignmentsJson());
+            anwesenheitslisteService.createFromEinsatzForm(unit.getId(), form, crewAssignments, actor);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Anwesenheitsliste wurde gespeichert.");
             return redirectBerichte(unit.getId(), "anwesenheit");
@@ -526,15 +526,17 @@ public class BerichteController {
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
             @PathVariable long id,
-            @ModelAttribute AnwesenheitslisteForm form,
+            @ModelAttribute EinsatzberichtForm form,
             RedirectAttributes redirectAttributes) {
         try {
             Unit unit = resolveUnit(unitId, actor);
             requireModuleEnabled(unit.getId());
             requireBerichteRead(actor, unit.getId());
             boolean canApprove = canApprove(actor, unit.getId());
-            var personnel = anwesenheitslisteService.parsePersonnelJson(form.getPersonnelJson());
-            anwesenheitslisteService.update(unit.getId(), id, form.toData(personnel), actor, canApprove);
+            List<CrewAssignment> crewAssignments =
+                    einsatzberichtService.parseCrewAssignments(form.getCrewAssignmentsJson());
+            anwesenheitslisteService.updateFromEinsatzForm(
+                    unit.getId(), id, form, crewAssignments, actor, canApprove);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Anwesenheitsliste wurde aktualisiert.");
             return redirectBerichte(unit.getId(), "anwesenheit");
@@ -636,19 +638,70 @@ public class BerichteController {
         }
     }
 
-    private void populateAnwesenheitFormModel(
-            Model model, long unitId, AttendanceReport report, AnwesenheitslisteForm form) {
+    @GetMapping("/anwesenheitslisten/foreign-units")
+    @ResponseBody
+    public List<ForeignUnitOption> anwesenheitForeignUnits(
+            @AuthenticationPrincipal AppUserDetails actor, @RequestParam(name = "unit") long unitId) {
+        accessControlService.requireUnitAccess(actor, unitId);
+        requireModuleEnabled(unitId);
+        requireBerichteRead(actor, unitId);
+        return einsatzberichtService.listForeignUnits(unitId);
+    }
+
+    @GetMapping("/anwesenheitslisten/foreign-personnel")
+    @ResponseBody
+    public List<ForeignPersonOption> anwesenheitForeignPersonnel(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @RequestParam(name = "sourceUnit") long sourceUnitId,
+            @RequestParam(name = "q", defaultValue = "") String query) {
+        accessControlService.requireUnitAccess(actor, unitId);
+        requireModuleEnabled(unitId);
+        requireBerichteRead(actor, unitId);
+        return einsatzberichtService.listForeignPersonnel(unitId, sourceUnitId, query);
+    }
+
+    @GetMapping("/anwesenheitslisten/vehicle-equipment")
+    @ResponseBody
+    public List<VehicleEquipmentView> anwesenheitVehicleEquipment(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @RequestParam(name = "vehicleIds") List<Long> vehicleIds) {
+        accessControlService.requireUnitAccess(actor, unitId);
+        requireModuleEnabled(unitId);
+        return einsatzberichtService.listVehicleEquipment(unitId, vehicleIds);
+    }
+
+    private void populateAnwesenheitEinsatzFormModel(
+            Model model, long unitId, AttendanceReport report, EinsatzberichtForm form) {
         Long reportId = report != null ? report.getId() : null;
-        if (reportId != null
-                && (form.getPersonnelJson() == null || form.getPersonnelJson().isBlank())) {
-            form.setPersonnelJson(anwesenheitslisteService.buildPersonnelJson(reportId));
-        }
-        if (form.getPersonnelJson() == null) {
-            form.setPersonnelJson("[]");
-        }
+        KraefteFahrzeugeState kraefteState = anwesenheitslisteService.buildKraefteFahrzeugeState(unitId, reportId);
         model.addAttribute("report", report);
         model.addAttribute("form", form);
-        model.addAttribute("unitPersonsJson", anwesenheitslisteService.buildUnitPersonsJson(unitId));
+        model.addAttribute("unitPersons", einsatzberichtService.listPersonsForForm(unitId));
+        model.addAttribute("knownStichworte", anwesenheitslisteService.listKnownStichworte(unitId));
+        model.addAttribute("kraefteState", kraefteState);
+        model.addAttribute("kraefteInitialJson", einsatzberichtService.serializeKraefteFahrzeugeState(kraefteState));
+        model.addAttribute(
+                "allowForeignUnitPersonnel", einsatzberichtService.isForeignUnitPersonnelAllowed(unitId));
+        if (form.getCrewAssignmentsJson() == null || form.getCrewAssignmentsJson().isBlank()) {
+            if (reportId != null) {
+                form.setCrewAssignmentsJson(anwesenheitslisteService.buildCrewJsonFromPersonnel(unitId, reportId));
+            } else {
+                form.setCrewAssignmentsJson(buildCrewJson(kraefteState));
+            }
+        }
+        if (form.getDeployedEquipmentJson() == null || form.getDeployedEquipmentJson().isBlank()) {
+            form.setDeployedEquipmentJson("[]");
+        }
+        if (form.getPersonDamageDetailsJson() == null || form.getPersonDamageDetailsJson().isBlank()) {
+            form.setPersonDamageDetailsJson(PersonDamageDetailsSupport.emptyJson());
+        }
+        if (form.getDamagePerpetratorJson() == null || form.getDamagePerpetratorJson().isBlank()) {
+            form.setDamagePerpetratorJson(DamagePerpetratorSupport.emptyJson());
+        }
+        model.addAttribute("showChangeHistory", false);
+        model.addAttribute("reportChanges", List.of());
     }
 
     private void populateEinsatzFormModel(

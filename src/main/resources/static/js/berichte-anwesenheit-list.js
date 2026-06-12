@@ -15,8 +15,9 @@
 
   var filters = {
     year: Number(root.dataset.filterYear) || new Date().getFullYear(),
+    zeitraum: 'aktuell',
     category: '',
-    status: ''
+    status: 'entwurf'
   };
 
   var allItems = [];
@@ -36,6 +37,27 @@
       return iso;
     }
     return parts[2] + '.' + parts[1] + '.' + parts[0];
+  }
+
+  function todayIso() {
+    var d = new Date();
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    return d.getFullYear() + '-' + m + '-' + day;
+  }
+
+  function matchesZeitraum(eventDate) {
+    if (!eventDate || filters.zeitraum === 'alle') {
+      return true;
+    }
+    var today = todayIso();
+    if (filters.zeitraum === 'aktuell') {
+      return eventDate <= today;
+    }
+    if (filters.zeitraum === 'vergangene') {
+      return eventDate < today;
+    }
+    return true;
   }
 
   function canEditItem(item) {
@@ -69,6 +91,9 @@
 
   function filteredItems() {
     return allItems.filter(function (item) {
+      if (!matchesZeitraum(item.eventDate)) {
+        return false;
+      }
       if (filters.category && item.terminCategoryKey !== filters.category) {
         return false;
       }
@@ -92,11 +117,10 @@
     wrap.innerHTML =
       '<div style="overflow-x:auto">' +
       '<table class="data-table"><thead><tr>' +
-      '<th>Nr.</th><th>Datum</th><th>Bezeichnung</th><th>Bereich</th><th>Ort</th><th>Status</th><th>Quelle</th><th>Aktionen</th>' +
+      '<th>Datum</th><th>Bezeichnung</th><th>Bereich</th><th>Ort</th><th>Status</th><th>Quelle</th><th>Aktionen</th>' +
       '</tr></thead><tbody>' +
       items.map(function (r) {
         return '<tr>' +
-          '<td class="text-muted text-xs">' + esc(r.reportNumber || '—') + '</td>' +
           '<td>' + esc(fmtDate(r.eventDate)) + '</td>' +
           '<td>' + esc(r.title || '—') + '</td>' +
           '<td>' + esc(r.terminCategoryLabel || '—') + '</td>' +
@@ -115,6 +139,7 @@
             '<input type="hidden" name="' + esc(csrfParam) + '" value="' + esc(csrfToken) + '"/>' +
             '<input type="hidden" name="unit" value="' + esc(unitId) + '"/>' +
             '<input type="hidden" name="year" value="' + filters.year + '"/>' +
+            '<input type="hidden" name="status" value="' + esc(filters.status) + '"/>' +
             '<button type="submit" class="btn btn--danger btn--sm">Löschen</button></form>' : '') +
           '</div></td></tr>';
       }).join('') +
@@ -147,6 +172,7 @@
 
   function initFilters() {
     var yearSel = document.getElementById('filter-year-anwesenheit');
+    var zeitraumSel = document.getElementById('filter-zeitraum-anwesenheit');
     var categorySel = document.getElementById('filter-category-anwesenheit');
     var statusSel = document.getElementById('filter-status-anwesenheit');
 
@@ -168,6 +194,14 @@
       });
     }
 
+    if (zeitraumSel) {
+      zeitraumSel.value = filters.zeitraum;
+      zeitraumSel.addEventListener('change', function () {
+        filters.zeitraum = zeitraumSel.value;
+        renderTable();
+      });
+    }
+
     if (categorySel) {
       categorySel.addEventListener('change', function () {
         filters.category = categorySel.value;
@@ -176,6 +210,7 @@
     }
 
     if (statusSel) {
+      statusSel.value = filters.status;
       statusSel.addEventListener('change', function () {
         filters.status = statusSel.value;
         renderTable();

@@ -324,7 +324,8 @@
       return;
     }
     wrap.innerHTML = '<p class="hint">Geräte werden geladen …</p>';
-    var url = '/berichte/einsatzberichte/vehicle-equipment?unit=' + encodeURIComponent(unitId())
+    var apiBase = window.BerichteApiBase ? window.BerichteApiBase.path() : '/berichte/einsatzberichte';
+    var url = apiBase + '/vehicle-equipment?unit=' + encodeURIComponent(unitId())
       + vehicleIds.map(function (id) {
         return '&vehicleIds=' + encodeURIComponent(id);
       }).join('');

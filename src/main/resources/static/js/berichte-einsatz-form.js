@@ -84,7 +84,8 @@
         if (!dateInput.value || !numberInput.dataset.unitId) {
           return;
         }
-        var url = '/berichte/einsatzberichte/suggest-number?unit='
+        var apiBase = window.BerichteApiBase ? window.BerichteApiBase.path() : '/berichte/einsatzberichte';
+        var url = apiBase + '/suggest-number?unit='
           + encodeURIComponent(numberInput.dataset.unitId)
           + '&date=' + encodeURIComponent(dateInput.value);
         fetch(url, { credentials: 'same-origin' })

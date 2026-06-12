@@ -93,6 +93,11 @@
         </div>
         <div class="filter-bar berichte-einsatz-filter berichte-einsatz-header__filter">
           <select id="filter-year-anwesenheit" class="berichte-filter-select" aria-label="Jahr filtern"></select>
+          <select id="filter-zeitraum-anwesenheit" class="berichte-filter-select" aria-label="Zeitraum filtern">
+            <option value="aktuell" selected>Bis heute</option>
+            <option value="vergangene">Vergangene</option>
+            <option value="alle">Alle</option>
+          </select>
           <select id="filter-category-anwesenheit" class="berichte-filter-select" aria-label="Bereich filtern">
             <option value="">Alle Bereiche</option>
             <option value="dienstplan">Dienstplan</option>
@@ -100,7 +105,7 @@
           </select>
           <select id="filter-status-anwesenheit" class="berichte-filter-select berichte-filter-select--status" aria-label="Status filtern">
             <option value="">Alle Status</option>
-            <option value="entwurf">Entwurf</option>
+            <option value="entwurf" selected>Entwurf</option>
             <option value="freigegeben">Freigegeben</option>
             <option value="archiviert">Archiviert</option>
           </select>
