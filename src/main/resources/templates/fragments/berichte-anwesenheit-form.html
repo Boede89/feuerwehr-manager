@@ -2,87 +2,396 @@
 <html lang="de" xmlns:th="http://www.thymeleaf.org">
 <th:block th:fragment="form">
   <div th:classappend="${formMode == 'view' ? ' einsatzbericht-form--view' : ''}">
-    <nav class="tab-bar incident-form-tabs" aria-label="Anwesenheitsliste-Bereiche">
-      <button type="button" class="tab-btn incident-tab tab-btn--active" data-tab="0">Basisdaten</button>
-      <button type="button" class="tab-btn incident-tab" data-tab="1">Personal</button>
-    </nav>
+  <nav class="tab-bar incident-form-tabs" aria-label="Anwesenheitsliste-Bereiche">
+    <button type="button" class="tab-btn incident-tab tab-btn--active" data-tab="0">Basisdaten</button>
+    <button type="button" class="tab-btn incident-tab" data-tab="1">Personal</button>
+    <button type="button" class="tab-btn incident-tab" data-tab="2">Fahrzeuge</button>
+    <button type="button" class="tab-btn incident-tab" data-tab="3">Eingesetzte Geräte</button>
+    <button type="button" class="tab-btn incident-tab" data-tab="4">Bericht</button>
+    <button type="button" class="tab-btn incident-tab" data-tab="5" th:if="${report != null}">Anhänge</button>
+  </nav>
 
-    <div class="incident-tab-panel" data-panel="0">
-      <div class="incident-form-grid-2">
-        <div class="form-group">
-          <label for="reportNumber">Listennummer</label>
-          <input id="reportNumber" name="reportNumber" type="text" maxlength="32"
+  <!-- Tab 0: Basisdaten -->
+  <div class="incident-tab-panel" data-panel="0">
+    <div class="incident-form-grid-2">
+      <div class="form-group">
+        <label for="incidentDate">Datum <span class="required">*</span></label>
+        <input id="incidentDate" name="incidentDate" type="date" required
+               th:readonly="${formMode == 'view'}" th:value="${form.incidentDate}"/>
+      </div>
+      <div class="form-group">
+        <label for="alarmTime">Beginn</label>
+        <input id="alarmTime" name="alarmTime" type="time" th:readonly="${formMode == 'view'}"
+               th:value="${form.alarmTime != null ? #temporals.format(form.alarmTime, 'HH:mm') : ''}"/>
+      </div>
+      <div class="form-group">
+        <label for="endTime">Ende</label>
+        <input id="endTime" name="endTime" type="time" th:readonly="${formMode == 'view'}"
+               th:value="${form.endTime != null ? #temporals.format(form.endTime, 'HH:mm') : ''}"/>
+      </div>
+      <div class="form-group form-group--full">
+        <label for="stichwort">Thema/Bezeichnung <span class="required">*</span></label>
+        <div class="combo-suggest" data-combo-suggest data-combo-min="1">
+          <input id="stichwort" name="stichwort" type="text" maxlength="255" required
                  th:readonly="${formMode == 'view'}"
-                 th:attr="data-auto-number=${formMode == 'create' ? 'true' : null},data-unit-id=${unitId}"
-                 th:value="${form.reportNumber}"/>
-          <p class="hint text-sm" th:if="${formMode == 'create'}" style="margin:0;">
-            Format: Datum-Laufnummer (pro Jahr). Vorschlag aus höchster vorhandener Nummer — manuell anpassbar.
-          </p>
+                 class="combo-suggest__input" autocomplete="off"
+                 placeholder="Thema oder Bezeichnung eingeben …" th:value="${form.stichwort}"/>
+          <ul class="combo-suggest__list" role="listbox" hidden>
+            <li class="combo-suggest__option" th:each="s : ${knownStichworte}"
+                th:attr="data-value=${s}" th:text="${s}">Thema</li>
+          </ul>
         </div>
-        <div class="form-group">
-          <label for="eventDate">Datum <span class="required">*</span></label>
-          <input id="eventDate" name="eventDate" type="date" required
-                 th:readonly="${formMode == 'view'}" th:value="${form.eventDate}"/>
-        </div>
-        <div class="form-group">
-          <label for="startTime">Beginn</label>
-          <input id="startTime" name="startTime" type="time" th:readonly="${formMode == 'view'}"
-                 th:value="${form.startTime != null ? #temporals.format(form.startTime, 'HH:mm') : ''}"/>
-        </div>
-        <div class="form-group">
-          <label for="endTime">Ende</label>
-          <input id="endTime" name="endTime" type="time" th:readonly="${formMode == 'view'}"
-                 th:value="${form.endTime != null ? #temporals.format(form.endTime, 'HH:mm') : ''}"/>
-        </div>
-        <div class="form-group form-group--full">
-          <label for="title">Bezeichnung <span class="required">*</span></label>
-          <input id="title" name="title" type="text" maxlength="150" required
+      </div>
+      <div class="form-group form-group--full">
+        <label for="location">Ort <span class="required">*</span></label>
+        <input id="location" name="location" type="text" maxlength="300" required
+               th:readonly="${formMode == 'view'}"
+               placeholder="Ortsname / Gemeinde" th:value="${form.location}"/>
+      </div>
+      <div class="form-group">
+        <label for="postalCode">PLZ</label>
+        <input id="postalCode" name="postalCode" type="text" maxlength="10" th:readonly="${formMode == 'view'}"
+               th:value="${form.postalCode}"/>
+      </div>
+      <div class="form-group">
+        <label for="district">Ortsteil</label>
+        <input id="district" name="district" type="text" maxlength="128" th:readonly="${formMode == 'view'}"
+               placeholder="z. B. Amern" th:value="${form.district}"/>
+      </div>
+      <div class="form-group">
+        <label for="street">Straße</label>
+        <input id="street" name="street" type="text" maxlength="255" th:readonly="${formMode == 'view'}"
+               th:value="${form.street}"/>
+      </div>
+      <div class="form-group">
+        <label for="houseNumber">Hausnummer</label>
+        <input id="houseNumber" name="houseNumber" type="text" maxlength="20" th:readonly="${formMode == 'view'}"
+               th:value="${form.houseNumber}"/>
+      </div>
+      <div class="form-group">
+        <label for="objekt">Objekt</label>
+        <input id="objekt" name="objekt" type="text" maxlength="255" th:readonly="${formMode == 'view'}"
+               th:value="${form.objekt}"/>
+      </div>
+      <div class="form-group form-group--full">
+        <label for="incidentCommander">Ausbilder/Verantwortlicher</label>
+        <div class="combo-suggest" data-combo-suggest data-combo-min="1">
+          <input id="incidentCommander" name="incidentCommander" type="text" maxlength="255"
                  th:readonly="${formMode == 'view'}"
-                 placeholder="Thema / Beschreibung des Termins" th:value="${form.title}"/>
+                 class="combo-suggest__input" autocomplete="off"
+                 placeholder="Name eingeben …" th:value="${form.incidentCommander}"/>
+          <ul class="combo-suggest__list" role="listbox" hidden>
+            <li class="combo-suggest__option" th:each="p : ${unitPersons}"
+                th:attr="data-value=${p.anwesenheitDisplayName()}, data-person-id=${p.id}"
+                th:text="${p.anwesenheitDisplayName()}">Name</li>
+          </ul>
         </div>
-        <div class="form-group form-group--full" th:if="${report != null and report.terminCategory != null}">
-          <label>Terminbereich</label>
-          <p class="field-readonly" th:text="${report.terminCategory.displayLabel()}">Dienstplan</p>
-        </div>
-        <div class="form-group form-group--full">
-          <label for="location">Ort</label>
-          <input id="location" name="location" type="text" maxlength="300"
-                 th:readonly="${formMode == 'view'}"
-                 placeholder="Treffpunkt / Ort" th:value="${form.location}"/>
-        </div>
-        <div class="form-group form-group--full">
-          <label for="notes">Notizen</label>
-          <textarea id="notes" name="notes" rows="3"
-                    th:readonly="${formMode == 'view'}"
-                    placeholder="Optionale Anmerkungen …"
-                    th:text="${form.notes}"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <input type="hidden" name="crewAssignmentsJson" id="crewAssignmentsJson" th:if="${formMode != 'view'}"
+         th:value="${form.crewAssignmentsJson}"/>
+  <input type="hidden" name="deployedEquipmentJson" id="deployedEquipmentJson" th:if="${formMode != 'view'}"
+         th:value="${form.deployedEquipmentJson}"/>
+  <div class="incident-kraefte-board" id="incident-kraefte-board"
+       th:data-unit-id="${unitId}"
+       th:data-initial="${kraefteInitialJson}"
+       th:data-readonly="${formMode == 'view' ? 'true' : null}"
+       th:with="beteiligt=${kraefteState.beteiligt()}, scene=${kraefteState.einsatzstelle()}, wache=${kraefteState.wache()}, diveraDefault=${!#lists.isEmpty(kraefteState.diveraPersons())}">
+
+    <!-- Tab 1: Personal -->
+    <div class="incident-tab-panel" data-panel="1" hidden>
+      <div class="incident-personal-layout" th:classappend="${formMode == 'view' ? ' incident-personal-layout--view' : ''}">
+        <section class="incident-kraefte-section incident-kraefte-section--reserves" th:if="${formMode != 'view'}">
+          <article class="incident-reserve-panel">
+            <div class="incident-reserve-panel__head">
+              <h3 class="incident-kraefte-section__title">Verfügbares Personal</h3>
+              <input type="search" id="reserve-person-search" class="incident-person-search field"
+                     placeholder="Suchen …" autocomplete="off" aria-label="Personal suchen"/>
+            </div>
+            <div class="incident-reserve-tabs" role="tablist" aria-label="Personalquelle">
+              <button type="button" class="incident-reserve-tab"
+                      th:classappend="${diveraDefault ? ' incident-reserve-tab--active' : ''}"
+                      role="tab" th:attr="aria-selected=${diveraDefault ? 'true' : 'false'}"
+                      data-reserve-tab="divera" id="reserve-tab-divera">
+                <span class="incident-reserve-tab__label">DIVERA</span>
+                <span class="incident-reserve-tab__count" id="divera-pool-count"
+                      th:text="${#lists.size(kraefteState.diveraPersons())}">0</span>
+              </button>
+              <button type="button" class="incident-reserve-tab"
+                      th:classappend="${!diveraDefault ? ' incident-reserve-tab--active' : ''}"
+                      role="tab" th:attr="aria-selected=${!diveraDefault ? 'true' : 'false'}"
+                      data-reserve-tab="manual" id="reserve-tab-manual">
+                <span class="incident-reserve-tab__label">Manuell</span>
+                <span class="incident-reserve-tab__count" id="manual-pool-count"
+                      th:text="${#lists.size(kraefteState.manualPersons())}">0</span>
+              </button>
+            </div>
+            <div class="incident-reserve-pools">
+              <div class="incident-person-pool incident-person-pool--reserve incident-person-pool--divera"
+                   th:classappend="${diveraDefault ? ' incident-person-pool--active' : ''}"
+                   id="divera-person-pool" data-pool="divera" role="tabpanel" aria-labelledby="reserve-tab-divera"
+                   th:hidden="${!diveraDefault}">
+                <div class="incident-crew-chip incident-crew-chip--reserve incident-crew-chip--divera" draggable="true"
+                     th:each="p : ${kraefteState.diveraPersons()}"
+                     th:classappend="${p.ucrOnly() ? ' incident-crew-chip--ucr-only' : ''}"
+                     th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}, data-sort-order=${p.sortOrder()}, data-pool-source=${p.poolSource()}, data-ucr-only=${p.ucrOnly() ? 'true' : 'false'}, data-divera-ucr=${p.diveraUcrId()}"
+                     th:text="${p.unitLabel() != null ? p.displayName() + ' (' + p.unitLabel() + ')' : p.displayName()}">Name</div>
+              </div>
+              <div class="incident-person-pool incident-person-pool--reserve"
+                   th:classappend="${!diveraDefault ? ' incident-person-pool--active' : ''}"
+                   id="manual-person-pool" data-pool="manual" role="tabpanel" aria-labelledby="reserve-tab-manual"
+                   th:hidden="${diveraDefault}">
+                <div class="incident-crew-chip incident-crew-chip--reserve" draggable="true"
+                     th:each="p : ${kraefteState.manualPersons()}"
+                     th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}, data-sort-order=${p.sortOrder()}, data-pool-source=${p.poolSource()}"
+                     th:text="${p.displayName()}">Name</div>
+              </div>
+            </div>
+            <p class="hint incident-person-pool-empty" id="divera-pool-empty"
+               th:hidden="${!#lists.isEmpty(kraefteState.diveraPersons())}">Noch keine DIVERA-Rückmeldungen.</p>
+            <p class="hint incident-person-pool-empty" id="manual-pool-empty" hidden
+               th:hidden="${!#lists.isEmpty(kraefteState.manualPersons())}">Alle zugewiesen.</p>
+            <div class="incident-foreign-person-actions" th:if="${allowForeignUnitPersonnel}">
+              <button type="button" class="btn btn--outline btn--sm" id="foreign-person-open-btn">
+                Personal aus anderer Einheit wählen
+              </button>
+            </div>
+          </article>
+        </section>
+        <div id="personal-involved-slot" class="incident-involved-slot"></div>
+      </div>
+    </div>
+
+    <!-- Tab 2: Fahrzeuge -->
+    <div class="incident-tab-panel" data-panel="2" hidden>
+      <div class="incident-kraefte-layout" th:classappend="${formMode == 'view' ? ' incident-kraefte-layout--view' : ''}">
+        <div id="fahrzeuge-involved-slot" class="incident-involved-slot incident-kraefte-col incident-kraefte-col--left"></div>
+        <div class="incident-kraefte-col incident-kraefte-col--right">
+          <section class="incident-kraefte-section incident-kraefte-section--vehicles"
+                   th:with="displayVehicles=${formMode == 'view' ? kraefteState.involvedVehicles() : kraefteState.vehicles()}">
+            <header class="incident-kraefte-section__head">
+              <div>
+                <h3 class="incident-kraefte-section__title">Fahrzeugbesetzung</h3>
+                <p class="hint text-sm" th:if="${formMode != 'view'}">ZF / GF / M / Gesamt — Fahrzeug anklicken für „Fahrzeug beteiligt“, Person für EF/Ma/PA</p>
+                <p class="hint text-sm" th:if="${formMode == 'view'}">ZF / GF / M / Gesamt — EF = Einheitsführer, Ma = Maschinist, PA = Atemschutz</p>
+              </div>
+            </header>
+            <div class="incident-vehicle-stack" id="incident-vehicle-stack">
+              <article class="incident-vehicle-card"
+                       th:each="v : ${displayVehicles}"
+                       th:classappend="${(v.vehicleType() != null ? 'incident-vehicle-card--type-' + v.vehicleType() : '') + (v.involvedInIncident() ? ' incident-vehicle-card--einsatz-beteiligt' : '')}"
+                       th:attr="data-vehicle-id=${v.vehicleId()},
+                                data-vehicle-type=${v.vehicleType()},
+                                data-manually-involved=${v.manuallyInvolvedInIncident() ? 'true' : 'false'},
+                                data-involved-in-incident=${v.involvedInIncident() ? 'true' : 'false'}">
+                <header class="incident-vehicle-card__head">
+                  <div class="incident-vehicle-card__title-wrap">
+                    <h5 class="incident-vehicle-card__name" th:text="${v.name()}">HLF 20</h5>
+                    <span class="incident-vehicle-card__type-label" th:if="${v.vehicleTypeLabel() != null}"
+                          th:text="${v.vehicleTypeLabel()}">Löschfahrzeug</span>
+                  </div>
+                  <div class="incident-vehicle-card__meta">
+                    <button type="button" class="incident-vehicle-involved-toggle"
+                            th:if="${formMode != 'view'}"
+                            th:attr="aria-pressed=${v.involvedInIncident() ? 'true' : 'false'}"
+                            title="Fahrzeug beteiligt markieren">
+                      Fahrzeug beteiligt
+                    </button>
+                    <span class="incident-vehicle-card__staerke" th:attr="data-staerke-badge=${v.vehicleId()}"
+                          th:text="${v.besatzungsstaerke()}">0/0/0/0</span>
+                  </div>
+                </header>
+                <div class="incident-vehicle-dropzone" th:attr="data-vehicle-id=${v.vehicleId()}">
+                  <div class="incident-crew-chip incident-crew-chip--vehicle-role"
+                       th:each="person : ${v.crewPersons()}"
+                       th:attr="draggable=${formMode != 'view' ? 'true' : 'false'}"
+                       th:classappend="${(person.poolSource() == 'divera' ? ' incident-crew-chip--divera' : '') + (person.vehicleRole() == 'EINHEITSFUEHRER' ? ' incident-crew-chip--ef' : (person.vehicleRole() == 'MASCHINIST' ? ' incident-crew-chip--maschinist' : '')) + (person.usesPa() ? ' incident-crew-chip--pa' : '')}"
+                       th:data-person-id="${person.id()}"
+                       th:data-qual-tier="${person.qualTier()}"
+                       th:data-person-name="${person.displayName()}"
+                       th:data-sort-order="${person.sortOrder()}"
+                       th:data-vehicle-role="${person.vehicleRole()}"
+                       th:data-pool-source="${person.poolSource()}"
+                       th:data-pa="${person.usesPa() ? 'true' : null}">
+                    <span class="incident-crew-chip__role-badge"
+                          th:if="${person.vehicleRole() == 'EINHEITSFUEHRER'}">EF</span>
+                    <span class="incident-crew-chip__role-badge"
+                          th:if="${person.vehicleRole() == 'MASCHINIST'}">Ma</span>
+                    <span class="incident-crew-chip__pa-badge" th:if="${person.usesPa()}">PA</span>
+                    <span class="incident-crew-chip__name" th:text="${person.displayName()}">Name</span>
+                  </div>
+                </div>
+                <p class="hint incident-vehicle-dropzone-hint" th:if="${formMode != 'view'}">Hier ablegen</p>
+              </article>
+            </div>
+            <p class="hint" th:if="${formMode == 'view' and #lists.isEmpty(displayVehicles)}">
+              Keine beteiligten Fahrzeuge.
+            </p>
+            <p class="hint" th:if="${formMode != 'view' and #lists.isEmpty(kraefteState.vehicles())}">
+              Keine Fahrzeuge in dieser Einheit.
+            </p>
+          </section>
+          <section class="incident-kraefte-section incident-kraefte-section--virtual"
+                   th:if="${formMode != 'view' or !#lists.isEmpty(scene.crewPersons()) or !#lists.isEmpty(wache.crewPersons())}">
+            <header class="incident-kraefte-section__head">
+              <h3 class="incident-kraefte-section__title">Ohne Fahrzeug</h3>
+            </header>
+            <div class="incident-virtual-slots">
+              <article class="incident-vehicle-card incident-vehicle-card--compact incident-vehicle-card--einsatzstelle"
+                       th:if="${formMode != 'view' or !#lists.isEmpty(scene.crewPersons())}"
+                       th:attr="data-vehicle-id=${scene.vehicleId()}">
+                <header class="incident-vehicle-card__head">
+                  <h5 class="incident-vehicle-card__name" th:text="${scene.name()}">Einsatzstelle</h5>
+                  <span class="incident-vehicle-card__staerke" th:attr="data-staerke-badge=${scene.vehicleId()}"
+                        th:text="${scene.besatzungsstaerke()}">0/0/0/0</span>
+                </header>
+                <div class="incident-vehicle-dropzone" th:attr="data-vehicle-id=${scene.vehicleId()}">
+                  <div class="incident-crew-chip"
+                       th:each="person : ${scene.crewPersons()}"
+                       th:attr="draggable=${formMode != 'view' ? 'true' : 'false'}"
+                       th:classappend="${(person.poolSource() == 'divera' ? ' incident-crew-chip--divera' : '') + (person.usesPa() ? ' incident-crew-chip--pa' : '')}"
+                       th:data-person-id="${person.id()}"
+                       th:data-qual-tier="${person.qualTier()}"
+                       th:data-person-name="${person.displayName()}"
+                       th:data-sort-order="${person.sortOrder()}"
+                       th:data-pool-source="${person.poolSource()}"
+                       th:data-pa="${person.usesPa() ? 'true' : null}">
+                    <span class="incident-crew-chip__pa-badge" th:if="${person.usesPa()}">PA</span>
+                    <span class="incident-crew-chip__name" th:text="${person.displayName()}">Name</span>
+                  </div>
+                </div>
+                <p class="hint incident-vehicle-dropzone-hint" th:if="${formMode != 'view'}">Vor Ort, kein Fahrzeug</p>
+              </article>
+              <article class="incident-vehicle-card incident-vehicle-card--compact incident-vehicle-card--wache"
+                       th:if="${formMode != 'view' or !#lists.isEmpty(wache.crewPersons())}"
+                       th:attr="data-vehicle-id=${wache.vehicleId()}">
+                <header class="incident-vehicle-card__head">
+                  <h5 class="incident-vehicle-card__name" th:text="${wache.name()}">Wache</h5>
+                  <span class="incident-vehicle-card__staerke" th:attr="data-staerke-badge=${wache.vehicleId()}"
+                        th:text="${wache.besatzungsstaerke()}">0/0/0/0</span>
+                </header>
+                <div class="incident-vehicle-dropzone" th:attr="data-vehicle-id=${wache.vehicleId()}">
+                  <div class="incident-crew-chip"
+                       th:each="person : ${wache.crewPersons()}"
+                       th:attr="draggable=${formMode != 'view' ? 'true' : 'false'}"
+                       th:classappend="${(person.poolSource() == 'divera' ? ' incident-crew-chip--divera' : '') + (person.usesPa() ? ' incident-crew-chip--pa' : '')}"
+                       th:data-person-id="${person.id()}"
+                       th:data-qual-tier="${person.qualTier()}"
+                       th:data-person-name="${person.displayName()}"
+                       th:data-sort-order="${person.sortOrder()}"
+                       th:data-pool-source="${person.poolSource()}"
+                       th:data-pa="${person.usesPa() ? 'true' : null}">
+                    <span class="incident-crew-chip__pa-badge" th:if="${person.usesPa()}">PA</span>
+                    <span class="incident-crew-chip__name" th:text="${person.displayName()}">Name</span>
+                  </div>
+                </div>
+                <p class="hint incident-vehicle-dropzone-hint" th:if="${formMode != 'view'}">Nur an der Wache</p>
+              </article>
+            </div>
+          </section>
         </div>
       </div>
     </div>
 
-    <div class="incident-tab-panel" data-panel="1" hidden>
-      <input type="hidden" id="personnelJson" name="personnelJson" th:value="${form.personnelJson}"/>
-      <script type="application/json" id="anwesenheit-personnel-data" th:utext="${form.personnelJson}">[]</script>
-      <div id="anwesenheit-personnel-root"
-           th:attr="data-readonly=${formMode == 'view' ? 'true' : 'false'}">
-        <div class="toolbar-actions" th:if="${formMode != 'view'}" style="margin-bottom:12px;">
-          <button type="button" class="btn btn--outline btn--sm" id="btn-add-personnel">+ Person hinzufügen</button>
+    <article id="involved-card" class="incident-vehicle-card incident-vehicle-card--involved"
+             th:attr="data-vehicle-id=${beteiligt.vehicleId()}">
+      <header class="incident-vehicle-card__head">
+        <h3 class="incident-kraefte-section__title">Anwesend</h3>
+        <span class="incident-vehicle-card__staerke" th:attr="data-staerke-badge=${beteiligt.vehicleId()}"
+              th:text="${beteiligt.besatzungsstaerke()}">0/0/0/0</span>
+      </header>
+      <div class="incident-vehicle-dropzone incident-vehicle-dropzone--involved"
+           th:attr="data-vehicle-id=${beteiligt.vehicleId()}">
+        <div class="incident-crew-chip"
+             th:each="person : ${beteiligt.crewPersons()}"
+             th:classappend="${(person.poolSource() == 'divera' ? ' incident-crew-chip--divera' : '') + (person.poolSource() == 'foreign' ? ' incident-crew-chip--foreign' : '')}"
+             th:attr="draggable=${formMode != 'view' ? 'true' : 'false'},
+                      data-person-id=${person.id()},
+                      data-qual-tier=${person.qualTier()},
+                      data-person-name=${person.displayName()},
+                      data-sort-order=${person.sortOrder()},
+                      data-pool-source=${person.poolSource()},
+                      data-unit-label=${person.unitLabel()}">
+          <span class="incident-crew-chip__name"
+                th:text="${person.unitLabel() != null ? person.displayName() + ' (' + person.unitLabel() + ')' : person.displayName()}">Name</span>
         </div>
-        <div style="overflow-x:auto">
-          <table class="data-table" id="anwesenheit-personnel-table">
-            <thead>
-            <tr>
-              <th>Name</th>
-              <th>Status</th>
-              <th th:if="${formMode != 'view'}">Aktion</th>
-            </tr>
-            </thead>
-            <tbody id="anwesenheit-personnel-body"></tbody>
-          </table>
+      </div>
+      <p class="hint incident-vehicle-dropzone-hint" th:if="${formMode != 'view'}">Personal hierher ziehen</p>
+    </article>
+
+    <div id="incident-vehicle-assign-menu" class="incident-crew-role-menu incident-vehicle-assign-menu" hidden role="menu" th:if="${formMode != 'view'}"></div>
+
+    <div id="incident-crew-role-menu" class="incident-crew-role-menu" hidden role="menu" th:if="${formMode != 'view'}">
+      <button type="button" class="incident-crew-role-menu__btn" data-role="EINHEITSFUEHRER" role="menuitem">
+        Einheitsführer
+      </button>
+      <button type="button" class="incident-crew-role-menu__btn" data-role="MASCHINIST" role="menuitem">
+        Maschinist
+      </button>
+      <button type="button" class="incident-crew-role-menu__btn" data-action="PA" role="menuitem">
+        PA (Atemschutz)
+      </button>
+      <button type="button" class="incident-crew-role-menu__btn incident-crew-role-menu__btn--danger" data-action="CLEAR_ROLE" role="menuitem">
+        Zuordnung löschen
+      </button>
+      <button type="button" class="incident-crew-role-menu__btn incident-crew-role-menu__btn--danger" data-action="CLEAR_PA" role="menuitem">
+        PA entfernen
+      </button>
+    </div>
+  </div>
+
+  <!-- Tab 3: Eingesetzte Geräte -->
+  <div class="incident-tab-panel" data-panel="3" hidden>
+    <p class="hint" id="deployed-equipment-no-vehicles" hidden>
+      Markieren Sie zuerst im Reiter Fahrzeuge die beteiligten Fahrzeuge.
+    </p>
+    <p class="hint" id="deployed-equipment-empty" hidden>
+      Für die beteiligten Fahrzeuge sind noch keine Geräte in der Technik-Verwaltung hinterlegt.
+    </p>
+    <div id="incident-deployed-equipment" class="incident-deployed-equipment"
+         th:data-readonly="${formMode == 'view' ? 'true' : 'false'}"
+         th:data-initial="${form.deployedEquipmentJson}"></div>
+  </div>
+
+  <!-- Tab 4: Bericht -->
+  <div class="incident-tab-panel" data-panel="4" hidden>
+    <div class="form-group">
+      <label for="einsatzkurzbericht">Bericht</label>
+      <textarea id="einsatzkurzbericht" name="einsatzkurzbericht" rows="16"
+                class="incident-kurzbericht-field" th:readonly="${formMode == 'view'}"
+                placeholder="Bericht zur Veranstaltung …"
+                th:text="${form.einsatzkurzbericht}"></textarea>
+    </div>
+  </div>
+
+  <!-- Tab 5: Anhänge -->
+  <div class="incident-tab-panel" data-panel="5" hidden th:if="${report != null}">
+    <div id="incident-attachments-wrap"
+         th:attr="data-report-id=${report.id},data-unit-id=${unitId},data-readonly=${formMode == 'view' or report.status.name() != 'ENTWURF' ? 'true' : 'false'}">
+    </div>
+  </div>
+  </div>
+
+  <div id="foreign-person-modal" class="incident-modal" hidden aria-hidden="true"
+       th:if="${formMode != 'view' and allowForeignUnitPersonnel}">
+    <div class="modal__backdrop"></div>
+    <div class="modal__box">
+      <div class="modal__header">
+        <h3>Personal aus anderer Einheit</h3>
+        <button type="button" class="modal__close" id="foreign-person-modal-close" aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal__body">
+        <label for="foreign-unit-select">Einheit</label>
+        <select id="foreign-unit-select" class="field">
+          <option value="">Bitte Einheit wählen …</option>
+        </select>
+        <label for="foreign-person-search" style="margin-top:12px;">Suchen</label>
+        <input type="search" id="foreign-person-search" class="field" placeholder="Name …" autocomplete="off" disabled/>
+        <div id="foreign-person-results" class="foreign-person-results">
+          <p class="hint">Bitte zuerst eine Einheit wählen.</p>
         </div>
-        <p class="hint text-sm" id="anwesenheit-personnel-empty" style="margin:12px 0 0;" hidden>
-          Noch keine Personen eingetragen.
-        </p>
       </div>
     </div>
   </div>

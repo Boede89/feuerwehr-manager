@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de" xmlns:th="http://www.thymeleaf.org"
       th:replace="~{fragments/layout :: layout(${pageTitle}, ~{::main})}">
-<main class="einsatzbericht-form-page einsatzbericht-view-page">
+<main class="einsatzbericht-form-page einsatzbericht-view-page" data-berichte-form="anwesenheit">
   <meta name="berichte-api-base" content="/berichte/anwesenheitslisten"/>
 
   <div class="page-header">
@@ -47,7 +47,7 @@
   <div class="card">
     <div class="card__body card__body--flush">
       <div id="einsatzbericht-view" class="einsatzbericht-form--view">
-        <th:block th:replace="~{fragments/berichte-einsatz-form :: form}"></th:block>
+        <th:block th:replace="~{fragments/berichte-anwesenheit-form :: form}"></th:block>
       </div>
     </div>
   </div>
@@ -57,7 +57,6 @@
   <script th:src="@{/js/berichte-kraefte.js}" defer></script>
   <script th:src="@{/js/berichte-kraefte-foreign.js}" defer></script>
   <script th:src="@{/js/berichte-geraete.js}" defer></script>
-  <script th:src="@{/js/berichte-schaeden.js}" defer></script>
   <script th:src="@{/js/berichte-anhaenge.js}" defer></script>
 </main>
 </html>

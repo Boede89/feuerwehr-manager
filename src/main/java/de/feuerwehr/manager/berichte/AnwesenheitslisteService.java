@@ -115,6 +115,25 @@ public class AnwesenheitslisteService {
         return einsatzberichtService.buildKraefteFahrzeugeState(unitId, null);
     }
 
+    public void enrichEinsatzFormFromTermin(AttendanceReport report, EinsatzberichtForm form) {
+        if (report == null || form == null || report.getUnitTermin() == null) {
+            return;
+        }
+        if (form.getIncidentCommander() != null && !form.getIncidentCommander().isBlank()) {
+            return;
+        }
+        if (report.getInstructorResponsible() != null && !report.getInstructorResponsible().isBlank()) {
+            form.setIncidentCommander(report.getInstructorResponsible());
+            return;
+        }
+        UnitTermin termin = report.getUnitTermin();
+        termin.getInstructorPersons().size();
+        String instructors = formatInstructorNames(termin);
+        if (instructors != null && !instructors.isBlank()) {
+            form.setIncidentCommander(instructors);
+        }
+    }
+
     public String buildCrewJsonFromPersonnel(long unitId, long attendanceReportId) {
         List<Long> personIds = listPersonnel(attendanceReportId).stream()
                 .map(AttendanceReportPersonnel::getPerson)
@@ -378,6 +397,22 @@ public class AnwesenheitslisteService {
         report.setTerminCategory(termin.getCategory());
         String location = termin.getLocation() != null ? termin.getLocation().trim() : "";
         report.setLocation(location.isBlank() ? "—" : location);
+        termin.getInstructorPersons().size();
+        String instructors = formatInstructorNames(termin);
+        if (instructors != null && !instructors.isBlank()) {
+            report.setInstructorResponsible(instructors);
+        }
+    }
+
+    private static String formatInstructorNames(UnitTermin termin) {
+        List<String> names = termin.getInstructorPersons().stream()
+                .sorted(Comparator.comparing(Person::anwesenheitDisplayName, String.CASE_INSENSITIVE_ORDER))
+                .map(Person::anwesenheitDisplayName)
+                .toList();
+        if (names.isEmpty()) {
+            return null;
+        }
+        return String.join(", ", names);
     }
 
     private void validateEinsatzForm(EinsatzberichtForm form) {
@@ -388,7 +423,7 @@ public class AnwesenheitslisteService {
             throw new IllegalArgumentException("Bitte ein Datum angeben.");
         }
         if (form.getStichwort() == null || form.getStichwort().isBlank()) {
-            throw new IllegalArgumentException("Bitte eine Bezeichnung angeben.");
+            throw new IllegalArgumentException("Bitte ein Thema angeben.");
         }
         if (form.getLocation() == null || form.getLocation().isBlank()) {
             throw new IllegalArgumentException("Bitte einen Ort angeben.");

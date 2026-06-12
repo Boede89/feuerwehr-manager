@@ -63,6 +63,9 @@ public class AttendanceReport {
     @Column(nullable = false, length = 300)
     private String location = "";
 
+    @Column(name = "instructor_responsible", length = 255)
+    private String instructorResponsible;
+
     @Column(columnDefinition = "TEXT")
     private String notes;
 

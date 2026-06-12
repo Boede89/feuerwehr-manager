@@ -674,6 +674,9 @@ public class BerichteController {
 
     private void populateAnwesenheitEinsatzFormModel(
             Model model, long unitId, AttendanceReport report, EinsatzberichtForm form) {
+        if (report != null) {
+            anwesenheitslisteService.enrichEinsatzFormFromTermin(report, form);
+        }
         Long reportId = report != null ? report.getId() : null;
         KraefteFahrzeugeState kraefteState = anwesenheitslisteService.buildKraefteFahrzeugeState(unitId, reportId);
         model.addAttribute("report", report);

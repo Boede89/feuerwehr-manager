@@ -16,6 +16,7 @@ public final class AnwesenheitslisteEinsatzFormBridge {
         form.setEndTime(report.getEndTime());
         form.setStichwort(report.getTitle());
         form.setLocation(report.getLocation() != null ? report.getLocation() : "");
+        form.setIncidentCommander(report.getInstructorResponsible());
         form.setEinsatzkurzbericht(report.getNotes());
         form.setPersonDamageDetailsJson(PersonDamageDetailsSupport.emptyJson());
         form.setDamagePerpetratorJson(DamagePerpetratorSupport.emptyJson());
@@ -35,6 +36,8 @@ public final class AnwesenheitslisteEinsatzFormBridge {
             report.setTitle(form.getStichwort().trim());
         }
         report.setLocation(form.getLocation() != null ? form.getLocation().trim() : "");
+        String instructor = form.getIncidentCommander();
+        report.setInstructorResponsible(instructor != null && !instructor.isBlank() ? instructor.trim() : null);
         report.setNotes(form.getEinsatzkurzbericht());
         if (form.getIncidentNumber() != null && !form.getIncidentNumber().isBlank()) {
             report.setReportNumber(form.getIncidentNumber().trim());

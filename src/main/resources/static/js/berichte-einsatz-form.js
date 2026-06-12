@@ -35,8 +35,14 @@
     });
   }
 
+  function isAnwesenheitForm(scope) {
+    var page = (scope || document).querySelector('[data-berichte-form="anwesenheit"]');
+    return !!page;
+  }
+
   function init(root) {
     var scope = root || document;
+    var anwesenheit = isAnwesenheitForm(scope);
     scope.querySelectorAll('.incident-tab').forEach(function (btn) {
       if (btn.dataset.bound === 'true') {
         return;
@@ -51,31 +57,34 @@
         if (idx === 3 && window.BerichteGeraete) {
           window.BerichteGeraete.onTabShow();
         }
-        if (idx === 4 && window.BerichteSchaeden) {
+        if (!anwesenheit && idx === 4 && window.BerichteSchaeden) {
           window.BerichteSchaeden.init(scope);
         }
-        if (idx === 6 && window.BerichteAnhaenge) {
+        var attachmentsTab = anwesenheit ? 5 : 6;
+        if (idx === attachmentsTab && window.BerichteAnhaenge) {
           window.BerichteAnhaenge.load();
         }
       });
     });
 
-    if (window.BerichteSchaeden) {
+    if (!anwesenheit && window.BerichteSchaeden) {
       window.BerichteSchaeden.init(scope);
     }
 
-    bindDamageAutoEnable('personDamagesEnabled', [
-      'personsRescued',
-      'personsInjured',
-      'personsRecovered',
-      'personsDead'
-    ]);
-    bindDamageAutoEnable('animalDamagesEnabled', [
-      'animalsRescued',
-      'animalsInjured',
-      'animalsRecovered',
-      'animalsDead'
-    ]);
+    if (!anwesenheit) {
+      bindDamageAutoEnable('personDamagesEnabled', [
+        'personsRescued',
+        'personsInjured',
+        'personsRecovered',
+        'personsDead'
+      ]);
+      bindDamageAutoEnable('animalDamagesEnabled', [
+        'animalsRescued',
+        'animalsInjured',
+        'animalsRecovered',
+        'animalsDead'
+      ]);
+    }
 
     var dateInput = document.getElementById('incidentDate');
     var numberInput = document.getElementById('incidentNumber');

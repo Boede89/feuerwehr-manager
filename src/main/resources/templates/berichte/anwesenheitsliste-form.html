@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de" xmlns:th="http://www.thymeleaf.org"
       th:replace="~{fragments/layout :: layout(${pageTitle}, ~{::main})}">
-<main class="einsatzbericht-form-page">
+<main class="einsatzbericht-form-page" data-berichte-form="anwesenheit">
   <meta name="berichte-api-base" content="/berichte/anwesenheitslisten"/>
 
   <div class="page-header">
@@ -31,7 +31,7 @@
       <form id="anwesenheitsliste-form" method="post"
             th:action="${formMode == 'edit'} ? @{/berichte/anwesenheitslisten/{id}(id=${report.id},unit=${unitId})} : @{/berichte/anwesenheitslisten(unit=${unitId})}">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-        <th:block th:replace="~{fragments/berichte-einsatz-form :: form}"></th:block>
+        <th:block th:replace="~{fragments/berichte-anwesenheit-form :: form}"></th:block>
       </form>
     </div>
   </div>
@@ -42,7 +42,6 @@
   <script th:src="@{/js/berichte-kraefte.js}" defer></script>
   <script th:src="@{/js/berichte-kraefte-foreign.js}" defer></script>
   <script th:src="@{/js/berichte-geraete.js}" defer></script>
-  <script th:src="@{/js/berichte-schaeden.js}" defer></script>
   <script th:if="${report != null}" th:src="@{/js/berichte-anhaenge.js}" defer></script>
 </main>
 </html>
