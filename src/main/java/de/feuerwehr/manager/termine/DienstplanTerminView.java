@@ -9,4 +9,5 @@ public record DienstplanTerminView(
         String thema,
         LocalTime dienstBeginn,
         LocalTime dienstEnde,
-        String ausbilderName) {}
+        String ausbilderName,
+        String personenGruppenLabel) {}

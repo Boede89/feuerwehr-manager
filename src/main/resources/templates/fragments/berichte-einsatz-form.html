@@ -113,7 +113,7 @@
                  placeholder="Name eingeben …" th:value="${form.incidentCommander}"/>
           <ul class="combo-suggest__list" role="listbox" hidden>
             <li class="combo-suggest__option" th:each="p : ${unitPersons}"
-                th:attr="data-value=${p.anwesenheitDisplayName()}"
+                th:attr="data-value=${p.anwesenheitDisplayName()}, data-person-id=${p.id}"
                 th:text="${p.anwesenheitDisplayName()}">Name</li>
           </ul>
         </div>

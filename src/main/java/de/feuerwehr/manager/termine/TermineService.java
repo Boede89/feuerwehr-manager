@@ -1,13 +1,21 @@
 package de.feuerwehr.manager.termine;
 
 import de.feuerwehr.manager.personal.Person;
+import de.feuerwehr.manager.personal.PersonGroup;
+import de.feuerwehr.manager.personal.PersonGroupRepository;
 import de.feuerwehr.manager.personal.PersonalService;
+import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,12 +28,15 @@ public class TermineService {
     private final UnitRepository unitRepository;
     private final UserRepository userRepository;
     private final PersonalService personalService;
+    private final PersonGroupRepository personGroupRepository;
+    private final TestModeService testModeService;
 
     @Transactional(readOnly = true)
     public List<DienstplanTerminView> listDienstplanTermine(long unitId) {
-        return unitTerminRepository.findByUnitAndCategoryWithInstructor(unitId, TermineCategory.DIENSTPLAN).stream()
-                .map(this::toDienstplanView)
-                .toList();
+        List<UnitTermin> termins =
+                unitTerminRepository.findByUnitAndCategoryWithInstructor(unitId, TermineCategory.DIENSTPLAN);
+        termins.forEach(this::touchAudienceCollections);
+        return termins.stream().map(this::toDienstplanView).toList();
     }
 
     @Transactional(readOnly = true)
@@ -73,18 +84,94 @@ public class TermineService {
         termin.setEndAt(endAt);
         termin.setInstructorPerson(instructor);
         termin.setCreatedBy(createdBy);
+        applyAudience(unitId, termin, request);
         unitTerminRepository.save(termin);
+    }
+
+    private void applyAudience(long unitId, UnitTermin termin, CreateDienstplanTerminRequest request) {
+        if (request.appliesToAll()) {
+            termin.setAudienceAll(true);
+            termin.getAssignedPersons().clear();
+            termin.getAssignedGroups().clear();
+            return;
+        }
+        Set<Person> persons = resolveAssignedPersons(unitId, request.personIds());
+        Set<PersonGroup> groups = resolveAssignedGroups(unitId, request.groupIds());
+        if (persons.isEmpty() && groups.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Bitte mindestens eine Person oder Gruppe auswählen, oder „Alle“ aktiv lassen.");
+        }
+        termin.setAudienceAll(false);
+        termin.setAssignedPersons(persons);
+        termin.setAssignedGroups(groups);
+    }
+
+    private Set<Person> resolveAssignedPersons(long unitId, List<Long> personIds) {
+        Set<Person> persons = new LinkedHashSet<>();
+        if (personIds == null) {
+            return persons;
+        }
+        for (Long personId : personIds) {
+            if (personId == null || personId <= 0 || persons.stream().anyMatch(p -> p.getId().equals(personId))) {
+                continue;
+            }
+            persons.add(requireUnitPerson(unitId, personId));
+        }
+        return persons;
+    }
+
+    private Set<PersonGroup> resolveAssignedGroups(long unitId, List<Long> groupIds) {
+        Set<PersonGroup> groups = new LinkedHashSet<>();
+        if (groupIds == null) {
+            return groups;
+        }
+        for (Long groupId : groupIds) {
+            if (groupId == null || groupId <= 0 || groups.stream().anyMatch(g -> g.getId().equals(groupId))) {
+                continue;
+            }
+            groups.add(requireUnitGroup(unitId, groupId));
+        }
+        return groups;
+    }
+
+    private PersonGroup requireUnitGroup(long unitId, long groupId) {
+        PersonGroup group;
+        if (testModeService.isEnabled()) {
+            group = personGroupRepository
+                    .findByIdWithMembers(groupId, true)
+                    .or(() -> personGroupRepository.findByIdWithMembers(groupId, false))
+                    .orElseThrow(() -> new IllegalArgumentException("Gruppe nicht gefunden."));
+        } else {
+            group = personGroupRepository
+                    .findByIdWithMembers(groupId, false)
+                    .orElseThrow(() -> new IllegalArgumentException("Gruppe nicht gefunden."));
+        }
+        if (group.getUnit() == null || group.getUnit().getId() != unitId) {
+            throw new IllegalArgumentException("Gruppe gehört nicht zu dieser Einheit.");
+        }
+        return group;
     }
 
     private Person resolveInstructor(long unitId, Long personId) {
         if (personId == null) {
             return null;
         }
+        return requireUnitPerson(unitId, personId);
+    }
+
+    private Person requireUnitPerson(long unitId, long personId) {
         Person person = personalService.requirePerson(personId);
         if (person.getUnit() == null || person.getUnit().getId() != unitId) {
-            throw new IllegalArgumentException("Ausbilder gehört nicht zu dieser Einheit.");
+            throw new IllegalArgumentException("Person gehört nicht zu dieser Einheit.");
         }
         return person;
+    }
+
+    private void touchAudienceCollections(UnitTermin termin) {
+        if (!termin.isAudienceAll()) {
+            termin.getAssignedPersons().size();
+            termin.getAssignedGroups().size();
+        }
     }
 
     private DienstplanTerminView toDienstplanView(UnitTermin termin) {
@@ -98,7 +185,27 @@ public class TermineService {
                 termin.getTitle(),
                 termin.getStartAt().toLocalTime(),
                 termin.getEndAt() != null ? termin.getEndAt().toLocalTime() : null,
-                ausbilderName);
+                ausbilderName,
+                formatAudienceLabel(termin));
+    }
+
+    private String formatAudienceLabel(UnitTermin termin) {
+        if (termin.isAudienceAll()) {
+            return "Alle";
+        }
+        List<String> parts = new ArrayList<>();
+        termin.getAssignedGroups().stream()
+                .sorted(Comparator.comparing(PersonGroup::getName, String.CASE_INSENSITIVE_ORDER))
+                .map(group -> "Gruppe: " + group.getName())
+                .forEach(parts::add);
+        termin.getAssignedPersons().stream()
+                .sorted(Comparator.comparing(Person::anwesenheitDisplayName, String.CASE_INSENSITIVE_ORDER))
+                .map(Person::anwesenheitDisplayName)
+                .forEach(parts::add);
+        if (parts.isEmpty()) {
+            return "Alle";
+        }
+        return parts.stream().collect(Collectors.joining(", "));
     }
 
     private static String trimToNull(String value) {

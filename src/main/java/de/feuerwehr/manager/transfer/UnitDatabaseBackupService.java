@@ -47,6 +47,7 @@ public class UnitDatabaseBackupService {
             "DELETE FROM person_equipment WHERE person_id IN (" + PERSON_IDS + ")",
             "DELETE FROM person_honors WHERE person_id IN (" + PERSON_IDS + ")",
             "DELETE FROM person_emergency_contacts WHERE person_id IN (" + PERSON_IDS + ")",
+            "DELETE FROM termin_group_assignments WHERE termin_id IN (" + TERMIN_IDS + ")",
             "DELETE FROM termin_assignments WHERE termin_id IN (" + TERMIN_IDS + ")",
             "DELETE FROM time_entries WHERE person_id IN (" + PERSON_IDS + ")",
             "DELETE FROM user_rfid_cards WHERE user_id IN (" + UNIT_USER_IDS + ")",
@@ -167,6 +168,11 @@ public class UnitDatabaseBackupService {
         exportTable(
                 "termin_assignments",
                 "SELECT ta.* FROM termin_assignments ta JOIN unit_termine ut ON ta.termin_id = ut.id WHERE ut.unit_id = ?",
+                params,
+                out);
+        exportTable(
+                "termin_group_assignments",
+                "SELECT tga.* FROM termin_group_assignments tga JOIN unit_termine ut ON tga.termin_id = ut.id WHERE ut.unit_id = ?",
                 params,
                 out);
         exportPersonChild("time_entries", out, unitId);

@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.web;
 
+import de.feuerwehr.manager.personal.PersonalGroupService;
 import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
@@ -35,6 +36,7 @@ public class TermineController {
     private final UserPermissionService userPermissionService;
     private final TermineService termineService;
     private final PersonalService personalService;
+    private final PersonalGroupService personalGroupService;
 
     @GetMapping
     public String index(
@@ -55,6 +57,7 @@ public class TermineController {
                 model.addAttribute("dienstplanTermine", termineService.listDienstplanTermine(unit.getId()));
                 model.addAttribute("knownDienstplanThemen", termineService.listKnownDienstplanThemen(unit.getId()));
                 model.addAttribute("unitPersons", personalService.listPersons(unit.getId()));
+                model.addAttribute("unitPersonGroups", personalGroupService.listGroups(unit.getId()));
             }
             return "termine/index";
         } catch (IllegalArgumentException e) {

@@ -956,6 +956,7 @@
     switchReserveTab(hasDivera ? 'divera' : 'manual');
     placeInvolvedCard(1);
     refreshBoard();
+    bindCommanderAutoInvolved();
   }
 
   function addForeignPerson(person) {
@@ -992,9 +993,53 @@
     return !!document.querySelector('.incident-crew-chip[data-person-id="' + personId + '"]');
   }
 
+  function personAssignedOutsideReserve(personId) {
+    var chips = document.querySelectorAll('.incident-crew-chip[data-person-id="' + personId + '"]');
+    for (var i = 0; i < chips.length; i++) {
+      var chip = chips[i];
+      if (!isMirrorChip(chip) && !isReserveChip(chip)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function ensurePersonInvolved(personId) {
+    if (!personId || isBoardReadonly()) {
+      return;
+    }
+    var id = String(personId);
+    if (personAssignedOutsideReserve(id)) {
+      refreshBoard();
+      return;
+    }
+    var poolChip = document.querySelector(
+      '.incident-person-pool--reserve .incident-crew-chip[data-person-id="' + id + '"]'
+    );
+    if (poolChip) {
+      moveChipToInvolved(poolChip);
+    }
+  }
+
+  function bindCommanderAutoInvolved() {
+    var commanderInput = document.getElementById('incidentCommander');
+    if (!commanderInput || commanderInput.readOnly) {
+      return;
+    }
+    function syncCommanderInvolved() {
+      var personId = commanderInput.dataset.personId;
+      if (personId) {
+        ensurePersonInvolved(personId);
+      }
+    }
+    commanderInput.addEventListener('change', syncCommanderInvolved);
+    syncCommanderInvolved();
+  }
+
   window.BerichteKraefte = {
     init: bindBoard,
     addForeignPerson: addForeignPerson,
+    ensurePersonInvolved: ensurePersonInvolved,
     refreshAfterForeignAdd: refreshBoard,
     onTabShow: function (tabIdx) {
       activeCrewTab = tabIdx;

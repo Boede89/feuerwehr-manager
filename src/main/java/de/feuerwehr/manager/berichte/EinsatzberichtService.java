@@ -277,6 +277,20 @@ public class EinsatzberichtService {
                     }
                 }
             }
+            incidentReportRepository.findById(reportId).ifPresent(report -> {
+                Person commander = report.getCommanderPerson();
+                if (commander == null) {
+                    return;
+                }
+                long commanderId = commander.getId();
+                personById.putIfAbsent(commanderId, commander);
+                if (!onVehicleRefIds.contains(commanderId)) {
+                    if (!beteiligtCrewIds.contains(commanderId)) {
+                        beteiligtCrewIds.add(commanderId);
+                    }
+                    onVehicleRefIds.add(commanderId);
+                }
+            });
         }
 
         Map<Long, Integer> sortOrderByRefId = new LinkedHashMap<>();
@@ -818,6 +832,43 @@ public class EinsatzberichtService {
                 .ifPresent(report::setCommanderPerson);
     }
 
+    private List<CrewAssignment> withCommanderInBeteiligt(List<CrewAssignment> assignments, IncidentReport report) {
+        Person commander = report.getCommanderPerson();
+        if (commander == null) {
+            return assignments;
+        }
+        long commanderId = commander.getId();
+        boolean alreadyAssigned = assignments.stream()
+                .anyMatch(assignment -> assignment.personIds() != null && assignment.personIds().contains(commanderId));
+        if (alreadyAssigned) {
+            return assignments;
+        }
+        long beteiligtId = IncidentCrewSupport.BETEILIGT_VEHICLE_ID;
+        List<CrewAssignment> result = new ArrayList<>(assignments);
+        Optional<CrewAssignment> beteiligtAssignment = result.stream()
+                .filter(assignment -> assignment.vehicleId() == beteiligtId)
+                .findFirst();
+        if (beteiligtAssignment.isPresent()) {
+            CrewAssignment existing = beteiligtAssignment.get();
+            List<Long> personIds = new ArrayList<>(existing.personIds() != null ? existing.personIds() : List.of());
+            personIds.add(commanderId);
+            int index = result.indexOf(existing);
+            result.set(
+                    index,
+                    new CrewAssignment(
+                            beteiligtId,
+                            personIds,
+                            existing.einheitsfuehrerPersonId(),
+                            existing.maschinistPersonId(),
+                            existing.paPersonIds(),
+                            existing.involvedInIncident(),
+                            existing.manuallyInvolvedInIncident()));
+        } else {
+            result.add(new CrewAssignment(beteiligtId, List.of(commanderId)));
+        }
+        return result;
+    }
+
     private void saveCrewAssignments(IncidentReport report, EinsatzberichtFormData form, long unitId) {
         long reportId = report.getId();
         Map<Long, IncidentPersonnelSource> existingSources = loadExistingSources(reportId);
@@ -830,8 +881,8 @@ public class EinsatzberichtService {
         incidentReportPersonnelRepository.deleteByIncidentReportId(reportId);
         incidentReportVehicleRepository.deleteByIncidentReportId(reportId);
 
-        List<CrewAssignment> assignments =
-                form.crewAssignments() != null ? form.crewAssignments() : List.of();
+        List<CrewAssignment> assignments = withCommanderInBeteiligt(
+                form.crewAssignments() != null ? form.crewAssignments() : List.of(), report);
         Map<Long, CrewAssignment> assignmentByVehicleId = new HashMap<>();
         for (CrewAssignment assignment : assignments) {
             if (assignment.vehicleId() > 0) {

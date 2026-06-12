@@ -70,13 +70,36 @@
       }
     }
 
+    function syncPersonIdFromValue() {
+      var value = (input.value || '').trim();
+      if (!value) {
+        delete input.dataset.personId;
+        return;
+      }
+      var match = options.find(function (opt) {
+        return opt.value.localeCompare(value, 'de', { sensitivity: 'accent' }) === 0;
+      });
+      if (match && match.element.getAttribute('data-person-id')) {
+        input.dataset.personId = match.element.getAttribute('data-person-id');
+      } else {
+        delete input.dataset.personId;
+      }
+    }
+
     function selectOption(opt) {
       input.value = opt.value;
+      var personId = opt.element.getAttribute('data-person-id');
+      if (personId) {
+        input.dataset.personId = personId;
+      } else {
+        delete input.dataset.personId;
+      }
       closeList();
       input.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
     input.addEventListener('input', function () {
+      syncPersonIdFromValue();
       filterOptions(input.value);
     });
 

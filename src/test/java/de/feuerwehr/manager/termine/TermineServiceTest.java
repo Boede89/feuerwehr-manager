@@ -3,11 +3,14 @@ package de.feuerwehr.manager.termine;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
+import de.feuerwehr.manager.personal.PersonGroupRepository;
 import de.feuerwehr.manager.personal.PersonalService;
+import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.UnitRepository;
 import de.feuerwehr.manager.user.UserRepository;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -29,6 +32,12 @@ class TermineServiceTest {
     @Mock
     private PersonalService personalService;
 
+    @Mock
+    private PersonGroupRepository personGroupRepository;
+
+    @Mock
+    private TestModeService testModeService;
+
     @InjectMocks
     private TermineService termineService;
 
@@ -39,7 +48,10 @@ class TermineServiceTest {
                 "Atemschutz",
                 LocalTime.of(20, 0),
                 LocalTime.of(19, 0),
-                null);
+                null,
+                true,
+                List.of(),
+                List.of());
 
         assertThatThrownBy(() -> termineService.createDienstplanTermin(1L, 1L, request))
                 .isInstanceOf(IllegalArgumentException.class)
