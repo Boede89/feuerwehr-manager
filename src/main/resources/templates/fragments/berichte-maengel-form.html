@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<th:block th:fragment="form">
+  <div class="incident-form-grid-2" th:classappend="${formMode == 'view' ? ' einsatzbericht-form--view' : ''}">
+    <div class="form-group">
+      <label for="standort">Standort <span class="required" th:if="${formMode != 'view'}">*</span></label>
+      <select id="standort" name="standort" class="field" required th:if="${formMode != 'view'}">
+        <option th:each="opt : ${T(de.feuerwehr.manager.berichte.MaengelberichtStandort).values()}"
+                th:value="${opt.name()}"
+                th:selected="${form.standort == opt.name()}"
+                th:text="${opt.label()}">Standort</option>
+      </select>
+      <p th:if="${formMode == 'view'}" class="form-readonly"
+         th:text="${form.standort != null ? T(de.feuerwehr.manager.berichte.MaengelberichtStandort).fromKey(form.standort).label() : '—'}">—</p>
+    </div>
+    <div class="form-group">
+      <label for="mangelAn">Mangel/Wartung an <span class="required" th:if="${formMode != 'view'}">*</span></label>
+      <select id="mangelAn" name="mangelAn" class="field" required th:if="${formMode != 'view'}">
+        <option th:each="opt : ${T(de.feuerwehr.manager.berichte.MaengelberichtMangelAn).values()}"
+                th:value="${opt.name()}"
+                th:selected="${form.mangelAn == opt.name()}"
+                th:text="${opt.label()}">Art</option>
+      </select>
+      <p th:if="${formMode == 'view'}" class="form-readonly"
+         th:text="${form.mangelAn != null ? T(de.feuerwehr.manager.berichte.MaengelberichtMangelAn).fromKey(form.mangelAn).label() : '—'}">—</p>
+    </div>
+    <div class="form-group form-group--full">
+      <label for="bezeichnung">Bezeichnung, ggf. Gerätenummer</label>
+      <input id="bezeichnung" name="bezeichnung" type="text" maxlength="255" class="field"
+             placeholder="z. B. TLF 16/25, Gerätenummer 123" th:if="${formMode != 'view'}"
+             th:value="${form.bezeichnung}"/>
+      <p th:if="${formMode == 'view'}" class="form-readonly"
+         th:text="${form.bezeichnung != null and !#strings.isEmpty(form.bezeichnung) ? form.bezeichnung : '—'}">—</p>
+    </div>
+    <div class="form-group form-group--full">
+      <label for="vehicleId">Fahrzeug (auf dem sich das Gerät befindet)</label>
+      <select id="vehicleId" name="vehicleId" class="field" th:if="${formMode != 'view'}">
+        <option value="">— kein Fahrzeug / nicht zutreffend —</option>
+        <option th:each="v : ${unitVehicles}"
+                th:value="${v.id}"
+                th:selected="${form.vehicleId != null and form.vehicleId == v.id}"
+                th:text="${v.name}">Fahrzeug</option>
+      </select>
+      <p class="hint text-sm" th:if="${formMode != 'view'}">Wichtig, da Geräte auf mehreren Fahrzeugen existieren können.</p>
+      <p th:if="${formMode == 'view'}" class="form-readonly"
+         th:text="${vehicleDisplayName != null ? vehicleDisplayName : '—'}">—</p>
+    </div>
+    <div class="form-group form-group--full">
+      <label for="mangelBeschreibung">Mangel Beschreibung</label>
+      <textarea id="mangelBeschreibung" name="mangelBeschreibung" class="field" rows="3"
+                placeholder="Beschreibung des Mangels" th:if="${formMode != 'view'}"
+                th:text="${form.mangelBeschreibung}"></textarea>
+      <p th:if="${formMode == 'view'}" class="form-readonly form-readonly--multiline"
+         th:text="${form.mangelBeschreibung != null and !#strings.isEmpty(form.mangelBeschreibung) ? form.mangelBeschreibung : '—'}">—</p>
+    </div>
+    <div class="form-group">
+      <label for="ursache">Ursache</label>
+      <input id="ursache" name="ursache" type="text" class="field"
+             placeholder="Vermutete oder festgestellte Ursache" th:if="${formMode != 'view'}"
+             th:value="${form.ursache}"/>
+      <p th:if="${formMode == 'view'}" class="form-readonly"
+         th:text="${form.ursache != null and !#strings.isEmpty(form.ursache) ? form.ursache : '—'}">—</p>
+    </div>
+    <div class="form-group">
+      <label for="verbleib">Verbleib</label>
+      <input id="verbleib" name="verbleib" type="text" class="field" placeholder="Verbleib"
+             th:if="${formMode != 'view'}" th:value="${form.verbleib}"/>
+      <p th:if="${formMode == 'view'}" class="form-readonly"
+         th:text="${form.verbleib != null and !#strings.isEmpty(form.verbleib) ? form.verbleib : '—'}">—</p>
+    </div>
+    <div class="form-group">
+      <label for="recordedByName">Aufgenommen durch <span class="required" th:if="${formMode != 'view'}">*</span></label>
+      <div class="combo-suggest" data-combo-suggest data-combo-min="1" th:if="${formMode != 'view'}">
+        <input id="recordedByName" name="recordedByName" type="text" maxlength="255"
+               class="combo-suggest__input" autocomplete="off"
+               placeholder="Name eingeben …" th:value="${form.recordedByName}"/>
+        <ul class="combo-suggest__list" role="listbox" hidden>
+          <li class="combo-suggest__option" th:each="p : ${unitPersons}"
+              th:attr="data-value=${p.anwesenheitDisplayName()}, data-person-id=${p.id}"
+              th:text="${p.anwesenheitDisplayName()}">Name</li>
+        </ul>
+      </div>
+      <p th:if="${formMode == 'view'}" class="form-readonly"
+         th:text="${form.recordedByName != null and !#strings.isEmpty(form.recordedByName) ? form.recordedByName : '—'}">—</p>
+    </div>
+    <div class="form-group">
+      <label for="aufgenommenAm">Aufgenommen am <span class="required" th:if="${formMode != 'view'}">*</span></label>
+      <input id="aufgenommenAm" name="aufgenommenAm" type="date" required class="field" th:if="${formMode != 'view'}"
+             th:value="${form.aufgenommenAm}"/>
+      <p th:if="${formMode == 'view'}" class="form-readonly"
+         th:text="${form.aufgenommenAm != null ? #temporals.format(form.aufgenommenAm, 'dd.MM.yyyy') : '—'}">—</p>
+    </div>
+  </div>
+  <input type="hidden" name="recordedPersonId" id="recordedPersonId" th:if="${formMode != 'view'}"
+         th:value="${form.recordedPersonId}"/>
+</th:block>
+</html>

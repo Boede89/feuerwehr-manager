@@ -1,0 +1,9 @@
+<div xmlns:th="http://www.thymeleaf.org" class="einsatzbericht-modal-root einsatzbericht-form-page"
+     data-berichte-form="maengel"
+     th:attr="data-title=${modalTitle},
+              data-can-edit=${canEditReport},
+              data-report-id=${report.id}">
+  <div id="einsatzbericht-view" class="einsatzbericht-form--view">
+    <th:block th:replace="~{fragments/berichte-maengel-form :: form(formMode='view')}"></th:block>
+  </div>
+</div>

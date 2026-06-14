@@ -183,23 +183,44 @@
   </th:block>
 
   <!-- Mängelberichte -->
-  <div th:if="${berichteTab == 'maengel'}" class="berichte-module-panel">
-    <div class="card">
-      <div class="card__header card__header--toolbar">
-        <span>Mängelberichte</span>
-        <div class="toolbar-actions" th:if="${canWrite}">
-          <form method="post" th:action="@{/berichte/platzhalter(unit=${unitId})}" class="bar-form">
-            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-            <input type="hidden" name="tab" value="maengel"/>
-            <button type="submit" class="btn btn--primary btn--sm">+ Neuer Mängelbericht</button>
-          </form>
+  <div th:if="${berichteTab == 'maengel'}" id="berichte-maengel-panel" class="berichte-module-panel"
+       th:attr="data-unit-id=${unitId},
+                data-filter-year=${filterYear},
+                data-current-user-id=${currentUserId},
+                data-is-admin=${isAdmin},
+                data-csrf-token=${_csrf.token},
+                data-csrf-param=${_csrf.parameterName}">
+    <div class="page-header berichte-einsatz-header">
+      <div class="berichte-einsatz-header__main">
+        <div class="berichte-einsatz-header__text">
+          <h2>Mängelberichte</h2>
+          <p>Mängel und Schäden erfassen</p>
+        </div>
+        <div class="filter-bar berichte-einsatz-filter berichte-einsatz-header__filter">
+          <select id="filter-year-maengel" class="berichte-filter-select" aria-label="Jahr filtern"></select>
         </div>
       </div>
-      <div class="card__body">
-        <p class="hint" style="margin:0;">Mängelberichte werden als Nächstes umgesetzt.</p>
+      <a th:if="${canWrite}" class="btn btn--primary" th:href="@{/berichte/maengelberichte/neu(unit=${unitId})}">+ Neuer Mängelbericht</a>
+    </div>
+
+    <div id="maengel-table-wrap"></div>
+
+    <div id="modal-maengel" class="incident-modal" style="display:none" aria-hidden="true">
+      <div class="modal__backdrop"></div>
+      <div class="modal__box modal__box--xl">
+        <div class="modal__header">
+          <h3 id="modal-maengel-title">Mängelbericht</h3>
+          <button type="button" class="modal__close" id="btn-close-maengel-modal" aria-label="Schließen">✕</button>
+        </div>
+        <div class="modal__body modal__body--incident" id="modal-maengel-body-scroll"></div>
+        <div class="modal__footer" id="modal-maengel-footer"></div>
       </div>
     </div>
   </div>
+
+  <th:block th:if="${berichteTab == 'maengel'}">
+    <script th:src="@{/js/berichte-maengel-list.js}" defer></script>
+  </th:block>
 
   <!-- Checklisten -->
   <div th:if="${berichteTab == 'checklisten'}" class="berichte-module-panel">

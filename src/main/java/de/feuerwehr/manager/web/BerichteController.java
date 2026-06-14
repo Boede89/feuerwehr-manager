@@ -25,6 +25,12 @@ import de.feuerwehr.manager.berichte.GeraetewartmitteilungListResponse;
 import de.feuerwehr.manager.berichte.GeraetewartmitteilungForm;
 import de.feuerwehr.manager.berichte.GeraetewartmitteilungPdfService;
 import de.feuerwehr.manager.berichte.GeraetewartmitteilungService;
+import de.feuerwehr.manager.berichte.MaengelberichtAccess;
+import de.feuerwehr.manager.berichte.MaengelberichtForm;
+import de.feuerwehr.manager.berichte.MaengelberichtListResponse;
+import de.feuerwehr.manager.berichte.MaengelberichtPdfService;
+import de.feuerwehr.manager.berichte.MaengelberichtService;
+import de.feuerwehr.manager.berichte.DefectReport;
 import de.feuerwehr.manager.berichte.EquipmentMaintenanceReport;
 import de.feuerwehr.manager.berichte.DamagePerpetratorSupport;
 import de.feuerwehr.manager.berichte.PersonDamageDetailsSupport;
@@ -75,6 +81,8 @@ public class BerichteController {
     private final AnwesenheitslisteTerminSyncService anwesenheitslisteTerminSyncService;
     private final GeraetewartmitteilungService geraetewartmitteilungService;
     private final GeraetewartmitteilungPdfService geraetewartmitteilungPdfService;
+    private final MaengelberichtService maengelberichtService;
+    private final MaengelberichtPdfService maengelberichtPdfService;
 
     @GetMapping
     public String index(
@@ -111,6 +119,8 @@ public class BerichteController {
                 }
                 model.addAttribute("filterYear", filterYear != null ? filterYear : LocalDate.now().getYear());
             } else if (berichteTab == BerichteTab.GERAETEWART) {
+                model.addAttribute("filterYear", filterYear != null ? filterYear : LocalDate.now().getYear());
+            } else if (berichteTab == BerichteTab.MAENGEL) {
                 model.addAttribute("filterYear", filterYear != null ? filterYear : LocalDate.now().getYear());
             }
             return "berichte/index";
@@ -944,6 +954,197 @@ public class BerichteController {
         model.addAttribute("unitPersons", einsatzberichtService.listPersonsForForm(unitId));
         model.addAttribute("unitId", unitId);
         model.addAttribute("vehiclesJson", geraetewartmitteilungService.buildVehiclesJson(unitId));
+    }
+
+    @GetMapping("/maengelberichte/list")
+    @ResponseBody
+    public MaengelberichtListResponse listMaengelberichte(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "year", required = false) Integer year) {
+        Unit unit = resolveUnit(unitId, actor);
+        requireModuleEnabled(unit.getId());
+        requireBerichteRead(actor, unit.getId());
+        int filterYear = year != null ? year : LocalDate.now().getYear();
+        return maengelberichtService.listForYear(unit.getId(), filterYear);
+    }
+
+    @GetMapping("/maengelberichte/neu")
+    public String newMaengelbericht(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            Model model,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor, model);
+            requireModuleEnabled(unit.getId());
+            requireBerichteWrite(actor, unit.getId());
+            applyMaengelberichtFormModel(model, unit.getId(), null, maengelberichtService.newForm(), "create");
+            model.addAttribute("pageTitle", "Neuer Mängelbericht");
+            model.addAttribute("pageSubtitle", "Mangel oder Schaden erfassen");
+            return "berichte/maengel-form";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectBerichte(unitId, "maengel");
+        }
+    }
+
+    @GetMapping("/maengelberichte/{id}/modal")
+    public String modalMaengelbericht(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @PathVariable long id,
+            Model model) {
+        Unit unit = resolveUnit(unitId, actor, model);
+        requireModuleEnabled(unit.getId());
+        requireBerichteRead(actor, unit.getId());
+        DefectReport report = maengelberichtService.requireReport(unit.getId(), id);
+        applyMaengelberichtFormModel(model, unit.getId(), report, maengelberichtService.toForm(report), "view");
+        model.addAttribute("canEditReport", MaengelberichtAccess.canEdit(report, actor));
+        String title = report.getStandort() != null ? report.getStandort().label() : "Mängelbericht";
+        model.addAttribute("modalTitle", title + " · " + formatModalDate(report.getAufgenommenAm()));
+        return "berichte/maengel-modal-body";
+    }
+
+    @GetMapping("/maengelberichte/{id}")
+    public String viewMaengelbericht(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @PathVariable long id,
+            Model model,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor, model);
+            requireModuleEnabled(unit.getId());
+            requireBerichteRead(actor, unit.getId());
+            DefectReport report = maengelberichtService.requireReport(unit.getId(), id);
+            applyMaengelberichtFormModel(model, unit.getId(), report, maengelberichtService.toForm(report), "view");
+            model.addAttribute("canEditReport", MaengelberichtAccess.canEdit(report, actor));
+            model.addAttribute("pageTitle", "Mängelbericht");
+            model.addAttribute("pageSubtitle", report.getStandort() != null ? report.getStandort().label() : "");
+            return "berichte/maengel-view";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectBerichte(unitId, "maengel");
+        }
+    }
+
+    @GetMapping("/maengelberichte/{id}/bearbeiten")
+    public String editMaengelbericht(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @PathVariable long id,
+            Model model,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor, model);
+            requireModuleEnabled(unit.getId());
+            requireBerichteRead(actor, unit.getId());
+            DefectReport report = maengelberichtService.requireReport(unit.getId(), id);
+            if (!MaengelberichtAccess.canEdit(report, actor)) {
+                throw new IllegalArgumentException("Dieser Mängelbericht kann nicht bearbeitet werden.");
+            }
+            applyMaengelberichtFormModel(model, unit.getId(), report, maengelberichtService.toForm(report), "edit");
+            model.addAttribute("canDeleteReport", MaengelberichtAccess.canDelete(report, actor));
+            model.addAttribute("pageTitle", "Mängelbericht bearbeiten");
+            model.addAttribute("pageSubtitle", report.getStandort() != null ? report.getStandort().label() : "");
+            return "berichte/maengel-form";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectBerichte(unitId, "maengel");
+        }
+    }
+
+    @PostMapping("/maengelberichte")
+    public String createMaengelbericht(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @ModelAttribute MaengelberichtForm form,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor);
+            requireModuleEnabled(unit.getId());
+            requireBerichteWrite(actor, unit.getId());
+            maengelberichtService.create(unit.getId(), form, actor);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "Mängelbericht wurde gespeichert.");
+            return redirectBerichte(unit.getId(), "maengel");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectBerichte(unitId, "maengel");
+        }
+    }
+
+    @PostMapping("/maengelberichte/{id}")
+    public String updateMaengelbericht(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @PathVariable long id,
+            @ModelAttribute MaengelberichtForm form,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor);
+            requireModuleEnabled(unit.getId());
+            requireBerichteWrite(actor, unit.getId());
+            maengelberichtService.update(unit.getId(), id, form, actor);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "Mängelbericht wurde gespeichert.");
+            return redirectBerichte(unit.getId(), "maengel");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectBerichte(unitId, "maengel");
+        }
+    }
+
+    @PostMapping("/maengelberichte/{id}/delete")
+    public String deleteMaengelbericht(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @PathVariable long id,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor);
+            requireModuleEnabled(unit.getId());
+            requireBerichteWrite(actor, unit.getId());
+            maengelberichtService.delete(unit.getId(), id, actor);
+            redirectAttributes.addFlashAttribute("message", "Mängelbericht wurde gelöscht.");
+            return redirectBerichte(unit.getId(), "maengel");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectBerichte(unitId, "maengel");
+        }
+    }
+
+    @GetMapping("/maengelberichte/{id}/pdf")
+    public Object downloadMaengelberichtPdf(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @PathVariable long id,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor);
+            requireModuleEnabled(unit.getId());
+            requireBerichteRead(actor, unit.getId());
+            DefectReport report = maengelberichtService.requireReport(unit.getId(), id);
+            byte[] pdf = maengelberichtPdfService.renderPdf(unit.getId(), id);
+            return PdfDownloadResponse.attachment(maengelberichtPdfService.suggestedFilename(report), pdf);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectBerichte(unitId, "maengel");
+        }
+    }
+
+    private void applyMaengelberichtFormModel(
+            Model model, long unitId, DefectReport report, MaengelberichtForm form, String formMode) {
+        model.addAttribute("report", report);
+        model.addAttribute("form", form);
+        model.addAttribute("formMode", formMode);
+        model.addAttribute("unitPersons", einsatzberichtService.listPersonsForForm(unitId));
+        model.addAttribute("unitVehicles", maengelberichtService.listVehicles(unitId));
+        model.addAttribute("unitId", unitId);
+        if (report != null) {
+            model.addAttribute("vehicleDisplayName", maengelberichtService.resolveVehicleDisplay(report));
+        }
     }
 
     private static String formatModalDate(LocalDate date) {

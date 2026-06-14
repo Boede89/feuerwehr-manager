@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout(${pageTitle}, ~{::main})}">
+<main class="einsatzbericht-form-page" data-berichte-form="maengel">
+  <div class="page-header">
+    <div>
+      <h2 th:text="${pageTitle}">Mängelbericht</h2>
+      <p th:text="${pageSubtitle}">—</p>
+    </div>
+    <div class="einsatzbericht-form-actions">
+      <a class="btn btn--outline" th:href="@{/berichte(unit=${unitId}, tab='maengel')}">Zurück</a>
+      <a class="btn btn--outline"
+         th:href="@{/berichte/maengelberichte/{id}/pdf(id=${report.id},unit=${unitId})}">PDF herunterladen</a>
+      <a class="btn btn--primary" th:if="${canEditReport}"
+         th:href="@{/berichte/maengelberichte/{id}/bearbeiten(id=${report.id},unit=${unitId})}">Bearbeiten</a>
+    </div>
+  </div>
+
+  <div th:replace="~{fragments/testmode-banner :: banner}"></div>
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
+
+  <div class="card">
+    <div class="card__body">
+      <div id="einsatzbericht-view" class="einsatzbericht-form--view">
+        <th:block th:replace="~{fragments/berichte-maengel-form :: form(formMode='view')}"></th:block>
+      </div>
+    </div>
+  </div>
+</main>
+</html>
