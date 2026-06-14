@@ -125,4 +125,32 @@ class TermineServiceTest {
 
         assertThat(result).extracting(MeineTerminView::thema).containsExactly("Technische Hilfe");
     }
+
+    @Test
+    void listUpcomingDashboardTermineFiltersPastAndLimitsResults() {
+        UnitTermin past = new UnitTermin();
+        past.setId(1L);
+        past.setCategory(TermineCategory.DIENSTPLAN);
+        past.setTitle("Vergangen");
+        past.setStartAt(LocalDateTime.of(2020, 1, 1, 19, 0));
+        past.setEndAt(LocalDateTime.of(2020, 1, 1, 22, 0));
+        past.setAudienceAll(true);
+
+        UnitTermin upcoming = new UnitTermin();
+        upcoming.setId(2L);
+        upcoming.setCategory(TermineCategory.SONSTIGES);
+        upcoming.setTitle("Zukunft");
+        upcoming.setStartAt(LocalDateTime.now().plusDays(2).withHour(18).withMinute(30).withSecond(0).withNano(0));
+        upcoming.setEndAt(upcoming.getStartAt().plusHours(2));
+        upcoming.setAudienceAll(true);
+
+        when(unitTerminRepository.findMineByUnitAndPerson(1L, 7L)).thenReturn(List.of(past, upcoming));
+
+        List<DashboardTerminWidgetView> result = termineService.listUpcomingDashboardTermine(1L, 7L, 5);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).title()).isEqualTo("Zukunft");
+        assertThat(result.get(0).categoryLabel()).isEqualTo("Sonstiges");
+        assertThat(result.get(0).time()).isEqualTo("18:30");
+    }
 }

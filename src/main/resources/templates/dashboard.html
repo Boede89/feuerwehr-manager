@@ -11,31 +11,68 @@
 
   <div th:replace="~{fragments/testmode-banner :: banner}"></div>
 
-  <div class="widget-card widget-card--einsatz">
-    <div class="widget-card__header">
-      <h3>Divera – aktuelle Einsätze</h3>
-    </div>
-    <div class="widget-card__body">
-      <div class="list-row" th:if="${!divera.success}">
-        <span th:text="${divera.message}">Fehler</span>
-        <span class="badge inactive">Prüfen</span>
+  <div class="home-grid">
+    <div class="home-grid__main">
+      <div class="widget-card widget-card--einsatz">
+        <div class="widget-card__header">
+          <h3>Divera – aktuelle Einsätze</h3>
+        </div>
+        <div class="widget-card__body">
+          <div class="list-row" th:if="${!divera.success}">
+            <span th:text="${divera.message}">Fehler</span>
+            <span class="badge inactive">Prüfen</span>
+          </div>
+          <th:block th:if="${divera.success}">
+            <div class="list-row" th:if="${#lists.isEmpty(divera.alarms)}">
+              <span>Keine Alarme geliefert (oder Liste leer).</span>
+              <span class="badge active">OK</span>
+            </div>
+            <div class="list-row" th:each="a : ${divera.alarms}">
+              <span>
+                <strong th:text="${a.title}">Titel</strong>
+                <span th:if="${a.address != null and !#strings.isEmpty(a.address)}"> · </span>
+                <span th:text="${a.address}">Adresse</span>
+                <span class="hint hint--inline" th:if="${a.closed}"> (geschlossen)</span>
+              </span>
+              <span class="badge active" th:if="${!a.testAlarm}" th:text="${a.id}">ID</span>
+              <span class="badge badge-warning" th:if="${a.testAlarm}">Test</span>
+            </div>
+          </th:block>
+        </div>
       </div>
-      <th:block th:if="${divera.success}">
-        <div class="list-row" th:if="${#lists.isEmpty(divera.alarms)}">
-          <span>Keine Alarme geliefert (oder Liste leer).</span>
-          <span class="badge active">OK</span>
+    </div>
+
+    <div class="home-grid__side" th:if="${showTermineWidget}">
+      <div class="widget-card widget-card--termine">
+        <div class="widget-card__header">
+          <h3>Termine</h3>
+          <a th:href="@{/termine(unit=${unitId}, tab='meine')}">Alle anzeigen →</a>
         </div>
-        <div class="list-row" th:each="a : ${divera.alarms}">
-          <span>
-            <strong th:text="${a.title}">Titel</strong>
-            <span th:if="${a.address != null and !#strings.isEmpty(a.address)}"> · </span>
-            <span th:text="${a.address}">Adresse</span>
-            <span class="hint hint--inline" th:if="${a.closed}"> (geschlossen)</span>
-          </span>
-          <span class="badge active" th:if="${!a.testAlarm}" th:text="${a.id}">ID</span>
-          <span class="badge badge-warning" th:if="${a.testAlarm}">Test</span>
+        <div class="widget-card__body widget-card__body--termine">
+          <p class="text-muted text-sm dashboard-termine-empty" th:if="${!hasLinkedPerson}">
+            Ihr Benutzerkonto ist keiner Person zugeordnet.
+          </p>
+          <p class="text-muted text-sm dashboard-termine-empty"
+             th:if="${hasLinkedPerson and #lists.isEmpty(dashboardTermine)}">
+            Keine bevorstehenden Termine.
+          </p>
+          <div class="termine-row" th:each="termin : ${dashboardTermine}">
+            <div class="termine-row__date">
+              <div class="termine-row__day" th:text="${termin.day()}">01</div>
+              <div class="termine-row__month" th:text="${termin.monthShort()}">Jun</div>
+            </div>
+            <div class="termine-row__body">
+              <div class="termine-row__title">
+                <span class="termine-tag" th:text="${termin.categoryLabel()}">Dienstplan</span>
+                <span th:text="${termin.title()}">Übung</span>
+              </div>
+              <div class="termine-row__meta">
+                <span th:text="${termin.time() + ' Uhr'}">19:00 Uhr</span>
+              </div>
+            </div>
+          </div>
         </div>
-      </th:block>
+      </div>
     </div>
   </div>
 </main>

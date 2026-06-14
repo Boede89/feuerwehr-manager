@@ -12,7 +12,9 @@ import de.feuerwehr.manager.unit.UnitRepository;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Locale;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -25,6 +27,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class TermineService {
+
+    private static final DateTimeFormatter DASHBOARD_DAY_FMT = DateTimeFormatter.ofPattern("dd");
+    private static final DateTimeFormatter DASHBOARD_MONTH_FMT =
+            DateTimeFormatter.ofPattern("MMM", Locale.GERMANY);
+    private static final DateTimeFormatter DASHBOARD_TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
 
     private final UnitTerminRepository unitTerminRepository;
     private final UnitRepository unitRepository;
@@ -57,6 +64,17 @@ public class TermineService {
         List<UnitTermin> termins = unitTerminRepository.findMineByUnitAndPerson(unitId, personId);
         termins.forEach(this::touchTerminCollections);
         return termins.stream().map(this::toMeineTerminView).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<DashboardTerminWidgetView> listUpcomingDashboardTermine(long unitId, long personId, int limit) {
+        LocalDateTime now = LocalDateTime.now();
+        return listMyTermine(unitId, personId).stream()
+                .filter(termin -> !termin.startAt().isBefore(now))
+                .sorted(Comparator.comparing(MeineTerminView::startAt))
+                .limit(Math.max(limit, 0))
+                .map(this::toDashboardTerminWidgetView)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -299,6 +317,16 @@ public class TermineService {
                 formatInstructorLabel(termin),
                 termin.getStartAt(),
                 termin.getEndAt() != null ? termin.getEndAt() : termin.getStartAt());
+    }
+
+    private DashboardTerminWidgetView toDashboardTerminWidgetView(MeineTerminView termin) {
+        return new DashboardTerminWidgetView(
+                termin.thema(),
+                DASHBOARD_DAY_FMT.format(termin.datum()),
+                DASHBOARD_MONTH_FMT.format(termin.datum()),
+                DASHBOARD_TIME_FMT.format(termin.beginn()),
+                termin.categoryLabel(),
+                termin.category());
     }
 
     private String formatInstructorLabel(UnitTermin termin) {

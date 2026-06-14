@@ -817,6 +817,130 @@ input:focus, select:focus, textarea:focus {
   border-left-color: var(--einsatz-c, var(--rot));
 }
 
+.widget-card--termine .widget-card__header {
+  border-left-color: var(--personal-c);
+}
+
+.widget-card__header a {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.widget-card__header a:hover {
+  color: var(--text);
+}
+
+.widget-card__body--termine {
+  padding: 14px 16px;
+}
+
+.widget-card:hover {
+  box-shadow: var(--schatten-md);
+}
+
+.home-grid {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 24px;
+  align-items: start;
+}
+
+.home-grid__main > * + * {
+  margin-top: 1.5rem;
+}
+
+.home-grid__side > * + * {
+  margin-top: 16px;
+}
+
+.termine-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.termine-row:last-child {
+  border-bottom: none;
+}
+
+.termine-row__date {
+  min-width: 40px;
+  text-align: center;
+  background: var(--bg-card-hover);
+  border-radius: var(--radius-md);
+  padding: 4px 6px;
+  flex-shrink: 0;
+}
+
+.termine-row__day {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.termine-row__month {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.termine-row__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.termine-row__title {
+  display: flex;
+  align-items: center;
+  font-size: var(--fs-md);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  gap: 0;
+}
+
+.termine-row__title > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.termine-row__meta {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  margin-top: 1px;
+}
+
+.termine-tag {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  background: var(--bg-card-hover);
+  color: var(--text-muted);
+  margin-right: 5px;
+  flex-shrink: 0;
+}
+
+.dashboard-termine-empty {
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .home-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-grid__side {
+    order: -1;
+  }
+}
+
 .list h2 {
   margin: 0;
   padding: 12px 16px;
