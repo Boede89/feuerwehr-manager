@@ -89,7 +89,7 @@
           <div>
             <h3 class="incident-kraefte-section__title">Eingesetzte Fahrzeuge</h3>
             <p class="hint text-sm" th:if="${formMode != 'view'}">
-              Fahrzeug auf „Eingesetzt“ klicken und Maschinist sowie Einheitsführer festlegen.
+              Fahrzeug anklicken, um es als eingesetzt zu markieren. Anschließend Maschinist und Einheitsführer festlegen.
             </p>
           </div>
         </header>
@@ -119,7 +119,7 @@
         Markieren Sie zuerst im Reiter Fahrzeuge die eingesetzten Fahrzeuge.
       </p>
       <p class="hint" th:if="${formMode != 'view'}">
-        Markieren Sie defekte Geräte und beschreiben Sie den Mangel jeweils direkt daneben. Freitext-Geräte erhalten ein eigenes Mangel-Feld.
+        Defekte Geräte markieren und den Mangel direkt im Textfeld beschreiben.
       </p>
       <div id="gwm-defects-container" class="incident-gwm-defects"></div>
     </div>

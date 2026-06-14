@@ -350,7 +350,14 @@
       loadSelectionFromHidden();
       render();
     },
+    clearVehicleSelection: function (vehicleId) {
+      var key = Number(vehicleId);
+      delete selectionByVehicle[key];
+      delete selectionByVehicle[String(vehicleId)];
+      syncHiddenJson();
+    },
     refresh: function () {
+      loadSelectionFromHidden();
       equipmentCache = {};
       render();
     },

@@ -50,9 +50,7 @@
         einheitsfuehrerPersonId: null,
         equipmentIds: [],
         defectiveEquipmentIds: [],
-        defectiveMangelByEquipmentId: {},
-        defectiveFreitext: '',
-        defectiveFreitextMangel: ''
+        defectiveMangelByEquipmentId: {}
       };
     }
     return vehicleState[key];
@@ -105,9 +103,7 @@
           return !isNaN(id);
         }),
         defectiveEquipmentIds: defectiveIds,
-        defectiveMangelByEquipmentId: mangelMap,
-        defectiveFreitext: entry.defectiveFreitext || '',
-        defectiveFreitextMangel: entry.defectiveFreitextMangel || entry.defectiveMangel || ''
+        defectiveMangelByEquipmentId: mangelMap
       };
     });
   }
@@ -231,7 +227,9 @@
           return;
         }
         var state = ensureVehicleState(row.vehicleId);
-        state.selected = true;
+        if (!state.selected) {
+          return;
+        }
         state.equipmentIds = (row.equipmentIds || []).map(Number).filter(function (id) {
           return !isNaN(id);
         });
@@ -292,51 +290,41 @@
       '" data-equipment-id="' + item.id + '"' + (checked ? ' checked' : '') +
       (readonly ? ' disabled' : '') + '/>' +
       '<span class="incident-gwm-defect-row__name">' + esc(item.name) + '</span></label>' +
-      '<div class="incident-gwm-defect-row__mangel"' + (checked ? '' : ' hidden') + '>' +
-      '<label>Mangel beschreiben</label>' +
+      '<div class="incident-gwm-defect-row__mangel">' +
+      '<label class="incident-gwm-defect-row__mangel-label">Mangel beschreiben</label>' +
       (readonly
         ? '<p class="form-readonly form-readonly--multiline">' + esc(mangel || '—') + '</p>'
         : '<textarea class="field gwm-defect-equipment-mangel" data-vehicle-id="' + vehicleId +
-          '" data-equipment-id="' + item.id + '" rows="2" placeholder="Beschreibung des Mangels …">' +
-          esc(mangel) + '</textarea>') +
+          '" data-equipment-id="' + item.id + '" rows="2"' +
+          (checked ? '' : ' disabled') +
+          ' placeholder="Beschreibung des Mangels …">' + esc(mangel) + '</textarea>') +
       '</div></div>';
   }
 
   function buildDefectCard(vehicle, usedEquipment) {
     var state = ensureVehicleState(vehicle.id);
+    if (readonly) {
+      usedEquipment = usedEquipment.filter(function (item) {
+        return state.defectiveEquipmentIds.indexOf(Number(item.id)) >= 0;
+      });
+    }
     var defectRows = '';
     if (usedEquipment.length > 0) {
       usedEquipment.forEach(function (item) {
         defectRows += buildDefectEquipmentRow(vehicle.id, item, state);
       });
     } else {
-      defectRows = '<p class="hint">Keine eingesetzten Geräte – nutzen Sie den Freitext unten.</p>';
+      defectRows = '<p class="hint incident-gwm-defect-empty">' +
+        (readonly ? 'Keine Defekte erfasst.' : 'Keine eingesetzten Geräte für dieses Fahrzeug.') +
+        '</p>';
     }
-    var freitextFilled = !!(state.defectiveFreitext && state.defectiveFreitext.trim());
     return '<article class="incident-deployed-vehicle-card incident-gwm-defect-card" data-vehicle-id="' + vehicle.id + '">' +
       '<header class="incident-deployed-vehicle-card__head">' +
       '<span class="incident-deployed-vehicle-card__title">' + esc(vehicle.name) + '</span>' +
       '</header>' +
       '<div class="incident-gwm-defect-card__body">' +
-      '<div class="form-group">' +
-      '<label>Defekte Geräte (aus eingesetzten)</label>' +
       '<div class="incident-gwm-defect-rows">' + defectRows + '</div>' +
-      '</div>' +
-      '<div class="form-group">' +
-      '<label>Freitext (defektes Gerät)</label>' +
-      (readonly
-        ? '<p class="form-readonly">' + esc(state.defectiveFreitext || '—') + '</p>'
-        : '<input type="text" class="field gwm-defect-freitext" data-vehicle-id="' + vehicle.id +
-          '" maxlength="255" placeholder="z. B. Schlauch 123" value="' + esc(state.defectiveFreitext || '') + '"/>') +
-      '</div>' +
-      '<div class="form-group gwm-defect-freitext-mangel-wrap" data-vehicle-id="' + vehicle.id + '"' +
-      (freitextFilled ? '' : ' hidden') + '>' +
-      '<label>Mangel beschreiben (Freitext)</label>' +
-      (readonly
-        ? '<p class="form-readonly form-readonly--multiline">' + esc(state.defectiveFreitextMangel || '—') + '</p>'
-        : '<textarea class="field gwm-defect-freitext-mangel" data-vehicle-id="' + vehicle.id +
-          '" rows="2" placeholder="Beschreibung des Mangels …">' + esc(state.defectiveFreitextMangel || '') + '</textarea>') +
-      '</div></div></article>';
+      '</div></article>';
   }
 
   function renderDefects() {
@@ -365,6 +353,22 @@
         return { vehicle: vehicle, usedEquipment: getUsedEquipment(vehicle.id, equipment) };
       });
     })).then(function (rows) {
+      if (readonly) {
+        rows = rows.filter(function (row) {
+          var state = vehicleState[String(row.vehicle.id)];
+          return state && state.defectiveEquipmentIds.length > 0;
+        });
+      }
+      if (!rows.length) {
+        container.innerHTML = '';
+        if (noVehicles) {
+          noVehicles.hidden = false;
+          noVehicles.textContent = readonly
+            ? 'Keine Defekte erfasst.'
+            : 'Markieren Sie zuerst im Reiter Fahrzeuge die eingesetzten Fahrzeuge.';
+        }
+        return;
+      }
       container.innerHTML = rows.map(function (row) {
         return buildDefectCard(row.vehicle, row.usedEquipment);
       }).join('');
@@ -412,9 +416,7 @@
         einheitsfuehrerPersonId: state.einheitsfuehrerPersonId || null,
         equipmentIds: equipmentIds,
         defectiveEquipmentIds: defectiveIds,
-        defectiveMangelByEquipmentId: mangelByEquipment,
-        defectiveFreitext: state.defectiveFreitext ? state.defectiveFreitext.trim() : null,
-        defectiveFreitextMangel: state.defectiveFreitextMangel ? state.defectiveFreitextMangel.trim() : null
+        defectiveMangelByEquipmentId: mangelByEquipment
       });
       equipmentRows.push({ vehicleId: vid, equipmentIds: equipmentIds });
     });
@@ -435,8 +437,11 @@
       state.equipmentIds = [];
       state.defectiveEquipmentIds = [];
       state.defectiveMangelByEquipmentId = {};
-      state.defectiveFreitext = '';
-      state.defectiveFreitextMangel = '';
+    }
+    syncHiddenJson();
+    if (!checked && window.BerichteGeraete &&
+        typeof window.BerichteGeraete.clearVehicleSelection === 'function') {
+      window.BerichteGeraete.clearVehicleSelection(vehicleId);
     }
     var card = document.querySelector('.incident-gwm-vehicle-card[data-vehicle-id="' + vehicleId + '"]');
     if (card) {
@@ -452,7 +457,6 @@
       }
     }
     syncIncidentVehicleStack();
-    syncHiddenJson();
   }
 
   function updateLeaderLabel() {
@@ -483,6 +487,22 @@
     }
   }
 
+  function setDefectRowState(row, checked, state, eqKey) {
+    if (row) {
+      row.classList.toggle('incident-gwm-defect-row--active', checked);
+    }
+    var mangelInput = row ? row.querySelector('.gwm-defect-equipment-mangel') : null;
+    if (mangelInput) {
+      mangelInput.disabled = !checked;
+      if (!checked) {
+        mangelInput.value = '';
+        delete state.defectiveMangelByEquipmentId[eqKey];
+      } else {
+        mangelInput.focus();
+      }
+    }
+  }
+
   function bindDefectEvents(container) {
     container.querySelectorAll('.gwm-defect-equipment').forEach(function (input) {
       input.addEventListener('change', function () {
@@ -492,20 +512,29 @@
         var state = ensureVehicleState(vid);
         var idx = state.defectiveEquipmentIds.indexOf(eqId);
         var row = input.closest('.incident-gwm-defect-row');
-        var mangelWrap = row ? row.querySelector('.incident-gwm-defect-row__mangel') : null;
         if (input.checked && idx < 0) {
           state.defectiveEquipmentIds.push(eqId);
         } else if (!input.checked && idx >= 0) {
           state.defectiveEquipmentIds.splice(idx, 1);
-          delete state.defectiveMangelByEquipmentId[eqKey];
         }
-        if (row) {
-          row.classList.toggle('incident-gwm-defect-row--active', input.checked);
-        }
-        if (mangelWrap) {
-          mangelWrap.hidden = !input.checked;
-        }
+        setDefectRowState(row, input.checked, state, eqKey);
         syncHiddenJson();
+      });
+    });
+    container.querySelectorAll('.incident-gwm-defect-row').forEach(function (row) {
+      if (readonly) {
+        return;
+      }
+      row.addEventListener('click', function (e) {
+        if (e.target.closest('label, textarea, input, .incident-gwm-defect-row__mangel-label')) {
+          return;
+        }
+        var checkbox = row.querySelector('.gwm-defect-equipment');
+        if (!checkbox || e.target === checkbox) {
+          return;
+        }
+        checkbox.checked = !checkbox.checked;
+        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
       });
     });
     container.querySelectorAll('.gwm-defect-equipment-mangel').forEach(function (input) {
@@ -514,23 +543,8 @@
         state.defectiveMangelByEquipmentId[String(input.dataset.equipmentId)] = input.value;
         syncHiddenJson();
       });
-    });
-    container.querySelectorAll('.gwm-defect-freitext').forEach(function (input) {
-      input.addEventListener('input', function () {
-        var vid = String(input.dataset.vehicleId);
-        var state = ensureVehicleState(vid);
-        state.defectiveFreitext = input.value;
-        var wrap = container.querySelector('.gwm-defect-freitext-mangel-wrap[data-vehicle-id="' + vid + '"]');
-        if (wrap) {
-          wrap.hidden = !input.value.trim();
-        }
-        syncHiddenJson();
-      });
-    });
-    container.querySelectorAll('.gwm-defect-freitext-mangel').forEach(function (input) {
-      input.addEventListener('input', function () {
-        ensureVehicleState(input.dataset.vehicleId).defectiveFreitextMangel = input.value;
-        syncHiddenJson();
+      input.addEventListener('click', function (e) {
+        e.stopPropagation();
       });
     });
   }
@@ -548,13 +562,27 @@
   }
 
   function bindEvents(scope) {
-    scope.querySelectorAll('.gwm-vehicle-toggle').forEach(function (button) {
-      button.addEventListener('click', function () {
-        var vid = button.dataset.vehicleId;
-        var next = button.getAttribute('aria-pressed') !== 'true';
-        toggleVehicle(vid, next);
+    var vehicleStack = document.getElementById('gwm-vehicle-stack');
+    if (vehicleStack && vehicleStack.dataset.gwmVehicleClickBound !== 'true' && !readonly) {
+      vehicleStack.dataset.gwmVehicleClickBound = 'true';
+      vehicleStack.addEventListener('click', function (e) {
+        var toggleBtn = e.target.closest('.gwm-vehicle-toggle');
+        if (toggleBtn) {
+          e.stopPropagation();
+          var vid = toggleBtn.dataset.vehicleId;
+          var next = toggleBtn.getAttribute('aria-pressed') !== 'true';
+          toggleVehicle(vid, next);
+          return;
+        }
+        var card = e.target.closest('.incident-gwm-vehicle-card');
+        if (!card || e.target.closest('select, button, input, textarea, option')) {
+          return;
+        }
+        var vehicleId = card.dataset.vehicleId;
+        var state = ensureVehicleState(vehicleId);
+        toggleVehicle(vehicleId, !state.selected);
       });
-    });
+    }
     scope.querySelectorAll('.gwm-maschinist').forEach(function (select) {
       select.addEventListener('change', function () {
         var state = ensureVehicleState(select.dataset.vehicleId);
