@@ -942,6 +942,7 @@ public class BerichteController {
         model.addAttribute("form", form);
         model.addAttribute("formMode", formMode);
         model.addAttribute("unitPersons", einsatzberichtService.listPersonsForForm(unitId));
+        model.addAttribute("unitId", unitId);
         model.addAttribute("vehiclesJson", geraetewartmitteilungService.buildVehiclesJson(unitId));
     }
 

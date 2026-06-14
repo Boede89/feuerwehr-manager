@@ -357,6 +357,9 @@
     initView: function () {
       loadSelectionFromHidden();
       render();
+    },
+    sync: function () {
+      syncHiddenJson();
     }
   };
 
@@ -365,7 +368,7 @@
     if (isReadonly()) {
       render();
     }
-    var form = document.getElementById('einsatzbericht-form');
+    var form = document.getElementById('einsatzbericht-form') || document.getElementById('geraetewart-form');
     if (form) {
       form.addEventListener('submit', syncHiddenJson);
     }

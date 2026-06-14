@@ -7,6 +7,7 @@ public record GeraetewartmitteilungListItemView(
         LocalDate eventDate,
         String typKey,
         String typLabel,
+        String eventArtLabel,
         String readinessKey,
         String readinessLabel,
         String leaderDisplay,

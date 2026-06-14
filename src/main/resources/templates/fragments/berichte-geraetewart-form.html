@@ -1,84 +1,121 @@
-<div xmlns:th="http://www.thymeleaf.org" th:fragment="form">
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<th:block th:fragment="form">
+  <div th:classappend="${formMode == 'view' ? ' einsatzbericht-form--view' : ''}">
+    <nav class="tab-bar incident-form-tabs" aria-label="Gerätewartmitteilung-Bereiche">
+      <button type="button" class="tab-btn incident-tab tab-btn--active" data-tab="0">Stammdaten</button>
+      <button type="button" class="tab-btn incident-tab" data-tab="1">Fahrzeuge</button>
+      <button type="button" class="tab-btn incident-tab" data-tab="2">Eingesetzte Geräte</button>
+    </nav>
+
+    <!-- Tab 0: Stammdaten -->
+    <div class="incident-tab-panel" data-panel="0">
+      <div class="incident-form-grid-2">
+        <div class="form-group form-group--full">
+          <span class="form-label">Einsatz oder Übung</span>
+          <div class="incident-radio-row" th:if="${formMode != 'view'}">
+            <label class="incident-radio-label">
+              <input type="radio" name="typ" value="UEBUNG"
+                     th:checked="${form.typ == null or form.typ == 'UEBUNG'}"/>
+              Übung
+            </label>
+            <label class="incident-radio-label">
+              <input type="radio" name="typ" value="EINSATZ"
+                     th:checked="${form.typ == 'EINSATZ'}"/>
+              Einsatz
+            </label>
+          </div>
+          <p th:if="${formMode == 'view'}" class="form-readonly"
+             th:text="${form.typ == 'EINSATZ' ? 'Einsatz' : 'Übung'}">Übung</p>
+        </div>
+        <div class="form-group">
+          <label for="eventArt">Einsatz-/Übungsart <span class="required" th:if="${formMode != 'view'}">*</span></label>
+          <select id="eventArt" name="eventArt" class="field" required th:if="${formMode != 'view'}">
+            <option th:each="art : ${T(de.feuerwehr.manager.berichte.GeraetewartEventArt).values()}"
+                    th:value="${art.name()}"
+                    th:selected="${form.eventArt == art.name()}"
+                    th:text="${art.label()}">Art</option>
+          </select>
+          <p th:if="${formMode == 'view'}" class="form-readonly"
+             th:text="${form.eventArt != null ? T(de.feuerwehr.manager.berichte.GeraetewartEventArt).fromKey(form.eventArt).label() : '—'}">—</p>
+        </div>
+        <div class="form-group">
+          <label for="eventDate">Datum <span class="required" th:if="${formMode != 'view'}">*</span></label>
+          <input id="eventDate" name="eventDate" type="date" required th:if="${formMode != 'view'}"
+                 th:value="${form.eventDate}"/>
+          <p th:if="${formMode == 'view'}" class="form-readonly"
+             th:text="${form.eventDate != null ? #temporals.format(form.eventDate, 'dd.MM.yyyy') : '—'}">—</p>
+        </div>
+        <div class="form-group form-group--full">
+          <span class="form-label">Einsatzbereitschaft</span>
+          <div class="incident-radio-row" th:if="${formMode != 'view'}">
+            <label class="incident-radio-label">
+              <input type="radio" name="readiness" value="HERGESTELLT"
+                     th:checked="${form.readiness == null or form.readiness == 'HERGESTELLT'}"/>
+              Einsatzbereitschaft wurde hergestellt
+            </label>
+            <label class="incident-radio-label">
+              <input type="radio" name="readiness" value="NICHT_HERGESTELLT"
+                     th:checked="${form.readiness == 'NICHT_HERGESTELLT'}"/>
+              Einsatzbereitschaft wurde nicht hergestellt
+            </label>
+          </div>
+          <p th:if="${formMode == 'view'}" class="form-readonly"
+             th:text="${form.readiness == 'NICHT_HERGESTELLT' ? 'Einsatzbereitschaft wurde nicht hergestellt' : 'Einsatzbereitschaft wurde hergestellt'}">—</p>
+        </div>
+        <div class="form-group form-group--full">
+          <label for="leaderName" id="leader-label">Einsatz-/Übungsleiter</label>
+          <div class="combo-suggest" data-combo-suggest data-combo-min="1" th:if="${formMode != 'view'}">
+            <input id="leaderName" name="leaderName" type="text" maxlength="255"
+                   class="combo-suggest__input" autocomplete="off"
+                   placeholder="Name eingeben …" th:value="${form.leaderName}"/>
+            <ul class="combo-suggest__list" role="listbox" hidden>
+              <li class="combo-suggest__option" th:each="p : ${unitPersons}"
+                  th:attr="data-value=${p.anwesenheitDisplayName()}, data-person-id=${p.id}"
+                  th:text="${p.anwesenheitDisplayName()}">Name</li>
+            </ul>
+          </div>
+          <p th:if="${formMode == 'view'}" class="form-readonly"
+             th:text="${form.leaderName != null and !#strings.isEmpty(form.leaderName) ? form.leaderName : '—'}">—</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 1: Fahrzeuge -->
+    <div class="incident-tab-panel" data-panel="1" hidden>
+      <p class="hint" th:if="${formMode != 'view'}">
+        Wählen Sie die eingesetzten Fahrzeuge und legen Sie Maschinist sowie Einheitsführer fest.
+      </p>
+      <div id="gwm-vehicle-stack" class="incident-gwm-vehicle-stack"
+           th:attr="data-readonly=${formMode == 'view' ? 'true' : 'false'}"></div>
+      <p id="gwm-vehicle-empty" class="hint" hidden>Keine Fahrzeuge in der Einheit hinterlegt.</p>
+      <div id="incident-vehicle-stack" hidden aria-hidden="true"></div>
+    </div>
+
+    <!-- Tab 2: Eingesetzte Geräte -->
+    <div class="incident-tab-panel" data-panel="2" hidden>
+      <p class="hint" id="deployed-equipment-no-vehicles" hidden>
+        Markieren Sie zuerst im Reiter Fahrzeuge die eingesetzten Fahrzeuge.
+      </p>
+      <p class="hint" id="deployed-equipment-empty" hidden>
+        Für die eingesetzten Fahrzeuge sind noch keine Geräte in der Technik-Verwaltung hinterlegt.
+      </p>
+      <div id="incident-deployed-equipment" class="incident-deployed-equipment"
+           th:data-readonly="${formMode == 'view' ? 'true' : 'false'}"
+           th:data-initial="${form.deployedEquipmentJson}"></div>
+    </div>
+  </div>
+
+  <input type="hidden" name="vehiclesDataJson" id="vehiclesDataJson" th:if="${formMode != 'view'}"
+         th:value="${form.vehiclesDataJson}"/>
   <input type="hidden" name="deployedEquipmentJson" id="deployedEquipmentJson" th:if="${formMode != 'view'}"
          th:value="${form.deployedEquipmentJson}"/>
   <input type="hidden" name="leaderPersonId" id="leaderPersonId" th:if="${formMode != 'view'}"
          th:value="${form.leaderPersonId}"/>
 
-  <div class="incident-form-section">
-    <h3 class="incident-form-section__title">Gerätewartmitteilung</h3>
-    <div class="form-grid form-grid--2">
-      <div class="form-field form-field--full">
-        <span class="form-label">Typ</span>
-        <div class="radio-row" th:if="${formMode != 'view'}">
-          <label class="radio-label">
-            <input type="radio" name="typ" value="UEBUNG"
-                   th:checked="${form.typ == null or form.typ == 'UEBUNG'}"/>
-            Übung
-          </label>
-          <label class="radio-label">
-            <input type="radio" name="typ" value="EINSATZ"
-                   th:checked="${form.typ == 'EINSATZ'}"/>
-            Einsatz
-          </label>
-        </div>
-        <p th:if="${formMode == 'view'}" class="form-readonly"
-           th:text="${form.typ == 'EINSATZ' ? 'Einsatz' : 'Übung'}">Übung</p>
-      </div>
-      <div class="form-field">
-        <label for="eventDate">Datum</label>
-        <input id="eventDate" name="eventDate" type="date" required th:if="${formMode != 'view'}"
-               th:value="${form.eventDate}"/>
-        <p th:if="${formMode == 'view'}" class="form-readonly"
-           th:text="${form.eventDate != null ? #temporals.format(form.eventDate, 'dd.MM.yyyy') : '—'}">—</p>
-      </div>
-    </div>
-  </div>
-
-  <div class="incident-form-section">
-    <h3 class="incident-form-section__title">Eingesetzte Fahrzeuge</h3>
-    <p class="hint" th:if="${formMode != 'view'}">Wählen Sie die eingesetzten Fahrzeuge und die genutzten Geräte pro Fahrzeug.</p>
-    <div id="gwm-vehicle-stack" th:attr="data-readonly=${formMode == 'view'}"></div>
-    <p id="gwm-vehicle-empty" class="hint" hidden>Keine Fahrzeuge in der Einheit hinterlegt.</p>
-  </div>
-
-  <div class="incident-form-section">
-    <h3 class="incident-form-section__title">Weitere Angaben</h3>
-    <div class="form-grid form-grid--2">
-      <div class="form-field form-field--full">
-        <span class="form-label">Einsatzbereitschaft</span>
-        <div class="radio-row" th:if="${formMode != 'view'}">
-          <label class="radio-label">
-            <input type="radio" name="readiness" value="HERGESTELLT"
-                   th:checked="${form.readiness == null or form.readiness == 'HERGESTELLT'}"/>
-            Einsatzbereitschaft wurde hergestellt
-          </label>
-          <label class="radio-label">
-            <input type="radio" name="readiness" value="NICHT_HERGESTELLT"
-                   th:checked="${form.readiness == 'NICHT_HERGESTELLT'}"/>
-            Einsatzbereitschaft wurde nicht hergestellt
-          </label>
-        </div>
-        <p th:if="${formMode == 'view'}" class="form-readonly"
-           th:text="${form.readiness == 'NICHT_HERGESTELLT' ? 'Einsatzbereitschaft wurde nicht hergestellt' : 'Einsatzbereitschaft wurde hergestellt'}">—</p>
-      </div>
-      <div class="form-field form-field--full">
-        <label for="leaderName" id="leader-label">Einsatz-/Übungsleiter</label>
-        <div class="combo-suggest" data-combo-suggest data-combo-min="1" th:if="${formMode != 'view'}">
-          <input id="leaderName" name="leaderName" type="text" maxlength="255"
-                 class="combo-suggest__input" autocomplete="off"
-                 placeholder="Name eingeben …" th:value="${form.leaderName}"/>
-          <ul class="combo-suggest__list" role="listbox" hidden>
-            <li class="combo-suggest__option" th:each="p : ${unitPersons}"
-                th:attr="data-value=${p.anwesenheitDisplayName()}, data-person-id=${p.id}"
-                th:text="${p.anwesenheitDisplayName()}">Name</li>
-          </ul>
-        </div>
-        <p th:if="${formMode == 'view'}" class="form-readonly"
-           th:text="${form.leaderName != null and !#strings.isEmpty(form.leaderName) ? form.leaderName : '—'}">—</p>
-      </div>
-    </div>
-  </div>
+  <div id="incident-kraefte-board" th:data-unit-id="${unitId}" hidden aria-hidden="true"></div>
 
   <script type="application/json" id="gwm-vehicles-data" th:utext="${vehiclesJson}">[]</script>
-  <script type="application/json" id="gwm-initial-equipment-data" th:utext="${form.deployedEquipmentJson}">[]</script>
-</div>
+  <script type="application/json" id="gwm-initial-vehicles-data" th:utext="${form.vehiclesDataJson}">[]</script>
+</th:block>
+</html>

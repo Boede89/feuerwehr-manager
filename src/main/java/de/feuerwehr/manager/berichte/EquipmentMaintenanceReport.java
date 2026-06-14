@@ -39,6 +39,10 @@ public class EquipmentMaintenanceReport {
     @Column(nullable = false, length = 16)
     private GeraetewartTyp typ = GeraetewartTyp.UEBUNG;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "event_art", length = 50)
+    private GeraetewartEventArt eventArt = GeraetewartEventArt.BRANDEINSATZ;
+
     @Column(name = "event_date", nullable = false)
     private LocalDate eventDate;
 
@@ -55,6 +59,9 @@ public class EquipmentMaintenanceReport {
 
     @Column(name = "deployed_equipment_json", columnDefinition = "TEXT")
     private String deployedEquipmentJson;
+
+    @Column(name = "vehicles_data_json", columnDefinition = "TEXT")
+    private String vehiclesDataJson;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by_user_id")

@@ -30,6 +30,10 @@
         <td class="value-cell" th:text="${typLabel}">Übung</td>
       </tr>
       <tr>
+        <td class="label-cell">Einsatz-/Übungsart</td>
+        <td class="value-cell" th:text="${eventArtLabel}">Brandeinsatz</td>
+      </tr>
+      <tr>
         <td class="label-cell">Datum</td>
         <td class="value-cell" th:text="${eventDate}">01.01.2026</td>
       </tr>
@@ -49,15 +53,24 @@
     <table>
       <tr>
         <th class="label-cell">Fahrzeug</th>
+        <th class="label-cell">Maschinist</th>
+        <th class="label-cell">Einheitsführer</th>
         <th class="label-cell">Geräte</th>
+        <th class="label-cell">Defekte</th>
       </tr>
       <tr th:each="row : ${vehicles}">
         <td class="label-cell" th:text="${row.vehicleName()}">—</td>
+        <td class="value-cell" th:text="${row.maschinistDisplay()}">—</td>
+        <td class="value-cell" th:text="${row.einheitsfuehrerDisplay()}">—</td>
         <td class="value-cell"
             th:text="${row.equipmentNames() != null and !row.equipmentNames().isEmpty() ? #strings.listJoin(row.equipmentNames(), ', ') : '—'}">—</td>
+        <td class="value-cell" th:text="${row.defectsDisplay()}">—</td>
       </tr>
       <tr th:if="${vehicles == null or vehicles.isEmpty()}">
         <td class="label-cell">—</td>
+        <td class="value-cell">—</td>
+        <td class="value-cell">—</td>
+        <td class="value-cell">—</td>
         <td class="value-cell">—</td>
       </tr>
     </table>

@@ -14,9 +14,11 @@ import de.feuerwehr.manager.user.UserRepository;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -63,6 +65,10 @@ public class GeraetewartmitteilungService {
     public GeraetewartmitteilungForm toForm(EquipmentMaintenanceReport report) {
         GeraetewartmitteilungForm form = new GeraetewartmitteilungForm();
         form.setTyp(report.getTyp() != null ? report.getTyp().name() : GeraetewartTyp.UEBUNG.name());
+        form.setEventArt(
+                report.getEventArt() != null
+                        ? report.getEventArt().name()
+                        : GeraetewartEventArt.BRANDEINSATZ.name());
         form.setEventDate(report.getEventDate());
         form.setReadiness(
                 report.getReadiness() != null
@@ -74,28 +80,10 @@ public class GeraetewartmitteilungService {
         } else {
             form.setLeaderName(report.getLeaderName());
         }
-        form.setDeployedEquipmentJson(
-                report.getDeployedEquipmentJson() != null && !report.getDeployedEquipmentJson().isBlank()
-                        ? report.getDeployedEquipmentJson()
-                        : "[]");
+        List<GwmVehicleData> vehicles = parseVehicles(report);
+        form.setVehiclesDataJson(GwmVehicleDataSupport.serialize(vehicles, objectMapper));
+        form.setDeployedEquipmentJson(GwmVehicleDataSupport.toDeployedEquipmentJson(vehicles, objectMapper));
         return form;
-    }
-
-    @Transactional(readOnly = true)
-    public String buildUnitPersonsJson(long unitId) {
-        List<Map<String, Object>> items = personalService.listPersons(unitId).stream()
-                .map(person -> {
-                    Map<String, Object> item = new LinkedHashMap<>();
-                    item.put("id", person.getId());
-                    item.put("name", person.anwesenheitDisplayName());
-                    return item;
-                })
-                .toList();
-        try {
-            return objectMapper.writeValueAsString(items);
-        } catch (Exception e) {
-            return "[]";
-        }
     }
 
     @Transactional(readOnly = true)
@@ -149,19 +137,23 @@ public class GeraetewartmitteilungService {
 
     @Transactional(readOnly = true)
     public List<GeraetewartPdfVehicleRow> buildVehicleRows(long unitId, EquipmentMaintenanceReport report) {
-        List<DeployedEquipmentAssignment> assignments =
-                einsatzberichtService.parseDeployedEquipment(report.getDeployedEquipmentJson());
-        if (assignments.isEmpty()) {
+        List<GwmVehicleData> vehicles = parseVehicles(report);
+        if (vehicles.isEmpty()) {
             return List.of();
         }
         Map<Long, Vehicle> vehicleById = new LinkedHashMap<>();
         einsatzberichtService.listVehiclesForForm(unitId).forEach(v -> vehicleById.put(v.getId(), v));
+        Map<Long, Person> personById = loadPersonsForVehicles(unitId, vehicles);
         List<GeraetewartPdfVehicleRow> rows = new ArrayList<>();
-        for (DeployedEquipmentAssignment assignment : assignments) {
-            Vehicle vehicle = vehicleById.get(assignment.vehicleId());
-            String vehicleName = vehicle != null ? vehicle.getName() : "Fahrzeug " + assignment.vehicleId();
-            List<String> equipmentNames = resolveEquipmentNames(unitId, assignment);
-            rows.add(new GeraetewartPdfVehicleRow(vehicleName, equipmentNames));
+        for (GwmVehicleData vehicle : vehicles) {
+            Vehicle entity = vehicleById.get(vehicle.vehicleId());
+            String vehicleName = entity != null ? entity.getName() : "Fahrzeug " + vehicle.vehicleId();
+            rows.add(new GeraetewartPdfVehicleRow(
+                    vehicleName,
+                    personDisplay(personById.get(vehicle.maschinistPersonId())),
+                    personDisplay(personById.get(vehicle.einheitsfuehrerPersonId())),
+                    resolveEquipmentNames(unitId, vehicle),
+                    formatDefects(unitId, vehicle)));
         }
         return rows;
     }
@@ -181,12 +173,49 @@ public class GeraetewartmitteilungService {
         return typ == GeraetewartTyp.EINSATZ ? "Einsatzleiter" : "Übungsleiter";
     }
 
-    private List<String> resolveEquipmentNames(long unitId, DeployedEquipmentAssignment assignment) {
-        if (assignment.equipmentIds() == null || assignment.equipmentIds().isEmpty()) {
+    public List<GwmVehicleData> parseVehicles(EquipmentMaintenanceReport report) {
+        return GwmVehicleDataSupport.parse(
+                report.getVehiclesDataJson(), report.getDeployedEquipmentJson(), objectMapper);
+    }
+
+    public List<GwmVehicleData> parseVehicles(GeraetewartmitteilungForm form) {
+        List<GwmVehicleData> vehicles =
+                GwmVehicleDataSupport.parseVehiclesJson(form.getVehiclesDataJson(), objectMapper);
+        if (!vehicles.isEmpty()) {
+            return vehicles;
+        }
+        return GwmVehicleDataSupport.parse(null, form.getDeployedEquipmentJson(), objectMapper);
+    }
+
+    private Map<Long, Person> loadPersonsForVehicles(long unitId, List<GwmVehicleData> vehicles) {
+        Set<Long> personIds = new LinkedHashSet<>();
+        for (GwmVehicleData vehicle : vehicles) {
+            if (vehicle.maschinistPersonId() != null) {
+                personIds.add(vehicle.maschinistPersonId());
+            }
+            if (vehicle.einheitsfuehrerPersonId() != null) {
+                personIds.add(vehicle.einheitsfuehrerPersonId());
+            }
+        }
+        Map<Long, Person> personById = new LinkedHashMap<>();
+        if (!personIds.isEmpty()) {
+            personRepository
+                    .findActiveByIdIn(personIds, includeTestReports())
+                    .forEach(person -> personById.put(person.getId(), person));
+        }
+        return personById;
+    }
+
+    private static String personDisplay(Person person) {
+        return person != null ? person.anwesenheitDisplayName() : "—";
+    }
+
+    private List<String> resolveEquipmentNames(long unitId, GwmVehicleData vehicle) {
+        if (vehicle.equipmentIds() == null || vehicle.equipmentIds().isEmpty()) {
             return List.of();
         }
         List<VehicleEquipmentView> equipmentViews =
-                einsatzberichtService.listVehicleEquipment(unitId, List.of(assignment.vehicleId()));
+                einsatzberichtService.listVehicleEquipment(unitId, List.of(vehicle.vehicleId()));
         if (equipmentViews.isEmpty()) {
             return List.of();
         }
@@ -194,17 +223,52 @@ public class GeraetewartmitteilungService {
         for (VehicleEquipmentView.EquipmentItemView item : equipmentViews.get(0).equipment()) {
             nameById.put(item.id(), item.name());
         }
-        return assignment.equipmentIds().stream()
+        return vehicle.equipmentIds().stream()
                 .map(nameById::get)
                 .filter(Objects::nonNull)
                 .toList();
     }
 
+    private String formatDefects(long unitId, GwmVehicleData vehicle) {
+        List<String> parts = new ArrayList<>();
+        if (vehicle.defectiveEquipmentIds() != null && !vehicle.defectiveEquipmentIds().isEmpty()) {
+            List<VehicleEquipmentView> equipmentViews =
+                    einsatzberichtService.listVehicleEquipment(unitId, List.of(vehicle.vehicleId()));
+            Map<Long, String> nameById = new LinkedHashMap<>();
+            if (!equipmentViews.isEmpty()) {
+                for (VehicleEquipmentView.EquipmentItemView item : equipmentViews.get(0).equipment()) {
+                    nameById.put(item.id(), item.name());
+                }
+            }
+            vehicle.defectiveEquipmentIds().stream()
+                    .map(nameById::get)
+                    .filter(Objects::nonNull)
+                    .forEach(parts::add);
+        }
+        if (vehicle.defectiveFreitext() != null && !vehicle.defectiveFreitext().isBlank()) {
+            parts.add(vehicle.defectiveFreitext().trim());
+        }
+        if (parts.isEmpty()) {
+            if (vehicle.defectiveMangel() != null && !vehicle.defectiveMangel().isBlank()) {
+                return vehicle.defectiveMangel().trim();
+            }
+            return "—";
+        }
+        String result = String.join(", ", parts);
+        if (vehicle.defectiveMangel() != null && !vehicle.defectiveMangel().isBlank()) {
+            result += " – " + vehicle.defectiveMangel().trim();
+        }
+        return result;
+    }
+
     private void applyForm(EquipmentMaintenanceReport report, GeraetewartmitteilungForm form, long unitId) {
         report.setTyp(GeraetewartTyp.fromKey(form.getTyp()));
+        report.setEventArt(GeraetewartEventArt.fromKey(form.getEventArt()));
         report.setEventDate(form.getEventDate());
         report.setReadiness(GeraetewartReadiness.fromKey(form.getReadiness()));
-        report.setDeployedEquipmentJson(normalizeJson(form.getDeployedEquipmentJson()));
+        List<GwmVehicleData> vehicles = parseVehicles(form);
+        report.setVehiclesDataJson(GwmVehicleDataSupport.serialize(vehicles, objectMapper));
+        report.setDeployedEquipmentJson(GwmVehicleDataSupport.toDeployedEquipmentJson(vehicles, objectMapper));
         applyLeader(report, form, unitId);
     }
 
@@ -233,9 +297,7 @@ public class GeraetewartmitteilungService {
         if (form.getEventDate() == null) {
             throw new IllegalArgumentException("Bitte ein Datum angeben.");
         }
-        List<DeployedEquipmentAssignment> assignments =
-                einsatzberichtService.parseDeployedEquipment(form.getDeployedEquipmentJson());
-        if (assignments.isEmpty()) {
+        if (parseVehicles(form).isEmpty()) {
             throw new IllegalArgumentException("Bitte mindestens ein Fahrzeug auswählen.");
         }
     }
@@ -251,10 +313,11 @@ public class GeraetewartmitteilungService {
     }
 
     private GeraetewartmitteilungListItemView toListItem(EquipmentMaintenanceReport report) {
-        List<DeployedEquipmentAssignment> assignments =
-                einsatzberichtService.parseDeployedEquipment(report.getDeployedEquipmentJson());
+        List<GwmVehicleData> vehicles = parseVehicles(report);
         Long creatorId = report.getCreatedByUser() != null ? report.getCreatedByUser().getId() : null;
         GeraetewartTyp typ = report.getTyp() != null ? report.getTyp() : GeraetewartTyp.UEBUNG;
+        GeraetewartEventArt eventArt =
+                report.getEventArt() != null ? report.getEventArt() : GeraetewartEventArt.BRANDEINSATZ;
         GeraetewartReadiness readiness =
                 report.getReadiness() != null ? report.getReadiness() : GeraetewartReadiness.HERGESTELLT;
         return new GeraetewartmitteilungListItemView(
@@ -262,10 +325,11 @@ public class GeraetewartmitteilungService {
                 report.getEventDate(),
                 typ.name().toLowerCase(),
                 typ.label(),
+                eventArt.label(),
                 readiness.name().toLowerCase(),
                 readiness.label(),
                 resolveLeaderDisplay(report),
-                assignments.size(),
+                vehicles.size(),
                 creatorId);
     }
 
@@ -275,16 +339,14 @@ public class GeraetewartmitteilungService {
                 .orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden."));
     }
 
-    private static String normalizeJson(String value) {
-        if (value == null || value.isBlank()) {
-            return "[]";
-        }
-        return value.trim();
-    }
-
     private boolean includeTestReports() {
         return testModeService.isEnabled();
     }
 
-    public record GeraetewartPdfVehicleRow(String vehicleName, List<String> equipmentNames) {}
+    public record GeraetewartPdfVehicleRow(
+            String vehicleName,
+            String maschinistDisplay,
+            String einheitsfuehrerDisplay,
+            List<String> equipmentNames,
+            String defectsDisplay) {}
 }

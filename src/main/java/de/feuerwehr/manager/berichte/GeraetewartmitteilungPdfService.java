@@ -30,13 +30,17 @@ public class GeraetewartmitteilungPdfService {
         String date = report.getEventDate() != null
                 ? report.getEventDate().format(DateTimeFormatter.ISO_DATE)
                 : "ohne-datum";
-        GeraetewartTyp typ = report.getTyp() != null ? report.getTyp() : GeraetewartTyp.UEBUNG;
-        return "Geraetewartmitteilung_" + date + "_" + typ.name().toLowerCase() + ".pdf";
+        GeraetewartEventArt art =
+                report.getEventArt() != null ? report.getEventArt() : GeraetewartEventArt.BRANDEINSATZ;
+        String artSlug = art.label().replaceAll("[^a-zA-Z0-9_-]", "_");
+        return "Geraetewartmitteilung_" + date + "_" + artSlug + ".pdf";
     }
 
     private Map<String, Object> buildModel(long unitId, EquipmentMaintenanceReport report) {
         Unit unit = report.getUnit();
         GeraetewartTyp typ = report.getTyp() != null ? report.getTyp() : GeraetewartTyp.UEBUNG;
+        GeraetewartEventArt eventArt =
+                report.getEventArt() != null ? report.getEventArt() : GeraetewartEventArt.BRANDEINSATZ;
         GeraetewartReadiness readiness =
                 report.getReadiness() != null ? report.getReadiness() : GeraetewartReadiness.HERGESTELLT;
         List<GeraetewartmitteilungService.GeraetewartPdfVehicleRow> vehicles =
@@ -45,6 +49,7 @@ public class GeraetewartmitteilungPdfService {
         Map<String, Object> model = new LinkedHashMap<>();
         model.put("unitLogoBase64", unit.getLogoBase64());
         model.put("typLabel", typ.label());
+        model.put("eventArtLabel", eventArt.label());
         model.put(
                 "eventDate",
                 report.getEventDate() != null ? report.getEventDate().format(DATE_FMT) : "—");

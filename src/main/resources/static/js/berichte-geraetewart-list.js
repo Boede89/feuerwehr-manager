@@ -126,12 +126,13 @@
     wrap.innerHTML =
       '<div style="overflow-x:auto">' +
       '<table class="data-table"><thead><tr>' +
-      '<th>Datum</th><th>Typ</th><th>Leiter</th><th>Fahrzeuge</th><th>Einsatzbereitschaft</th><th>Aktionen</th>' +
+      '<th>Datum</th><th>Typ</th><th>Art</th><th>Leiter</th><th>Fahrzeuge</th><th>Einsatzbereitschaft</th><th>Aktionen</th>' +
       '</tr></thead><tbody>' +
       allItems.map(function (r) {
         return '<tr>' +
           '<td>' + esc(fmtDate(r.eventDate)) + '</td>' +
           '<td>' + esc(r.typLabel || '—') + '</td>' +
+          '<td>' + esc(r.eventArtLabel || '—') + '</td>' +
           '<td>' + esc(r.leaderDisplay || '—') + '</td>' +
           '<td>' + esc(String(r.vehicleCount || 0)) + '</td>' +
           '<td><span class="text-muted text-sm">' + esc(r.readinessLabel || '—') + '</span></td>' +

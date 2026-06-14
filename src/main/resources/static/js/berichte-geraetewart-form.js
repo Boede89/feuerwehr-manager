@@ -1,9 +1,9 @@
 (function () {
   'use strict';
 
-  var equipmentCache = {};
-  var selectedEquipment = {};
+  var vehicleState = {};
   var readonly = false;
+  var unitPersons = [];
 
   function esc(text) {
     var div = document.createElement('div');
@@ -11,7 +11,7 @@
     return div.innerHTML;
   }
 
-  function parseJson(id, fallback) {
+  function parseJsonScript(id, fallback) {
     var el = document.getElementById(id);
     if (!el) {
       return fallback;
@@ -23,48 +23,34 @@
     }
   }
 
-  function apiBase() {
-    return window.BerichteApiBase ? window.BerichteApiBase.path() : '/berichte/geraetewartmitteilungen';
-  }
-
-  function unitId() {
-    var params = new URLSearchParams(window.location.search);
-    return params.get('unit');
-  }
-
   function isReadonly() {
     var stack = document.getElementById('gwm-vehicle-stack');
     return stack && stack.dataset.readonly === 'true';
   }
 
-  function syncHiddenJson() {
-    var hidden = document.getElementById('deployedEquipmentJson');
-    if (!hidden || readonly) {
-      return;
-    }
-    var assignments = [];
-    Object.keys(selectedEquipment).forEach(function (vehicleId) {
-      if (!selectedEquipment[vehicleId].selected) {
-        return;
-      }
-      var ids = selectedEquipment[vehicleId].equipmentIds || [];
-      assignments.push({
-        vehicleId: Number(vehicleId),
-        equipmentIds: ids.slice()
-      });
+  function switchTab(idx) {
+    document.querySelectorAll('[data-berichte-form="geraetewart"] .incident-tab').forEach(function (btn) {
+      btn.classList.toggle('tab-btn--active', Number(btn.dataset.tab) === idx);
     });
-    hidden.value = JSON.stringify(assignments);
+    document.querySelectorAll('[data-berichte-form="geraetewart"] .incident-tab-panel').forEach(function (panel) {
+      panel.hidden = Number(panel.dataset.panel) !== idx;
+    });
+    if (idx === 2 && window.BerichteGeraete) {
+      window.BerichteGeraete.onTabShow();
+    }
   }
 
-  function loadInitialSelection() {
-    var initial = parseJson('gwm-initial-equipment-data', []);
-    selectedEquipment = {};
+  function loadInitialState() {
+    vehicleState = {};
+    var initial = parseJsonScript('gwm-initial-vehicles-data', []);
     initial.forEach(function (entry) {
       if (!entry || entry.vehicleId == null) {
         return;
       }
-      selectedEquipment[String(entry.vehicleId)] = {
+      vehicleState[String(entry.vehicleId)] = {
         selected: true,
+        maschinistPersonId: entry.maschinistPersonId || null,
+        einheitsfuehrerPersonId: entry.einheitsfuehrerPersonId || null,
         equipmentIds: (entry.equipmentIds || []).map(Number).filter(function (id) {
           return !isNaN(id);
         })
@@ -72,101 +58,99 @@
     });
   }
 
-  function renderEquipmentSection(vehicleId, container, items) {
-    var state = selectedEquipment[String(vehicleId)] || { selected: true, equipmentIds: [] };
-    if (!items.length) {
-      container.innerHTML = '<span class="hint">Keine Geräte hinterlegt</span>';
+  function personOptions(selectedId) {
+    var html = '<option value="">— keine Auswahl —</option>';
+    unitPersons.forEach(function (person) {
+      var selected = selectedId != null && Number(selectedId) === Number(person.id) ? ' selected' : '';
+      html += '<option value="' + esc(person.id) + '"' + selected + '>' + esc(person.name) + '</option>';
+    });
+    return html;
+  }
+
+  function syncIncidentVehicleStack() {
+    var stack = document.getElementById('incident-vehicle-stack');
+    if (!stack) {
       return;
     }
-    var byCategory = {};
-    items.forEach(function (item) {
-      var key = item.categoryName || 'Sonstiges';
-      if (!byCategory[key]) {
-        byCategory[key] = [];
+    stack.innerHTML = '';
+    Object.keys(vehicleState).forEach(function (vehicleId) {
+      if (!vehicleState[vehicleId].selected) {
+        return;
       }
-      byCategory[key].push(item);
+      var card = document.createElement('article');
+      card.className = 'incident-vehicle-card';
+      card.dataset.vehicleId = vehicleId;
+      card.dataset.involvedInIncident = 'true';
+      stack.appendChild(card);
     });
-    var html = '<div class="gwm-equipment-groups">';
-    Object.keys(byCategory).sort().forEach(function (category) {
-      html += '<div class="gwm-equipment-group"><div class="gwm-equipment-group__title">' + esc(category) + '</div><div class="gwm-equipment-checks">';
-      byCategory[category].forEach(function (item) {
-        var checked = state.equipmentIds.indexOf(Number(item.id)) >= 0;
-        html += '<label class="checkbox-label gwm-equipment-check">' +
-          '<input type="checkbox" data-vehicle-id="' + vehicleId + '" data-equipment-id="' + item.id + '"' +
-          (checked ? ' checked' : '') + (readonly ? ' disabled' : '') + '/> ' +
-          esc(item.name) + '</label>';
-      });
-      html += '</div></div>';
-    });
-    html += '</div>';
-    container.innerHTML = html;
+    if (window.BerichteGeraete) {
+      window.BerichteGeraete.refresh();
+    }
   }
 
-  function fetchEquipment(vehicleId) {
-    var uid = unitId();
-    if (!uid) {
-      return Promise.resolve([]);
-    }
-    if (equipmentCache[vehicleId]) {
-      return Promise.resolve(equipmentCache[vehicleId]);
-    }
-    return fetch(apiBase() + '/vehicle-equipment?unit=' + encodeURIComponent(uid) +
-      '&vehicleIds=' + encodeURIComponent(vehicleId), { credentials: 'same-origin' })
-      .then(function (res) {
-        if (!res.ok) {
-          throw new Error('Geräte konnten nicht geladen werden');
-        }
-        return res.json();
-      })
-      .then(function (data) {
-        var items = (data[0] && data[0].equipment) ? data[0].equipment : [];
-        equipmentCache[vehicleId] = items;
-        return items;
-      })
-      .catch(function () {
-        return [];
-      });
+  function buildVehicleRows(vehicles) {
+    return vehicles.map(function (vehicle) {
+      var state = vehicleState[String(vehicle.id)] || {
+        selected: false,
+        maschinistPersonId: null,
+        einheitsfuehrerPersonId: null,
+        equipmentIds: []
+      };
+      if (readonly && !state.selected) {
+        return '';
+      }
+      var checked = state.selected;
+      var maschName = '—';
+      var einhName = '—';
+      if (readonly) {
+        unitPersons.forEach(function (p) {
+          if (state.maschinistPersonId != null && Number(p.id) === Number(state.maschinistPersonId)) {
+            maschName = p.name;
+          }
+          if (state.einheitsfuehrerPersonId != null && Number(p.id) === Number(state.einheitsfuehrerPersonId)) {
+            einhName = p.name;
+          }
+        });
+      }
+      return '<article class="incident-gwm-vehicle-row' + (checked ? ' incident-gwm-vehicle-row--active' : '') +
+        '" data-vehicle-id="' + vehicle.id + '">' +
+        '<header class="incident-gwm-vehicle-row__head">' +
+        (readonly
+          ? '<strong class="incident-gwm-vehicle-row__name">' + esc(vehicle.name) + '</strong>'
+          : '<label class="incident-gwm-vehicle-row__check">' +
+            '<input type="checkbox" class="gwm-vehicle-toggle" data-vehicle-id="' + vehicle.id + '"' +
+            (checked ? ' checked' : '') + '/>' +
+            '<span class="incident-gwm-vehicle-row__name">' + esc(vehicle.name) + '</span></label>') +
+        '</header>' +
+        '<div class="incident-gwm-vehicle-row__fields"' + (checked ? '' : ' hidden') + '>' +
+        '<div class="form-group">' +
+        '<label>Maschinist</label>' +
+        (readonly
+          ? '<p class="form-readonly">' + esc(maschName) + '</p>'
+          : '<select class="field gwm-maschinist" data-vehicle-id="' + vehicle.id + '">' +
+            personOptions(state.maschinistPersonId) + '</select>') +
+        '</div>' +
+        '<div class="form-group">' +
+        '<label>Einheitsführer</label>' +
+        (readonly
+          ? '<p class="form-readonly">' + esc(einhName) + '</p>'
+          : '<select class="field gwm-einheitsfuehrer" data-vehicle-id="' + vehicle.id + '">' +
+            personOptions(state.einheitsfuehrerPersonId) + '</select>') +
+        '</div>' +
+        '</div></article>';
+    }).join('');
   }
 
-  function toggleVehicleCard(vehicleId, checked) {
-    if (!selectedEquipment[String(vehicleId)]) {
-      selectedEquipment[String(vehicleId)] = { selected: checked, equipmentIds: [] };
-    } else {
-      selectedEquipment[String(vehicleId)].selected = checked;
-    }
-    var card = document.querySelector('.gwm-vehicle-card[data-vehicle-id="' + vehicleId + '"]');
-    if (!card) {
-      return;
-    }
-    var fields = card.querySelector('.gwm-vehicle-fields');
-    if (fields) {
-      fields.hidden = !checked;
-    }
-    if (!checked) {
-      syncHiddenJson();
-      return;
-    }
-    var eqWrap = card.querySelector('.gwm-equipment-wrap');
-    if (!eqWrap) {
-      syncHiddenJson();
-      return;
-    }
-    eqWrap.innerHTML = '<p class="hint">Geräte werden geladen …</p>';
-    fetchEquipment(vehicleId).then(function (items) {
-      renderEquipmentSection(vehicleId, eqWrap, items);
-      syncHiddenJson();
-    });
-  }
-
-  function renderVehicleCards(vehicles) {
+  function renderVehicles() {
     var stack = document.getElementById('gwm-vehicle-stack');
     var empty = document.getElementById('gwm-vehicle-empty');
     if (!stack) {
       return;
     }
+    var vehicles = parseJsonScript('gwm-vehicles-data', []);
     if (readonly) {
       vehicles = vehicles.filter(function (vehicle) {
-        return selectedEquipment[String(vehicle.id)] && selectedEquipment[String(vehicle.id)].selected;
+        return vehicleState[String(vehicle.id)] && vehicleState[String(vehicle.id)].selected;
       });
     }
     if (!vehicles.length) {
@@ -179,35 +163,95 @@
     if (empty) {
       empty.hidden = true;
     }
-    stack.innerHTML = vehicles.map(function (vehicle) {
-      var state = selectedEquipment[String(vehicle.id)] || { selected: false, equipmentIds: [] };
-      var checked = state.selected;
-      return '<div class="card gwm-vehicle-card" data-vehicle-id="' + vehicle.id + '">' +
-        '<div class="card__body">' +
-        '<div class="gwm-vehicle-head">' +
-        (readonly
-          ? '<strong>' + esc(vehicle.name) + '</strong>'
-          : '<label class="checkbox-label gwm-vehicle-check">' +
-            '<input type="checkbox" class="gwm-vehicle-toggle" data-vehicle-id="' + vehicle.id + '"' +
-            (checked ? ' checked' : '') + '/> <strong>' + esc(vehicle.name) + '</strong></label>') +
-        '</div>' +
-        '<div class="gwm-vehicle-fields"' + (checked ? '' : ' hidden') + '>' +
-        '<div class="gwm-equipment-wrap"><p class="hint">Geräte werden geladen …</p></div>' +
-        '</div></div></div>';
-    }).join('');
+    stack.innerHTML = buildVehicleRows(vehicles);
+    syncIncidentVehicleStack();
+  }
 
-    vehicles.forEach(function (vehicle) {
-      var state = selectedEquipment[String(vehicle.id)];
-      if (state && state.selected) {
-        fetchEquipment(vehicle.id).then(function (items) {
-          var card = document.querySelector('.gwm-vehicle-card[data-vehicle-id="' + vehicle.id + '"]');
-          var eqWrap = card ? card.querySelector('.gwm-equipment-wrap') : null;
-          if (eqWrap) {
-            renderEquipmentSection(vehicle.id, eqWrap, items);
-          }
+  function mergeEquipmentFromHidden() {
+    var hidden = document.getElementById('deployedEquipmentJson');
+    if (!hidden || !hidden.value) {
+      return;
+    }
+    try {
+      var data = JSON.parse(hidden.value);
+      data.forEach(function (row) {
+        if (!row || row.vehicleId == null) {
+          return;
+        }
+        var key = String(row.vehicleId);
+        if (!vehicleState[key]) {
+          vehicleState[key] = {
+            selected: true,
+            maschinistPersonId: null,
+            einheitsfuehrerPersonId: null,
+            equipmentIds: []
+          };
+        }
+        vehicleState[key].equipmentIds = (row.equipmentIds || []).map(Number).filter(function (id) {
+          return !isNaN(id);
         });
+      });
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  function syncHiddenJson() {
+    if (readonly) {
+      return;
+    }
+    mergeEquipmentFromHidden();
+    var vehiclesHidden = document.getElementById('vehiclesDataJson');
+    var equipmentHidden = document.getElementById('deployedEquipmentJson');
+    var rows = [];
+    var equipmentRows = [];
+    Object.keys(vehicleState).forEach(function (vehicleId) {
+      var state = vehicleState[vehicleId];
+      if (!state.selected) {
+        return;
       }
+      var vid = Number(vehicleId);
+      var equipmentIds = (state.equipmentIds || []).slice();
+      rows.push({
+        vehicleId: vid,
+        maschinistPersonId: state.maschinistPersonId || null,
+        einheitsfuehrerPersonId: state.einheitsfuehrerPersonId || null,
+        equipmentIds: equipmentIds,
+        defectiveEquipmentIds: [],
+        defectiveFreitext: null,
+        defectiveMangel: null
+      });
+      equipmentRows.push({ vehicleId: vid, equipmentIds: equipmentIds });
     });
+    if (vehiclesHidden) {
+      vehiclesHidden.value = JSON.stringify(rows);
+    }
+    if (equipmentHidden) {
+      equipmentHidden.value = JSON.stringify(equipmentRows);
+    }
+  }
+
+  function toggleVehicle(vehicleId, checked) {
+    if (!vehicleState[String(vehicleId)]) {
+      vehicleState[String(vehicleId)] = {
+        selected: checked,
+        maschinistPersonId: null,
+        einheitsfuehrerPersonId: null,
+        equipmentIds: []
+      };
+    } else {
+      vehicleState[String(vehicleId)].selected = checked;
+    }
+    var row = document.querySelector('.incident-gwm-vehicle-row[data-vehicle-id="' + vehicleId + '"]');
+    if (row) {
+      row.classList.toggle('incident-gwm-vehicle-row--active', checked);
+      var fields = row.querySelector('.incident-gwm-vehicle-row__fields');
+      if (fields) {
+        fields.hidden = !checked;
+      }
+    }
+    syncIncidentVehicleStack();
+    syncHiddenJson();
   }
 
   function updateLeaderLabel() {
@@ -215,17 +259,17 @@
     if (!label) {
       return;
     }
-    var typInput = document.querySelector('input[name="typ"]:checked');
+    var typInput = document.querySelector('[data-berichte-form="geraetewart"] input[name="typ"]:checked');
     var typ = typInput ? typInput.value : 'UEBUNG';
     label.textContent = typ === 'EINSATZ' ? 'Einsatzleiter' : 'Übungsleiter';
   }
 
-  function bindLeaderPersonId() {
+  function bindLeaderPersonId(scope) {
     var hiddenPersonId = document.getElementById('leaderPersonId');
     if (!hiddenPersonId || readonly) {
       return;
     }
-    document.querySelectorAll('.combo-suggest__option[data-person-id]').forEach(function (option) {
+    scope.querySelectorAll('.combo-suggest__option[data-person-id]').forEach(function (option) {
       option.addEventListener('mousedown', function () {
         hiddenPersonId.value = option.getAttribute('data-person-id') || '';
       });
@@ -238,50 +282,83 @@
     }
   }
 
-  function bindEvents() {
-    document.querySelectorAll('.gwm-vehicle-toggle').forEach(function (checkbox) {
-      checkbox.addEventListener('change', function () {
-        toggleVehicleCard(checkbox.dataset.vehicleId, checkbox.checked);
-      });
-    });
-    document.getElementById('gwm-vehicle-stack')?.addEventListener('change', function (event) {
-      var target = event.target;
-      if (!target.matches('input[data-equipment-id]')) {
+  function bindTabs(scope) {
+    scope.querySelectorAll('.incident-tab').forEach(function (btn) {
+      if (btn.dataset.gwmBound === 'true') {
         return;
       }
-      var vehicleId = String(target.dataset.vehicleId);
-      var equipmentId = Number(target.dataset.equipmentId);
-      if (!selectedEquipment[vehicleId]) {
-        selectedEquipment[vehicleId] = { selected: true, equipmentIds: [] };
-      }
-      var ids = selectedEquipment[vehicleId].equipmentIds;
-      var idx = ids.indexOf(equipmentId);
-      if (target.checked && idx < 0) {
-        ids.push(equipmentId);
-      } else if (!target.checked && idx >= 0) {
-        ids.splice(idx, 1);
-      }
-      syncHiddenJson();
+      btn.dataset.gwmBound = 'true';
+      btn.addEventListener('click', function () {
+        switchTab(Number(btn.dataset.tab));
+      });
     });
-    document.querySelectorAll('input[name="typ"]').forEach(function (radio) {
+  }
+
+  function bindEvents(scope) {
+    scope.querySelectorAll('.gwm-vehicle-toggle').forEach(function (checkbox) {
+      checkbox.addEventListener('change', function () {
+        toggleVehicle(checkbox.dataset.vehicleId, checkbox.checked);
+      });
+    });
+    scope.querySelectorAll('.gwm-maschinist').forEach(function (select) {
+      select.addEventListener('change', function () {
+        var vid = String(select.dataset.vehicleId);
+        if (!vehicleState[vid]) {
+          vehicleState[vid] = { selected: true, maschinistPersonId: null, einheitsfuehrerPersonId: null, equipmentIds: [] };
+        }
+        vehicleState[vid].maschinistPersonId = select.value ? Number(select.value) : null;
+        syncHiddenJson();
+      });
+    });
+    scope.querySelectorAll('.gwm-einheitsfuehrer').forEach(function (select) {
+      select.addEventListener('change', function () {
+        var vid = String(select.dataset.vehicleId);
+        if (!vehicleState[vid]) {
+          vehicleState[vid] = { selected: true, maschinistPersonId: null, einheitsfuehrerPersonId: null, equipmentIds: [] };
+        }
+        vehicleState[vid].einheitsfuehrerPersonId = select.value ? Number(select.value) : null;
+        syncHiddenJson();
+      });
+    });
+    scope.querySelectorAll('input[name="typ"]').forEach(function (radio) {
       radio.addEventListener('change', updateLeaderLabel);
     });
     var form = document.getElementById('geraetewart-form');
-    if (form) {
-      form.addEventListener('submit', syncHiddenJson);
+    if (form && form.dataset.gwmSubmitBound !== 'true') {
+      form.dataset.gwmSubmitBound = 'true';
+      form.addEventListener('submit', function () {
+        if (window.BerichteGeraete && typeof window.BerichteGeraete.sync === 'function') {
+          window.BerichteGeraete.sync();
+        }
+        syncHiddenJson();
+      });
     }
+  }
+
+  function loadUnitPersons() {
+    unitPersons = [];
+    document.querySelectorAll('.combo-suggest__option[data-person-id]').forEach(function (option) {
+      unitPersons.push({
+        id: Number(option.getAttribute('data-person-id')),
+        name: option.getAttribute('data-value') || option.textContent.trim()
+      });
+    });
   }
 
   function init(scope) {
     scope = scope || document;
     readonly = isReadonly();
-    loadInitialSelection();
-    var vehicles = parseJson('gwm-vehicles-data', []);
-    renderVehicleCards(vehicles);
-    bindEvents();
-    bindLeaderPersonId();
+    loadUnitPersons();
+    loadInitialState();
+    renderVehicles();
+    bindTabs(scope);
+    bindEvents(scope);
+    bindLeaderPersonId(scope);
     updateLeaderLabel();
     syncHiddenJson();
+    if (readonly && window.BerichteGeraete) {
+      window.BerichteGeraete.initView();
+    }
   }
 
   window.BerichteGeraetewartForm = {
