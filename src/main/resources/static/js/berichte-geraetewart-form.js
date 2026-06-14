@@ -283,8 +283,7 @@
   function isDefectVehicleCollapsed(vehicleId) {
     var key = String(vehicleId);
     if (!Object.prototype.hasOwnProperty.call(defectCollapsedByVehicle, key)) {
-      var state = vehicleState[key];
-      defectCollapsedByVehicle[key] = !(state && state.defectiveEquipmentIds.length > 0);
+      defectCollapsedByVehicle[key] = true;
     }
     return defectCollapsedByVehicle[key];
   }
@@ -302,6 +301,22 @@
     if (toggle) {
       toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
     }
+  }
+
+  function setAllDefectVehiclesCollapsed(collapsed) {
+    document.querySelectorAll('.incident-gwm-defect-card').forEach(function (card) {
+      setDefectVehicleCollapsed(card.dataset.vehicleId, collapsed, card);
+    });
+  }
+
+  function buildDefectsToolbar() {
+    if (readonly) {
+      return '';
+    }
+    return '<div class="incident-gwm-defects-toolbar">' +
+      '<button type="button" class="btn btn--outline btn--sm gwm-defect-expand-all">Alle aufklappen</button>' +
+      '<button type="button" class="btn btn--outline btn--sm gwm-defect-collapse-all">Alle zuklappen</button>' +
+      '</div>';
   }
 
   function defectStatusLabel(state, equipmentCount) {
@@ -348,9 +363,8 @@
       (readonly
         ? '<p class="form-readonly form-readonly--multiline">' + esc(mangel || '—') + '</p>'
         : '<textarea class="field gwm-defect-equipment-mangel" data-vehicle-id="' + vehicleId +
-          '" data-equipment-id="' + item.id + '" rows="2"' +
-          (checked ? '' : ' disabled') +
-          ' placeholder="Beschreibung des Mangels …">' + esc(mangel) + '</textarea>') +
+          '" data-equipment-id="' + item.id + '" rows="2" placeholder="Beschreibung des Mangels …">' +
+          esc(mangel) + '</textarea>') +
       '</div></div>';
   }
 
@@ -434,7 +448,7 @@
         }
         return;
       }
-      container.innerHTML = rows.map(function (row) {
+      container.innerHTML = buildDefectsToolbar() + rows.map(function (row) {
         return buildDefectCard(row.vehicle, row.usedEquipment);
       }).join('');
       bindDefectEvents(container);
@@ -557,18 +571,29 @@
       row.classList.toggle('incident-gwm-defect-row--active', checked);
     }
     var mangelInput = row ? row.querySelector('.gwm-defect-equipment-mangel') : null;
-    if (mangelInput) {
-      mangelInput.disabled = !checked;
-      if (!checked) {
+    if (!checked) {
+      if (mangelInput) {
         mangelInput.value = '';
-        delete state.defectiveMangelByEquipmentId[eqKey];
-      } else {
-        mangelInput.focus();
       }
+      delete state.defectiveMangelByEquipmentId[eqKey];
+    } else if (mangelInput) {
+      mangelInput.focus();
     }
   }
 
   function bindDefectEvents(container) {
+    var expandAll = container.querySelector('.gwm-defect-expand-all');
+    if (expandAll) {
+      expandAll.addEventListener('click', function () {
+        setAllDefectVehiclesCollapsed(false);
+      });
+    }
+    var collapseAll = container.querySelector('.gwm-defect-collapse-all');
+    if (collapseAll) {
+      collapseAll.addEventListener('click', function () {
+        setAllDefectVehiclesCollapsed(true);
+      });
+    }
     container.querySelectorAll('.gwm-defect-equipment').forEach(function (input) {
       input.addEventListener('change', function () {
         var vid = String(input.dataset.vehicleId);
