@@ -5414,9 +5414,23 @@ span.required { color: var(--error); }
 }
 
 .einsatzbericht-form-page .incident-gwm-defect-card .incident-deployed-vehicle-card__head {
-  padding: 10px 12px;
+  padding: 0;
   border-bottom: 1px solid var(--border);
-  background: var(--bg-card-hover);
+  background: color-mix(in srgb, var(--einsatz-c, var(--rot)) 8%, var(--bg-card));
+}
+
+.einsatzbericht-form-page .incident-gwm-defect-card .incident-deployed-vehicle-card__toggle {
+  padding: 10px 12px;
+}
+
+.einsatzbericht-form-page .incident-gwm-defect-card .incident-deployed-vehicle-card__body {
+  display: block;
+  padding: 0;
+  grid-template-columns: none;
+}
+
+.einsatzbericht-form-page .incident-gwm-defect-card__body {
+  padding: 0;
 }
 
 .einsatzbericht-form-page .incident-gwm-vehicle-stack:not([data-readonly="true"]) .incident-gwm-vehicle-card {
@@ -5425,10 +5439,6 @@ span.required { color: var(--error); }
 
 .einsatzbericht-form-page .incident-gwm-vehicle-stack:not([data-readonly="true"]) .incident-gwm-vehicle-card select {
   cursor: default;
-}
-
-.einsatzbericht-form-page .incident-gwm-defect-card__body {
-  padding: 0;
 }
 
 .einsatzbericht-form-page .incident-gwm-defect-rows {

@@ -3,6 +3,7 @@
 
   var vehicleState = {};
   var equipmentCache = {};
+  var defectCollapsedByVehicle = {};
   var readonly = false;
   var unitPersons = [];
 
@@ -279,6 +280,58 @@
     });
   }
 
+  function isDefectVehicleCollapsed(vehicleId) {
+    var key = String(vehicleId);
+    if (!Object.prototype.hasOwnProperty.call(defectCollapsedByVehicle, key)) {
+      var state = vehicleState[key];
+      defectCollapsedByVehicle[key] = !(state && state.defectiveEquipmentIds.length > 0);
+    }
+    return defectCollapsedByVehicle[key];
+  }
+
+  function setDefectVehicleCollapsed(vehicleId, collapsed, card) {
+    defectCollapsedByVehicle[String(vehicleId)] = collapsed;
+    if (!card) {
+      card = document.querySelector('.incident-gwm-defect-card[data-vehicle-id="' + vehicleId + '"]');
+    }
+    if (!card) {
+      return;
+    }
+    card.classList.toggle('incident-deployed-vehicle-card--collapsed', collapsed);
+    var toggle = card.querySelector('.gwm-defect-card-toggle');
+    if (toggle) {
+      toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    }
+  }
+
+  function defectStatusLabel(state, equipmentCount) {
+    var defectCount = (state.defectiveEquipmentIds || []).length;
+    if (defectCount > 0) {
+      return defectCount + (defectCount === 1 ? ' Defekt' : ' Defekte');
+    }
+    if (equipmentCount > 0) {
+      return equipmentCount + (equipmentCount === 1 ? ' Gerät' : ' Geräte') + ', keine Defekte';
+    }
+    return 'Keine Geräte';
+  }
+
+  function updateDefectCardStatus(vehicleId) {
+    var card = document.querySelector('.incident-gwm-defect-card[data-vehicle-id="' + vehicleId + '"]');
+    if (!card) {
+      return;
+    }
+    var state = ensureVehicleState(vehicleId);
+    var defectCount = (state.defectiveEquipmentIds || []).length;
+    var equipmentCount = (state.equipmentIds || []).length;
+    var badge = card.querySelector('.incident-deployed-vehicle-card__status');
+    if (!badge) {
+      return;
+    }
+    badge.textContent = defectStatusLabel(state, equipmentCount);
+    badge.classList.toggle('incident-deployed-vehicle-card__status--selected', defectCount > 0);
+    badge.classList.toggle('incident-deployed-vehicle-card__status--empty', defectCount === 0);
+  }
+
   function buildDefectEquipmentRow(vehicleId, item, state) {
     var eqKey = String(item.id);
     var checked = state.defectiveEquipmentIds.indexOf(Number(item.id)) >= 0;
@@ -318,11 +371,23 @@
         (readonly ? 'Keine Defekte erfasst.' : 'Keine eingesetzten Geräte für dieses Fahrzeug.') +
         '</p>';
     }
-    return '<article class="incident-deployed-vehicle-card incident-gwm-defect-card" data-vehicle-id="' + vehicle.id + '">' +
+    var collapsed = isDefectVehicleCollapsed(vehicle.id);
+    var statusClass = state.defectiveEquipmentIds.length > 0
+      ? 'incident-deployed-vehicle-card__status--selected'
+      : 'incident-deployed-vehicle-card__status--empty';
+    return '<article class="incident-deployed-vehicle-card incident-gwm-defect-card' +
+      (collapsed ? ' incident-deployed-vehicle-card--collapsed' : '') +
+      '" data-vehicle-id="' + vehicle.id + '">' +
       '<header class="incident-deployed-vehicle-card__head">' +
+      '<button type="button" class="incident-deployed-vehicle-card__toggle gwm-defect-card-toggle" data-vehicle-id="' +
+      vehicle.id + '" aria-expanded="' + (collapsed ? 'false' : 'true') + '">' +
+      '<span class="incident-deployed-vehicle-card__chevron" aria-hidden="true">›</span>' +
+      '<span class="incident-deployed-vehicle-card__title-wrap">' +
       '<span class="incident-deployed-vehicle-card__title">' + esc(vehicle.name) + '</span>' +
-      '</header>' +
-      '<div class="incident-gwm-defect-card__body">' +
+      '<span class="incident-deployed-vehicle-card__status ' + statusClass + '">' +
+      esc(defectStatusLabel(state, (state.equipmentIds || []).length)) + '</span>' +
+      '</span></button></header>' +
+      '<div class="incident-gwm-defect-card__body incident-deployed-vehicle-card__body">' +
       '<div class="incident-gwm-defect-rows">' + defectRows + '</div>' +
       '</div></article>';
   }
@@ -518,7 +583,15 @@
           state.defectiveEquipmentIds.splice(idx, 1);
         }
         setDefectRowState(row, input.checked, state, eqKey);
+        updateDefectCardStatus(vid);
         syncHiddenJson();
+      });
+    });
+    container.querySelectorAll('.gwm-defect-card-toggle').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var vehicleId = button.dataset.vehicleId;
+        var card = button.closest('.incident-gwm-defect-card');
+        setDefectVehicleCollapsed(vehicleId, !isDefectVehicleCollapsed(vehicleId), card);
       });
     });
     container.querySelectorAll('.incident-gwm-defect-row').forEach(function (row) {
