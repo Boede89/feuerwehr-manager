@@ -6,6 +6,7 @@
       <button type="button" class="tab-btn incident-tab tab-btn--active" data-tab="0">Stammdaten</button>
       <button type="button" class="tab-btn incident-tab" data-tab="1">Fahrzeuge</button>
       <button type="button" class="tab-btn incident-tab" data-tab="2">Eingesetzte Geräte</button>
+      <button type="button" class="tab-btn incident-tab" data-tab="3">Defekte</button>
     </nav>
 
     <!-- Tab 0: Stammdaten -->
@@ -83,12 +84,19 @@
 
     <!-- Tab 1: Fahrzeuge -->
     <div class="incident-tab-panel" data-panel="1" hidden>
-      <p class="hint" th:if="${formMode != 'view'}">
-        Wählen Sie die eingesetzten Fahrzeuge und legen Sie Maschinist sowie Einheitsführer fest.
-      </p>
-      <div id="gwm-vehicle-stack" class="incident-gwm-vehicle-stack"
-           th:attr="data-readonly=${formMode == 'view' ? 'true' : 'false'}"></div>
-      <p id="gwm-vehicle-empty" class="hint" hidden>Keine Fahrzeuge in der Einheit hinterlegt.</p>
+      <section class="incident-kraefte-section incident-kraefte-section--vehicles">
+        <header class="incident-kraefte-section__head">
+          <div>
+            <h3 class="incident-kraefte-section__title">Eingesetzte Fahrzeuge</h3>
+            <p class="hint text-sm" th:if="${formMode != 'view'}">
+              Fahrzeug auf „Eingesetzt“ klicken und Maschinist sowie Einheitsführer festlegen.
+            </p>
+          </div>
+        </header>
+        <div id="gwm-vehicle-stack" class="incident-vehicle-stack incident-gwm-vehicle-stack"
+             th:attr="data-readonly=${formMode == 'view' ? 'true' : 'false'}"></div>
+        <p id="gwm-vehicle-empty" class="hint" hidden>Keine Fahrzeuge in der Einheit hinterlegt.</p>
+      </section>
       <div id="incident-vehicle-stack" hidden aria-hidden="true"></div>
     </div>
 
@@ -103,6 +111,17 @@
       <div id="incident-deployed-equipment" class="incident-deployed-equipment"
            th:data-readonly="${formMode == 'view' ? 'true' : 'false'}"
            th:data-initial="${form.deployedEquipmentJson}"></div>
+    </div>
+
+    <!-- Tab 3: Defekte -->
+    <div class="incident-tab-panel" data-panel="3" hidden>
+      <p class="hint" id="gwm-defects-no-vehicles" hidden>
+        Markieren Sie zuerst im Reiter Fahrzeuge die eingesetzten Fahrzeuge.
+      </p>
+      <p class="hint" th:if="${formMode != 'view'}">
+        Pro Fahrzeug können defekte Geräte aus den eingesetzten Geräten gewählt oder per Freitext ergänzt werden.
+      </p>
+      <div id="gwm-defects-container" class="incident-gwm-defects"></div>
     </div>
   </div>
 
