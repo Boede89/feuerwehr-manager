@@ -231,6 +231,10 @@ public class GeraetewartmitteilungService {
 
     private String formatDefects(long unitId, GwmVehicleData vehicle) {
         List<String> parts = new ArrayList<>();
+        Map<Long, String> mangelByEquipment =
+                vehicle.defectiveMangelByEquipmentId() != null
+                        ? vehicle.defectiveMangelByEquipmentId()
+                        : Map.of();
         if (vehicle.defectiveEquipmentIds() != null && !vehicle.defectiveEquipmentIds().isEmpty()) {
             List<VehicleEquipmentView> equipmentViews =
                     einsatzberichtService.listVehicleEquipment(unitId, List.of(vehicle.vehicleId()));
@@ -240,25 +244,28 @@ public class GeraetewartmitteilungService {
                     nameById.put(item.id(), item.name());
                 }
             }
-            vehicle.defectiveEquipmentIds().stream()
-                    .map(nameById::get)
-                    .filter(Objects::nonNull)
-                    .forEach(parts::add);
+            for (Long equipmentId : vehicle.defectiveEquipmentIds()) {
+                String name = nameById.get(equipmentId);
+                if (name == null) {
+                    continue;
+                }
+                String mangel = mangelByEquipment.get(equipmentId);
+                if (mangel != null && !mangel.isBlank()) {
+                    parts.add(name + " – " + mangel.trim());
+                } else {
+                    parts.add(name);
+                }
+            }
         }
         if (vehicle.defectiveFreitext() != null && !vehicle.defectiveFreitext().isBlank()) {
-            parts.add(vehicle.defectiveFreitext().trim());
-        }
-        if (parts.isEmpty()) {
-            if (vehicle.defectiveMangel() != null && !vehicle.defectiveMangel().isBlank()) {
-                return vehicle.defectiveMangel().trim();
+            String freitext = vehicle.defectiveFreitext().trim();
+            if (vehicle.defectiveFreitextMangel() != null && !vehicle.defectiveFreitextMangel().isBlank()) {
+                parts.add(freitext + " – " + vehicle.defectiveFreitextMangel().trim());
+            } else {
+                parts.add(freitext);
             }
-            return "—";
         }
-        String result = String.join(", ", parts);
-        if (vehicle.defectiveMangel() != null && !vehicle.defectiveMangel().isBlank()) {
-            result += " – " + vehicle.defectiveMangel().trim();
-        }
-        return result;
+        return parts.isEmpty() ? "—" : String.join(", ", parts);
     }
 
     private void applyForm(EquipmentMaintenanceReport report, GeraetewartmitteilungForm form, long unitId) {

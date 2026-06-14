@@ -50,8 +50,9 @@
         einheitsfuehrerPersonId: null,
         equipmentIds: [],
         defectiveEquipmentIds: [],
+        defectiveMangelByEquipmentId: {},
         defectiveFreitext: '',
-        defectiveMangel: ''
+        defectiveFreitextMangel: ''
       };
     }
     return vehicleState[key];
@@ -79,6 +80,23 @@
       if (!entry || entry.vehicleId == null) {
         return;
       }
+      var mangelMap = {};
+      if (entry.defectiveMangelByEquipmentId && typeof entry.defectiveMangelByEquipmentId === 'object') {
+        Object.keys(entry.defectiveMangelByEquipmentId).forEach(function (key) {
+          var val = entry.defectiveMangelByEquipmentId[key];
+          if (val) {
+            mangelMap[key] = String(val);
+          }
+        });
+      }
+      var defectiveIds = (entry.defectiveEquipmentIds || []).map(Number).filter(function (id) {
+        return !isNaN(id);
+      });
+      if (!Object.keys(mangelMap).length && entry.defectiveMangel && defectiveIds.length) {
+        defectiveIds.forEach(function (id) {
+          mangelMap[String(id)] = entry.defectiveMangel;
+        });
+      }
       vehicleState[String(entry.vehicleId)] = {
         selected: true,
         maschinistPersonId: entry.maschinistPersonId || null,
@@ -86,11 +104,10 @@
         equipmentIds: (entry.equipmentIds || []).map(Number).filter(function (id) {
           return !isNaN(id);
         }),
-        defectiveEquipmentIds: (entry.defectiveEquipmentIds || []).map(Number).filter(function (id) {
-          return !isNaN(id);
-        }),
+        defectiveEquipmentIds: defectiveIds,
+        defectiveMangelByEquipmentId: mangelMap,
         defectiveFreitext: entry.defectiveFreitext || '',
-        defectiveMangel: entry.defectiveMangel || ''
+        defectiveFreitextMangel: entry.defectiveFreitextMangel || entry.defectiveMangel || ''
       };
     });
   }
@@ -264,21 +281,38 @@
     });
   }
 
+  function buildDefectEquipmentRow(vehicleId, item, state) {
+    var eqKey = String(item.id);
+    var checked = state.defectiveEquipmentIds.indexOf(Number(item.id)) >= 0;
+    var mangel = state.defectiveMangelByEquipmentId[eqKey] || '';
+    return '<div class="incident-gwm-defect-row' + (checked ? ' incident-gwm-defect-row--active' : '') +
+      '" data-vehicle-id="' + vehicleId + '" data-equipment-id="' + item.id + '">' +
+      '<label class="incident-gwm-defect-row__check">' +
+      '<input type="checkbox" class="gwm-defect-equipment" data-vehicle-id="' + vehicleId +
+      '" data-equipment-id="' + item.id + '"' + (checked ? ' checked' : '') +
+      (readonly ? ' disabled' : '') + '/>' +
+      '<span class="incident-gwm-defect-row__name">' + esc(item.name) + '</span></label>' +
+      '<div class="incident-gwm-defect-row__mangel"' + (checked ? '' : ' hidden') + '>' +
+      '<label>Mangel beschreiben</label>' +
+      (readonly
+        ? '<p class="form-readonly form-readonly--multiline">' + esc(mangel || '—') + '</p>'
+        : '<textarea class="field gwm-defect-equipment-mangel" data-vehicle-id="' + vehicleId +
+          '" data-equipment-id="' + item.id + '" rows="2" placeholder="Beschreibung des Mangels …">' +
+          esc(mangel) + '</textarea>') +
+      '</div></div>';
+  }
+
   function buildDefectCard(vehicle, usedEquipment) {
     var state = ensureVehicleState(vehicle.id);
-    var defectChecks = '';
+    var defectRows = '';
     if (usedEquipment.length > 0) {
       usedEquipment.forEach(function (item) {
-        var checked = state.defectiveEquipmentIds.indexOf(Number(item.id)) >= 0;
-        defectChecks += '<label class="incident-deployed-equipment-item incident-gwm-defect-item">' +
-          '<input type="checkbox" class="gwm-defect-equipment" data-vehicle-id="' + vehicle.id +
-          '" data-equipment-id="' + item.id + '"' + (checked ? ' checked' : '') +
-          (readonly ? ' disabled' : '') + '/>' +
-          '<span class="incident-deployed-equipment-item__name">' + esc(item.name) + '</span></label>';
+        defectRows += buildDefectEquipmentRow(vehicle.id, item, state);
       });
     } else {
-      defectChecks = '<p class="hint">Keine eingesetzten Geräte – nutzen Sie den Freitext unten.</p>';
+      defectRows = '<p class="hint">Keine eingesetzten Geräte – nutzen Sie den Freitext unten.</p>';
     }
+    var freitextFilled = !!(state.defectiveFreitext && state.defectiveFreitext.trim());
     return '<article class="incident-deployed-vehicle-card incident-gwm-defect-card" data-vehicle-id="' + vehicle.id + '">' +
       '<header class="incident-deployed-vehicle-card__head">' +
       '<span class="incident-deployed-vehicle-card__title">' + esc(vehicle.name) + '</span>' +
@@ -286,7 +320,7 @@
       '<div class="incident-gwm-defect-card__body">' +
       '<div class="form-group">' +
       '<label>Defekte Geräte (aus eingesetzten)</label>' +
-      '<div class="incident-gwm-defect-checks">' + defectChecks + '</div>' +
+      '<div class="incident-gwm-defect-rows">' + defectRows + '</div>' +
       '</div>' +
       '<div class="form-group">' +
       '<label>Freitext (defektes Gerät)</label>' +
@@ -295,12 +329,13 @@
         : '<input type="text" class="field gwm-defect-freitext" data-vehicle-id="' + vehicle.id +
           '" maxlength="255" placeholder="z. B. Schlauch 123" value="' + esc(state.defectiveFreitext || '') + '"/>') +
       '</div>' +
-      '<div class="form-group">' +
-      '<label>Mangel beschreiben</label>' +
+      '<div class="form-group gwm-defect-freitext-mangel-wrap" data-vehicle-id="' + vehicle.id + '"' +
+      (freitextFilled ? '' : ' hidden') + '>' +
+      '<label>Mangel beschreiben (Freitext)</label>' +
       (readonly
-        ? '<p class="form-readonly form-readonly--multiline">' + esc(state.defectiveMangel || '—') + '</p>'
-        : '<textarea class="field gwm-defect-mangel" data-vehicle-id="' + vehicle.id +
-          '" rows="3" placeholder="Beschreibung des Mangels …">' + esc(state.defectiveMangel || '') + '</textarea>') +
+        ? '<p class="form-readonly form-readonly--multiline">' + esc(state.defectiveFreitextMangel || '—') + '</p>'
+        : '<textarea class="field gwm-defect-freitext-mangel" data-vehicle-id="' + vehicle.id +
+          '" rows="2" placeholder="Beschreibung des Mangels …">' + esc(state.defectiveFreitextMangel || '') + '</textarea>') +
       '</div></div></article>';
   }
 
@@ -353,14 +388,33 @@
       }
       var vid = Number(vehicleId);
       var equipmentIds = (state.equipmentIds || []).slice();
+      var equipmentIdSet = {};
+      equipmentIds.forEach(function (id) {
+        equipmentIdSet[id] = true;
+      });
+      var defectiveIds = (state.defectiveEquipmentIds || []).filter(function (id) {
+        return equipmentIdSet[id];
+      });
+      var mangelByEquipment = {};
+      Object.keys(state.defectiveMangelByEquipmentId || {}).forEach(function (key) {
+        var eqId = Number(key);
+        if (!defectiveIds.some(function (id) { return Number(id) === eqId; })) {
+          return;
+        }
+        var val = state.defectiveMangelByEquipmentId[key];
+        if (val && String(val).trim()) {
+          mangelByEquipment[key] = String(val).trim();
+        }
+      });
       rows.push({
         vehicleId: vid,
         maschinistPersonId: state.maschinistPersonId || null,
         einheitsfuehrerPersonId: state.einheitsfuehrerPersonId || null,
         equipmentIds: equipmentIds,
-        defectiveEquipmentIds: (state.defectiveEquipmentIds || []).slice(),
+        defectiveEquipmentIds: defectiveIds,
+        defectiveMangelByEquipmentId: mangelByEquipment,
         defectiveFreitext: state.defectiveFreitext ? state.defectiveFreitext.trim() : null,
-        defectiveMangel: state.defectiveMangel ? state.defectiveMangel.trim() : null
+        defectiveFreitextMangel: state.defectiveFreitextMangel ? state.defectiveFreitextMangel.trim() : null
       });
       equipmentRows.push({ vehicleId: vid, equipmentIds: equipmentIds });
     });
@@ -380,8 +434,9 @@
       state.einheitsfuehrerPersonId = null;
       state.equipmentIds = [];
       state.defectiveEquipmentIds = [];
+      state.defectiveMangelByEquipmentId = {};
       state.defectiveFreitext = '';
-      state.defectiveMangel = '';
+      state.defectiveFreitextMangel = '';
     }
     var card = document.querySelector('.incident-gwm-vehicle-card[data-vehicle-id="' + vehicleId + '"]');
     if (card) {
@@ -433,25 +488,48 @@
       input.addEventListener('change', function () {
         var vid = String(input.dataset.vehicleId);
         var eqId = Number(input.dataset.equipmentId);
+        var eqKey = String(eqId);
         var state = ensureVehicleState(vid);
         var idx = state.defectiveEquipmentIds.indexOf(eqId);
+        var row = input.closest('.incident-gwm-defect-row');
+        var mangelWrap = row ? row.querySelector('.incident-gwm-defect-row__mangel') : null;
         if (input.checked && idx < 0) {
           state.defectiveEquipmentIds.push(eqId);
         } else if (!input.checked && idx >= 0) {
           state.defectiveEquipmentIds.splice(idx, 1);
+          delete state.defectiveMangelByEquipmentId[eqKey];
         }
+        if (row) {
+          row.classList.toggle('incident-gwm-defect-row--active', input.checked);
+        }
+        if (mangelWrap) {
+          mangelWrap.hidden = !input.checked;
+        }
+        syncHiddenJson();
+      });
+    });
+    container.querySelectorAll('.gwm-defect-equipment-mangel').forEach(function (input) {
+      input.addEventListener('input', function () {
+        var state = ensureVehicleState(input.dataset.vehicleId);
+        state.defectiveMangelByEquipmentId[String(input.dataset.equipmentId)] = input.value;
         syncHiddenJson();
       });
     });
     container.querySelectorAll('.gwm-defect-freitext').forEach(function (input) {
       input.addEventListener('input', function () {
-        ensureVehicleState(input.dataset.vehicleId).defectiveFreitext = input.value;
+        var vid = String(input.dataset.vehicleId);
+        var state = ensureVehicleState(vid);
+        state.defectiveFreitext = input.value;
+        var wrap = container.querySelector('.gwm-defect-freitext-mangel-wrap[data-vehicle-id="' + vid + '"]');
+        if (wrap) {
+          wrap.hidden = !input.value.trim();
+        }
         syncHiddenJson();
       });
     });
-    container.querySelectorAll('.gwm-defect-mangel').forEach(function (input) {
+    container.querySelectorAll('.gwm-defect-freitext-mangel').forEach(function (input) {
       input.addEventListener('input', function () {
-        ensureVehicleState(input.dataset.vehicleId).defectiveMangel = input.value;
+        ensureVehicleState(input.dataset.vehicleId).defectiveFreitextMangel = input.value;
         syncHiddenJson();
       });
     });

@@ -5426,6 +5426,49 @@ span.required { color: var(--error); }
   gap: 12px;
 }
 
+.einsatzbericht-form-page .incident-gwm-defect-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.einsatzbericht-form-page .incident-gwm-defect-row {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  background: var(--bg-card);
+}
+
+.einsatzbericht-form-page .incident-gwm-defect-row--active {
+  border-color: color-mix(in srgb, var(--einsatz-c, var(--rot)) 35%, var(--border));
+}
+
+.einsatzbericht-form-page .incident-gwm-defect-row__check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  margin: 0;
+  font-weight: 600;
+}
+
+.einsatzbericht-form-page .incident-gwm-defect-row__name {
+  flex: 1;
+}
+
+.einsatzbericht-form-page .incident-gwm-defect-row__mangel {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.einsatzbericht-form-page .incident-gwm-defect-row__mangel label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
 .einsatzbericht-form-page .incident-gwm-defect-checks {
   display: flex;
   flex-direction: column;

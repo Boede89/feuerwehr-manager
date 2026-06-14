@@ -3,7 +3,9 @@ package de.feuerwehr.manager.berichte;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 public final class GwmVehicleDataSupport {
@@ -31,14 +33,25 @@ public final class GwmVehicleDataSupport {
                 if (payload == null || payload.vehicleId() == null) {
                     continue;
                 }
+                List<Long> defectiveIds = normalizeIds(payload.defectiveEquipmentIds());
+                Map<Long, String> mangelByEquipment = normalizeMangelMap(payload.defectiveMangelByEquipmentId());
+                if (mangelByEquipment.isEmpty()
+                        && payload.defectiveMangel() != null
+                        && !payload.defectiveMangel().isBlank()
+                        && !defectiveIds.isEmpty()) {
+                    mangelByEquipment = legacyMangelForAll(defectiveIds, payload.defectiveMangel());
+                }
                 result.add(new GwmVehicleData(
                         payload.vehicleId(),
                         payload.maschinistPersonId(),
                         payload.einheitsfuehrerPersonId(),
                         normalizeIds(payload.equipmentIds()),
-                        normalizeIds(payload.defectiveEquipmentIds()),
+                        defectiveIds,
+                        mangelByEquipment,
                         trimOrNull(payload.defectiveFreitext()),
-                        trimOrNull(payload.defectiveMangel())));
+                        trimOrNull(payload.defectiveFreitextMangel() != null
+                                ? payload.defectiveFreitextMangel()
+                                : payload.defectiveMangel())));
             }
             return result;
         } catch (Exception e) {
@@ -88,6 +101,28 @@ public final class GwmVehicleDataSupport {
         }
     }
 
+    private static Map<Long, String> normalizeMangelMap(Map<Long, String> map) {
+        if (map == null || map.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, String> result = new LinkedHashMap<>();
+        map.forEach((key, value) -> {
+            if (key != null && value != null && !value.isBlank()) {
+                result.put(key, value.trim());
+            }
+        });
+        return result;
+    }
+
+    private static Map<Long, String> legacyMangelForAll(List<Long> defectiveIds, String mangel) {
+        Map<Long, String> result = new LinkedHashMap<>();
+        String text = mangel.trim();
+        for (Long id : defectiveIds) {
+            result.put(id, text);
+        }
+        return result;
+    }
+
     private static List<Long> normalizeIds(List<Long> ids) {
         if (ids == null) {
             return List.of();
@@ -108,7 +143,9 @@ public final class GwmVehicleDataSupport {
             Long einheitsfuehrerPersonId,
             List<Long> equipmentIds,
             List<Long> defectiveEquipmentIds,
+            Map<Long, String> defectiveMangelByEquipmentId,
             String defectiveFreitext,
+            String defectiveFreitextMangel,
             String defectiveMangel) {}
 
     private record DeployedEquipmentPayload(Long vehicleId, List<Long> equipmentIds) {}
