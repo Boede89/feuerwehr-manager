@@ -18,11 +18,28 @@ services:
     volumes:
       - ffm_mysql_data:/var/lib/mysql
 
+  caddy:
+    image: caddy:2-alpine
+    container_name: ffm_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ffm_caddy_data:/data
+      - ffm_caddy_config:/config
+    depends_on:
+      - app
+
   app:
     build: .
     container_name: ffm_app
     restart: unless-stopped
+    expose:
+      - "8080"
     ports:
+      # Direktzugriff optional (Debug); Produktiv: https://<Host> über Caddy
       - "8080:8080"
     environment:
       TZ: Europe/Berlin
@@ -38,6 +55,7 @@ services:
       # DSGVO: 2FA-Secrets verschlüsselt — in Produktion via .env setzen (siehe .env.example)
       FEUERWEHR_TOTP_ENCRYPTION_KEY: ${FEUERWEHR_TOTP_ENCRYPTION_KEY:-}
       FEUERWEHR_DATA_DIR: /data
+      FEUERWEHR_SESSION_COOKIE_SECURE: ${FEUERWEHR_SESSION_COOKIE_SECURE:-true}
     volumes:
       - ffm_app_data:/data
     depends_on:
@@ -47,3 +65,5 @@ services:
 volumes:
   ffm_mysql_data:
   ffm_app_data:
+  ffm_caddy_data:
+  ffm_caddy_config:

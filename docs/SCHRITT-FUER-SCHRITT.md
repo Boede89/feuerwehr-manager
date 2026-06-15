@@ -88,10 +88,13 @@ Beenden der Log-Ansicht: `Strg+C`.
 
 ## Schritt 5: Web-Oberfläche öffnen
 
-Im Browser (vom gleichen Netz aus, ggf. Firewall-Port **8080** freigeben):
+Im Browser (vom gleichen Netz aus, Firewall-Ports **80** und **443** freigeben):
 
-- **Lokal am Server:** `http://localhost:8080`
-- **Von einem anderen PC:** `http://<IP-des-Servers>:8080`
+- **Empfohlen:** `https://<IP-des-Servers>` (Caddy, ggf. Zertifikatswarnung beim ersten Mal bestätigen)
+- **Lokal am Server:** `https://localhost`
+- **Debug (ohne TLS):** `http://<IP-des-Servers>:8080`
+
+Details: [HTTPS.md](HTTPS.md).
 
 Du wirst zur **Anmeldung** weitergeleitet (`/login`).
 

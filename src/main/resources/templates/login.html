@@ -28,9 +28,21 @@
         <button type="submit" class="btn btn-block" style="margin-top:20px;">Anmelden</button>
       </form>
 
-      <p class="hint" style="margin-top:20px;text-align:center;">
-        <strong>RFID-Chip (vorbereitet):</strong> Anmeldung per Lesegerät folgt später.
-      </p>
+      <div th:if="${rfidLoginEnabled}" id="login-rfid" class="login-rfid" data-serial-baud="9600">
+        <div class="login-rfid__divider"><span>oder</span></div>
+        <div class="login-rfid__panel">
+          <div class="login-rfid__title">RFID-Chip</div>
+          <p id="login-rfid-status" class="login-rfid__status login-rfid__status--busy">
+            Initialisiere …
+          </p>
+          <p id="login-rfid-hint" class="hint login-rfid__hint">
+            Lesegerät per USB an diesen PC (COM-Modus). Seite über HTTPS öffnen.
+          </p>
+          <button type="button" id="login-rfid-connect" class="btn btn--outline btn-block login-rfid__connect">
+            Lesegerät verbinden
+          </button>
+        </div>
+      </div>
 
       <div class="btn-group" style="justify-content:center;margin-top:20px;" role="group" aria-label="Design">
         <button type="button" class="btn btn--outline btn--sm" data-theme-choice="light">☀️ Hell</button>
@@ -44,5 +56,6 @@
   <script th:src="@{/js/toast.js}" defer></script>
   <script th:src="@{/js/flash-toast.js}" defer></script>
   <script th:src="@{/js/theme.js}" defer></script>
+  <script th:if="${rfidLoginEnabled}" th:src="@{/js/login-rfid.js}" defer></script>
 </body>
 </html>

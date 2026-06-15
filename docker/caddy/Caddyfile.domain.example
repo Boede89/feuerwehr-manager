@@ -1,0 +1,18 @@
+# Beispiel: echte Domain mit automatischem Let's Encrypt-Zertifikat
+# Kopie nach Caddyfile und FEUERWEHR_PUBLIC_HOST anpassen.
+#
+# Voraussetzung: DNS zeigt auf diesen Server, Port 80/443 von außen erreichbar.
+
+{
+	email admin@example.de
+	admin off
+}
+
+fw-manager.example.de {
+	encode gzip
+	reverse_proxy app:8080 {
+		header_up Host {host}
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-For {remote_host}
+	}
+}

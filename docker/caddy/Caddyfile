@@ -1,0 +1,22 @@
+# HTTPS-Reverse-Proxy für Feuerwehr-Manager
+# Standard: selbstsigniertes Zertifikat (Caddy „internal“) – funktioniert mit LAN-IP oder Hostname.
+# Für öffentliche Domain + Let's Encrypt: siehe Caddyfile.domain.example
+
+{
+	admin off
+}
+
+:80 {
+	redir https://{host}{uri} permanent
+}
+
+:443 {
+	tls internal
+	encode gzip
+	reverse_proxy app:8080 {
+		header_up Host {host}
+		header_up X-Forwarded-Proto https
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Port 443
+	}
+}

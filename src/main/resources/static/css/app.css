@@ -1279,6 +1279,60 @@ input:focus, select:focus, textarea:focus {
   text-decoration: underline;
 }
 
+.login-rfid {
+  margin-top: 24px;
+}
+
+.login-rfid__divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  margin-bottom: 16px;
+}
+
+.login-rfid__divider::before,
+.login-rfid__divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.login-rfid__panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  background: var(--bg-card-hover);
+}
+
+.login-rfid__title {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.login-rfid__status {
+  margin: 0 0 6px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.login-rfid__status--ok { color: var(--gruen, #15803d); }
+.login-rfid__status--busy { color: var(--text-muted); }
+.login-rfid__status--warn { color: var(--orange, #c2410c); }
+.login-rfid__status--error { color: var(--rot); }
+
+.login-rfid__hint {
+  margin: 0 0 12px;
+  font-size: var(--fs-xs);
+}
+
+.login-rfid__connect {
+  margin-top: 4px;
+}
+
 /* Öffentliche Datenschutzerklärung (wie FW-Hub #/datenschutz) */
 .dse-page {
   min-height: 100vh;

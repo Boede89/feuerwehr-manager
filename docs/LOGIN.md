@@ -1,13 +1,16 @@
-# Anmeldung & RFID (Vorbereitung)
+# Anmeldung & RFID
 
 ## Erster Start
 
 1. **Nur wenn die Datenbank noch keinen Benutzer hat**, legt die App beim Start automatisch einen Administrator an (Ersteinrichtung).
 2. Standard: Benutzername `admin`, Passwort `changeme` (nur Entwicklung).
 3. In Produktion: `FEUERWEHR_BOOTSTRAP_ADMIN_PASSWORD` setzen **vor** dem ersten Start.
-4. Browser: `http://<Server>:8080` → Weiterleitung zu `/login`.
+4. Browser: **https://&lt;Server&gt;** (über Caddy) → Weiterleitung zu `/login`.
 
 Ein gelöschter Bootstrap-`admin` wird **nicht** bei jedem Neustart neu angelegt. Nur ein komplett leeres System (0 aktive Konten) löst die Erstanlage aus.
+
+Details zu HTTPS: [HTTPS.md](HTTPS.md)
+
 ## Anmeldung schlägt fehl?
 
 **Prüfen, ob der Admin existiert** (auf dem Server):
@@ -35,14 +38,13 @@ Danach mit `admin` / `changeme` anmelden und `RESET` wieder **aus** lassen.
 - Formular unter `/login`
 - Sitzung läuft nach **8 Stunden** ab (konfigurierbar über `server.servlet.session.timeout`)
 - **Eigenes Passwort ändern:** Einstellungen → **Mein Passwort** (`/profile/password`)
-- **Weitere Benutzer (Admin):** Einstellungen → **Benutzer** (`/settings/users`) – anlegen, Rolle, Passwort, RFID-Chip
+- **Weitere Benutzer (Admin):** Adminpanel → **Benutzer** – anlegen, Rolle, Passwort, RFID-Chip
 
-## RFID (später)
+## RFID-Chip
 
-Technisch vorbereitet:
-
-- Tabelle `user_rfid_cards` (Chip-ID pro Nutzer)
-- `POST /api/v1/auth/rfid` mit JSON `{ "cardUid": "…" }`
+- Chips registrieren: Admin → Benutzer → **RFID-Chip** (UID z. B. aus `usbrdrtool -t` oder Seriell-Test)
+- Login-Seite (HTTPS, Chrome/Brave): **Lesegerät verbinden** → Chip auflegen
+- API: `POST /api/v1/auth/rfid` mit JSON `{ "cardUid": "…" }`
 - Deaktivieren: `FEUERWEHR_RFID_API_ENABLED=false`
 
-**Lesegerät am PC:** Viele Geräte emulieren eine Tastatur; eine spätere UI kann die Eingabe abfangen und die API aufrufen. Chip-Registrierung erfolgt durch Admins (Verwaltungsoberfläche folgt).
+Lesegerät: YSoft USB Reader im **COM-/Serial-Modus** (nicht Keyboard-Wedge).
