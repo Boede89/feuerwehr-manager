@@ -10,11 +10,18 @@
   var statusEl = document.getElementById('login-rfid-status');
   var hintEl = document.getElementById('login-rfid-hint');
   var connectBtn = document.getElementById('login-rfid-connect');
+  var unknownModal = document.getElementById('modal-rfid-register-unknown');
+  var unknownForm = document.getElementById('form-rfid-register-unknown');
+  var unknownChipEl = document.getElementById('unknown-rfid-chip');
+  var unknownErrorEl = document.getElementById('unknown-rfid-error');
+  var unknownCloseBtn = document.getElementById('modal-rfid-register-close');
+  var unknownCancelBtn = document.getElementById('modal-rfid-register-cancel');
   var busy = false;
   var lastHandledUid = '';
   var lastHandledAt = 0;
   var serialPort = null;
   var readLoopActive = false;
+  var pendingUnknownChipUid = '';
 
   function getCsrfToken() {
     var meta = document.querySelector('meta[name="csrf-token"]');
@@ -66,6 +73,41 @@
     lastHandledAt = Date.now();
   }
 
+  function openUnknownChipModal(cardUid) {
+    pendingUnknownChipUid = cardUid;
+    if (unknownChipEl) {
+      unknownChipEl.textContent = 'Chip: ' + cardUid;
+    }
+    if (unknownErrorEl) {
+      unknownErrorEl.hidden = true;
+      unknownErrorEl.textContent = '';
+    }
+    if (unknownModal) {
+      unknownModal.classList.add('active');
+      document.body.classList.add('modal-open');
+    }
+  }
+
+  function closeUnknownChipModal() {
+    if (unknownModal) {
+      unknownModal.classList.remove('active');
+      document.body.classList.remove('modal-open');
+    }
+  }
+
+  function showUnknownError(message) {
+    if (!unknownErrorEl) {
+      return;
+    }
+    if (!message) {
+      unknownErrorEl.hidden = true;
+      unknownErrorEl.textContent = '';
+      return;
+    }
+    unknownErrorEl.textContent = message;
+    unknownErrorEl.hidden = false;
+  }
+
   function loginWithUid(cardUid) {
     if (busy || !shouldHandle(cardUid)) {
       return;
@@ -96,15 +138,13 @@
           var code = result.body && result.body.errorCode;
           var msg = (result.body && result.body.message) || 'Anmeldung fehlgeschlagen';
           if (code === 'unknown_chip') {
-            rememberUnknownChip(cardUid)
-              .finally(function () {
-                setStatus('Unbekannter Chip – bitte Benutzername/Passwort eingeben', 'warn');
-                setHint('Nach erfolgreichem Passwort-Login wird dieser Chip automatisch registriert.');
-                if (typeof window.toast === 'function') {
-                  window.toast('Unbekannter Chip erkannt. Bitte normal anmelden.', 'warning');
-                }
-                busy = false;
-              });
+            setStatus('Unbekannter Chip – Registrierung erforderlich', 'warn');
+            setHint('Bitte im eingeblendeten Fenster Benutzername und Passwort eingeben.');
+            openUnknownChipModal(cardUid);
+            if (typeof window.toast === 'function') {
+              window.toast('Unbekannter Chip erkannt. Bitte im Fenster bestätigen.', 'warning');
+            }
+            busy = false;
             return;
           }
           setStatus(msg, 'error');
@@ -128,19 +168,25 @@
       });
   }
 
-  function rememberUnknownChip(cardUid) {
+  function registerUnknownChipWithCredentials(username, password, cardUid) {
     var headers = { 'Content-Type': 'application/json' };
     var csrf = getCsrfToken();
     if (csrf) {
       headers[getCsrfHeader()] = csrf;
     }
-    return fetch('/api/v1/auth/rfid/pending', {
+    return fetch('/api/v1/auth/rfid/register-unknown', {
       method: 'POST',
       credentials: 'same-origin',
       headers: headers,
-      body: JSON.stringify({ cardUid: cardUid })
-    }).catch(function () {
-      return null;
+      body: JSON.stringify({
+        cardUid: cardUid,
+        username: username,
+        password: password
+      })
+    }).then(function (res) {
+      return res.json().then(function (body) {
+        return { ok: res.ok, body: body };
+      });
     });
   }
 
@@ -258,6 +304,45 @@
 
   if (connectBtn) {
     connectBtn.addEventListener('click', connectReader);
+  }
+
+  if (unknownForm) {
+    unknownForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (!pendingUnknownChipUid) {
+        showUnknownError('Keine Chip-ID vorhanden.');
+        return;
+      }
+      var usernameInput = document.getElementById('unknown-rfid-username');
+      var passwordInput = document.getElementById('unknown-rfid-password');
+      var username = usernameInput ? usernameInput.value.trim() : '';
+      var password = passwordInput ? passwordInput.value : '';
+      if (!username || !password) {
+        showUnknownError('Bitte Benutzername und Passwort eingeben.');
+        return;
+      }
+      showUnknownError('');
+      registerUnknownChipWithCredentials(username, password, pendingUnknownChipUid)
+        .then(function (result) {
+          if (!result.ok || !result.body || !result.body.success) {
+            showUnknownError((result.body && result.body.message) || 'Anmeldung fehlgeschlagen.');
+            return;
+          }
+          closeUnknownChipModal();
+          setStatus('Chip registriert – weiterleiten …', 'ok');
+          window.location.href = result.body.redirectUrl || '/';
+        })
+        .catch(function () {
+          showUnknownError('Verbindung fehlgeschlagen.');
+        });
+    });
+  }
+
+  if (unknownCloseBtn) {
+    unknownCloseBtn.addEventListener('click', closeUnknownChipModal);
+  }
+  if (unknownCancelBtn) {
+    unknownCancelBtn.addEventListener('click', closeUnknownChipModal);
   }
 
   window.addEventListener('beforeunload', function () {

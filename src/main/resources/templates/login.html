@@ -39,7 +39,7 @@
             Lesegerät per USB an diesen PC (COM-Modus). Seite über HTTPS öffnen.
           </p>
           <p class="hint login-rfid__hint">
-            Unbekannter Chip: danach normal mit Benutzername/Passwort anmelden – der Chip wird automatisch für Ihr Konto registriert.
+            Unbekannter Chip: Es öffnet sich ein Login-Fenster zur direkten Registrierung auf Ihr Konto.
           </p>
           <button type="button" id="login-rfid-connect" class="btn btn--outline btn-block login-rfid__connect">
             Lesegerät verbinden
@@ -54,6 +54,33 @@
     </div>
     <div class="auth-footer">
       <a th:href="@{/datenschutz}">Datenschutzerklärung</a>
+    </div>
+  </div>
+  <div id="modal-rfid-register-unknown" class="modal-overlay">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-rfid-register-title">
+      <div class="modal__header">
+        <h3 id="modal-rfid-register-title">Unbekannter RFID-Chip</h3>
+        <button type="button" class="modal__close" id="modal-rfid-register-close" aria-label="Schließen">✕</button>
+      </div>
+      <form id="form-rfid-register-unknown">
+        <div class="modal__body">
+          <p class="hint">Dieser Chip ist noch nicht registriert. Bitte mit Benutzername und Passwort bestätigen, um den Chip zuzuordnen.</p>
+          <div class="form-group">
+            <label for="unknown-rfid-username">Benutzername oder E-Mail</label>
+            <input id="unknown-rfid-username" name="username" type="text" autocomplete="username" required/>
+          </div>
+          <div class="form-group">
+            <label for="unknown-rfid-password">Passwort</label>
+            <input id="unknown-rfid-password" name="password" type="password" autocomplete="current-password" required/>
+          </div>
+          <p id="unknown-rfid-chip" class="hint text-sm"></p>
+          <p id="unknown-rfid-error" class="hint text-sm err" hidden></p>
+        </div>
+        <div class="modal__footer">
+          <button type="submit" class="btn btn--primary">Anmelden & Chip registrieren</button>
+          <button type="button" class="btn btn--outline" id="modal-rfid-register-cancel">Abbrechen</button>
+        </div>
+      </form>
     </div>
   </div>
   <script th:src="@{/js/toast.js}" defer></script>

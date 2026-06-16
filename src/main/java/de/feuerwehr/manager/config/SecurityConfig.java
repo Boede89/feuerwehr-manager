@@ -76,7 +76,7 @@ public class SecurityConfig {
                                 "/actuator/health",
                                 "/error")
                         .permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/rfid", "/api/v1/auth/rfid/pending")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/rfid", "/api/v1/auth/rfid/register-unknown")
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/webhook/**")
                         .permitAll()
