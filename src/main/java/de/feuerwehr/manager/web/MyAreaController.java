@@ -4,6 +4,8 @@ import de.feuerwehr.manager.personal.MyAreaService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.settings.ApplicationSettings;
 import de.feuerwehr.manager.settings.GlobalSettingsService;
+import de.feuerwehr.manager.user.UserManagementService;
+import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -25,6 +27,7 @@ public class MyAreaController {
 
     private final MyAreaService myAreaService;
     private final GlobalSettingsService globalSettingsService;
+    private final UserManagementService userManagementService;
 
     @GetMapping
     public String index(
@@ -48,6 +51,7 @@ public class MyAreaController {
         model.addAttribute("privacyContactName", global.getPrivacyContactName());
         model.addAttribute("privacyContactEmail", global.getPrivacyContactEmail());
         model.addAttribute("privacyContactPhone", global.getPrivacyContactPhone());
+        model.addAttribute("rfidCards", userManagementService.listRfidCards(actor.getUserId()));
         return "my-area";
     }
 
@@ -127,6 +131,40 @@ public class MyAreaController {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
         return "redirect:/my-area?tab=profile";
+    }
+
+    @PostMapping("/rfid")
+    public String addOwnRfid(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam String cardUid,
+            @RequestParam(required = false) String label,
+            HttpServletRequest request,
+            RedirectAttributes redirectAttributes) {
+        try {
+            userManagementService.registerOwnRfidCard(actor.getUserId(), cardUid, label, request);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "RFID-Chip wurde registriert.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/my-area?tab=profile";
+    }
+
+    @PostMapping("/rfid/{cardId}/revoke")
+    public String revokeOwnRfid(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "tab", required = false, defaultValue = "profile") String tab,
+            @org.springframework.web.bind.annotation.PathVariable long cardId,
+            HttpServletRequest request,
+            RedirectAttributes redirectAttributes) {
+        try {
+            userManagementService.revokeOwnRfidCard(actor.getUserId(), cardId, request);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "RFID-Chip wurde deaktiviert.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/my-area?tab=" + normalizeTab(tab);
     }
 
     private static String normalizeTab(String tab) {

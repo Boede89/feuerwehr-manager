@@ -157,6 +157,40 @@
       </div>
     </div>
 
+    <div class="card card--narrow mt-md">
+      <div class="card__header">RFID-Chips</div>
+      <div class="card__body">
+        <p class="hint">Chip auflegen oder UID eingeben. Mit aktiven Chips ist eine Anmeldung am Lesegerät möglich.</p>
+        <div class="list" style="margin-top:0.75rem;" th:if="${!#lists.isEmpty(rfidCards)}">
+          <div class="list-row" th:each="c : ${rfidCards}">
+            <span>
+              <code th:text="${c.cardUid}">UID</code>
+              <span th:if="${c.label != null and !#strings.isEmpty(c.label)}" th:text="' – ' + ${c.label}">Label</span>
+              <span class="badge" th:classappend="${c.active} ? ' active' : ' inactive'"
+                    th:text="${c.active} ? 'Aktiv' : 'Deaktiviert'">Status</span>
+            </span>
+            <form th:if="${c.active}" method="post" th:action="@{/my-area/rfid/{cid}/revoke(cid=${c.id})}" class="table-inline-form">
+              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+              <button type="submit" class="btn btn--outline btn--sm">Deaktivieren</button>
+            </form>
+          </div>
+        </div>
+        <form method="post" th:action="@{/my-area/rfid}" style="margin-top:1rem;">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <label for="my-rfid-card-uid">Chip-ID</label>
+          <div class="form-row-inline">
+            <input id="my-rfid-card-uid" name="cardUid" type="text" required placeholder="z. B. A1B2C3D4"/>
+            <button type="button" class="btn btn--outline btn--sm" data-rfid-target="#my-rfid-card-uid">Chip auflegen</button>
+          </div>
+          <label for="my-rfid-label">Bezeichnung (optional)</label>
+          <input id="my-rfid-label" name="label" type="text" maxlength="255" placeholder="z. B. Dienst-Laptop"/>
+          <div class="btn-group mt-md">
+            <button type="submit" class="btn btn--primary">Chip registrieren</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <div th:if="${!hasLinkedPerson}" class="card card--narrow mt-md">
       <div class="card__body">
         <p class="hint" style="margin:0;">
@@ -215,5 +249,8 @@
   </div>
 
   <script th:src="@{/js/my-area.js}"></script>
+  <script th:src="@{/js/toast.js}"></script>
+  <script th:src="@{/js/flash-toast.js}"></script>
+  <script th:src="@{/js/rfid-input-capture.js}"></script>
 </main>
 </html>

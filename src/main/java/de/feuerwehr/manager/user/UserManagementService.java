@@ -4,6 +4,7 @@ import de.feuerwehr.manager.dsgvo.AuditEventType;
 import de.feuerwehr.manager.dsgvo.AuditService;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
+import de.feuerwehr.manager.security.RfidSessionKeys;
 import de.feuerwehr.manager.security.SecurityProperties;
 import de.feuerwehr.manager.personal.PersonUserLinkService;
 import de.feuerwehr.manager.unit.Unit;
@@ -15,6 +16,7 @@ import de.feuerwehr.manager.unit.UserUnitFunctionId;
 import de.feuerwehr.manager.unit.UserUnitFunctionRepository;
 import de.feuerwehr.manager.web.dto.UserDataExport;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.List;
@@ -371,6 +373,86 @@ public class UserManagementService {
 
     public List<UserRfidCard> listRfidCards(long userId) {
         return rfidCardRepository.findByUserId(userId);
+    }
+
+    @Transactional
+    public UserRfidCard registerOwnRfidCard(long userId, String rawCardUid, String label, HttpServletRequest request) {
+        User user = userRepository.findByIdWithUnit(userId).orElseThrow();
+        if (user.getAnonymizedAt() != null) {
+            throw new IllegalArgumentException("Konto wurde gelöscht");
+        }
+        String normalized = RfidCardUidNormalizer.normalize(rawCardUid);
+        if (!RfidCardUidNormalizer.isValid(normalized)) {
+            throw new IllegalArgumentException("Ungültige Chip-ID (nur Hex-Zeichen, min. 4 Zeichen)");
+        }
+        if (rfidCardRepository.existsByCardUid(normalized)) {
+            throw new IllegalArgumentException("Chip ist bereits registriert");
+        }
+        UserRfidCard card = new UserRfidCard();
+        card.setUser(user);
+        card.setCardUid(normalized);
+        card.setLabel(label != null ? label.trim() : null);
+        card.setActive(true);
+        UserRfidCard saved = rfidCardRepository.save(card);
+        auditService.record(
+                AuditEventType.RFID_CARD_REGISTERED,
+                userId,
+                userId,
+                request,
+                "RFID-Karte im Mein-Bereich registriert");
+        return saved;
+    }
+
+    @Transactional
+    public void revokeOwnRfidCard(long userId, long cardId, HttpServletRequest request) {
+        UserRfidCard card = rfidCardRepository.findById(cardId).orElseThrow();
+        if (card.getUser() == null || card.getUser().getId() != userId) {
+            throw new IllegalArgumentException("Chip gehört nicht zu Ihrem Benutzerkonto");
+        }
+        card.setActive(false);
+        rfidCardRepository.save(card);
+        auditService.record(
+                AuditEventType.RFID_CARD_REVOKED,
+                userId,
+                userId,
+                request,
+                "RFID-Karte im Mein-Bereich deaktiviert");
+    }
+
+    @Transactional
+    public boolean registerPendingRfidFromSession(long userId, HttpSession session, HttpServletRequest request) {
+        if (session == null) {
+            return false;
+        }
+        Object value = session.getAttribute(RfidSessionKeys.PENDING_CARD_UID);
+        if (!(value instanceof String rawUid) || rawUid.isBlank()) {
+            return false;
+        }
+        String normalized = RfidCardUidNormalizer.normalize(rawUid);
+        session.removeAttribute(RfidSessionKeys.PENDING_CARD_UID);
+        if (!RfidCardUidNormalizer.isValid(normalized)) {
+            return false;
+        }
+        if (rfidCardRepository.existsByCardUid(normalized)) {
+            return false;
+        }
+        User user = userRepository.findByIdWithUnit(userId).orElse(null);
+        if (user == null || user.getAnonymizedAt() != null) {
+            return false;
+        }
+        UserRfidCard card = new UserRfidCard();
+        card.setUser(user);
+        card.setCardUid(normalized);
+        card.setLabel("Auto-Registrierung Login");
+        card.setActive(true);
+        rfidCardRepository.save(card);
+        auditService.record(
+                AuditEventType.RFID_CARD_REGISTERED,
+                userId,
+                userId,
+                request,
+                "RFID-Karte nach Passwort-Login automatisch registriert");
+        return true;
     }
 
     @Transactional(readOnly = true)

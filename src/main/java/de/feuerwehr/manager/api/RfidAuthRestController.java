@@ -1,10 +1,12 @@
 package de.feuerwehr.manager.api;
 
 import de.feuerwehr.manager.security.AppUserDetails;
+import de.feuerwehr.manager.security.RfidSessionKeys;
 import de.feuerwehr.manager.security.RfidAuthenticationToken;
 import de.feuerwehr.manager.security.SecurityProperties;
 import de.feuerwehr.manager.security.TotpSessionKeys;
 import de.feuerwehr.manager.user.User;
+import de.feuerwehr.manager.user.RfidCardUidNormalizer;
 import de.feuerwehr.manager.user.UserRepository;
 import de.feuerwehr.manager.user.UserService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -39,6 +42,7 @@ public class RfidAuthRestController {
             new HttpSessionSecurityContextRepository();
 
     public record RfidLoginRequest(String cardUid) {}
+    public record PendingRfidRequest(String cardUid) {}
 
     @PostMapping("/rfid")
     public ResponseEntity<Map<String, Object>> loginByRfid(
@@ -81,8 +85,42 @@ public class RfidAuthRestController {
                     "displayName", details.getDisplayName(),
                     "redirectUrl", "/"));
         } catch (Exception e) {
+            String message = "Anmeldung fehlgeschlagen";
+            String errorCode = "rfid_login_failed";
+            if (e instanceof BadCredentialsException bce) {
+                String msg = bce.getMessage() != null ? bce.getMessage() : "";
+                if ("Chip nicht registriert".equalsIgnoreCase(msg)) {
+                    errorCode = "unknown_chip";
+                    message = "Chip ist nicht registriert. Bitte mit Benutzername/Passwort anmelden.";
+                } else if ("Ungültige Chip-ID".equalsIgnoreCase(msg)) {
+                    errorCode = "invalid_chip";
+                    message = "Ungültige Chip-ID.";
+                }
+            }
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("success", false, "message", "Anmeldung fehlgeschlagen"));
+                    .body(Map.of("success", false, "errorCode", errorCode, "message", message));
         }
+    }
+
+    @PostMapping("/rfid/pending")
+    public ResponseEntity<Map<String, Object>> rememberPendingUnknownRfid(
+            @RequestBody PendingRfidRequest body,
+            HttpServletRequest request) {
+        if (!securityProperties.rfidApiEnabled()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("success", false, "message", "RFID-Anmeldung ist deaktiviert"));
+        }
+        if (body == null || body.cardUid() == null || body.cardUid().isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("success", false, "message", "Chip-ID fehlt"));
+        }
+        String normalized = RfidCardUidNormalizer.normalize(body.cardUid());
+        if (!RfidCardUidNormalizer.isValid(normalized)) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("success", false, "message", "Ungültige Chip-ID"));
+        }
+        HttpSession session = request.getSession();
+        session.setAttribute(RfidSessionKeys.PENDING_CARD_UID, normalized);
+        return ResponseEntity.ok(Map.of("success", true));
     }
 }

@@ -93,7 +93,20 @@
       .then(function (result) {
         if (!result.ok || !result.body || !result.body.success) {
           markHandled(cardUid);
+          var code = result.body && result.body.errorCode;
           var msg = (result.body && result.body.message) || 'Anmeldung fehlgeschlagen';
+          if (code === 'unknown_chip') {
+            rememberUnknownChip(cardUid)
+              .finally(function () {
+                setStatus('Unbekannter Chip – bitte Benutzername/Passwort eingeben', 'warn');
+                setHint('Nach erfolgreichem Passwort-Login wird dieser Chip automatisch registriert.');
+                if (typeof window.toast === 'function') {
+                  window.toast('Unbekannter Chip erkannt. Bitte normal anmelden.', 'warning');
+                }
+                busy = false;
+              });
+            return;
+          }
           setStatus(msg, 'error');
           if (typeof window.toast === 'function') {
             window.toast(msg, 'error');
@@ -113,6 +126,22 @@
         setStatus('Verbindung zum Server fehlgeschlagen', 'error');
         busy = false;
       });
+  }
+
+  function rememberUnknownChip(cardUid) {
+    var headers = { 'Content-Type': 'application/json' };
+    var csrf = getCsrfToken();
+    if (csrf) {
+      headers[getCsrfHeader()] = csrf;
+    }
+    return fetch('/api/v1/auth/rfid/pending', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: headers,
+      body: JSON.stringify({ cardUid: cardUid })
+    }).catch(function () {
+      return null;
+    });
   }
 
   function processChunk(buffer, chunk) {
