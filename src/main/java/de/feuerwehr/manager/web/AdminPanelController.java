@@ -425,7 +425,26 @@ public class AdminPanelController {
         try {
             userManagementService.revokeRfidCard(cardId, actor, request);
             redirectAttributes.addFlashAttribute("saved", true);
-            redirectAttributes.addFlashAttribute("message", "RFID-Chip wurde deaktiviert.");
+            redirectAttributes.addFlashAttribute("message", "RFID-Chip wurde gesperrt.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return redirectAfterUser(scope, unitId, actor);
+    }
+
+    @PostMapping("/users/{id}/rfid/{cardId}/reactivate")
+    public String reactivateRfid(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @PathVariable long cardId,
+            @RequestParam(name = "scope") String scope,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            HttpServletRequest request,
+            RedirectAttributes redirectAttributes) {
+        try {
+            userManagementService.reactivateRfidCard(cardId, actor, request);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "RFID-Chip wurde entsperrt.");
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }

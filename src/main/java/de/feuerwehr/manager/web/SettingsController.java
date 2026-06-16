@@ -4,6 +4,7 @@ import de.feuerwehr.manager.notification.NotificationChannel;
 import de.feuerwehr.manager.notification.UserNotificationPreferenceService;
 import de.feuerwehr.manager.notification.UserNotificationTopic;
 import de.feuerwehr.manager.security.AppUserDetails;
+import de.feuerwehr.manager.security.SecurityProperties;
 import de.feuerwehr.manager.security.TotpSessionKeys;
 import de.feuerwehr.manager.unit.UnitService;
 import de.feuerwehr.manager.user.User;
@@ -23,6 +24,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -38,6 +40,7 @@ public class SettingsController {
     private final UserRepository userRepository;
     private final UserTotpService userTotpService;
     private final UserNotificationPreferenceService userNotificationPreferenceService;
+    private final SecurityProperties securityProperties;
 
     @GetMapping
     public String index(
@@ -60,6 +63,8 @@ public class SettingsController {
             model.addAttribute("totpSetupUri", setupUri.toString());
         }
         model.addAttribute("totpDisableActive", Boolean.TRUE.equals(totpDisable));
+        model.addAttribute("rfidLoginEnabled", securityProperties.rfidApiEnabled());
+        model.addAttribute("rfidCards", userManagementService.listRfidCards(actor.getUserId()));
         return "settings";
     }
 
@@ -202,6 +207,55 @@ public class SettingsController {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return "redirect:/settings";
         }
+    }
+
+    @PostMapping("/rfid")
+    public String addOwnRfid(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam String cardUid,
+            @RequestParam(required = false) String label,
+            HttpServletRequest request,
+            RedirectAttributes redirectAttributes) {
+        try {
+            userManagementService.registerOwnRfidCard(actor.getUserId(), cardUid, label, request);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "RFID-Chip wurde registriert.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/settings";
+    }
+
+    @PostMapping("/rfid/{cardId}/revoke")
+    public String revokeOwnRfid(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long cardId,
+            HttpServletRequest request,
+            RedirectAttributes redirectAttributes) {
+        try {
+            userManagementService.revokeOwnRfidCard(actor.getUserId(), cardId, request);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "RFID-Chip wurde gesperrt.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/settings";
+    }
+
+    @PostMapping("/rfid/{cardId}/reactivate")
+    public String reactivateRfid(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long cardId,
+            HttpServletRequest request,
+            RedirectAttributes redirectAttributes) {
+        try {
+            userManagementService.reactivateRfidCard(cardId, actor, request);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "RFID-Chip wurde entsperrt.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/settings";
     }
 
     @PostMapping("/password")

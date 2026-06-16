@@ -359,6 +359,9 @@ public class UserManagementService {
     public void revokeRfidCard(long cardId, AppUserDetails actor, HttpServletRequest request) {
         UserRfidCard card = rfidCardRepository.findById(cardId).orElseThrow();
         accessControlService.requireCanManageUser(actor, card.getUser());
+        if (!card.isActive()) {
+            throw new IllegalArgumentException("Chip ist bereits gesperrt.");
+        }
         card.setActive(false);
         rfidCardRepository.save(card);
         auditService.record(
@@ -366,7 +369,27 @@ public class UserManagementService {
                 actor.getUserId(),
                 card.getUser().getId(),
                 request,
-                "RFID-Karte deaktiviert");
+                "RFID-Karte gesperrt");
+    }
+
+    @Transactional
+    public void reactivateRfidCard(long cardId, AppUserDetails actor, HttpServletRequest request) {
+        if (!actor.getRole().isAdminLevel()) {
+            throw new IllegalArgumentException("Nur Administratoren können gesperrte Chips entsperren.");
+        }
+        UserRfidCard card = rfidCardRepository.findById(cardId).orElseThrow();
+        accessControlService.requireCanManageUser(actor, card.getUser());
+        if (card.isActive()) {
+            throw new IllegalArgumentException("Chip ist bereits aktiv.");
+        }
+        card.setActive(true);
+        rfidCardRepository.save(card);
+        auditService.record(
+                AuditEventType.RFID_CARD_REGISTERED,
+                actor.getUserId(),
+                card.getUser().getId(),
+                request,
+                "RFID-Karte entsperrt");
     }
 
     public List<UserRfidCard> listRfidCards(long userId) {
@@ -397,7 +420,7 @@ public class UserManagementService {
                 userId,
                 userId,
                 request,
-                "RFID-Karte im Mein-Bereich registriert");
+                "RFID-Karte in Einstellungen registriert");
         return saved;
     }
 
@@ -407,6 +430,9 @@ public class UserManagementService {
         if (card.getUser() == null || card.getUser().getId() != userId) {
             throw new IllegalArgumentException("Chip gehört nicht zu Ihrem Benutzerkonto");
         }
+        if (!card.isActive()) {
+            throw new IllegalArgumentException("Chip ist bereits gesperrt.");
+        }
         card.setActive(false);
         rfidCardRepository.save(card);
         auditService.record(
@@ -414,7 +440,7 @@ public class UserManagementService {
                 userId,
                 userId,
                 request,
-                "RFID-Karte im Mein-Bereich deaktiviert");
+                "RFID-Karte in Einstellungen gesperrt");
     }
 
     @Transactional(readOnly = true)
