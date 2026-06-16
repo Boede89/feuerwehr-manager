@@ -9,7 +9,7 @@ cd feuerwehr-manager
 chmod +x install.sh && ./install.sh
 ```
 
-Danach im Browser: **https://\<Server-IP\>** (Caddy) – Einrichtung Divera über **Einstellungen** in der Web-UI (`docs/SCHRITT-FUER-SCHRITT.md`, `docs/HTTPS.md`).
+Danach im Browser: **https://fw-manager.home.arpa** (Caddy) – Einrichtung Divera über **Einstellungen** in der Web-UI (`docs/SCHRITT-FUER-SCHRITT.md`, `docs/HTTPS.md`).
 
 **Proxmox / wie viele Container / Debian vs. Ubuntu / RAM:** siehe **`docs/PROXMOX-RATGEBER.md`**.
 
@@ -23,16 +23,16 @@ Danach im Browser: **https://\<Server-IP\>** (Caddy) – Einrichtung Divera übe
 cd feuerwehr-manager
 docker compose up --build -d
 ```
-- Web: https://localhost (Caddy) oder http://localhost:8080 (Debug)  
+- Web: https://fw-manager.home.arpa (Caddy) oder http://localhost:8080 (Debug)  
 - MySQL (Host): Port **3309** (User `ff`, Passwort `ffsecret`, DB `feuerwehr_manager`)
 
 **Schritt-für-Schritt (ein Docker-Befehl, Einrichtung in der Web-UI):** [docs/SCHRITT-FUER-SCHRITT.md](docs/SCHRITT-FUER-SCHRITT.md)
 
 ## Divera-Zugang (Web-UI)
 
-1. Im Browser **Einstellungen** öffnen: `http://localhost:8080/settings/divera?unit=1` (oder Kachel **Einstellungen** im Dashboard).
+1. Im Browser **Einstellungen** öffnen: `https://fw-manager.home.arpa/settings/divera?unit=1` (oder Kachel **Einstellungen** im Dashboard).
 2. **API-Basis-URL** und **Divera Access Key** eintragen und **Speichern**.
-3. Dashboard prüfen; JSON: `GET http://localhost:8080/api/v1/units/1/divera/alarms`
+3. Dashboard prüfen; JSON: `GET https://fw-manager.home.arpa/api/v1/units/1/divera/alarms`
 
 Technische Details: [docs/DIVERA.md](docs/DIVERA.md)
 

@@ -6,11 +6,20 @@ Nach `docker compose up -d --build` ist die App erreichbar über:
 
 | URL | Zweck |
 |-----|--------|
-| **https://&lt;Server-IP&gt;** | Produktiv (Caddy, Port 443) |
-| **http://&lt;Server-IP&gt;** | Leitet auf HTTPS um (Port 80) |
+| **https://fw-manager.home.arpa** | Produktiv (Caddy, Port 443) |
+| **http://fw-manager.home.arpa** | Leitet auf HTTPS um (Port 80) |
 | http://&lt;Server-IP&gt;:8080 | Optional direkt zur App (Debug) |
 
-Caddy nutzt standardmäßig ein **internes Zertifikat** (`tls internal`). Beim ersten Aufruf warnt der Browser – das ist normal im LAN. Zertifikat einmal bestätigen oder für dauerhaftes Vertrauen [mkcert](https://github.com/FiloSottile/mkcert) verwenden (siehe unten).
+Caddy nutzt standardmäßig ein **internes Zertifikat** (`tls internal`). Beim ersten Aufruf warnt der Browser – das ist normal im LAN. Zertifikat einmal bestätigen oder für dauerhaftes Vertrauen die Caddy-Root-CA auf den Clients importieren.
+
+## Lokaler DNS-Name
+
+Empfohlen ist ein zentraler DNS-Eintrag im Netzwerk:
+
+- `fw-manager.home.arpa` -> `192.168.10.123`
+
+Beispiel mit AdGuard: **DNS rewrites**  
+`fw-manager.home.arpa` => `192.168.10.123`
 
 ## .env
 
@@ -43,25 +52,15 @@ Hat der Benutzer TOTP aktiv, leitet RFID-Login auf `/login/totp` weiter (wie Pas
 
 `docker/caddy/Caddyfile.domain.example` nach `Caddyfile` kopieren, Domain anpassen, DNS auf den Server zeigen lassen, `docker compose restart caddy`.
 
-## Vertrauenswürdiges LAN-Zertifikat (mkcert)
+## Caddy-Root-CA auf Clients vertrauen (optional, empfohlen)
 
-Auf dem Entwicklungs-PC:
+Auf dem Server:
 
 ```bash
-mkcert -install
-mkcert 192.168.x.x fw-manager.local
+docker compose exec caddy cat /data/caddy/pki/authorities/local/root.crt > caddy-local-root.crt
 ```
 
-Zertifikate nach `docker/caddy/certs/` legen und Caddyfile anpassen:
-
-```caddyfile
-:443 {
-    tls /certs/cert.pem /certs/key.pem
-    reverse_proxy app:8080 { ... }
-}
-```
-
-`docker/caddy/certs/` ist in `.gitignore` – Zertifikate nicht committen.
+`caddy-local-root.crt` dann auf den jeweiligen Client importieren (Windows/Linux/Android), damit keine Zertifikatswarnung mehr erscheint.
 
 ## Fallback ohne Web Serial
 

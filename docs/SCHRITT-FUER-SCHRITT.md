@@ -90,8 +90,8 @@ Beenden der Log-Ansicht: `Strg+C`.
 
 Im Browser (vom gleichen Netz aus, Firewall-Ports **80** und **443** freigeben):
 
-- **Empfohlen:** `https://<IP-des-Servers>` (Caddy, ggf. Zertifikatswarnung beim ersten Mal bestätigen)
-- **Lokal am Server:** `https://localhost`
+- **Empfohlen:** `https://fw-manager.home.arpa` (Caddy, ggf. Zertifikatswarnung beim ersten Mal bestätigen)
+- **Lokal am Server:** `https://fw-manager.home.arpa` oder `https://localhost`
 - **Debug (ohne TLS):** `http://<IP-des-Servers>:8080`
 
 Details: [HTTPS.md](HTTPS.md).
@@ -123,7 +123,7 @@ Details: [LOGIN.md](LOGIN.md).
 
 1. Im Dashboard auf die Kachel **„Einstellungen“** tippen/klicken  
    **oder** direkt aufrufen:  
-   `http://<IP>:8080/settings/divera?unit=1`
+   `https://fw-manager.home.arpa/settings/divera?unit=1`
 2. **API-Basis-URL** prüfen: in der Regel **`https://app.divera247.com`** (sofern Divera nichts anderes vorgibt).
 3. **Divera Access Key** eintragen (aus Divera 24/7 für die jeweilige Einheit).
 4. **„Speichern“** drücken.
@@ -159,12 +159,12 @@ Erwartung bei erfolgreichem Webhook: `Webhook gespeichert unit=… alarmId=… c
 
 ## Schritt 7: Prüfen, ob Divera-Daten ankommen
 
-1. Zurück über **„Zurück zum Dashboard“** oder erneut `http://<IP>:8080/?unit=1`
+1. Zurück über **„Zurück zum Dashboard“** oder erneut `https://fw-manager.home.arpa/?unit=1`
 2. Im Bereich **„Divera – aktuelle Einsätze“** sollten bei gültigem Key die Alarme erscheinen (oder eine leere Liste, wenn gerade kein Einsatz aktiv ist).
 
 Optional JSON für spätere App:
 
-- `http://<IP>:8080/api/v1/units/1/divera/alarms`
+- `https://fw-manager.home.arpa/api/v1/units/1/divera/alarms`
 
 ---
 
@@ -203,7 +203,7 @@ docker compose up -d --build
 |-----|--------|
 | 0 | `git clone https://github.com/Boede89/feuerwehr-manager.git` und `cd feuerwehr-manager` |
 | 1 | `chmod +x install.sh && ./install.sh` |
-| 2 | Browser: `http://<Server>:8080` |
+| 2 | Browser: `https://fw-manager.home.arpa` |
 | 3 | **Einstellungen** → **Mein Passwort** ändern |
 | 4 | **Einstellungen** → **Divera**: URL prüfen, **Access Key** eintragen → **Speichern** |
 | 5 | Dashboard prüfen (Divera-Liste / JSON-Endpunkt) |
@@ -212,7 +212,7 @@ docker compose up -d --build
 
 ## Bei Problemen
 
-- **Seite lädt nicht:** Firewall, Port 8080, `docker compose ps`, `docker compose logs app`
+- **Seite lädt nicht:** Firewall, Ports 80/443, `docker compose ps`, `docker compose logs app`, `docker compose logs caddy`
 - **Divera-Fehlermeldung:** Key prüfen, URL prüfen, von der App aus Internet-Zugang (Proxy?) prüfen
 - **MySQL:** Port **3309** am Host nur intern nutzen; Zugangsdaten siehe `docker-compose.yml` / `README.md`
 
