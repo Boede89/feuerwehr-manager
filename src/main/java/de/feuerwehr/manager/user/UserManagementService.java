@@ -392,6 +392,35 @@ public class UserManagementService {
                 "RFID-Karte entsperrt");
     }
 
+    @Transactional
+    public void deleteRfidCard(long cardId, AppUserDetails actor, HttpServletRequest request) {
+        UserRfidCard card = rfidCardRepository.findById(cardId).orElseThrow();
+        accessControlService.requireCanManageUser(actor, card.getUser());
+        long ownerId = card.getUser().getId();
+        rfidCardRepository.delete(card);
+        auditService.record(
+                AuditEventType.RFID_CARD_REVOKED,
+                actor.getUserId(),
+                ownerId,
+                request,
+                "RFID-Karte gelöscht");
+    }
+
+    @Transactional
+    public void deleteOwnRfidCard(long userId, long cardId, HttpServletRequest request) {
+        UserRfidCard card = rfidCardRepository.findById(cardId).orElseThrow();
+        if (card.getUser() == null || card.getUser().getId() != userId) {
+            throw new IllegalArgumentException("Chip gehört nicht zu Ihrem Benutzerkonto");
+        }
+        rfidCardRepository.delete(card);
+        auditService.record(
+                AuditEventType.RFID_CARD_REVOKED,
+                userId,
+                userId,
+                request,
+                "RFID-Karte in Einstellungen gelöscht");
+    }
+
     public List<UserRfidCard> listRfidCards(long userId) {
         return rfidCardRepository.findByUserId(userId);
     }

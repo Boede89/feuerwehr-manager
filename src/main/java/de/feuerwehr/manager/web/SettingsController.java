@@ -258,6 +258,22 @@ public class SettingsController {
         return "redirect:/settings";
     }
 
+    @PostMapping("/rfid/{cardId}/delete")
+    public String deleteOwnRfid(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long cardId,
+            HttpServletRequest request,
+            RedirectAttributes redirectAttributes) {
+        try {
+            userManagementService.deleteOwnRfidCard(actor.getUserId(), cardId, request);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "RFID-Chip wurde gelöscht.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/settings";
+    }
+
     @PostMapping("/password")
     public String changePassword(
             @AuthenticationPrincipal AppUserDetails user,

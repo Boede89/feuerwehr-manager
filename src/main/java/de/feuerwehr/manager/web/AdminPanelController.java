@@ -451,6 +451,25 @@ public class AdminPanelController {
         return redirectAfterUser(scope, unitId, actor);
     }
 
+    @PostMapping("/users/{id}/rfid/{cardId}/delete")
+    public String deleteRfid(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @PathVariable long cardId,
+            @RequestParam(name = "scope") String scope,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            HttpServletRequest request,
+            RedirectAttributes redirectAttributes) {
+        try {
+            userManagementService.deleteRfidCard(cardId, actor, request);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "RFID-Chip wurde gelöscht.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return redirectAfterUser(scope, unitId, actor);
+    }
+
     @PostMapping("/users/{id}/delete")
     public String deleteUser(
             @AuthenticationPrincipal AppUserDetails actor,

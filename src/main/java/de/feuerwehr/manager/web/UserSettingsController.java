@@ -186,6 +186,23 @@ public class UserSettingsController {
         return "redirect:/settings/users/" + id;
     }
 
+    @PostMapping("/{id}/rfid/{cardId}/delete")
+    public String deleteRfid(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @PathVariable long cardId,
+            HttpServletRequest request,
+            RedirectAttributes redirectAttributes) {
+        try {
+            userManagementService.deleteRfidCard(cardId, actor, request);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "RFID-Chip wurde gelöscht.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/settings/users/" + id;
+    }
+
     @PostMapping("/{id}/anonymize")
     public String anonymize(
             @AuthenticationPrincipal AppUserDetails actor,

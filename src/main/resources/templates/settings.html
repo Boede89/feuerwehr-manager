@@ -98,7 +98,7 @@
   <div class="card mt-md" th:if="${rfidLoginEnabled}">
     <div class="card__header">RFID-Chips</div>
     <div class="card__body">
-      <p class="hint">Chip auflegen oder UID eingeben. Mit aktiven Chips ist eine Anmeldung am Lesegerät möglich. Gesperrte Chips können nicht mehr anmelden.</p>
+      <p class="hint">Chip auflegen oder UID eingeben. Mit aktiven Chips ist eine Anmeldung am Lesegerät möglich. Gesperrte Chips können nicht mehr anmelden. Löschen entfernt den Chip dauerhaft.</p>
       <div class="list" style="margin-top:0.75rem;" th:if="${!#lists.isEmpty(rfidCards)}">
         <div class="list-row" th:each="c : ${rfidCards}">
           <span>
@@ -107,14 +107,21 @@
             <span class="badge" th:classappend="${c.active} ? ' active' : ' inactive'"
                   th:text="${c.active} ? 'Aktiv' : 'Gesperrt'">Status</span>
           </span>
-          <form th:if="${c.active}" method="post" th:action="@{/settings/rfid/{cid}/revoke(cid=${c.id})}" class="table-inline-form" style="margin:0;">
-            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-            <button type="submit" class="btn btn--outline btn--sm">Sperren</button>
-          </form>
-          <form th:if="${!c.active and isAdmin}" method="post" th:action="@{/settings/rfid/{cid}/reactivate(cid=${c.id})}" class="table-inline-form" style="margin:0;">
-            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-            <button type="submit" class="btn btn--outline btn--sm">Entsperren</button>
-          </form>
+          <div class="btn-group">
+            <form th:if="${c.active}" method="post" th:action="@{/settings/rfid/{cid}/revoke(cid=${c.id})}" class="table-inline-form" style="margin:0;">
+              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+              <button type="submit" class="btn btn--outline btn--sm">Sperren</button>
+            </form>
+            <form th:if="${!c.active and isAdmin}" method="post" th:action="@{/settings/rfid/{cid}/reactivate(cid=${c.id})}" class="table-inline-form" style="margin:0;">
+              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+              <button type="submit" class="btn btn--outline btn--sm">Entsperren</button>
+            </form>
+            <form method="post" th:action="@{/settings/rfid/{cid}/delete(cid=${c.id})}" class="table-inline-form" style="margin:0;"
+                  onsubmit="return confirm('RFID-Chip wirklich löschen?');">
+              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+              <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
+            </form>
+          </div>
         </div>
       </div>
       <form method="post" th:action="@{/settings/rfid}" style="margin-top:1rem;">
