@@ -131,7 +131,13 @@ public class DiveraService {
                     root = null;
                 }
             }
-            return DiveraAlarmDetailsMapper.fromSummary(summary, root);
+            try {
+                return DiveraAlarmDetailsMapper.fromSummary(summary, root);
+            } catch (Exception e) {
+                org.slf4j.LoggerFactory.getLogger(DiveraService.class)
+                        .warn("DIVERA-Alarmdetails {} konnten nicht gelesen werden: {}", alarmId, e.getMessage(), e);
+                return Optional.empty();
+            }
         }
         return Optional.empty();
     }

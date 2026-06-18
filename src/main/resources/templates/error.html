@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('Fehler', ~{::main})}">
+<main>
+  <div class="page-header">
+    <div>
+      <h2>Fehler</h2>
+      <p th:text="${errorMessage != null ? errorMessage : 'Ein unerwarteter Fehler ist aufgetreten.'}">
+        Ein unerwarteter Fehler ist aufgetreten.
+      </p>
+    </div>
+  </div>
+
+  <div class="card card--narrow">
+    <div class="card__body">
+      <p class="hint" th:if="${status != null}">
+        Status: <span th:text="${status}">500</span>
+      </p>
+      <p class="hint">Bitte die Seite neu laden oder zur Startseite zurückkehren. Wenn der Fehler bleibt, den Administrator informieren.</p>
+      <div class="btn-group mt-md">
+        <a class="btn btn--primary" th:href="@{/}">Zur Startseite</a>
+        <button type="button" class="btn btn--outline" onclick="history.back()">Zurück</button>
+      </div>
+    </div>
+  </div>
+</main>
+</html>

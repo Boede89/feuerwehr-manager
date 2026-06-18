@@ -49,6 +49,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -67,6 +68,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @Controller
 @RequestMapping("/berichte")
 @RequiredArgsConstructor
+@Slf4j
 public class BerichteController {
 
     private final UnitService unitService;
@@ -103,12 +105,21 @@ public class BerichteController {
             model.addAttribute("canWrite", canWrite(actor, unit.getId()));
             model.addAttribute("canApprove", canApprove);
             if (berichteTab == BerichteTab.EINSATZ) {
-                DiveraEinsatzberichtSyncService.SyncResult sync =
-                        diveraEinsatzberichtSyncService.syncAlarmsForUnit(unit.getId());
-                if (sync.success() && sync.created() > 0) {
+                try {
+                    DiveraEinsatzberichtSyncService.SyncResult sync =
+                            diveraEinsatzberichtSyncService.syncAlarmsForUnit(unit.getId());
+                    if (sync.success() && sync.created() > 0) {
+                        model.addAttribute(
+                                "message",
+                                sync.created() + " Einsatzbericht/Einsatzberichte aus DIVERA als Entwurf übernommen.");
+                    } else if (!sync.success() && sync.message() != null && !sync.message().isBlank()) {
+                        model.addAttribute("error", sync.message());
+                    }
+                } catch (Exception e) {
+                    log.warn("DIVERA-Sync beim Öffnen der Berichte fehlgeschlagen: {}", e.getMessage(), e);
                     model.addAttribute(
-                            "message",
-                            sync.created() + " Einsatzbericht/Einsatzberichte aus DIVERA als Entwurf übernommen.");
+                            "error",
+                            "DIVERA-Abgleich fehlgeschlagen. Bestehende Berichte können trotzdem geöffnet werden.");
                 }
                 model.addAttribute("filterYear", filterYear != null ? filterYear : LocalDate.now().getYear());
             } else if (berichteTab == BerichteTab.ANWESENHEIT) {
@@ -1158,16 +1169,20 @@ public class BerichteController {
             Model model, long unitId, IncidentReport report, EinsatzberichtForm form, boolean refreshDivera) {
         Long reportId = report != null ? report.getId() : null;
         if (refreshDivera && reportId != null && report.getDiveraAlarmId() != null) {
-            einsatzberichtService.refreshDiveraFromLatestAlarmData(unitId, reportId);
-            report = einsatzberichtService.requireReport(unitId, reportId);
-            form.setIncidentDate(report.getIncidentDate());
-            form.setAlarmTime(report.getAlarmTime());
-            form.setLocation(report.getLocation());
-            form.setPostalCode(report.getPostalCode());
-            form.setDistrict(report.getDistrict());
-            form.setStreet(report.getStreet());
-            form.setHouseNumber(report.getHouseNumber());
-            form.setAlarmierungDurch(report.getAlarmierungDurch());
+            try {
+                einsatzberichtService.refreshDiveraFromLatestAlarmData(unitId, reportId);
+                report = einsatzberichtService.requireReport(unitId, reportId);
+                form.setIncidentDate(report.getIncidentDate());
+                form.setAlarmTime(report.getAlarmTime());
+                form.setLocation(report.getLocation());
+                form.setPostalCode(report.getPostalCode());
+                form.setDistrict(report.getDistrict());
+                form.setStreet(report.getStreet());
+                form.setHouseNumber(report.getHouseNumber());
+                form.setAlarmierungDurch(report.getAlarmierungDurch());
+            } catch (Exception e) {
+                log.warn("DIVERA-Aktualisierung für Einsatzbericht {} fehlgeschlagen: {}", reportId, e.getMessage(), e);
+            }
         }
         KraefteFahrzeugeState kraefteState = einsatzberichtService.buildKraefteFahrzeugeState(unitId, reportId);
         model.addAttribute("report", report);

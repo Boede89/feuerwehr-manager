@@ -34,7 +34,9 @@ public class SessionCookieSecureFilter extends OncePerRequestFilter {
             HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         SessionCookieConfig config = request.getServletContext().getSessionCookieConfig();
-        config.setSecure(secureCookiesEnabled && request.isSecure());
+        if (config != null) {
+            config.setSecure(secureCookiesEnabled && request.isSecure());
+        }
         filterChain.doFilter(request, response);
     }
 }

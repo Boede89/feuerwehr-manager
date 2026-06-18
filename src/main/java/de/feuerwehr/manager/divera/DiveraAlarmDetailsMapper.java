@@ -292,6 +292,9 @@ public final class DiveraAlarmDetailsMapper {
     }
 
     private static AddressParts mergeAddress(AddressParts fromAddress, JsonNode alarm) {
+        if (alarm == null || alarm.isNull()) {
+            return splitStreetHouseNumber(fromAddress);
+        }
         String postalCode = firstNonBlank(
                 textOrNull(alarm, "zip", "plz", "postal_code", "postalCode", "Zip"),
                 fromAddress.postalCode());
@@ -299,7 +302,7 @@ public final class DiveraAlarmDetailsMapper {
                 textOrNull(alarm, "street", "strasse", "Strasse", "Street"),
                 fromAddress.street());
         String houseNumber = firstNonBlank(
-                textOrNull(alarm, "house_number", "houseNumber", "houseno", "number", "hausnummer"),
+                textOrNull(alarm, "house_number", "houseNumber", "houseno", "hausnummer"),
                 fromAddress.houseNumber());
         String city = firstNonBlank(
                 textOrNull(alarm, "city", "ort", "locality", "gemeinde", "City", "Ort"),
@@ -477,6 +480,9 @@ public final class DiveraAlarmDetailsMapper {
     }
 
     private static long epochSeconds(JsonNode node, String... keys) {
+        if (node == null || node.isNull()) {
+            return 0;
+        }
         for (String key : keys) {
             long v = epochSeconds(node.path(key));
             if (v > 0) {
@@ -498,6 +504,9 @@ public final class DiveraAlarmDetailsMapper {
     }
 
     private static boolean boolOrFalse(JsonNode node, String... keys) {
+        if (node == null || node.isNull()) {
+            return false;
+        }
         for (String key : keys) {
             JsonNode value = node.path(key);
             if (value.isBoolean()) {
@@ -515,6 +524,9 @@ public final class DiveraAlarmDetailsMapper {
     }
 
     private static String textOrNull(JsonNode n, String... keys) {
+        if (n == null || n.isNull()) {
+            return null;
+        }
         for (String key : keys) {
             String v = n.path(key).asText("");
             if (!v.isBlank()) {

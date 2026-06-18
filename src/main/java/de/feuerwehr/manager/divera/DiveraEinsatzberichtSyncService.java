@@ -85,12 +85,17 @@ public class DiveraEinsatzberichtSyncService {
                 root = null;
             }
         }
-        return DiveraAlarmDetailsMapper.fromSummary(alarm, root)
-                .map(details -> {
-                    boolean created = einsatzberichtService.createDraftFromDiveraIfMissing(unitId, details);
-                    einsatzberichtService.refreshDiveraPersonnelFromDetails(unitId, details);
-                    return created;
-                })
-                .orElse(false);
+        try {
+            return DiveraAlarmDetailsMapper.fromSummary(alarm, root)
+                    .map(details -> {
+                        boolean created = einsatzberichtService.createDraftFromDiveraIfMissing(unitId, details);
+                        einsatzberichtService.refreshDiveraPersonnelFromDetails(unitId, details);
+                        return created;
+                    })
+                    .orElse(false);
+        } catch (Exception e) {
+            log.warn("[Divera→Berichte] Alarm {} konnte nicht übernommen werden: {}", alarm.id(), e.getMessage(), e);
+            return false;
+        }
     }
 }

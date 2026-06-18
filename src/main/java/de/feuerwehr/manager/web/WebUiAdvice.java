@@ -13,7 +13,11 @@ import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -25,6 +29,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @ControllerAdvice
 @RequiredArgsConstructor
+@Slf4j
 public class WebUiAdvice {
 
     private final SecurityProperties securityProperties;
@@ -189,6 +194,18 @@ public class WebUiAdvice {
         return Character.toUpperCase(key.charAt(0)) + key.substring(1);
     }
 
+    @ExceptionHandler(Exception.class)
+    public Object handleUnexpectedException(Exception ex, HttpServletRequest request, Model model) {
+        log.error("Unerwarteter Fehler bei {} {}", request.getMethod(), request.getRequestURI(), ex);
+        if (isApiRequest(request)) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", "Interner Serverfehler"));
+        }
+        model.addAttribute("status", 500);
+        model.addAttribute("errorMessage", "Ein unerwarteter Fehler ist aufgetreten. Bitte erneut versuchen.");
+        return "error";
+    }
+
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public String handleMaxUploadSize(
             MaxUploadSizeExceededException ex, HttpServletRequest request, RedirectAttributes redirectAttributes) {
@@ -204,6 +221,11 @@ public class WebUiAdvice {
             return "redirect:/admin?scope=einheit&tab=import-export&unit=" + unit;
         }
         return "redirect:/admin?scope=einheit&tab=import-export";
+    }
+
+    private static boolean isApiRequest(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return path != null && path.startsWith("/api/");
     }
 
     private static String buildRequestPath(HttpServletRequest request) {
