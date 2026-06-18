@@ -27,21 +27,53 @@ public class CupsPrintService {
         return findExecutable("lpstat").isPresent();
     }
 
-    public List<CupsPrinterOption> listPrinters(String cupsServer) {
+    public CupsListResult listPrintersDetailed(String cupsServer) {
         Optional<String> lpstat = findExecutable("lpstat");
         if (lpstat.isEmpty()) {
-            return List.of();
+            return CupsListResult.failure("lpstat nicht gefunden.");
         }
-        List<String> lines = runCommand(List.of(lpstat.get(), "-t"), cupsServer);
+        if (cupsServer == null || cupsServer.isBlank()) {
+            return CupsListResult.failure(
+                    "Kein CUPS-Server konfiguriert. In .env: CUPS_SERVER=print:<Passwort>@cups:631 — danach App-Container neu starten.");
+        }
+        String executable = lpstat.get();
         Map<String, CupsPrinterOption> seen = new LinkedHashMap<>();
-        for (String line : lines) {
-            String trimmed = line.trim();
-            String name = parsePrinterName(trimmed);
-            if (name != null && !name.isBlank() && !seen.containsKey(name)) {
-                seen.put(name, new CupsPrinterOption(name, name));
+        StringBuilder errors = new StringBuilder();
+        for (String args : List.of("-t", "-p", "-a", "-v")) {
+            CommandResult result = runCommandDetailed(List.of(executable, args), cupsServer);
+            if (result.exitCode() != 0 && !result.output().isEmpty()) {
+                if (errors.length() > 0) {
+                    errors.append(' ');
+                }
+                errors.append(String.join(" ", result.output()));
+            }
+            for (String line : result.output()) {
+                String name = parsePrinterName(line.trim());
+                if (name != null && !name.isBlank() && !seen.containsKey(name)) {
+                    seen.put(name, new CupsPrinterOption(name, name));
+                }
             }
         }
-        return new ArrayList<>(seen.values());
+        List<CupsPrinterOption> printers = new ArrayList<>(seen.values());
+        if (printers.isEmpty()) {
+            String hint = errors.length() > 0
+                    ? "CUPS-Fehler: " + errors
+                    : "Keine Drucker auf " + maskCupsServer(cupsServer) + " — Warteschlange in CUPS prüfen.";
+            return new CupsListResult(printers, hint);
+        }
+        return new CupsListResult(printers, null);
+    }
+
+    public List<CupsPrinterOption> listPrinters(String cupsServer) {
+        return listPrintersDetailed(cupsServer).printers();
+    }
+
+    private static String maskCupsServer(String cupsServer) {
+        int at = cupsServer.indexOf('@');
+        if (at > 0) {
+            return "print:***" + cupsServer.substring(at);
+        }
+        return cupsServer;
     }
 
     public CupsPrintResult printPdf(byte[] pdfContent, String printerName, String cupsServer, boolean usePostscript) {
@@ -140,6 +172,10 @@ public class CupsPrintService {
     }
 
     private static List<String> runCommand(List<String> command, String cupsServer) {
+        return runCommandDetailed(command, cupsServer).output();
+    }
+
+    private static CommandResult runCommandDetailed(List<String> command, String cupsServer) {
         try {
             ProcessBuilder pb = new ProcessBuilder(command);
             pb.redirectErrorStream(true);
@@ -156,7 +192,7 @@ public class CupsPrintService {
                 }
                 log.debug("Befehl {} beendet mit {}: {}", command, exit, err);
             }
-            return lines;
+            return new CommandResult(exit, lines);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Druckbefehl unterbrochen.", e);
@@ -215,6 +251,14 @@ public class CupsPrintService {
     }
 
     public record CupsPrinterOption(String name, String display) {}
+
+    public record CupsListResult(List<CupsPrinterOption> printers, String error) {
+        public static CupsListResult failure(String error) {
+            return new CupsListResult(List.of(), error);
+        }
+    }
+
+    private record CommandResult(int exitCode, List<String> output) {}
 
     public record CupsPrintResult(boolean success, String message) {
         public static CupsPrintResult success(String message) {

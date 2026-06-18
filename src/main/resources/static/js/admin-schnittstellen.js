@@ -284,6 +284,9 @@
     if (btn) btn.disabled = true;
     var server = document.getElementById('cupsServer');
     var url = '/admin/rest/unit/print/printers?unit=' + encodeURIComponent(unitId);
+    if (server && server.value.trim()) {
+      url += '&cupsServer=' + encodeURIComponent(server.value.trim());
+    }
     getJson(url)
       .then(function (res) {
         var data = res.data || {};
@@ -291,11 +294,9 @@
           showResult({ ok: false, message: data.message || 'Druckerliste konnte nicht geladen werden.' });
           return;
         }
-        if (!data.cupsAvailable) {
-          showResult({
-            ok: false,
-            message: 'CUPS-Client nicht verfügbar — bitte App-Container neu bauen (cups-client).',
-          });
+        if (!data.cupsAvailable && data.message) {
+          showResult({ ok: false, message: data.message });
+          return;
         }
         var current = sel.value || (document.getElementById('cupsPrinterManual')?.value || '').trim();
         sel.innerHTML = '<option value="">— Drucker wählen —</option>';
@@ -315,8 +316,12 @@
         }
         var count = (data.printers || []).length;
         showResult({
-          ok: true,
-          message: count === 0 ? 'Keine Drucker gefunden — CUPS-Server und Warteschlange prüfen.' : count + ' Drucker geladen.',
+          ok: count > 0,
+          message:
+            data.message ||
+            (count === 0
+              ? 'Keine Drucker gefunden — CUPS-Server und Warteschlange prüfen.'
+              : count + ' Drucker geladen.'),
         });
       })
       .catch(function () {

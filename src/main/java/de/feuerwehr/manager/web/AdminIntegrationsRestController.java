@@ -17,6 +17,7 @@ import de.feuerwehr.manager.user.UserRepository;
 import de.feuerwehr.manager.web.dto.ActionResultDto;
 import de.feuerwehr.manager.web.dto.CupsPrintersDto;
 import java.util.Optional;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -44,14 +45,24 @@ public class AdminIntegrationsRestController {
     @GetMapping("/unit/print/printers")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'UNIT_ADMIN')")
     @ResponseBody
-    public CupsPrintersDto listCupsPrinters(@AuthenticationPrincipal AppUserDetails actor, @RequestParam long unit) {
+    public CupsPrintersDto listCupsPrinters(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam(required = false) String cupsServer) {
         try {
             unitService
                     .resolveActiveUnit(unit, actor)
                     .orElseThrow(() -> new IllegalArgumentException("Keine gültige Einheit."));
             boolean available = unitPrintSettingsService.isCupsClientAvailable();
-            var printers = unitPrintSettingsService.listCupsPrinters(unit);
-            return CupsPrintersDto.success(available, printers);
+            if (!available) {
+                return CupsPrintersDto.failure(
+                        "CUPS-Client nicht verfügbar — bitte App-Container neu bauen (docker compose up -d --build).");
+            }
+            var result = unitPrintSettingsService.listCupsPrinters(unit, cupsServer);
+            if (result.printers().isEmpty()) {
+                return CupsPrintersDto.success(false, List.of(), result.error());
+            }
+            return CupsPrintersDto.success(true, result.printers());
         } catch (IllegalArgumentException e) {
             return CupsPrintersDto.failure(e.getMessage());
         }

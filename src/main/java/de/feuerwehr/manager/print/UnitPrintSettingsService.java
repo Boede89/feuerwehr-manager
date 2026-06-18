@@ -57,9 +57,17 @@ public class UnitPrintSettingsService {
     }
 
     @Transactional(readOnly = true)
-    public List<CupsPrintService.CupsPrinterOption> listCupsPrinters(long unitId) {
+    public CupsPrintService.CupsListResult listCupsPrinters(long unitId, String cupsServerOverride) {
         UnitPrintSettings settings = requireSettings(unitId);
-        return cupsPrintService.listPrinters(resolveCupsServer(settings));
+        String server = cupsServerOverride != null && !cupsServerOverride.isBlank()
+                ? cupsServerOverride.trim()
+                : resolveCupsServer(settings);
+        return cupsPrintService.listPrintersDetailed(server);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CupsPrintService.CupsPrinterOption> listCupsPrinters(long unitId) {
+        return listCupsPrinters(unitId, null).printers();
     }
 
     @Transactional(readOnly = true)

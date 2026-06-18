@@ -34,4 +34,5 @@ if ! lpadmin -p "$NAME" -E -v "$CUPS_PRINTER_URI" -m everywhere 2>/dev/null; the
 fi
 cupsenable "$NAME"
 cupsaccept "$NAME"
+lpadmin -p "$NAME" -o printer-is-shared=true 2>/dev/null || true
 echo "Drucker „$NAME“ bereit."
