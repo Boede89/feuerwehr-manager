@@ -78,15 +78,17 @@ In den Einheitseinstellungen: Modus **CUPS**, Drucker **Zentrale**, CUPS-Server 
 | „Keine Drucker gefunden“ | CUPS-Server, `lpstat -t`, Firewall Port 631 |
 | Druckauftrag „angehalten“, 0 k, Benutzer „Unbekannt“ | Remote-Druck: `cupsctl --remote-any`, Drucker freigeben, alte Jobs löschen (siehe unten) |
 
-### Angehaltene Druckaufträge (0 k)
+### Druckweg (Print-Relay)
 
-Auf dem Server:
+Die App sendet PDFs an einen **Print-Relay** im CUPS-Container (`ffm_cups:8766`). Dort wird **lokal** gedruckt — wie der CUPS-Testdruck. Das vermeidet „angehaltene“ Remote-Jobs mit 0 k.
+
+Standard in `docker-compose.yml`: `FEUERWEHR_PRINT_RELAY_URL=http://ffm_cups:8766`
+
+### Angehaltene Druckaufträge (0 k) — bereinigen
 
 ```bash
-docker exec ffm_cups cupsctl --remote-any --share-printers --remote-admin
-docker exec ffm_cups lpadmin -p Zentrale -o auth-info-required=false
 docker exec ffm_cups cancel -a Zentrale
 ```
 
-Danach App neu testen. Alte „angehaltene“ Jobs in der CUPS-Weboberfläche ggf. manuell löschen.
+`cupsctl --remote-any` kann „Internal Server Error“ melden — für den Relay-Druck nicht nötig.
 | Leere Seite / falscher Treiber | PostScript-Option nur bei Bedarf aktivieren |

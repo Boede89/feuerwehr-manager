@@ -1,8 +1,15 @@
 package de.feuerwehr.manager.print;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -11,11 +18,15 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
 public class CupsPrintService {
+
+    @Value("${FEUERWEHR_PRINT_RELAY_URL:}")
+    private String printRelayUrl;
 
     private static final Pattern PRINTER_LINE =
             Pattern.compile("^printer\\s+(.+?)\\s+is\\s+", Pattern.CASE_INSENSITIVE);
@@ -161,38 +172,43 @@ public class CupsPrintService {
         if (pdfContent == null || pdfContent.length < 100 || !startsWithPdfHeader(pdfContent)) {
             return CupsPrintResult.failure("PDF-Inhalt ungültig.");
         }
-        Optional<String> lp = findExecutable("lp");
-        if (lp.isEmpty()) {
-            return CupsPrintResult.failure("lp-Befehl nicht gefunden. CUPS-Client muss installiert sein.");
-        }
 
-        Path fileToPrint = null;
         Path tempPdf = null;
         Path tempPs = null;
         try {
+            byte[] payload = pdfContent;
             tempPdf = Files.createTempFile("ffm-print-", ".pdf");
             Files.write(tempPdf, pdfContent);
-            fileToPrint = tempPdf;
-            String documentFormat = "application/pdf";
 
             if (usePostscript) {
                 tempPs = Files.createTempFile("ffm-print-", ".ps");
                 if (convertPdfToPostScript(tempPdf, tempPs)) {
-                    Files.deleteIfExists(tempPdf);
-                    tempPdf = null;
-                    fileToPrint = tempPs;
-                    documentFormat = "application/postscript";
-                } else {
-                    Files.deleteIfExists(tempPs);
-                    tempPs = null;
+                    payload = Files.readAllBytes(tempPs);
                 }
             }
 
+            if (printRelayUrl != null && !printRelayUrl.isBlank()) {
+                log.info(
+                        "CUPS-Druck via Print-Relay: {} Bytes, Drucker {}",
+                        payload.length,
+                        printerName.trim());
+                return printViaRelay(printRelayUrl.trim(), payload, printerName.trim());
+            }
+
+            Optional<String> lp = findExecutable("lp");
+            if (lp.isEmpty()) {
+                return CupsPrintResult.failure("lp-Befehl nicht gefunden. CUPS-Client muss installiert sein.");
+            }
+
+            Path fileToPrint = usePostscript && tempPs != null && Files.exists(tempPs) ? tempPs : tempPdf;
+            String documentFormat = fileToPrint.toString().endsWith(".ps")
+                    ? "application/postscript"
+                    : "application/pdf";
+
             String server = resolveWorkingCupsServer(cupsServer);
-            long bytes = Files.size(fileToPrint);
             log.info(
-                    "CUPS-Druck: {} Bytes, Drucker {}, Server {}",
-                    bytes,
+                    "CUPS-Druck (remote lp): {} Bytes, Drucker {}, Server {}",
+                    Files.size(fileToPrint),
                     printerName.trim(),
                     maskCupsServer(server));
 
@@ -226,9 +242,33 @@ public class CupsPrintService {
         } finally {
             deleteQuietly(tempPdf);
             deleteQuietly(tempPs);
-            if (fileToPrint != null && fileToPrint != tempPdf && fileToPrint != tempPs) {
-                deleteQuietly(fileToPrint);
+        }
+    }
+
+    private CupsPrintResult printViaRelay(String relayBaseUrl, byte[] payload, String printerName) {
+        try {
+            String encodedPrinter = URLEncoder.encode(printerName, StandardCharsets.UTF_8);
+            String url = relayBaseUrl.replaceAll("/+$", "") + "/print?printer=" + encodedPrinter;
+            String contentType = payload.length >= 4 && payload[0] == '%' && payload[1] == '!'
+                    ? "application/postscript"
+                    : "application/pdf";
+            HttpClient client =
+                    HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .timeout(Duration.ofSeconds(120))
+                    .header("Content-Type", contentType)
+                    .POST(HttpRequest.BodyPublishers.ofByteArray(payload))
+                    .build();
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                String body = response.body() != null ? response.body().trim() : "OK";
+                return CupsPrintResult.success("Druckauftrag gesendet (" + body + ").");
             }
+            String err = response.body() != null ? response.body().trim() : "HTTP " + response.statusCode();
+            return CupsPrintResult.failure("Print-Relay: " + err);
+        } catch (Exception e) {
+            return CupsPrintResult.failure("Print-Relay nicht erreichbar: " + e.getMessage());
         }
     }
 
