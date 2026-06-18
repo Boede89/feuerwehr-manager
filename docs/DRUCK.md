@@ -80,9 +80,9 @@ In den Einheitseinstellungen: Modus **CUPS**, Drucker **Zentrale**, CUPS-Server 
 
 ### Druckweg (Print-Relay)
 
-Die App sendet PDFs an einen **Print-Relay** im CUPS-Container (`ffm_cups:8766`). Dort wird **lokal** gedruckt — wie der CUPS-Testdruck. Das vermeidet „angehaltene“ Remote-Jobs mit 0 k.
+Die App sendet PDFs an einen **Print-Relay** im CUPS-Container (`http://cups:8766` — Docker-Service-Name, **nicht** `ffm_cups`, wegen Java-URI). Dort wird **lokal** gedruckt — wie der CUPS-Testdruck.
 
-Standard in `docker-compose.yml`: `FEUERWEHR_PRINT_RELAY_URL=http://ffm_cups:8766`
+Standard in `docker-compose.yml`: `FEUERWEHR_PRINT_RELAY_URL=http://cups:8766`
 
 ### Angehaltene Druckaufträge (0 k) — bereinigen
 

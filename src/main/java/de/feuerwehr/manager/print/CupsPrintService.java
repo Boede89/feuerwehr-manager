@@ -247,8 +247,9 @@ public class CupsPrintService {
 
     private CupsPrintResult printViaRelay(String relayBaseUrl, byte[] payload, String printerName) {
         try {
+            String base = relayBaseUrl.trim().replace("://ffm_cups:", "://cups:");
             String encodedPrinter = URLEncoder.encode(printerName, StandardCharsets.UTF_8);
-            String url = relayBaseUrl.replaceAll("/+$", "") + "/print?printer=" + encodedPrinter;
+            String url = base.replaceAll("/+$", "") + "/print?printer=" + encodedPrinter;
             String contentType = payload.length >= 4 && payload[0] == '%' && payload[1] == '!'
                     ? "application/postscript"
                     : "application/pdf";
