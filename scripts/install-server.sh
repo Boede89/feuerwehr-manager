@@ -213,7 +213,10 @@ wait_for_mysql() {
 }
 
 app_is_up() {
-  compose_cmd ps app 2>/dev/null | grep -qE 'Up [0-9]' || return 1
+  if compose_cmd ps app 2>/dev/null | grep -q 'Restarting'; then
+    return 1
+  fi
+  compose_cmd ps app 2>/dev/null | grep -qE ' Up ' || return 1
   curl -fsS -o /dev/null "http://127.0.0.1:8080/login" 2>/dev/null
 }
 
@@ -251,14 +254,11 @@ wait_for_app() {
 }
 
 repair_flyway_v37_if_needed() {
-  if app_is_up; then
-    return 0
+  if ! flyway_v37_needs_repair; then
+    return 1
   fi
-  if flyway_v37_needs_repair; then
-    run_flyway_v37_repair
-    wait_for_app && return 0
-  fi
-  return 1
+  run_flyway_v37_repair
+  wait_for_app
 }
 
 print_summary() {
@@ -306,11 +306,14 @@ main() {
   deploy_containers
   wait_for_mysql
 
-  if ! repair_flyway_v37_if_needed; then
-    warn "App antwortet noch nicht auf :8080"
-    compose_cmd ps
-    compose_cmd logs app --tail 40
-    die "Installation unvollständig — Logs prüfen (ggf. RAM auf 4 GB erhöhen)"
+  if ! wait_for_app; then
+    log "App noch nicht bereit — prüfe Flyway V37 …"
+    if ! repair_flyway_v37_if_needed; then
+      warn "App antwortet noch nicht auf :8080"
+      compose_cmd ps
+      compose_cmd logs app --tail 50
+      die "Installation unvollständig — Logs prüfen (ggf. RAM auf 4 GB erhöhen)"
+    fi
   fi
 
   compose_cmd ps
