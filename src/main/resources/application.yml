@@ -37,7 +37,7 @@ server:
       cookie:
         http-only: true
         same-site: lax
-        # Secure-Flag wird pro Request in SessionCookieSecureFilter gesetzt (HTTPS / Proxy-Header).
+        # Secure-Flag wird pro Response in SessionCookieSecureFilter gesetzt (HTTPS / Proxy-Header).
         secure: false
 
 management:
