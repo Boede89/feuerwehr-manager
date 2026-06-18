@@ -173,6 +173,7 @@ public class CupsPrintService {
             tempPdf = Files.createTempFile("ffm-print-", ".pdf");
             Files.write(tempPdf, pdfContent);
             fileToPrint = tempPdf;
+            String documentFormat = "application/pdf";
 
             if (usePostscript) {
                 tempPs = Files.createTempFile("ffm-print-", ".ps");
@@ -180,15 +181,46 @@ public class CupsPrintService {
                     Files.deleteIfExists(tempPdf);
                     tempPdf = null;
                     fileToPrint = tempPs;
+                    documentFormat = "application/postscript";
                 } else {
                     Files.deleteIfExists(tempPs);
                     tempPs = null;
                 }
             }
 
-            runCommandDetailed(lp.get(), resolveWorkingCupsServer(cupsServer), "-d", printerName.trim(), fileToPrint.toString());
-            return CupsPrintResult.success("Druckauftrag an CUPS-Drucker gesendet.");
-        } catch (IOException e) {
+            String server = resolveWorkingCupsServer(cupsServer);
+            long bytes = Files.size(fileToPrint);
+            log.info(
+                    "CUPS-Druck: {} Bytes, Drucker {}, Server {}",
+                    bytes,
+                    printerName.trim(),
+                    maskCupsServer(server));
+
+            CommandResult result = runCommandDetailed(
+                    lp.get(),
+                    server,
+                    "-d",
+                    printerName.trim(),
+                    "-o",
+                    "job-hold-until=no-hold",
+                    "-o",
+                    "document-format=" + documentFormat,
+                    "-o",
+                    "media=A4",
+                    fileToPrint.toString());
+
+            String output = String.join(" ", result.output());
+            if (result.exitCode() != 0) {
+                return CupsPrintResult.failure(
+                        "CUPS-Druck fehlgeschlagen: " + (output.isBlank() ? "Exit " + result.exitCode() : output));
+            }
+            if (!output.toLowerCase().contains("request id is")) {
+                return CupsPrintResult.failure(
+                        "CUPS hat den Auftrag nicht angenommen"
+                                + (output.isBlank() ? "." : ": " + output));
+            }
+            return CupsPrintResult.success("Druckauftrag gesendet (" + output.trim() + ").");
+        } catch (Exception e) {
             log.warn("CUPS-Druck fehlgeschlagen: {}", e.getMessage());
             return CupsPrintResult.failure("CUPS-Druck fehlgeschlagen: " + e.getMessage());
         } finally {

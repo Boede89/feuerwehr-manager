@@ -76,5 +76,17 @@ In den Einheitseinstellungen: Modus **CUPS**, Drucker **Zentrale**, CUPS-Server 
 |---------|--------|
 | „lp-Befehl nicht gefunden“ | App-Container neu bauen (`--build`) |
 | „Keine Drucker gefunden“ | CUPS-Server, `lpstat -t`, Firewall Port 631 |
-| Web-Admin `/admin` lehnt Login ab | Alte `cupsd.conf` im Volume — nach Update `docker compose up -d cups --force-recreate`. Login: `print` + `CUPS_ADMIN_PASSWORD`. Drucker alternativ per `docker exec ffm_cups lpadmin …` |
+| Druckauftrag „angehalten“, 0 k, Benutzer „Unbekannt“ | Remote-Druck: `cupsctl --remote-any`, Drucker freigeben, alte Jobs löschen (siehe unten) |
+
+### Angehaltene Druckaufträge (0 k)
+
+Auf dem Server:
+
+```bash
+docker exec ffm_cups cupsctl --remote-any --share-printers --remote-admin
+docker exec ffm_cups lpadmin -p Zentrale -o auth-info-required=false
+docker exec ffm_cups cancel -a Zentrale
+```
+
+Danach App neu testen. Alte „angehaltene“ Jobs in der CUPS-Weboberfläche ggf. manuell löschen.
 | Leere Seite / falscher Treiber | PostScript-Option nur bei Bedarf aktivieren |
