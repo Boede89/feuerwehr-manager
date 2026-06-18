@@ -76,6 +76,7 @@ services:
       CUPS_ADMIN_PASSWORD: ${CUPS_ADMIN_PASSWORD:-print}
     volumes:
       - ffm_cups_data:/etc/cups
+      - ./docker/cups/cupsd.conf:/etc/cups/cupsd.conf:ro
       - ./docker/cups/entrypoint.sh:/entrypoint.sh:ro
     entrypoint: ["/bin/bash", "/entrypoint.sh"]
 

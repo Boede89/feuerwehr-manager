@@ -69,5 +69,5 @@ In den Einheitseinstellungen: Modus **CUPS**, Drucker **Zentrale**, CUPS-Server 
 |---------|--------|
 | „lp-Befehl nicht gefunden“ | App-Container neu bauen (`--build`) |
 | „Keine Drucker gefunden“ | CUPS-Server, `lpstat -t`, Firewall Port 631 |
-| „Unauthorized“ / Login klappt nicht | Zuerst **`print` / `print`** probieren (olbat-Standard). Dann Passwort aus `.env` nach `docker compose up -d cups --force-recreate`. Browser-Zugangsdaten löschen. |
+| Web-Admin `/admin` lehnt Login ab | Alte `cupsd.conf` im Volume — nach Update `docker compose up -d cups --force-recreate`. Login: `print` + `CUPS_ADMIN_PASSWORD`. Drucker alternativ per `docker exec ffm_cups lpadmin …` |
 | Leere Seite / falscher Treiber | PostScript-Option nur bei Bedarf aktivieren |
