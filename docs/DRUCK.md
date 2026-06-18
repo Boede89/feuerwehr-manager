@@ -33,7 +33,11 @@ Pro Einheit konfigurierbar:
 http://<IP-des-fw-manager>:631
 ```
 
-Anmeldung: Benutzer `print`, Passwort aus `.env` (`CUPS_ADMIN_PASSWORD`, Standard: `print`).
+Anmeldung: Benutzer **`print`**, Passwort aus `.env` (`CUPS_ADMIN_PASSWORD`).
+
+**Wichtig:** Das Image `olbat/cupsd` hat intern immer den Benutzer `print`. Ohne unser Entrypoint-Skript ist das Passwort fest **`print`** — nicht der Wert aus der `.env`. Nach Update setzt `docker/cups/entrypoint.sh` das Passwort beim Start aus `CUPS_ADMIN_PASSWORD`.
+
+Falls die Anmeldung trotzdem scheitert: gespeicherte Zugangsdaten im Browser löschen (oder Inkognito-Fenster) und erneut versuchen.
 
 Nach `docker compose up -d` legt `cups-bootstrap` optional den Drucker aus `CUPS_PRINTER_NAME` / `CUPS_PRINTER_URI` an.
 
@@ -65,5 +69,5 @@ In den Einheitseinstellungen: Modus **CUPS**, Drucker **Zentrale**, CUPS-Server 
 |---------|--------|
 | „lp-Befehl nicht gefunden“ | App-Container neu bauen (`--build`) |
 | „Keine Drucker gefunden“ | CUPS-Server, `lpstat -t`, Firewall Port 631 |
-| „Unauthorized“ | `CUPS_SERVER` mit korrektem Benutzer (olbat/cupsd: oft `print`/`print`) |
+| „Unauthorized“ / Login klappt nicht | Zuerst **`print` / `print`** probieren (olbat-Standard). Dann Passwort aus `.env` nach `docker compose up -d cups --force-recreate`. Browser-Zugangsdaten löschen. |
 | Leere Seite / falscher Treiber | PostScript-Option nur bei Bedarf aktivieren |
