@@ -39,7 +39,14 @@ Anmeldung: Benutzer **`print`**, Passwort aus `.env` (`CUPS_ADMIN_PASSWORD`).
 
 Falls die Anmeldung trotzdem scheitert: gespeicherte Zugangsdaten im Browser löschen (oder Inkognito-Fenster) und erneut versuchen.
 
-Nach `docker compose up -d` legt `cups-bootstrap` optional den Drucker aus `CUPS_PRINTER_NAME` / `CUPS_PRINTER_URI` an.
+Falls der Drucker in CUPS existiert, aber der App-Container ihn nicht sieht: Warteschlange **freigeben**:
+
+```bash
+docker exec ffm_cups lpadmin -p Zentrale -o printer-is-shared=true
+docker exec ffm_app lpstat -h ffm_cups:631 -U print:DEIN_PASSWORT -t
+```
+
+Ohne `printer-is-shared=true` meldet Remote-`lpstat` nur `scheduler is running`, listet aber keine Drucker.
 
 ## Beispiel: Konica Minolta bizhub im LAN
 
