@@ -56,7 +56,8 @@ services:
       FEUERWEHR_TOTP_ENCRYPTION_KEY: ${FEUERWEHR_TOTP_ENCRYPTION_KEY:-}
       FEUERWEHR_DATA_DIR: /data
       FEUERWEHR_SESSION_COOKIE_SECURE: ${FEUERWEHR_SESSION_COOKIE_SECURE:-true}
-      CUPS_SERVER: ${CUPS_SERVER:-print:print@cups:631}
+      # Passwort immer zu CUPS_ADMIN_PASSWORD; CUPS_SERVER in .env nur bei externem CUPS-Server setzen
+      CUPS_SERVER: ${CUPS_SERVER:-print:${CUPS_ADMIN_PASSWORD:-print}@cups:631}
     volumes:
       - ffm_app_data:/data
     depends_on:
