@@ -1,3 +1,4 @@
+-- flyway:executeInTransaction=false
 ALTER TABLE unit_atemschutz_settings ADD COLUMN agt_course_id BIGINT NULL;
 
 ALTER TABLE unit_atemschutz_settings

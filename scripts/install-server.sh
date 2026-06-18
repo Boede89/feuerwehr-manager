@@ -217,6 +217,24 @@ app_is_up() {
   curl -fsS -o /dev/null "http://127.0.0.1:8080/login" 2>/dev/null
 }
 
+flyway_v37_needs_repair() {
+  if compose_cmd logs app 2>&1 | grep -qiE 'version 37|atemschutz course'; then
+    return 0
+  fi
+  compose_cmd exec mysql mysql -uff -pffsecret -N -e \
+    "SELECT 1 FROM flyway_schema_history WHERE version='37' AND success=0 LIMIT 1" \
+    feuerwehr_manager 2>/dev/null | grep -q 1
+}
+
+run_flyway_v37_repair() {
+  log "Flyway V37 reparieren …"
+  compose_cmd stop app 2>/dev/null || true
+  compose_cmd exec -T mysql mysql -uff -pffsecret feuerwehr_manager < scripts/repair-v37-schema.sql \
+    2>/dev/null || true
+  compose_cmd exec -T mysql mysql -uff -pffsecret feuerwehr_manager < scripts/repair-v37-mark-success.sql
+  compose_cmd up -d app
+}
+
 wait_for_app() {
   log "Warte auf App-Start …"
   local i
@@ -224,27 +242,23 @@ wait_for_app() {
     if app_is_up; then
       return 0
     fi
+    if [[ "$i" -eq 6 ]] && flyway_v37_needs_repair; then
+      run_flyway_v37_repair
+    fi
     sleep 5
   done
   return 1
 }
 
 repair_flyway_v37_if_needed() {
-  if wait_for_app; then
+  if app_is_up; then
     return 0
   fi
-
-  if ! compose_cmd logs app 2>&1 | grep -q "version 37"; then
-    return 1
+  if flyway_v37_needs_repair; then
+    run_flyway_v37_repair
+    wait_for_app && return 0
   fi
-
-  log "Flyway V37 reparieren …"
-  compose_cmd stop app || true
-  compose_cmd exec -T mysql mysql -uff -pffsecret feuerwehr_manager < scripts/repair-v37-schema.sql \
-    2>/dev/null || true
-  compose_cmd exec -T mysql mysql -uff -pffsecret feuerwehr_manager < scripts/repair-v37-mark-success.sql
-  compose_cmd up -d app
-  wait_for_app
+  return 1
 }
 
 print_summary() {
