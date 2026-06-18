@@ -16,9 +16,9 @@ INSERT INTO flyway_schema_history (
 ) VALUES (
     @next_rank,
     '37',
-    'AtemschutzCourseSelection',
-    'JDBC',
-    'db.migration.V37__AtemschutzCourseSelection',
+    'atemschutz course selection',
+    'SQL',
+    'V37__atemschutz_course_selection.sql',
     NULL,
     'manual-repair',
     NOW(),

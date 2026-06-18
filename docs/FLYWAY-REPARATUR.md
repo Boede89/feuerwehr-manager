@@ -29,6 +29,9 @@ Symptom:
 Detected failed migration to version 37 (AtemschutzCourseSelection).
 ```
 
+**Hinweis:** Ab dem SQL-Fix (`V37__atemschutz_course_selection.sql`) tritt das auf frischen Installationen nicht mehr auf.
+Bestehende Installationen mit fehlgeschlagenem Java-Eintrag: Reparatur-Skript unten.
+
 ## Schnellfix (empfohlen)
 
 ```bash
