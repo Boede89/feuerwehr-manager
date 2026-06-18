@@ -9,6 +9,8 @@ import java.math.BigDecimal;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitAdminService;
+import de.feuerwehr.manager.print.PrintMode;
+import de.feuerwehr.manager.print.UnitPrintSettingsService;
 import de.feuerwehr.manager.unit.UnitDiveraSettings;
 import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
 import de.feuerwehr.manager.unit.UnitRolePermission;
@@ -42,6 +44,7 @@ public class AdminUnitController {
     private final UnitVehicleTypeService unitVehicleTypeService;
     private final VehicleChecklistService vehicleChecklistService;
     private final DiveraMappingService diveraMappingService;
+    private final UnitPrintSettingsService unitPrintSettingsService;
 
     @PostMapping("/config")
     public String saveConfig(
@@ -288,6 +291,27 @@ public class AdminUnitController {
             diveraMappingService.deleteStatusId(unit, diveraStatusRowId);
             redirectAttributes.addFlashAttribute("message", "Status-ID gelöscht.");
         }, "openModal=divera-status-ids");
+    }
+
+    @PostMapping("/print")
+    public String savePrint(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam(defaultValue = "DIALOG") String printMode,
+            @RequestParam(required = false) String cupsPrinterName,
+            @RequestParam(required = false) String cupsServer,
+            @RequestParam(required = false, defaultValue = "false") boolean cupsUsePostscript,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(actor, unit, redirectAttributes, "schnittstellen", () -> {
+            PrintMode mode;
+            try {
+                mode = PrintMode.valueOf(printMode.trim().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Ungültiger Druckmodus.");
+            }
+            unitPrintSettingsService.saveSettings(unit, mode, cupsPrinterName, cupsServer, cupsUsePostscript);
+            redirectAttributes.addFlashAttribute("message", "Druckeinstellungen gespeichert.");
+        });
     }
 
     @PostMapping("/divera")

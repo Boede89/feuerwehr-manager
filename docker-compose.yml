@@ -56,6 +56,7 @@ services:
       FEUERWEHR_TOTP_ENCRYPTION_KEY: ${FEUERWEHR_TOTP_ENCRYPTION_KEY:-}
       FEUERWEHR_DATA_DIR: /data
       FEUERWEHR_SESSION_COOKIE_SECURE: ${FEUERWEHR_SESSION_COOKIE_SECURE:-true}
+      CUPS_SERVER: ${CUPS_SERVER:-}
     volumes:
       - ffm_app_data:/data
     depends_on:

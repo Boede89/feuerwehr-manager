@@ -4,6 +4,7 @@ import de.feuerwehr.manager.personal.PersonRepository;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.technik.UnitVehicleTypeService;
 import de.feuerwehr.manager.user.UserRepository;
+import de.feuerwehr.manager.print.PrintMode;
 import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.settings.TestModeService;
 import java.util.List;
@@ -19,6 +20,7 @@ public class UnitService {
 
     private final UnitRepository unitRepository;
     private final UnitDiveraSettingsRepository diveraSettingsRepository;
+    private final UnitPrintSettingsRepository printSettingsRepository;
     private final PersonRepository personRepository;
     private final TestModeService testModeService;
     private final UnitSelectionService unitSelectionService;
@@ -114,6 +116,7 @@ public class UnitService {
         unit.setTestData(testData);
         unit = unitRepository.save(unit);
         ensureDiveraSettings(unit);
+        ensurePrintSettings(unit);
         moduleSettingsService.ensureDefaultModules(unit);
         unitVehicleTypeService.ensureDefaults(unit.getId());
         return unit;
@@ -162,6 +165,16 @@ public class UnitService {
         settings.setApiBaseUrl("https://app.divera247.com");
         settings.setAccessKey("");
         diveraSettingsRepository.save(settings);
+    }
+
+    private void ensurePrintSettings(Unit unit) {
+        if (printSettingsRepository.findByUnitId(unit.getId()).isPresent()) {
+            return;
+        }
+        UnitPrintSettings settings = new UnitPrintSettings();
+        settings.setUnit(unit);
+        settings.setPrintMode(PrintMode.DIALOG);
+        printSettingsRepository.save(settings);
     }
 
     private static String normalizeName(String name) {

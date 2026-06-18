@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="de">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Testdruck</title>
+</head>
+<body style="font-family: sans-serif; text-align: center; padding: 40px;">
+<h1>Testdruck</h1>
+<p><strong>Feuerwehr-Manager</strong></p>
+<p>Einheit: <span th:text="${unitName}">—</span></p>
+<p th:text="${timestamp}">—</p>
+<p style="margin-top: 40px; font-size: 12px; color: #666;">
+  Wenn dieser Ausdruck erscheint, ist die Druckerkonfiguration korrekt.
+</p>
+</body>
+</html>

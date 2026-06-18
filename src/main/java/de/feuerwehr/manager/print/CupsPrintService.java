@@ -1,0 +1,228 @@
+package de.feuerwehr.manager.print;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+@Service
+@Slf4j
+public class CupsPrintService {
+
+    private static final Pattern PRINTER_LINE =
+            Pattern.compile("^printer\\s+(.+?)\\s+is\\s+", Pattern.CASE_INSENSITIVE);
+    private static final Pattern DEVICE_LINE = Pattern.compile("^device for (.+?):\\s+", Pattern.CASE_INSENSITIVE);
+    private static final Pattern ACCEPTING_LINE =
+            Pattern.compile("^(.+)\\s+accepting requests\\s+", Pattern.CASE_INSENSITIVE);
+
+    public boolean isCupsClientAvailable() {
+        return findExecutable("lpstat").isPresent();
+    }
+
+    public List<CupsPrinterOption> listPrinters(String cupsServer) {
+        Optional<String> lpstat = findExecutable("lpstat");
+        if (lpstat.isEmpty()) {
+            return List.of();
+        }
+        List<String> lines = runCommand(List.of(lpstat.get(), "-t"), cupsServer);
+        Map<String, CupsPrinterOption> seen = new LinkedHashMap<>();
+        for (String line : lines) {
+            String trimmed = line.trim();
+            String name = parsePrinterName(trimmed);
+            if (name != null && !name.isBlank() && !seen.containsKey(name)) {
+                seen.put(name, new CupsPrinterOption(name, name));
+            }
+        }
+        return new ArrayList<>(seen.values());
+    }
+
+    public CupsPrintResult printPdf(byte[] pdfContent, String printerName, String cupsServer, boolean usePostscript) {
+        if (printerName == null || printerName.isBlank()) {
+            return CupsPrintResult.failure("Kein CUPS-Drucker ausgewählt.");
+        }
+        if (pdfContent == null || pdfContent.length < 100 || !startsWithPdfHeader(pdfContent)) {
+            return CupsPrintResult.failure("PDF-Inhalt ungültig.");
+        }
+        Optional<String> lp = findExecutable("lp");
+        if (lp.isEmpty()) {
+            return CupsPrintResult.failure("lp-Befehl nicht gefunden. CUPS-Client muss installiert sein.");
+        }
+
+        Path fileToPrint = null;
+        Path tempPdf = null;
+        Path tempPs = null;
+        try {
+            tempPdf = Files.createTempFile("ffm-print-", ".pdf");
+            Files.write(tempPdf, pdfContent);
+            fileToPrint = tempPdf;
+
+            if (usePostscript) {
+                tempPs = Files.createTempFile("ffm-print-", ".ps");
+                if (convertPdfToPostScript(tempPdf, tempPs)) {
+                    Files.deleteIfExists(tempPdf);
+                    tempPdf = null;
+                    fileToPrint = tempPs;
+                } else {
+                    Files.deleteIfExists(tempPs);
+                    tempPs = null;
+                }
+            }
+
+            List<String> cmd = List.of(lp.get(), "-d", printerName.trim(), fileToPrint.toString());
+            List<String> output = runCommand(cmd, cupsServer);
+            return CupsPrintResult.success("Druckauftrag an CUPS-Drucker gesendet.");
+        } catch (IOException e) {
+            log.warn("CUPS-Druck fehlgeschlagen: {}", e.getMessage());
+            return CupsPrintResult.failure("CUPS-Druck fehlgeschlagen: " + e.getMessage());
+        } finally {
+            deleteQuietly(tempPdf);
+            deleteQuietly(tempPs);
+            if (fileToPrint != null && fileToPrint != tempPdf && fileToPrint != tempPs) {
+                deleteQuietly(fileToPrint);
+            }
+        }
+    }
+
+    private static boolean convertPdfToPostScript(Path pdf, Path ps) {
+        Optional<String> pdftops = findExecutable("pdftops");
+        if (pdftops.isPresent()) {
+            List<String> out = runCommand(List.of(pdftops.get(), pdf.toString(), ps.toString()), null);
+            if (Files.exists(ps) && fileSize(ps) > 50) {
+                return true;
+            }
+            if (!out.isEmpty()) {
+                log.debug("pdftops: {}", String.join(" ", out));
+            }
+        }
+        Optional<String> gs = findExecutable("gs");
+        if (gs.isPresent()) {
+            List<String> out = runCommand(
+                    List.of(
+                            gs.get(),
+                            "-sDEVICE=ps2write",
+                            "-dNOPAUSE",
+                            "-dBATCH",
+                            "-sOutputFile=" + ps.toString(),
+                            pdf.toString()),
+                    null);
+            if (Files.exists(ps) && fileSize(ps) > 50) {
+                return true;
+            }
+            if (!out.isEmpty()) {
+                log.debug("ghostscript: {}", String.join(" ", out));
+            }
+        }
+        return false;
+    }
+
+    private static String parsePrinterName(String line) {
+        Matcher m = PRINTER_LINE.matcher(line);
+        if (m.find()) {
+            return m.group(1).trim();
+        }
+        m = DEVICE_LINE.matcher(line);
+        if (m.find()) {
+            return m.group(1).trim();
+        }
+        m = ACCEPTING_LINE.matcher(line);
+        if (m.find()) {
+            return m.group(1).trim();
+        }
+        return null;
+    }
+
+    private static List<String> runCommand(List<String> command, String cupsServer) {
+        try {
+            ProcessBuilder pb = new ProcessBuilder(command);
+            pb.redirectErrorStream(true);
+            if (cupsServer != null && !cupsServer.isBlank()) {
+                pb.environment().put("CUPS_SERVER", cupsServer.trim());
+            }
+            Process process = pb.start();
+            List<String> lines = process.inputReader().lines().toList();
+            int exit = process.waitFor();
+            if (exit != 0 && !lines.isEmpty()) {
+                String err = String.join(" ", lines);
+                if (command.size() > 0 && "lp".equals(Path.of(command.get(0)).getFileName().toString())) {
+                    throw new IOException(err.isBlank() ? "lp exit " + exit : err);
+                }
+                log.debug("Befehl {} beendet mit {}: {}", command, exit, err);
+            }
+            return lines;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Druckbefehl unterbrochen.", e);
+        } catch (IOException e) {
+            throw new IllegalStateException("Druckbefehl fehlgeschlagen: " + e.getMessage(), e);
+        }
+    }
+
+    private static Optional<String> findExecutable(String name) {
+        for (String path : List.of("/usr/bin/" + name, "/usr/local/bin/" + name)) {
+            if (Files.isExecutable(Path.of(path))) {
+                return Optional.of(path);
+            }
+        }
+        try {
+            ProcessBuilder pb = new ProcessBuilder("which", name);
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+            String found = process.inputReader().lines().findFirst().orElse("").trim();
+            process.waitFor();
+            if (!found.isBlank() && Files.isExecutable(Path.of(found))) {
+                return Optional.of(found);
+            }
+        } catch (Exception e) {
+            log.debug("which {} fehlgeschlagen: {}", name, e.getMessage());
+        }
+        return Optional.empty();
+    }
+
+    private static boolean startsWithPdfHeader(byte[] content) {
+        return content.length >= 5
+                && content[0] == '%'
+                && content[1] == 'P'
+                && content[2] == 'D'
+                && content[3] == 'F'
+                && content[4] == '-';
+    }
+
+    private static long fileSize(Path path) {
+        try {
+            return Files.size(path);
+        } catch (IOException e) {
+            return 0;
+        }
+    }
+
+    private static void deleteQuietly(Path path) {
+        if (path == null) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(path);
+        } catch (IOException ignored) {
+            // ignore
+        }
+    }
+
+    public record CupsPrinterOption(String name, String display) {}
+
+    public record CupsPrintResult(boolean success, String message) {
+        public static CupsPrintResult success(String message) {
+            return new CupsPrintResult(true, message);
+        }
+
+        public static CupsPrintResult failure(String message) {
+            return new CupsPrintResult(false, message);
+        }
+    }
+}

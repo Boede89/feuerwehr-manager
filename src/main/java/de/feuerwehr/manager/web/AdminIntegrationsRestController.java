@@ -6,6 +6,8 @@ import de.feuerwehr.manager.divera.DiveraImportService;
 import de.feuerwehr.manager.divera.DiveraService;
 import de.feuerwehr.manager.mail.SmtpMailService;
 import de.feuerwehr.manager.security.AppUserDetails;
+import de.feuerwehr.manager.print.CupsPrintService;
+import de.feuerwehr.manager.print.UnitPrintSettingsService;
 import de.feuerwehr.manager.settings.GlobalSettingsService;
 import de.feuerwehr.manager.unit.UnitAdminService;
 import de.feuerwehr.manager.unit.UnitService;
@@ -13,10 +15,12 @@ import de.feuerwehr.manager.unit.UnitSmtpAccount;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
 import de.feuerwehr.manager.web.dto.ActionResultDto;
+import de.feuerwehr.manager.web.dto.CupsPrintersDto;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -35,6 +39,41 @@ public class AdminIntegrationsRestController {
     private final DiveraService diveraService;
     private final DiveraImportService diveraImportService;
     private final UserRepository userRepository;
+    private final UnitPrintSettingsService unitPrintSettingsService;
+
+    @GetMapping("/unit/print/printers")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'UNIT_ADMIN')")
+    @ResponseBody
+    public CupsPrintersDto listCupsPrinters(@AuthenticationPrincipal AppUserDetails actor, @RequestParam long unit) {
+        try {
+            unitService
+                    .resolveActiveUnit(unit, actor)
+                    .orElseThrow(() -> new IllegalArgumentException("Keine gültige Einheit."));
+            boolean available = unitPrintSettingsService.isCupsClientAvailable();
+            var printers = unitPrintSettingsService.listCupsPrinters(unit);
+            return CupsPrintersDto.success(available, printers);
+        } catch (IllegalArgumentException e) {
+            return CupsPrintersDto.failure(e.getMessage());
+        }
+    }
+
+    @PostMapping("/unit/print/test")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'UNIT_ADMIN')")
+    @ResponseBody
+    public ActionResultDto testPrint(@AuthenticationPrincipal AppUserDetails actor, @RequestParam long unit) {
+        try {
+            unitService
+                    .resolveActiveUnit(unit, actor)
+                    .orElseThrow(() -> new IllegalArgumentException("Keine gültige Einheit."));
+            CupsPrintService.CupsPrintResult result = unitPrintSettingsService.sendTestPrint(unit);
+            if (result.success()) {
+                return ActionResultDto.success(result.message());
+            }
+            return ActionResultDto.failure(result.message());
+        } catch (IllegalArgumentException e) {
+            return ActionResultDto.failure(e.getMessage());
+        }
+    }
 
     @PostMapping("/unit/smtp/test")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'UNIT_ADMIN')")

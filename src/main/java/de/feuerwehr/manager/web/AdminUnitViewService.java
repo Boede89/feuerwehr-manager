@@ -16,7 +16,9 @@ import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitAdminService;
 import de.feuerwehr.manager.unit.UnitCalendarAccount;
 import de.feuerwehr.manager.unit.UnitDiveraSettings;
-import de.feuerwehr.manager.unit.UnitSmtpAccount;
+import de.feuerwehr.manager.print.PrintMode;
+import de.feuerwehr.manager.print.UnitPrintSettingsService;
+import de.feuerwehr.manager.unit.UnitPrintSettings;
 import de.feuerwehr.manager.divera.DiveraIntegrationSupport;
 import de.feuerwehr.manager.divera.DiveraMappingService;
 import de.feuerwehr.manager.settings.GlobalSettingsService;
@@ -49,6 +51,7 @@ public class AdminUnitViewService {
     private final UnitVehicleTypeService unitVehicleTypeService;
     private final VehicleChecklistService vehicleChecklistService;
     private final DiveraMappingService diveraMappingService;
+    private final UnitPrintSettingsService unitPrintSettingsService;
 
     public void populateKonfiguration(Model model, Unit unit) {
         model.addAttribute("unit", unit);
@@ -86,6 +89,7 @@ public class AdminUnitViewService {
         String appBase = globalSettingsService.get().getAppUrl();
         model.addAttribute("appBaseUrl", appBase != null ? appBase : "");
         populateDivera(model, unitId);
+        populatePrint(model, unitId);
         model.addAttribute("diveraRecipientGroups", diveraMappingService.listRecipientGroups(unitId));
         model.addAttribute("diveraStatusIds", diveraMappingService.listStatusIds(unitId));
     }
@@ -184,6 +188,14 @@ public class AdminUnitViewService {
                     "diveraWebhookUrl",
                     DiveraIntegrationSupport.buildWebhookUrl(appBase, unitId, null));
         }
+    }
+
+    private void populatePrint(Model model, long unitId) {
+        UnitPrintSettings settings = unitPrintSettingsService.requireSettings(unitId);
+        model.addAttribute("printSettings", settings);
+        model.addAttribute("printModes", PrintMode.values());
+        model.addAttribute("cupsClientAvailable", unitPrintSettingsService.isCupsClientAvailable());
+        model.addAttribute("defaultCupsServer", unitPrintSettingsService.resolveCupsServer(settings));
     }
 
     public void populateImportExport(Model model, long unitId) {
