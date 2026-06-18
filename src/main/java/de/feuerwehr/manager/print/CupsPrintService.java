@@ -30,7 +30,7 @@ public class CupsPrintService {
     public CupsListResult listPrintersDetailed(String cupsServer) {
         Optional<String> lpstat = findExecutable("lpstat");
         if (lpstat.isEmpty()) {
-            return CupsListResult.failure("lpstat nicht gefunden.");
+            return CupsListResult.failure("lpstat nicht gefunden — App-Image neu bauen (cups-client).");
         }
         if (cupsServer == null || cupsServer.isBlank()) {
             return CupsListResult.failure(
@@ -39,8 +39,8 @@ public class CupsPrintService {
         String executable = lpstat.get();
         Map<String, CupsPrinterOption> seen = new LinkedHashMap<>();
         StringBuilder errors = new StringBuilder();
-        for (String args : List.of("-t", "-p", "-a", "-v")) {
-            CommandResult result = runCommandDetailed(List.of(executable, args), cupsServer);
+        for (String arg : List.of("-t", "-p", "-a", "-v")) {
+            CommandResult result = runCommandDetailed(executable, cupsServer, arg);
             if (result.exitCode() != 0 && !result.output().isEmpty()) {
                 if (errors.length() > 0) {
                     errors.append(' ');
@@ -108,8 +108,7 @@ public class CupsPrintService {
                 }
             }
 
-            List<String> cmd = List.of(lp.get(), "-d", printerName.trim(), fileToPrint.toString());
-            List<String> output = runCommand(cmd, cupsServer);
+            runCommandDetailed(lp.get(), cupsServer, "-d", printerName.trim(), fileToPrint.toString());
             return CupsPrintResult.success("Druckauftrag an CUPS-Drucker gesendet.");
         } catch (IOException e) {
             log.warn("CUPS-Druck fehlgeschlagen: {}", e.getMessage());
@@ -126,7 +125,7 @@ public class CupsPrintService {
     private static boolean convertPdfToPostScript(Path pdf, Path ps) {
         Optional<String> pdftops = findExecutable("pdftops");
         if (pdftops.isPresent()) {
-            List<String> out = runCommand(List.of(pdftops.get(), pdf.toString(), ps.toString()), null);
+            List<String> out = runCommand(pdftops.get(), null, pdf.toString(), ps.toString());
             if (Files.exists(ps) && fileSize(ps) > 50) {
                 return true;
             }
@@ -137,14 +136,13 @@ public class CupsPrintService {
         Optional<String> gs = findExecutable("gs");
         if (gs.isPresent()) {
             List<String> out = runCommand(
-                    List.of(
-                            gs.get(),
-                            "-sDEVICE=ps2write",
-                            "-dNOPAUSE",
-                            "-dBATCH",
-                            "-sOutputFile=" + ps.toString(),
-                            pdf.toString()),
-                    null);
+                    gs.get(),
+                    null,
+                    "-sDEVICE=ps2write",
+                    "-dNOPAUSE",
+                    "-dBATCH",
+                    "-sOutputFile=" + ps.toString(),
+                    pdf.toString());
             if (Files.exists(ps) && fileSize(ps) > 50) {
                 return true;
             }
@@ -171,12 +169,13 @@ public class CupsPrintService {
         return null;
     }
 
-    private static List<String> runCommand(List<String> command, String cupsServer) {
-        return runCommandDetailed(command, cupsServer).output();
+    private static List<String> runCommand(String executable, String cupsServer, String... args) {
+        return runCommandDetailed(executable, cupsServer, args).output();
     }
 
-    private static CommandResult runCommandDetailed(List<String> command, String cupsServer) {
+    private static CommandResult runCommandDetailed(String executable, String cupsServer, String... args) {
         try {
+            List<String> command = buildCupsCommand(executable, cupsServer, args);
             ProcessBuilder pb = new ProcessBuilder(command);
             pb.redirectErrorStream(true);
             if (cupsServer != null && !cupsServer.isBlank()) {
@@ -187,7 +186,8 @@ public class CupsPrintService {
             int exit = process.waitFor();
             if (exit != 0 && !lines.isEmpty()) {
                 String err = String.join(" ", lines);
-                if (command.size() > 0 && "lp".equals(Path.of(command.get(0)).getFileName().toString())) {
+                String baseName = Path.of(executable).getFileName().toString();
+                if ("lp".equals(baseName)) {
                     throw new IOException(err.isBlank() ? "lp exit " + exit : err);
                 }
                 log.debug("Befehl {} beendet mit {}: {}", command, exit, err);
@@ -199,6 +199,58 @@ public class CupsPrintService {
         } catch (IOException e) {
             throw new IllegalStateException("Druckbefehl fehlgeschlagen: " + e.getMessage(), e);
         }
+    }
+
+    private static List<String> buildCupsCommand(String executable, String cupsServer, String... args) {
+        List<String> command = new ArrayList<>();
+        command.add(executable);
+        parseCupsServer(cupsServer).ifPresent(target -> {
+            command.add("-h");
+            command.add(target.hostPort());
+            String userAuth = target.userAuth();
+            if (userAuth != null && !userAuth.isBlank()) {
+                command.add("-U");
+                command.add(userAuth);
+            }
+        });
+        command.addAll(List.of(args));
+        return command;
+    }
+
+    private static Optional<CupsTarget> parseCupsServer(String cupsServer) {
+        if (cupsServer == null || cupsServer.isBlank()) {
+            return Optional.empty();
+        }
+        String remainder = cupsServer.trim();
+        String username = null;
+        String password = null;
+        int at = remainder.lastIndexOf('@');
+        if (at > 0) {
+            String auth = remainder.substring(0, at);
+            remainder = remainder.substring(at + 1);
+            int colon = auth.indexOf(':');
+            if (colon >= 0) {
+                username = auth.substring(0, colon);
+                password = auth.substring(colon + 1);
+            } else {
+                username = auth;
+            }
+        }
+        int port = 631;
+        String host = remainder;
+        int colon = remainder.lastIndexOf(':');
+        if (colon > 0 && !remainder.startsWith("[")) {
+            host = remainder.substring(0, colon);
+            try {
+                port = Integer.parseInt(remainder.substring(colon + 1));
+            } catch (NumberFormatException ignored) {
+                host = remainder;
+            }
+        }
+        if (host.isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.of(new CupsTarget(host, port, username, password));
     }
 
     private static Optional<String> findExecutable(String name) {
@@ -247,6 +299,22 @@ public class CupsPrintService {
             Files.deleteIfExists(path);
         } catch (IOException ignored) {
             // ignore
+        }
+    }
+
+    private record CupsTarget(String host, int port, String username, String password) {
+        String hostPort() {
+            return host + ":" + port;
+        }
+
+        String userAuth() {
+            if (username == null || username.isBlank()) {
+                return null;
+            }
+            if (password != null && !password.isBlank()) {
+                return username + ":" + password;
+            }
+            return username;
         }
     }
 
