@@ -8,12 +8,33 @@ Ziel: **Keine Projektdateien von Hand bearbeiten.** Du klonst das Repo, führst 
 
 ## Schritt 0: Code auf den Server holen
 
+### Variante A — Ein Befehl (frischer LXC, empfohlen)
+
+Als **root** auf dem neuen Container:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Boede89/feuerwehr-manager/main/scripts/install-server.sh | bash
+```
+
+Das Skript installiert Docker (falls nötig), klont das Repo nach `/opt/feuerwehr-manager`, legt `.env` mit Secrets an und startet die App.
+
+**Leere Datenbank** (vor SQL-Import aus der Web-UI):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Boede89/feuerwehr-manager/main/scripts/install-server.sh | bash -s -- --fresh
+```
+
+### Variante B — Manuell klonen
+
 Auf dem Linux-Server (oder im Proxmox-LXC):
 
 ```bash
 git clone https://github.com/Boede89/feuerwehr-manager.git
 cd feuerwehr-manager
+sudo ./scripts/install-server.sh
 ```
+
+*(Entspricht `install.sh` im Repo-Root.)*
 
 ---
 
@@ -60,11 +81,19 @@ Die Datei `.env` **nicht** ins Git legen. Docker Compose liest sie automatisch.
 
 ## Schritt 3: Installation (ein Befehl)
 
+Wenn Sie **Variante A** (curl) oder `scripts/install-server.sh` nutzten, ist dieser Schritt **bereits erledigt**.
+
+Sonst im Repository-Root:
+
 ```bash
-chmod +x install.sh && ./install.sh
+chmod +x install.sh && sudo ./install.sh
 ```
 
-*(Entspricht `docker compose up -d --build` – siehe `install.sh`.)*
+Mit leerer Datenbank (vor SQL-Import):
+
+```bash
+sudo ./install.sh --fresh
+```
 
 ---
 

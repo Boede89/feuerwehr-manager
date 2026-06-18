@@ -2,14 +2,19 @@
 
 Repository: [github.com/Boede89/feuerwehr-manager](https://github.com/Boede89/feuerwehr-manager)
 
-## Installation mit einem Befehl (auf dem Server, nach `git clone`)
+## Installation mit einem Befehl (frischer Server / LXC)
 
 ```bash
-cd feuerwehr-manager
-chmod +x install.sh && ./install.sh
+curl -fsSL https://raw.githubusercontent.com/Boede89/feuerwehr-manager/main/scripts/install-server.sh | bash
 ```
 
-Danach im Browser: **https://fw-manager.home.arpa** (Caddy) – Einrichtung Divera über **Einstellungen** in der Web-UI (`docs/SCHRITT-FUER-SCHRITT.md`, `docs/HTTPS.md`).
+Installiert Docker (falls nötig), klont nach `/opt/feuerwehr-manager`, erzeugt `.env` und startet die App.
+
+**Leere DB** (vor SQL-Import in der Web-UI): `… | bash -s -- --fresh`
+
+**Bereits geklont:** `sudo ./scripts/install-server.sh` oder `sudo ./install.sh`
+
+Danach im Browser: **http://&lt;Server-IP&gt;:8080** — Details: `docs/SCHRITT-FUER-SCHRITT.md`, `docs/HTTPS.md`
 
 **Proxmox / wie viele Container / Debian vs. Ubuntu / RAM:** siehe **`docs/PROXMOX-RATGEBER.md`**.
 

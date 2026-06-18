@@ -1,37 +1,5 @@
 #!/usr/bin/env bash
-# Ein-Befehl-Installation nach Git-Clone (im Repository-Root ausführen).
+# Ein-Befehl-Installation — delegiert an scripts/install-server.sh
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$ROOT"
-
-if ! command -v docker >/dev/null 2>&1; then
-  echo "Fehler: Docker ist nicht installiert oder nicht im PATH."
-  echo "Bitte zuerst Docker + Docker Compose Plugin installieren (siehe docs/PROXMOX-RATGEBER.md)."
-  exit 1
-fi
-
-if docker compose version >/dev/null 2>&1; then
-  COMPOSE=(docker compose)
-elif command -v docker-compose >/dev/null 2>&1; then
-  COMPOSE=(docker-compose)
-else
-  echo "Fehler: Weder 'docker compose' noch 'docker-compose' gefunden."
-  exit 1
-fi
-
-if [[ ! -f .env ]] && [[ -f .env.example ]]; then
-  echo "Hinweis: Für Produktion zuerst .env anlegen: cp .env.example .env"
-  echo "        und FEUERWEHR_TOTP_ENCRYPTION_KEY setzen (DSGVO / 2FA)."
-  echo ""
-fi
-
-echo "Starte MySQL + Feuerwehr-Manager (Build kann einige Minuten dauern)..."
-"${COMPOSE[@]}" up -d --build
-
-echo ""
-echo "Fertig."
-echo "  Web-Oberfläche:  https://<Server-IP>  (Caddy, empfohlen)"
-echo "  Alternativ:      http://<Server-IP>:8080  (direkt, Debug)"
-echo "  RFID-Login:      HTTPS + Chrome/Brave, siehe docs/HTTPS.md"
-echo "  Divera-Setup:    https://<Server-IP>/settings/divera?unit=1"
-echo "  Hinweise:       docs/SCHRITT-FUER-SCHRITT.md"
+exec "${ROOT}/scripts/install-server.sh" --in-repo --skip-docker "$@"
