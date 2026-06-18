@@ -22,8 +22,20 @@ Pro Einheit konfigurierbar:
 ## Voraussetzungen
 
 1. **CUPS-Client** im App-Container (`cups-client`, `ghostscript`, `poppler-utils`) — ab Image-Neubau via `docker compose up -d --build`.
-2. **CUPS-Server** mit Drucker-Warteschlange im LAN erreichbar.
-3. Optional in `.env`: `CUPS_SERVER=print:passwort@host:631` (Fallback, wenn pro Einheit kein Server gesetzt ist).
+2. **CUPS-Server** als Docker-Service `cups` (Port **631** auf dem Host des Managers).
+3. In `.env`: `CUPS_SERVER=print:print@cups:631` und optional `CUPS_PRINTER_URI` für automatische Warteschlange.
+
+### CUPS-Web-Oberfläche
+
+**Nicht** der alte Printserver (`192.168.178.113`) — CUPS läuft auf dem **fw-manager-Host**:
+
+```
+http://<IP-des-fw-manager>:631
+```
+
+Anmeldung: Benutzer `print`, Passwort aus `.env` (`CUPS_ADMIN_PASSWORD`, Standard: `print`).
+
+Nach `docker compose up -d` legt `cups-bootstrap` optional den Drucker aus `CUPS_PRINTER_NAME` / `CUPS_PRINTER_URI` an.
 
 ## Beispiel: Konica Minolta bizhub im LAN
 

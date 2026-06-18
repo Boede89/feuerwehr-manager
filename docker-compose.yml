@@ -56,15 +56,45 @@ services:
       FEUERWEHR_TOTP_ENCRYPTION_KEY: ${FEUERWEHR_TOTP_ENCRYPTION_KEY:-}
       FEUERWEHR_DATA_DIR: /data
       FEUERWEHR_SESSION_COOKIE_SECURE: ${FEUERWEHR_SESSION_COOKIE_SECURE:-true}
-      CUPS_SERVER: ${CUPS_SERVER:-}
+      CUPS_SERVER: ${CUPS_SERVER:-print:print@cups:631}
     volumes:
       - ffm_app_data:/data
     depends_on:
       mysql:
         condition: service_healthy
+      cups:
+        condition: service_started
+
+  cups:
+    image: olbat/cupsd:latest
+    container_name: ffm_cups
+    restart: unless-stopped
+    ports:
+      - "631:631"
+    environment:
+      CUPS_ADMIN_USERNAME: print
+      CUPS_ADMIN_PASSWORD: ${CUPS_ADMIN_PASSWORD:-print}
+    volumes:
+      - ffm_cups_data:/etc/cups
+
+  cups-bootstrap:
+    image: debian:bookworm-slim
+    container_name: ffm_cups_bootstrap
+    restart: "no"
+    depends_on:
+      cups:
+        condition: service_started
+    environment:
+      CUPS_SERVER: print:${CUPS_ADMIN_PASSWORD:-print}@cups:631
+      CUPS_PRINTER_NAME: ${CUPS_PRINTER_NAME:-Zentrale}
+      CUPS_PRINTER_URI: ${CUPS_PRINTER_URI:-}
+    volumes:
+      - ./docker/cups/bootstrap-printer.sh:/bootstrap.sh:ro
+    entrypoint: ["/bin/bash", "-c", "apt-get update -qq && apt-get install -y -qq cups-client >/dev/null && bash /bootstrap.sh"]
 
 volumes:
   ffm_mysql_data:
   ffm_app_data:
   ffm_caddy_data:
   ffm_caddy_config:
+  ffm_cups_data:
