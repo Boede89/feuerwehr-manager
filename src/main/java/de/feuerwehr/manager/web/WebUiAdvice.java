@@ -13,12 +13,10 @@ import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -27,7 +25,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-@ControllerAdvice
+@ControllerAdvice(annotations = Controller.class, basePackages = "de.feuerwehr.manager.web")
 @RequiredArgsConstructor
 @Slf4j
 public class WebUiAdvice {
@@ -110,17 +108,23 @@ public class WebUiAdvice {
             HttpServletRequest request,
             Model model) {
         if (user == null) {
+            model.addAttribute("unitSwitchDisabled", true);
             return;
         }
-        model.addAttribute("currentRequestPath", buildRequestPath(request));
-        model.addAttribute("unitSwitchDisabled", !user.getRole().isSuperAdmin());
-        List<Unit> units = unitService.findActiveOrdered(user);
-        model.addAttribute("units", units);
-        unitService.resolveActiveUnit(unitParam, user).ifPresent(u -> {
-            model.addAttribute("unitId", u.getId());
-            model.addAttribute("currentUnitName", u.getName());
-            model.addAttribute("smtpConfigured", accountMailService.canSendMailForUnit(u.getId()));
-        });
+        try {
+            model.addAttribute("currentRequestPath", buildRequestPath(request));
+            model.addAttribute("unitSwitchDisabled", !user.getRole().isSuperAdmin());
+            List<Unit> units = unitService.findActiveOrdered(user);
+            model.addAttribute("units", units);
+            unitService.resolveActiveUnit(unitParam, user).ifPresent(u -> {
+                model.addAttribute("unitId", u.getId());
+                model.addAttribute("currentUnitName", u.getName());
+                model.addAttribute("smtpConfigured", accountMailService.canSendMailForUnit(u.getId()));
+            });
+        } catch (Exception e) {
+            log.warn("Einheiten-Kontext konnte nicht geladen werden: {}", e.getMessage());
+            model.addAttribute("unitSwitchDisabled", true);
+        }
     }
 
     @ModelAttribute
@@ -135,19 +139,26 @@ public class WebUiAdvice {
         if (activeUnitId == null) {
             activeUnitId = (Long) model.getAttribute("unitId");
         }
-        for (AppModule module : AppModule.values()) {
-            boolean enabled = activeUnitId != null && moduleSettingsService.isEnabled(module, activeUnitId);
-            String state;
-            if (activeUnitId == null) {
-                state = module == AppModule.PERSONAL && module.implemented() ? "link" : "hidden";
-            } else if (!enabled) {
-                state = "hidden";
-            } else if (module.implemented()) {
-                state = "link";
-            } else {
-                state = "soon";
+        try {
+            for (AppModule module : AppModule.values()) {
+                boolean enabled = activeUnitId != null && moduleSettingsService.isEnabled(module, activeUnitId);
+                String state;
+                if (activeUnitId == null) {
+                    state = module == AppModule.PERSONAL && module.implemented() ? "link" : "hidden";
+                } else if (!enabled) {
+                    state = "hidden";
+                } else if (module.implemented()) {
+                    state = "link";
+                } else {
+                    state = "soon";
+                }
+                model.addAttribute("nav" + capitalize(module.key()), state);
             }
-            model.addAttribute("nav" + capitalize(module.key()), state);
+        } catch (Exception e) {
+            log.warn("Modul-Navigation konnte nicht geladen werden: {}", e.getMessage());
+            for (AppModule module : AppModule.values()) {
+                model.addAttribute("nav" + capitalize(module.key()), "hidden");
+            }
         }
     }
 
@@ -194,18 +205,6 @@ public class WebUiAdvice {
         return Character.toUpperCase(key.charAt(0)) + key.substring(1);
     }
 
-    @ExceptionHandler(Exception.class)
-    public Object handleUnexpectedException(Exception ex, HttpServletRequest request, Model model) {
-        log.error("Unerwarteter Fehler bei {} {}", request.getMethod(), request.getRequestURI(), ex);
-        if (isApiRequest(request)) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("success", false, "message", "Interner Serverfehler"));
-        }
-        model.addAttribute("status", 500);
-        model.addAttribute("errorMessage", "Ein unerwarteter Fehler ist aufgetreten. Bitte erneut versuchen.");
-        return "error";
-    }
-
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public String handleMaxUploadSize(
             MaxUploadSizeExceededException ex, HttpServletRequest request, RedirectAttributes redirectAttributes) {
@@ -221,11 +220,6 @@ public class WebUiAdvice {
             return "redirect:/admin?scope=einheit&tab=import-export&unit=" + unit;
         }
         return "redirect:/admin?scope=einheit&tab=import-export";
-    }
-
-    private static boolean isApiRequest(HttpServletRequest request) {
-        String path = request.getRequestURI();
-        return path != null && path.startsWith("/api/");
     }
 
     private static String buildRequestPath(HttpServletRequest request) {

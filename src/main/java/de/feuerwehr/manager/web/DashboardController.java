@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.web;
 
+import de.feuerwehr.manager.divera.DiveraAlarmsResponse;
 import de.feuerwehr.manager.divera.DiveraService;
 import de.feuerwehr.manager.personal.PersonRepository;
 import de.feuerwehr.manager.security.AppUserDetails;
@@ -14,6 +15,7 @@ import de.feuerwehr.manager.unit.UnitService;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -22,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 @Controller
 @RequiredArgsConstructor
+@Slf4j
 public class DashboardController {
 
     private static final int DASHBOARD_TERMINE_LIMIT = 5;
@@ -50,8 +53,18 @@ public class DashboardController {
         Unit resolved = unit.get();
         model.addAttribute("unitId", resolved.getId());
         model.addAttribute("currentUnitName", resolved.getName());
-        model.addAttribute("divera", diveraService.getAlarmsForUnit(resolved.getId()));
-        addTermineWidgetModel(currentUser, resolved.getId(), model);
+        try {
+            model.addAttribute("divera", diveraService.getAlarmsForUnit(resolved.getId()));
+        } catch (Exception e) {
+            log.warn("DIVERA-Widget konnte nicht geladen werden: {}", e.getMessage(), e);
+            model.addAttribute("divera", DiveraAlarmsResponse.fail("DIVERA-Abgleich fehlgeschlagen"));
+        }
+        try {
+            addTermineWidgetModel(currentUser, resolved.getId(), model);
+        } catch (Exception e) {
+            log.warn("Termine-Widget konnte nicht geladen werden: {}", e.getMessage(), e);
+            model.addAttribute("showTermineWidget", false);
+        }
         return "dashboard";
     }
 

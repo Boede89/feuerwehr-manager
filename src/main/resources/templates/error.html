@@ -1,27 +1,35 @@
 <!DOCTYPE html>
-<html lang="de" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{fragments/layout :: layout('Fehler', ~{::main})}">
-<main>
-  <div class="page-header">
-    <div>
-      <h2>Fehler</h2>
-      <p th:text="${errorMessage != null ? errorMessage : 'Ein unerwarteter Fehler ist aufgetreten.'}">
-        Ein unerwarteter Fehler ist aufgetreten.
-      </p>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Fehler – Feuerwehr-Manager</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; color: #1a1a1a; background: #f6f7f9; }
+    .card { max-width: 32rem; margin: 0 auto; background: #fff; border: 1px solid #d8dde6; border-radius: 8px; padding: 1.5rem; }
+    h1 { margin: 0 0 .5rem; font-size: 1.35rem; }
+    p { margin: .5rem 0; line-height: 1.5; }
+    .hint { color: #5c6573; font-size: .95rem; }
+    .actions { margin-top: 1.25rem; display: flex; gap: .75rem; flex-wrap: wrap; }
+    a, button {
+      font: inherit; padding: .55rem 1rem; border-radius: 6px; cursor: pointer; text-decoration: none;
+    }
+    a { background: #b91c1c; color: #fff; border: 1px solid #b91c1c; }
+    button { background: #fff; color: #1a1a1a; border: 1px solid #c5ccd6; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Fehler</h1>
+    <p th:text="${errorMessage != null ? errorMessage : 'Ein unerwarteter Fehler ist aufgetreten.'}">
+      Ein unerwarteter Fehler ist aufgetreten.
+    </p>
+    <p class="hint" th:if="${status != null}">Status: <span th:text="${status}">500</span></p>
+    <p class="hint">Bitte die Seite neu laden oder zur Startseite zurückkehren. Wenn der Fehler bleibt, den Administrator informieren.</p>
+    <div class="actions">
+      <a href="/">Zur Startseite</a>
+      <button type="button" onclick="history.back()">Zurück</button>
     </div>
   </div>
-
-  <div class="card card--narrow">
-    <div class="card__body">
-      <p class="hint" th:if="${status != null}">
-        Status: <span th:text="${status}">500</span>
-      </p>
-      <p class="hint">Bitte die Seite neu laden oder zur Startseite zurückkehren. Wenn der Fehler bleibt, den Administrator informieren.</p>
-      <div class="btn-group mt-md">
-        <a class="btn btn--primary" th:href="@{/}">Zur Startseite</a>
-        <button type="button" class="btn btn--outline" onclick="history.back()">Zurück</button>
-      </div>
-    </div>
-  </div>
-</main>
+</body>
 </html>

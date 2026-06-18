@@ -6,7 +6,8 @@
     <span class="app-header__user-dot"></span>
     <span th:text="${currentUser.displayName}">Benutzer</span>
   </span>
-  <div class="bar-form unit-switch-wrap" th:if="${!unitSwitchDisabled and units != null}">
+  <div class="bar-form unit-switch-wrap"
+       th:if="${unitSwitchDisabled != null and !unitSwitchDisabled and units != null}">
     <label for="unitSwitcher" class="sr-only">Einheit</label>
     <select class="unit-select unit-select-compact" id="unitSwitcher" name="unit" data-unit-switch
             aria-label="Einheit wählen">
@@ -15,9 +16,10 @@
               th:text="${u.name}">Einheit</option>
     </select>
   </div>
-  <span class="app-header__unit-label" th:if="${unitSwitchDisabled and currentUnitName != null}"
+  <span class="app-header__unit-label"
+        th:if="${unitSwitchDisabled != null and unitSwitchDisabled and currentUnitName != null}"
         th:text="${currentUnitName}">Einheit</span>
-  <form method="post" th:action="@{/logout}" class="bar-form">
+  <form method="post" th:action="@{/logout}" class="bar-form" th:if="${_csrf != null}">
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
     <button type="submit" class="app-header__logout">Abmelden</button>
   </form>
