@@ -8,7 +8,6 @@
 
   var DEFAULT_BAUD = Number(root.dataset.serialBaud || 9600);
   var statusEl = document.getElementById('login-rfid-status');
-  var hintEl = document.getElementById('login-rfid-hint');
   var connectBtn = document.getElementById('login-rfid-connect');
   var unknownModal = document.getElementById('modal-rfid-register-unknown');
   var unknownForm = document.getElementById('form-rfid-register-unknown');
@@ -43,11 +42,12 @@
     }
     statusEl.textContent = text;
     statusEl.className = 'login-rfid__status' + (kind ? ' login-rfid__status--' + kind : '');
+    statusEl.hidden = !text;
   }
 
-  function setHint(text) {
-    if (hintEl) {
-      hintEl.textContent = text;
+  function showConnectButton(show) {
+    if (connectBtn) {
+      connectBtn.hidden = !show;
     }
   }
 
@@ -138,12 +138,8 @@
           var code = result.body && result.body.errorCode;
           var msg = (result.body && result.body.message) || 'Anmeldung fehlgeschlagen';
           if (code === 'unknown_chip') {
-            setStatus('Unbekannter Chip – Registrierung erforderlich', 'warn');
-            setHint('Bitte im eingeblendeten Fenster Benutzername und Passwort eingeben.');
+            setStatus('', '');
             openUnknownChipModal(cardUid);
-            if (typeof window.toast === 'function') {
-              window.toast('Unbekannter Chip erkannt. Bitte im Fenster bestätigen.', 'warning');
-            }
             busy = false;
             return;
           }
@@ -226,8 +222,8 @@
       }
     } catch (err) {
       if (serialPort) {
-        setStatus('Lesefehler – bitte neu verbinden', 'error');
-        setHint(String(err && err.message ? err.message : err));
+        setStatus('Lesefehler', 'error');
+        showConnectButton(true);
       }
     } finally {
       readLoopActive = false;
@@ -249,10 +245,9 @@
     if (!serialPort.readable) {
       await serialPort.open({ baudRate: DEFAULT_BAUD });
     }
-    setStatus('Bereit – Chip auflegen', 'ok');
-    setHint('Lesegerät verbunden. Chip auf den Reader legen.');
+    setStatus('Chip auflegen', 'ok');
+    showConnectButton(false);
     if (connectBtn) {
-      connectBtn.textContent = 'Lesegerät verbunden';
       connectBtn.disabled = true;
     }
     readSerialLoop();
@@ -260,46 +255,43 @@
 
   async function connectReader() {
     if (!('serial' in navigator)) {
-      setStatus('Web Serial nicht verfügbar', 'error');
-      setHint('Bitte Chrome oder Brave nutzen und die Seite über HTTPS öffnen.');
+      setStatus('RFID nicht verfügbar', 'error');
+      showConnectButton(false);
       return;
     }
     try {
-      setStatus('Warte auf Gerätewahl …', 'busy');
+      setStatus('Verbinde …', 'busy');
       var port = await navigator.serial.requestPort();
       await openPort(port);
     } catch (err) {
-      setStatus('Verbindung abgebrochen', 'warn');
-      setHint('Erneut auf „Lesegerät verbinden“ klicken und den COM-Port wählen.');
+      setStatus('RFID-Chip', 'warn');
+      showConnectButton(true);
     }
   }
 
   async function tryAutoConnect() {
     if (!('serial' in navigator)) {
-      setStatus('Web Serial nicht verfügbar', 'error');
-      setHint('RFID-Login erfordert HTTPS sowie Chrome oder Brave.');
-      if (connectBtn) {
-        connectBtn.disabled = true;
-      }
+      setStatus('RFID nicht verfügbar', 'error');
+      showConnectButton(false);
       return;
     }
     if (!window.isSecureContext) {
       setStatus('HTTPS erforderlich', 'error');
-      setHint('Bitte https://… in der Adresszeile nutzen (nicht http://).');
+      showConnectButton(false);
       return;
     }
     try {
       var ports = await navigator.serial.getPorts();
       if (ports.length > 0) {
-        setStatus('Verbinde Lesegerät …', 'busy');
+        setStatus('Verbinde …', 'busy');
         await openPort(ports[0]);
         return;
       }
     } catch (err) {
       /* getPorts failed – manual connect */
     }
-    setStatus('Lesegerät noch nicht verbunden', 'warn');
-    setHint('Einmal auf „Lesegerät verbinden“ klicken und den COM-Port erlauben.');
+    setStatus('RFID-Chip', 'warn');
+    showConnectButton(true);
   }
 
   if (connectBtn) {
@@ -329,7 +321,7 @@
             return;
           }
           closeUnknownChipModal();
-          setStatus('Chip registriert – weiterleiten …', 'ok');
+          setStatus('', '');
           window.location.href = result.body.redirectUrl || '/';
         })
         .catch(function () {

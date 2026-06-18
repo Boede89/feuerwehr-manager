@@ -30,21 +30,10 @@
 
       <div th:if="${rfidLoginEnabled}" id="login-rfid" class="login-rfid" data-serial-baud="9600">
         <div class="login-rfid__divider"><span>oder</span></div>
-        <div class="login-rfid__panel">
-          <div class="login-rfid__title">RFID-Chip</div>
-          <p id="login-rfid-status" class="login-rfid__status login-rfid__status--busy">
-            Initialisiere …
-          </p>
-          <p id="login-rfid-hint" class="hint login-rfid__hint">
-            Lesegerät per USB an diesen PC (COM-Modus). Seite über HTTPS öffnen.
-          </p>
-          <p class="hint login-rfid__hint">
-            Unbekannter Chip: Es öffnet sich ein Login-Fenster zur direkten Registrierung auf Ihr Konto.
-          </p>
-          <button type="button" id="login-rfid-connect" class="btn btn--outline btn-block login-rfid__connect">
-            Lesegerät verbinden
-          </button>
-        </div>
+        <p id="login-rfid-status" class="login-rfid__status login-rfid__status--busy"></p>
+        <button type="button" id="login-rfid-connect" class="btn btn--outline btn-block login-rfid__connect" hidden>
+          Lesegerät verbinden
+        </button>
       </div>
 
       <div class="btn-group" style="justify-content:center;margin-top:20px;" role="group" aria-label="Design">
