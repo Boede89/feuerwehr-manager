@@ -34,34 +34,112 @@ public class CupsPrintService {
         }
         if (cupsServer == null || cupsServer.isBlank()) {
             return CupsListResult.failure(
-                    "Kein CUPS-Server konfiguriert. In .env: CUPS_SERVER=print:<Passwort>@cups:631 — danach App-Container neu starten.");
+                    "Kein CUPS-Server konfiguriert. In .env: CUPS_SERVER=print:<Passwort>@ffm_cups:631 — danach App-Container neu starten.");
         }
         String executable = lpstat.get();
-        Map<String, CupsPrinterOption> seen = new LinkedHashMap<>();
-        StringBuilder errors = new StringBuilder();
-        for (String arg : List.of("-t", "-p", "-a", "-v")) {
-            CommandResult result = runCommandDetailed(executable, cupsServer, arg);
-            if (result.exitCode() != 0 && !result.output().isEmpty()) {
-                if (errors.length() > 0) {
-                    errors.append(' ');
-                }
-                errors.append(String.join(" ", result.output()));
+        StringBuilder attempts = new StringBuilder();
+        for (String candidate : serverCandidates(cupsServer)) {
+            CupsListResult attempt = listPrintersOnce(executable, candidate);
+            if (!attempt.printers().isEmpty()) {
+                return attempt;
             }
+            if (attempts.length() > 0) {
+                attempts.append(" | ");
+            }
+            attempts.append(maskCupsServer(candidate));
+            if (attempt.error() != null && !attempt.error().isBlank()) {
+                attempts.append(": ").append(attempt.error());
+            }
+        }
+        return CupsListResult.failure(
+                "CUPS nicht erreichbar oder keine Warteschlangen. Versucht: " + attempts);
+    }
+
+    private CupsListResult listPrintersOnce(String executable, String cupsServer) {
+        Map<String, CupsPrinterOption> seen = new LinkedHashMap<>();
+        StringBuilder outputLog = new StringBuilder();
+        boolean connectionProblem = false;
+        for (String arg : List.of("-t", "-p")) {
+            CommandResult result = runCommandDetailed(executable, cupsServer, arg);
             for (String line : result.output()) {
+                if (outputLog.length() > 0) {
+                    outputLog.append(' ');
+                }
+                outputLog.append(line.trim());
+                if (isConnectionProblem(line)) {
+                    connectionProblem = true;
+                }
                 String name = parsePrinterName(line.trim());
                 if (name != null && !name.isBlank() && !seen.containsKey(name)) {
                     seen.put(name, new CupsPrinterOption(name, name));
                 }
             }
+            if (result.exitCode() != 0) {
+                connectionProblem = true;
+            }
         }
         List<CupsPrinterOption> printers = new ArrayList<>(seen.values());
-        if (printers.isEmpty()) {
-            String hint = errors.length() > 0
-                    ? "CUPS-Fehler: " + errors
-                    : "Keine Drucker auf " + maskCupsServer(cupsServer) + " — Warteschlange in CUPS prüfen.";
-            return new CupsListResult(printers, hint);
+        if (!printers.isEmpty()) {
+            return new CupsListResult(printers, null);
         }
-        return new CupsListResult(printers, null);
+        if (connectionProblem || !outputLog.isEmpty()) {
+            String detail = outputLog.isEmpty() ? "keine Antwort" : outputLog.toString();
+            return CupsListResult.failure(detail);
+        }
+        return CupsListResult.failure("keine Drucker");
+    }
+
+    private static boolean isConnectionProblem(String line) {
+        String lower = line.toLowerCase();
+        return lower.contains("scheduler is not running")
+                || lower.contains("no such file or directory")
+                || lower.contains("unable to connect")
+                || lower.contains("unauthorized")
+                || lower.contains("forbidden")
+                || lower.contains("connection refused");
+    }
+
+    private static List<String> serverCandidates(String cupsServer) {
+        List<String> candidates = new ArrayList<>();
+        candidates.add(cupsServer.trim());
+        parseCupsServer(cupsServer).ifPresent(target -> {
+            for (String host : List.of("ffm_cups", "cups", "host.docker.internal")) {
+                if (!host.equalsIgnoreCase(target.host())) {
+                    candidates.add(buildCupsServer(target.username(), target.password(), host, target.port()));
+                }
+            }
+        });
+        return candidates.stream().distinct().toList();
+    }
+
+    private static String buildCupsServer(String username, String password, String host, int port) {
+        String auth = "";
+        if (username != null && !username.isBlank()) {
+            auth = username;
+            if (password != null && !password.isBlank()) {
+                auth = auth + ":" + password;
+            }
+            auth = auth + "@";
+        }
+        return auth + host + ":" + port;
+    }
+
+    public String resolveWorkingCupsServer(String cupsServer) {
+        if (cupsServer == null || cupsServer.isBlank()) {
+            return cupsServer;
+        }
+        Optional<String> lpstat = findExecutable("lpstat");
+        if (lpstat.isEmpty()) {
+            return cupsServer;
+        }
+        for (String candidate : serverCandidates(cupsServer)) {
+            CommandResult result = runCommandDetailed(lpstat.get(), candidate, "-r");
+            if (result.exitCode() == 0
+                    && result.output().stream().anyMatch(l -> l.toLowerCase().contains("scheduler is running"))) {
+                return candidate;
+            }
+        }
+        return cupsServer;
     }
 
     public List<CupsPrinterOption> listPrinters(String cupsServer) {
@@ -108,7 +186,7 @@ public class CupsPrintService {
                 }
             }
 
-            runCommandDetailed(lp.get(), cupsServer, "-d", printerName.trim(), fileToPrint.toString());
+            runCommandDetailed(lp.get(), resolveWorkingCupsServer(cupsServer), "-d", printerName.trim(), fileToPrint.toString());
             return CupsPrintResult.success("Druckauftrag an CUPS-Drucker gesendet.");
         } catch (IOException e) {
             log.warn("CUPS-Druck fehlgeschlagen: {}", e.getMessage());
