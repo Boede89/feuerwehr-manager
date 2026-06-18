@@ -1,6 +1,7 @@
 package de.feuerwehr.manager.divera;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import de.feuerwehr.manager.berichte.UnitAddressSupport;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -13,8 +14,6 @@ import java.util.regex.Pattern;
 public final class DiveraAlarmDetailsMapper {
 
     private static final Pattern PLZ_PATTERN = Pattern.compile("\\b(\\d{5})\\b");
-    private static final Pattern STREET_WITH_NUMBER =
-            Pattern.compile("^(.+?)\\s+(\\d+[a-zA-Z]?)(?:\\s*[,/].*)?$");
 
     private DiveraAlarmDetailsMapper() {}
 
@@ -308,7 +307,22 @@ public final class DiveraAlarmDetailsMapper {
         String ortsteil = firstNonBlank(
                 textOrNull(alarm, "ortsteil", "Ortsteil", "suburb", "stadtteil", "district"),
                 fromAddress.ortsteil());
-        return new AddressParts(postalCode, street, houseNumber, city, ortsteil);
+        return splitStreetHouseNumber(new AddressParts(postalCode, street, houseNumber, city, ortsteil));
+    }
+
+    private static AddressParts splitStreetHouseNumber(AddressParts parts) {
+        if (parts.houseNumber() != null && !parts.houseNumber().isBlank()) {
+            return parts;
+        }
+        if (parts.street() == null || parts.street().isBlank()) {
+            return parts;
+        }
+        UnitAddressSupport.StreetParts split = UnitAddressSupport.parseStreet(parts.street());
+        if (split.houseNumber() == null || split.houseNumber().isBlank()) {
+            return parts;
+        }
+        return new AddressParts(
+                parts.postalCode(), split.street(), split.houseNumber(), parts.city(), parts.ortsteil());
     }
 
     private static AddressParts parseAddress(String address) {
@@ -344,11 +358,9 @@ public final class DiveraAlarmDetailsMapper {
             street = parseStreetLine(trimmed);
         }
 
-        Matcher streetMatcher = street != null ? STREET_WITH_NUMBER.matcher(street) : null;
-        if (streetMatcher != null && streetMatcher.matches()) {
-            street = streetMatcher.group(1).trim();
-            houseNumber = streetMatcher.group(2).trim();
-        }
+        UnitAddressSupport.StreetParts streetParts = UnitAddressSupport.parseStreet(street);
+        street = streetParts.street();
+        houseNumber = streetParts.houseNumber();
 
         if (city != null && city.isBlank()) {
             city = null;

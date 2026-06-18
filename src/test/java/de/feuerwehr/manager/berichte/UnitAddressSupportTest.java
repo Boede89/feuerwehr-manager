@@ -36,6 +36,22 @@ class UnitAddressSupportTest {
     }
 
     @Test
+    void parseStreet_splitsHouseNumberWithLetterSuffix() {
+        UnitAddressSupport.StreetParts parts = UnitAddressSupport.parseStreet("Geneschen 109 B");
+
+        assertThat(parts.street()).isEqualTo("Geneschen");
+        assertThat(parts.houseNumber()).isEqualTo("109 B");
+    }
+
+    @Test
+    void parseStreet_splitsHouseNumberRange() {
+        UnitAddressSupport.StreetParts parts = UnitAddressSupport.parseStreet("Hauptstraße 10-12");
+
+        assertThat(parts.street()).isEqualTo("Hauptstraße");
+        assertThat(parts.houseNumber()).isEqualTo("10-12");
+    }
+
+    @Test
     void parseStreet_keepsUnsplittableLineInStreetField() {
         UnitAddressSupport.StreetParts parts = UnitAddressSupport.parseStreet("Feuerwehrhaus");
 

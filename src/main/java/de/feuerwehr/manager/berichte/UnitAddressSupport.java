@@ -5,7 +5,8 @@ import java.util.regex.Pattern;
 
 public final class UnitAddressSupport {
 
-    private static final Pattern STREET_WITH_NUMBER = Pattern.compile("^(.*?)(?:\\s+(\\d+\\s*[a-zA-Z]?))$");
+    private static final Pattern STREET_WITH_NUMBER = Pattern.compile(
+            "^(.*?)(?:\\s+(\\d+(?:\\s+[a-zA-Z]|[a-zA-Z])?(?:\\s*-\\s*\\d+(?:\\s+[a-zA-Z]|[a-zA-Z])?)?))$");
 
     private UnitAddressSupport() {}
 
