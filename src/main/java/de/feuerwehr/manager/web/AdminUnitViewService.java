@@ -16,6 +16,7 @@ import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitAdminService;
 import de.feuerwehr.manager.unit.UnitCalendarAccount;
 import de.feuerwehr.manager.unit.UnitDiveraSettings;
+import de.feuerwehr.manager.unit.UnitSmtpAccount;
 import de.feuerwehr.manager.print.PrintMode;
 import de.feuerwehr.manager.print.UnitPrintSettingsService;
 import de.feuerwehr.manager.unit.UnitPrintSettings;
