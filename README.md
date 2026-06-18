@@ -5,12 +5,26 @@ Repository: [github.com/Boede89/feuerwehr-manager](https://github.com/Boede89/fe
 ## Installation mit einem Befehl (frischer Server / LXC)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Boede89/feuerwehr-manager/main/scripts/install-server.sh | bash
+apt update && apt install -y ca-certificates curl git && \
+  curl -fsSL https://raw.githubusercontent.com/Boede89/feuerwehr-manager/main/scripts/install-server.sh | bash
 ```
 
 Installiert Docker (falls nötig), klont nach `/opt/feuerwehr-manager`, erzeugt `.env` und startet die App.
 
-**Leere DB** (vor SQL-Import in der Web-UI): `… | bash -s -- --fresh`
+**Leere DB** (vor SQL-Import in der Web-UI):
+
+```bash
+apt update && apt install -y ca-certificates curl git && \
+  curl -fsSL https://raw.githubusercontent.com/Boede89/feuerwehr-manager/main/scripts/install-server.sh | bash -s -- --fresh
+```
+
+**Ohne curl** (nur `git`):
+
+```bash
+apt update && apt install -y git ca-certificates
+git clone https://github.com/Boede89/feuerwehr-manager.git /opt/feuerwehr-manager
+cd /opt/feuerwehr-manager && ./scripts/install-server.sh --fresh
+```
 
 **Bereits geklont:** `sudo ./scripts/install-server.sh` oder `sudo ./install.sh`
 

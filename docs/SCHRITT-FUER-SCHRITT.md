@@ -10,18 +10,18 @@ Ziel: **Keine Projektdateien von Hand bearbeiten.** Du klonst das Repo, führst 
 
 ### Variante A — Ein Befehl (frischer LXC, empfohlen)
 
-Als **root** auf dem neuen Container:
+Als **root** auf dem neuen Container (ein Zeile — installiert zuerst `curl` und `git`):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Boede89/feuerwehr-manager/main/scripts/install-server.sh | bash
+apt update && apt install -y ca-certificates curl git && \
+  curl -fsSL https://raw.githubusercontent.com/Boede89/feuerwehr-manager/main/scripts/install-server.sh | bash
 ```
-
-Das Skript installiert Docker (falls nötig), klont das Repo nach `/opt/feuerwehr-manager`, legt `.env` mit Secrets an und startet die App.
 
 **Leere Datenbank** (vor SQL-Import aus der Web-UI):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Boede89/feuerwehr-manager/main/scripts/install-server.sh | bash -s -- --fresh
+apt update && apt install -y ca-certificates curl git && \
+  curl -fsSL https://raw.githubusercontent.com/Boede89/feuerwehr-manager/main/scripts/install-server.sh | bash -s -- --fresh
 ```
 
 ### Variante B — Manuell klonen
