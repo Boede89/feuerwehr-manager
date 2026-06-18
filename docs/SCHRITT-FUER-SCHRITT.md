@@ -8,21 +8,16 @@ Ziel: **Keine Projektdateien von Hand bearbeiten.** Du klonst das Repo, führst 
 
 ## Schritt 0: Code auf den Server holen
 
-### Variante A — Ein Befehl (frischer LXC, empfohlen)
+### Ein Befehl (frischer LXC, empfohlen)
 
-Als **root** auf dem neuen Container (ein Zeile — installiert zuerst `curl` und `git`):
-
-```bash
-apt update && apt install -y ca-certificates curl git && \
-  curl -fsSL https://raw.githubusercontent.com/Boede89/feuerwehr-manager/main/scripts/install-server.sh | bash
-```
-
-**Leere Datenbank** (vor SQL-Import aus der Web-UI):
+Als **root** — **eine Zeile** kopieren und einfügen:
 
 ```bash
-apt update && apt install -y ca-certificates curl git && \
-  curl -fsSL https://raw.githubusercontent.com/Boede89/feuerwehr-manager/main/scripts/install-server.sh | bash -s -- --fresh
+apt-get update && apt-get install -y git ca-certificates && git clone --depth 1 https://github.com/Boede89/feuerwehr-manager.git /opt/feuerwehr-manager && exec bash /opt/feuerwehr-manager/neuer-container --fresh
 ```
+
+Das Skript installiert danach automatisch **curl, Docker**, legt `.env` an und startet die App.  
+`--fresh` = leere Datenbank (für SQL-Import aus der Web-UI).
 
 ### Variante B — Manuell klonen
 
@@ -31,10 +26,8 @@ Auf dem Linux-Server (oder im Proxmox-LXC):
 ```bash
 git clone https://github.com/Boede89/feuerwehr-manager.git
 cd feuerwehr-manager
-sudo ./scripts/install-server.sh
+sudo ./neuer-container --fresh
 ```
-
-*(Entspricht `install.sh` im Repo-Root.)*
 
 ---
 

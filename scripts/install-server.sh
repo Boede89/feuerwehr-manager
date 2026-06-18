@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
-# Komplett-Installation auf frischem Debian-LXC (Docker + App).
-# Aufruf:
-#   curl -fsSL https://raw.githubusercontent.com/Boede89/feuerwehr-manager/main/scripts/install-server.sh | sudo bash
-# oder im geklonten Repo:
-#   sudo ./scripts/install-server.sh
+# Komplett-Installation auf frischem Debian-LXC (apt + Docker + App).
 set -euo pipefail
 
 REPO_URL="${REPO_URL:-https://github.com/Boede89/feuerwehr-manager.git}"
@@ -17,18 +13,21 @@ usage() {
   cat <<'EOF'
 Feuerwehr-Manager — Server-Installation
 
-Aufruf:
-  sudo ./scripts/install-server.sh [Optionen]
+═══ Neuer Proxmox-LXC (ein Befehl, nur apt nötig) ═══
+
+apt-get update && apt-get install -y git ca-certificates && git clone --depth 1 https://github.com/Boede89/feuerwehr-manager.git /opt/feuerwehr-manager && exec bash /opt/feuerwehr-manager/neuer-container --fresh
+
+═══ Im bereits geklonten Repo ═══
+
+  sudo ./neuer-container --fresh
+  sudo ./scripts/install-server.sh --in-repo --fresh
 
 Optionen:
   --fresh          MySQL-Volume löschen (leere DB, danach SQL-Import in der Web-UI)
   --dir PATH       Installationsverzeichnis (Standard: /opt/feuerwehr-manager)
-  --skip-docker    Docker nicht installieren (wenn bereits vorhanden)
-  --use-cache      Docker-Build mit Cache (schneller, nicht für Erstinstallation empfohlen)
+  --skip-docker    Docker nicht installieren
+  --use-cache      Docker-Build mit Cache
   -h, --help       Diese Hilfe
-
-Ein-Zeilen-Installation (frischer LXC):
-  curl -fsSL https://raw.githubusercontent.com/Boede89/feuerwehr-manager/main/scripts/install-server.sh | sudo bash
 EOF
 }
 
@@ -74,7 +73,7 @@ debian_codename() {
 }
 
 install_base_packages() {
-  log "Systempakete installieren (git, curl, …)"
+  log "Systempakete prüfen / installieren (git, curl, …)"
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -qq
   apt-get install -y -qq ca-certificates curl gnupg git openssl
@@ -114,7 +113,7 @@ install_docker() {
 
 ensure_repository() {
   if [[ -f "${INSTALL_DIR}/docker-compose.yml" ]]; then
-    log "Repository vorhanden: ${INSTALL_DIR}"
+    log "Repository: ${INSTALL_DIR}"
     cd "${INSTALL_DIR}"
     if [[ -d .git ]]; then
       git pull --ff-only || warn "git pull fehlgeschlagen — fahre mit lokalem Stand fort"
@@ -124,8 +123,19 @@ ensure_repository() {
 
   log "Repository klonen nach ${INSTALL_DIR}"
   mkdir -p "$(dirname "${INSTALL_DIR}")"
-  git clone "${REPO_URL}" "${INSTALL_DIR}"
+  git clone --depth 1 --branch main "${REPO_URL}" "${INSTALL_DIR}"
   cd "${INSTALL_DIR}"
+}
+
+resolve_working_directory() {
+  if [[ -f "$(dirname "$0")/../docker-compose.yml" ]]; then
+    cd "$(dirname "$0")/.."
+    return 0
+  fi
+  if [[ -f docker-compose.yml ]]; then
+    return 0
+  fi
+  ensure_repository
 }
 
 write_env_value() {
@@ -272,35 +282,12 @@ EOF
 }
 
 main() {
-  # Wenn per curl | bash: Repository noch nicht da → klonen und Skript aus Repo erneut starten
-  if [[ "$IN_REPO" -eq 0 ]] && [[ ! -f "$(dirname "$0")/../docker-compose.yml" ]]; then
-    install_base_packages
-    install_docker
-    ensure_repository
-    chmod +x scripts/install-server.sh scripts/repair-flyway-v37.sh 2>/dev/null || true
-    exec "$(pwd)/scripts/install-server.sh" --in-repo --skip-docker "$@"
-  fi
-
-  if [[ -f "$(dirname "$0")/../docker-compose.yml" ]]; then
-    cd "$(dirname "$0")/.."
-  elif [[ -f docker-compose.yml ]]; then
-    :
-  else
-    install_base_packages
-    install_docker
-    ensure_repository
-  fi
-
+  install_base_packages
+  resolve_working_directory
   INSTALL_DIR="$(pwd)"
   log "Arbeitsverzeichnis: ${INSTALL_DIR}"
 
-  if [[ "$SKIP_DOCKER" -eq 0 ]] && ! command -v docker >/dev/null 2>&1; then
-    install_base_packages
-    install_docker
-  fi
-
-  command -v docker >/dev/null 2>&1 || die "Docker fehlt — ohne --skip-docker erneut ausführen"
-
+  install_docker
   ensure_env_file
   deploy_containers
   wait_for_mysql

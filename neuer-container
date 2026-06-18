@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Feuerwehr-Manager auf frischem Debian-LXC installieren.
+#
+# ═══ Einziger Befehl (alles kopieren & als root einfügen) ═══
+#
+# apt-get update && apt-get install -y git ca-certificates && git clone --depth 1 https://github.com/Boede89/feuerwehr-manager.git /opt/feuerwehr-manager && exec bash /opt/feuerwehr-manager/neuer-container --fresh
+#
+# ═══════════════════════════════════════════════════════════
+#
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec bash "${ROOT}/scripts/install-server.sh" --in-repo "$@"

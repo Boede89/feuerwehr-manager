@@ -4,29 +4,15 @@ Repository: [github.com/Boede89/feuerwehr-manager](https://github.com/Boede89/fe
 
 ## Installation mit einem Befehl (frischer Server / LXC)
 
-```bash
-apt update && apt install -y ca-certificates curl git && \
-  curl -fsSL https://raw.githubusercontent.com/Boede89/feuerwehr-manager/main/scripts/install-server.sh | bash
-```
-
-Installiert Docker (falls nötig), klont nach `/opt/feuerwehr-manager`, erzeugt `.env` und startet die App.
-
-**Leere DB** (vor SQL-Import in der Web-UI):
+**Einziger Befehl** — nur `apt` muss auf dem Container vorhanden sein (Standard bei Debian):
 
 ```bash
-apt update && apt install -y ca-certificates curl git && \
-  curl -fsSL https://raw.githubusercontent.com/Boede89/feuerwehr-manager/main/scripts/install-server.sh | bash -s -- --fresh
+apt-get update && apt-get install -y git ca-certificates && git clone --depth 1 https://github.com/Boede89/feuerwehr-manager.git /opt/feuerwehr-manager && exec bash /opt/feuerwehr-manager/neuer-container --fresh
 ```
 
-**Ohne curl** (nur `git`):
+Installiert Docker, legt `.env` an, startet die App. `--fresh` = leere DB (für SQL-Import danach).
 
-```bash
-apt update && apt install -y git ca-certificates
-git clone https://github.com/Boede89/feuerwehr-manager.git /opt/feuerwehr-manager
-cd /opt/feuerwehr-manager && ./scripts/install-server.sh --fresh
-```
-
-**Bereits geklont:** `sudo ./scripts/install-server.sh` oder `sudo ./install.sh`
+**Bereits geklont:** `sudo ./neuer-container --fresh`
 
 Danach im Browser: **http://&lt;Server-IP&gt;:8080** — Details: `docs/SCHRITT-FUER-SCHRITT.md`, `docs/HTTPS.md`
 
