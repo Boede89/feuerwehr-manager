@@ -37,7 +37,8 @@ server:
       cookie:
         http-only: true
         same-site: lax
-        secure: ${FEUERWEHR_SESSION_COOKIE_SECURE:false}
+        # Secure-Flag wird pro Request in SessionCookieSecureFilter gesetzt (HTTPS / Proxy-Header).
+        secure: false
 
 management:
   endpoints:

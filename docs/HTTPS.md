@@ -8,7 +8,7 @@ Nach `docker compose up -d --build` ist die App erreichbar über:
 |-----|--------|
 | **https://fw-manager.home.arpa** | Produktiv (Caddy, Port 443) |
 | **http://fw-manager.home.arpa** | Leitet auf HTTPS um (Port 80) |
-| http://&lt;Server-IP&gt;:8080 | Optional direkt zur App (Debug) |
+| http://&lt;Server-IP&gt;:8080 | Optional direkt zur App (Debug; Login auch per HTTP möglich) |
 
 Caddy nutzt standardmäßig ein **internes Zertifikat** (`tls internal`). Beim ersten Aufruf warnt der Browser – das ist normal im LAN. Zertifikat einmal bestätigen oder für dauerhaftes Vertrauen die Caddy-Root-CA auf den Clients importieren.
 
@@ -24,10 +24,11 @@ Beispiel mit AdGuard: **DNS rewrites**
 ## .env
 
 ```bash
-# Session-Cookies nur über HTTPS (Standard mit Caddy)
+# Session-Cookies: true = Secure nur bei HTTPS (auch hinter Proxy mit X-Forwarded-Proto).
+# HTTP auf :8080 funktioniert dann zum Debuggen; Produktiv weiter HTTPS nutzen.
 FEUERWEHR_SESSION_COOKIE_SECURE=true
 
-# Ohne Caddy / lokaler Java-Start auf :8080:
+# Komplett ohne Secure-Cookies (nur Entwicklung):
 # FEUERWEHR_SESSION_COOKIE_SECURE=false
 ```
 
