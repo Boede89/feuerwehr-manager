@@ -58,14 +58,28 @@
     }
   }
 
+  function postAction(url, returnPath) {
+    var form = document.createElement('form');
+    form.method = 'post';
+    form.action = url;
+    form.innerHTML =
+      '<input type="hidden" name="' + esc(csrfParam) + '" value="' + esc(csrfToken) + '"/>' +
+      '<input type="hidden" name="unit" value="' + esc(unitId) + '"/>' +
+      '<input type="hidden" name="returnUrl" value="' + esc(returnPath) + '"/>';
+    document.body.appendChild(form);
+    form.submit();
+  }
+
   function buildFooter(meta) {
     var footer = document.getElementById('modal-maengel-footer');
     if (!footer) {
       return;
     }
+    var returnPath = '/berichte?tab=maengel&year=' + filters.year;
     var html = '';
     html += '<a class="btn btn--outline" href="/berichte/maengelberichte/' + meta.reportId +
       '/pdf?unit=' + encodeURIComponent(unitId) + '">PDF herunterladen</a>';
+    html += '<button type="button" class="btn btn--outline" id="btn-maengel-modal-print">Drucken</button>';
     if (meta.canEdit === 'true') {
       html += '<a class="btn btn--primary" href="/berichte/maengelberichte/' + meta.reportId +
         '/bearbeiten?unit=' + encodeURIComponent(unitId) + '">Bearbeiten</a>';
@@ -73,6 +87,9 @@
     html += '<button type="button" class="btn btn--outline" id="btn-maengel-modal-close-footer">Schließen</button>';
     footer.innerHTML = html;
     document.getElementById('btn-maengel-modal-close-footer')?.addEventListener('click', closeModal);
+    document.getElementById('btn-maengel-modal-print')?.addEventListener('click', function () {
+      postAction('/berichte/maengelberichte/' + meta.reportId + '/drucken', returnPath);
+    });
   }
 
   function openModal(id) {

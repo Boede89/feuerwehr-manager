@@ -18,6 +18,11 @@
             th:text="${report.status.label()}">Entwurf</span>
       <a class="btn btn--outline"
          th:href="@{/berichte/anwesenheitslisten/{id}/pdf(id=${report.id},unit=${unitId})}">PDF herunterladen</a>
+      <th:block th:replace="~{fragments/berichte-print-form :: button(
+        @{/berichte/anwesenheitslisten/{id}/drucken(id=${report.id})},
+        ${unitId},
+        @{/berichte/anwesenheitslisten/{id}(id=${report.id}, unit=${unitId})}
+      )}"></th:block>
       <a class="btn btn--primary" th:if="${canEditReport}"
          th:href="@{/berichte/anwesenheitslisten/{id}/bearbeiten(id=${report.id},unit=${unitId})}">Bearbeiten</a>
       <form th:if="${canRelease}" method="post"

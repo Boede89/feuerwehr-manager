@@ -141,6 +141,7 @@
     var html = '';
     html += '<a class="btn btn--outline" href="/berichte/anwesenheitslisten/' + meta.reportId +
       '/pdf?unit=' + encodeURIComponent(unitId) + '">PDF herunterladen</a>';
+    html += '<button type="button" class="btn btn--outline" id="btn-attendance-modal-print">Drucken</button>';
     if (meta.canEdit === 'true') {
       html += '<a class="btn btn--primary" href="/berichte/anwesenheitslisten/' + meta.reportId +
         '/bearbeiten?unit=' + encodeURIComponent(unitId) + '">Bearbeiten</a>';
@@ -155,6 +156,9 @@
     footer.innerHTML = html;
 
     document.getElementById('btn-attendance-modal-close-footer')?.addEventListener('click', closeModal);
+    document.getElementById('btn-attendance-modal-print')?.addEventListener('click', function () {
+      postAction('/berichte/anwesenheitslisten/' + meta.reportId + '/drucken', returnPath);
+    });
     document.getElementById('btn-attendance-modal-release')?.addEventListener('click', function () {
       var ask = window.FwConfirm && window.FwConfirm.releaseReport
         ? window.FwConfirm.releaseReport('Anwesenheitsliste')

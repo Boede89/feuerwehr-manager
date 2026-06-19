@@ -23,6 +23,11 @@
       </form>
       <a class="btn btn--outline" th:if="${formMode == 'edit'}"
          th:href="@{/berichte/einsatzberichte/{id}/pdf(id=${report.id},unit=${unitId})}">PDF herunterladen</a>
+      <th:block th:if="${formMode == 'edit'}" th:replace="~{fragments/berichte-print-form :: button(
+        @{/berichte/einsatzberichte/{id}/drucken(id=${report.id})},
+        ${unitId},
+        @{/berichte/einsatzberichte/{id}/bearbeiten(id=${report.id}, unit=${unitId})}
+      )}"></th:block>
       <button type="submit" class="btn btn--primary" form="einsatzbericht-form">Speichern</button>
     </div>
   </div>

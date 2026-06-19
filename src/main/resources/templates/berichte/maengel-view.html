@@ -11,6 +11,11 @@
       <a class="btn btn--outline" th:href="@{/berichte(unit=${unitId}, tab='maengel')}">Zurück</a>
       <a class="btn btn--outline"
          th:href="@{/berichte/maengelberichte/{id}/pdf(id=${report.id},unit=${unitId})}">PDF herunterladen</a>
+      <th:block th:replace="~{fragments/berichte-print-form :: button(
+        @{/berichte/maengelberichte/{id}/drucken(id=${report.id})},
+        ${unitId},
+        @{/berichte/maengelberichte/{id}(id=${report.id}, unit=${unitId})}
+      )}"></th:block>
       <a class="btn btn--primary" th:if="${canEditReport}"
          th:href="@{/berichte/maengelberichte/{id}/bearbeiten(id=${report.id},unit=${unitId})}">Bearbeiten</a>
     </div>

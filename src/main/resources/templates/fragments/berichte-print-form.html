@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<form th:fragment="button(actionUrl, unitId, returnUrl)"
+      method="post"
+      th:action="${actionUrl}"
+      class="bar-form">
+  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+  <input type="hidden" name="unit" th:value="${unitId}"/>
+  <input type="hidden" name="returnUrl" th:value="${returnUrl}"/>
+  <button type="submit" class="btn btn--outline">Drucken</button>
+</form>
+</body>
+</html>

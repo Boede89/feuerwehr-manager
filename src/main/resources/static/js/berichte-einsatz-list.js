@@ -208,6 +208,7 @@
     var html = '';
     html += '<a class="btn btn--outline" href="/berichte/einsatzberichte/' + meta.reportId +
       '/pdf?unit=' + encodeURIComponent(unitId) + '">PDF herunterladen</a>';
+    html += '<button type="button" class="btn btn--outline" id="btn-modal-print">Drucken</button>';
     if (meta.canEdit === 'true') {
       html += '<a class="btn btn--primary" href="/berichte/einsatzberichte/' + meta.reportId +
         '/bearbeiten?unit=' + encodeURIComponent(unitId) + '">Bearbeiten</a>';
@@ -222,6 +223,9 @@
     footer.innerHTML = html;
 
     document.getElementById('btn-modal-close-footer')?.addEventListener('click', closeModal);
+    document.getElementById('btn-modal-print')?.addEventListener('click', function () {
+      postAction('/berichte/einsatzberichte/' + meta.reportId + '/drucken', returnPath);
+    });
     document.getElementById('btn-modal-release')?.addEventListener('click', function () {
       var ask = window.FwConfirm && window.FwConfirm.releaseEinsatzbericht
         ? window.FwConfirm.releaseEinsatzbericht()

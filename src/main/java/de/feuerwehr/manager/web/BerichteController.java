@@ -51,6 +51,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiFunction;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -825,6 +826,24 @@ public class BerichteController {
         }
     }
 
+    @PostMapping("/anwesenheitslisten/{id}/drucken")
+    public String printAnwesenheitsliste(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "returnUrl", required = false) String returnUrl,
+            @PathVariable long id,
+            RedirectAttributes redirectAttributes) {
+        return printBerichteDocument(
+                actor,
+                unitId,
+                returnUrl,
+                "anwesenheit",
+                redirectAttributes,
+                (unit, reportId) -> anwesenheitslistePdfService.renderPdf(unit, reportId),
+                id,
+                "Anwesenheitsliste");
+    }
+
     @GetMapping("/geraetewartmitteilungen/list")
     @ResponseBody
     public GeraetewartmitteilungListResponse listGeraetewartmitteilungen(
@@ -1017,6 +1036,24 @@ public class BerichteController {
         }
     }
 
+    @PostMapping("/geraetewartmitteilungen/{id}/drucken")
+    public String printGeraetewartmitteilung(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "returnUrl", required = false) String returnUrl,
+            @PathVariable long id,
+            RedirectAttributes redirectAttributes) {
+        return printBerichteDocument(
+                actor,
+                unitId,
+                returnUrl,
+                "geraetewart",
+                redirectAttributes,
+                (unit, reportId) -> geraetewartmitteilungPdfService.renderPdf(unit, reportId),
+                id,
+                "Gerätewartmitteilung");
+    }
+
     private void applyGeraetewartFormModel(
             Model model, long unitId, EquipmentMaintenanceReport report, GeraetewartmitteilungForm form, String formMode) {
         model.addAttribute("report", report);
@@ -1205,6 +1242,24 @@ public class BerichteController {
         }
     }
 
+    @PostMapping("/maengelberichte/{id}/drucken")
+    public String printMaengelbericht(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "returnUrl", required = false) String returnUrl,
+            @PathVariable long id,
+            RedirectAttributes redirectAttributes) {
+        return printBerichteDocument(
+                actor,
+                unitId,
+                returnUrl,
+                "maengel",
+                redirectAttributes,
+                (unit, reportId) -> maengelberichtPdfService.renderPdf(unit, reportId),
+                id,
+                "Mängelbericht");
+    }
+
     private void applyMaengelberichtFormModel(
             Model model, long unitId, DefectReport report, MaengelberichtForm form, String formMode) {
         model.addAttribute("report", report);
@@ -1292,6 +1347,24 @@ public class BerichteController {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return redirectBerichte(unitId, "einsatz");
         }
+    }
+
+    @PostMapping("/einsatzberichte/{id}/drucken")
+    public String printEinsatzbericht(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "returnUrl", required = false) String returnUrl,
+            @PathVariable long id,
+            RedirectAttributes redirectAttributes) {
+        return printBerichteDocument(
+                actor,
+                unitId,
+                returnUrl,
+                "einsatz",
+                redirectAttributes,
+                (unit, reportId) -> einsatzberichtPdfService.renderPdf(unit, reportId),
+                id,
+                "Einsatzbericht");
     }
 
     @GetMapping("/einsatzberichte/foreign-units")
@@ -1414,6 +1487,41 @@ public class BerichteController {
 
     private static String redirectBerichte(Long unitId, String tab) {
         return redirectBerichte(unitId, tab, null, null, null);
+    }
+
+    private String printBerichteDocument(
+            AppUserDetails actor,
+            Long unitId,
+            String returnUrl,
+            String defaultTab,
+            RedirectAttributes redirectAttributes,
+            BiFunction<Long, Long, byte[]> renderPdf,
+            long reportId,
+            String documentLabel) {
+        try {
+            Unit unit = resolveUnit(unitId, actor);
+            requireModuleEnabled(unit.getId());
+            requireBerichteRead(actor, unit.getId());
+            byte[] pdf = renderPdf.apply(unit.getId(), reportId);
+            CupsPrintService.CupsPrintResult printResult = unitPrintSettingsService.printPdf(unit.getId(), pdf);
+            if (printResult.success()) {
+                redirectAttributes.addFlashAttribute("message", documentLabel + " wurde zum Drucken gesendet.");
+            } else {
+                redirectAttributes.addFlashAttribute("error", "Druck: " + printResult.message());
+            }
+            String safeReturn = sanitizeReturnUrl(returnUrl);
+            if (safeReturn != null) {
+                return "redirect:" + buildBackUrl(safeReturn, unit.getId());
+            }
+            return redirectBerichte(unit.getId(), defaultTab);
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            String safeReturn = sanitizeReturnUrl(returnUrl);
+            if (safeReturn != null && unitId != null) {
+                return "redirect:" + buildBackUrl(safeReturn, unitId);
+            }
+            return redirectBerichte(unitId, defaultTab);
+        }
     }
 
     private static String sanitizeReturnUrl(String returnUrl) {
