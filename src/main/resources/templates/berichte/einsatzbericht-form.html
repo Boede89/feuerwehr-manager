@@ -21,13 +21,17 @@
         <input type="hidden" name="unit" th:value="${unitId}"/>
         <button type="submit" class="btn btn--danger">Löschen</button>
       </form>
-      <a class="btn btn--outline" th:if="${formMode == 'edit'}"
+      <a class="btn btn--outline" th:if="${formMode == 'edit' and report != null}"
          th:href="@{/berichte/einsatzberichte/{id}/pdf(id=${report.id},unit=${unitId})}">PDF herunterladen</a>
-      <th:block th:if="${formMode == 'edit'}" th:replace="~{fragments/berichte-print-form :: button(
-        @{/berichte/einsatzberichte/{id}/drucken(id=${report.id})},
-        ${unitId},
-        @{/berichte/einsatzberichte/{id}/bearbeiten(id=${report.id}, unit=${unitId})}
-      )}"></th:block>
+      <form th:if="${formMode == 'edit' and report != null}" method="post"
+            th:action="@{/berichte/einsatzberichte/{id}/drucken(id=${report.id})}"
+            class="bar-form">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <input type="hidden" name="returnUrl"
+               th:value="@{/berichte/einsatzberichte/{id}/bearbeiten(id=${report.id}, unit=${unitId})}"/>
+        <button type="submit" class="btn btn--outline">Drucken</button>
+      </form>
       <button type="submit" class="btn btn--primary" form="einsatzbericht-form">Speichern</button>
     </div>
   </div>
@@ -38,7 +42,7 @@
   <div class="card">
     <div class="card__body card__body--flush">
       <form id="einsatzbericht-form" method="post"
-            th:action="${formMode == 'edit'} ? @{/berichte/einsatzberichte/{id}(id=${report.id},unit=${unitId})} : @{/berichte/einsatzberichte(unit=${unitId})}">
+            th:action="${formMode == 'edit' and report != null} ? @{/berichte/einsatzberichte/{id}(id=${report.id},unit=${unitId})} : @{/berichte/einsatzberichte(unit=${unitId})}">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <th:block th:replace="~{fragments/berichte-einsatz-form :: form}"></th:block>
         <div class="incident-edit-comment"

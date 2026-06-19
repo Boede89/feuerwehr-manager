@@ -23,13 +23,17 @@
         <input type="hidden" name="unit" th:value="${unitId}"/>
         <button type="submit" class="btn btn--danger">Löschen</button>
       </form>
-      <a class="btn btn--outline" th:if="${formMode == 'edit'}"
+      <a class="btn btn--outline" th:if="${formMode == 'edit' and report != null}"
          th:href="@{/berichte/anwesenheitslisten/{id}/pdf(id=${report.id},unit=${unitId})}">PDF herunterladen</a>
-      <th:block th:if="${formMode == 'edit'}" th:replace="~{fragments/berichte-print-form :: button(
-        @{/berichte/anwesenheitslisten/{id}/drucken(id=${report.id})},
-        ${unitId},
-        @{/berichte/anwesenheitslisten/{id}/bearbeiten(id=${report.id}, unit=${unitId})}
-      )}"></th:block>
+      <form th:if="${formMode == 'edit' and report != null}" method="post"
+            th:action="@{/berichte/anwesenheitslisten/{id}/drucken(id=${report.id})}"
+            class="bar-form">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <input type="hidden" name="returnUrl"
+               th:value="@{/berichte/anwesenheitslisten/{id}/bearbeiten(id=${report.id}, unit=${unitId})}"/>
+        <button type="submit" class="btn btn--outline">Drucken</button>
+      </form>
       <button type="submit" class="btn btn--primary" form="anwesenheitsliste-form">Speichern</button>
     </div>
   </div>
@@ -40,7 +44,7 @@
   <div class="card">
     <div class="card__body card__body--flush">
       <form id="anwesenheitsliste-form" method="post"
-            th:action="${formMode == 'edit'} ? @{/berichte/anwesenheitslisten/{id}(id=${report.id},unit=${unitId})} : @{/berichte/anwesenheitslisten(unit=${unitId})}">
+            th:action="${formMode == 'edit' and report != null} ? @{/berichte/anwesenheitslisten/{id}(id=${report.id},unit=${unitId})} : @{/berichte/anwesenheitslisten(unit=${unitId})}">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <th:block th:replace="~{fragments/berichte-anwesenheit-form :: form}"></th:block>
       </form>
