@@ -80,6 +80,29 @@
     });
   }
 
+  function listReturnPath() {
+    var path = '/berichte?tab=einsatz&year=' + filters.year;
+    if (filters.stichwort) {
+      path += '&stichwort=' + encodeURIComponent(filters.stichwort);
+    }
+    if (filters.status) {
+      path += '&status=' + encodeURIComponent(filters.status);
+    }
+    return path;
+  }
+
+  function tablePdfPrintActions(reportId) {
+    var csrfParam = root.dataset.csrfParam || '_csrf';
+    var base = '/berichte/einsatzberichte/' + reportId;
+    return '<a class="btn btn--outline btn--sm" href="' + base +
+      '/pdf?unit=' + encodeURIComponent(unitId) + '">PDF herunterladen</a>' +
+      '<form method="post" action="' + base + '/drucken" class="table-inline-form">' +
+      '<input type="hidden" name="' + esc(csrfParam) + '" value="' + esc(csrfToken) + '"/>' +
+      '<input type="hidden" name="unit" value="' + esc(unitId) + '"/>' +
+      '<input type="hidden" name="returnUrl" value="' + esc(listReturnPath()) + '"/>' +
+      '<button type="submit" class="btn btn--outline btn--sm">Drucken</button></form>';
+  }
+
   function renderTable() {
     var wrap = document.getElementById('incident-table-wrap');
     if (!wrap) {
@@ -106,6 +129,7 @@
           '<td><span class="text-muted text-sm">' + (r.diveraSource ? 'DIVERA' : 'Manuell') + '</span></td>' +
           '<td><div class="btn-group">' +
           '<button type="button" class="btn btn--outline btn--sm" data-action="view" data-id="' + r.id + '">Anzeigen</button>' +
+          tablePdfPrintActions(r.id) +
           (canEditItem(r) ? '<a class="btn btn--outline btn--sm" href="/berichte/einsatzberichte/' + r.id +
             '/bearbeiten?unit=' + encodeURIComponent(unitId) + '">Bearbeiten</a>' : '') +
           (canDeleteItem(r) ?
@@ -204,7 +228,7 @@
     if (!footer) {
       return;
     }
-    var returnPath = '/berichte?tab=einsatz&year=' + filters.year;
+    var returnPath = listReturnPath();
     var html = '';
     html += '<a class="btn btn--outline" href="/berichte/einsatzberichte/' + meta.reportId +
       '/pdf?unit=' + encodeURIComponent(unitId) + '">PDF herunterladen</a>';

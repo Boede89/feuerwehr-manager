@@ -42,6 +42,21 @@
     return canEditItem(item);
   }
 
+  function listReturnPath() {
+    return '/berichte?tab=maengel&year=' + filters.year;
+  }
+
+  function tablePdfPrintActions(reportId) {
+    var base = '/berichte/maengelberichte/' + reportId;
+    return '<a class="btn btn--outline btn--sm" href="' + base +
+      '/pdf?unit=' + encodeURIComponent(unitId) + '">PDF herunterladen</a>' +
+      '<form method="post" action="' + base + '/drucken" class="table-inline-form">' +
+      '<input type="hidden" name="' + esc(csrfParam) + '" value="' + esc(csrfToken) + '"/>' +
+      '<input type="hidden" name="unit" value="' + esc(unitId) + '"/>' +
+      '<input type="hidden" name="returnUrl" value="' + esc(listReturnPath()) + '"/>' +
+      '<button type="submit" class="btn btn--outline btn--sm">Drucken</button></form>';
+  }
+
   function closeModal() {
     var modal = document.getElementById('modal-maengel');
     if (modal) {
@@ -75,7 +90,7 @@
     if (!footer) {
       return;
     }
-    var returnPath = '/berichte?tab=maengel&year=' + filters.year;
+    var returnPath = listReturnPath();
     var html = '';
     html += '<a class="btn btn--outline" href="/berichte/maengelberichte/' + meta.reportId +
       '/pdf?unit=' + encodeURIComponent(unitId) + '">PDF herunterladen</a>';
@@ -151,6 +166,7 @@
           '<td>' + esc(r.recordedByDisplay || '—') + '</td>' +
           '<td><div class="btn-group">' +
           '<button type="button" class="btn btn--outline btn--sm" data-action="view" data-id="' + r.id + '">Anzeigen</button>' +
+          tablePdfPrintActions(r.id) +
           (canEditItem(r) ? '<a class="btn btn--outline btn--sm" href="/berichte/maengelberichte/' + r.id +
             '/bearbeiten?unit=' + encodeURIComponent(unitId) + '">Bearbeiten</a>' : '') +
           (canDeleteItem(r) ?
