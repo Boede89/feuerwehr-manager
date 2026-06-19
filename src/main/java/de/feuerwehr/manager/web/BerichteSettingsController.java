@@ -70,6 +70,8 @@ public class BerichteSettingsController {
             @RequestParam long unit,
             @RequestParam(name = "importIncidentDataFromDivera", defaultValue = "false") boolean importIncidentDataFromDivera,
             @RequestParam(name = "importPersonnelFromDivera", defaultValue = "false") boolean importPersonnelFromDivera,
+            @RequestParam(name = "autoAssignDiveraPersonnelToAnwesenheit", defaultValue = "false")
+                    boolean autoAssignDiveraPersonnelToAnwesenheit,
             @RequestParam(name = "allowForeignUnitPersonnel", defaultValue = "false") boolean allowForeignUnitPersonnel,
             @RequestParam(name = "personnelStatusIds", required = false) String[] personnelStatusIds,
             @RequestParam(name = "einsatzReleaseCreateGeraetewart", defaultValue = "false") boolean einsatzReleaseCreateGeraetewart,
@@ -85,6 +87,7 @@ public class BerichteSettingsController {
                     unit,
                     importIncidentDataFromDivera,
                     importPersonnelFromDivera,
+                    autoAssignDiveraPersonnelToAnwesenheit,
                     allowForeignUnitPersonnel,
                     statusIds,
                     einsatzReleaseCreateGeraetewart,

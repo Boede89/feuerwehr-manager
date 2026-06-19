@@ -1522,6 +1522,8 @@ public class EinsatzberichtService {
                     details.answeredHits() != null ? details.answeredHits().size() : 0);
             return;
         }
+        boolean autoAnwesenheit = settings.isAutoAssignDiveraPersonnelToAnwesenheit();
+        IncidentReportVehicle anwesenheitVehicle = autoAnwesenheit ? resolveBeteiligtVehicle(report) : null;
         boolean testData = testModeService.isEnabled();
         Map<Long, String> displayNameByUcr = displayNamesByUcr(details);
         Set<Long> alreadyPresentPersons = incidentReportPersonnelRepository.findByIncidentReportId(report.getId()).stream()
@@ -1551,7 +1553,7 @@ public class EinsatzberichtService {
                 IncidentReportPersonnel row = new IncidentReportPersonnel();
                 row.setIncidentReport(report);
                 row.setPerson(person);
-                row.setIncidentReportVehicle(null);
+                row.setIncidentReportVehicle(anwesenheitVehicle);
                 row.setDisplayName(person.anwesenheitDisplayName());
                 row.setDiveraUcrId(ucr);
                 row.setSource(IncidentPersonnelSource.DIVERA);
@@ -1567,7 +1569,7 @@ public class EinsatzberichtService {
             IncidentReportPersonnel row = new IncidentReportPersonnel();
             row.setIncidentReport(report);
             row.setPerson(null);
-            row.setIncidentReportVehicle(null);
+            row.setIncidentReportVehicle(anwesenheitVehicle);
             row.setDiveraUcrId(ucr);
             row.setDisplayName(displayNameByUcr.getOrDefault(ucrId, IncidentPersonnelRefs.displayNameForUcr(ucrId)));
             row.setSource(IncidentPersonnelSource.DIVERA);
@@ -1578,14 +1580,29 @@ public class EinsatzberichtService {
         report.setStrengthCrew(assignedPersons.size() + alreadyPresentUcrs.size());
         if (added > 0 || unmatched > 0) {
             log.info(
-                    "[Divera→Personal] unit={} alarm={} report={} ucr={} neu={} ohneZuordnung={}",
+                    "[Divera→Personal] unit={} alarm={} report={} ucr={} neu={} ohneZuordnung={} autoAnwesenheit={}",
                     unitId,
                     details.alarmId(),
                     report.getId(),
                     targetUcrIds.size(),
                     added,
-                    unmatched);
+                    unmatched,
+                    autoAnwesenheit);
         }
+    }
+
+    private IncidentReportVehicle resolveBeteiligtVehicle(IncidentReport report) {
+        return incidentReportVehicleRepository.findByIncidentReportId(report.getId()).stream()
+                .filter(row -> row.getVehicle() == null
+                        && IncidentCrewSupport.BETEILIGT_VEHICLE_NAME.equals(row.getVehicleName()))
+                .findFirst()
+                .orElseGet(() -> {
+                    IncidentReportVehicle row = new IncidentReportVehicle();
+                    row.setIncidentReport(report);
+                    row.setVehicle(null);
+                    row.setVehicleName(IncidentCrewSupport.BETEILIGT_VEHICLE_NAME);
+                    return incidentReportVehicleRepository.save(row);
+                });
     }
 
     private Set<Long> resolveTargetUcrIds(

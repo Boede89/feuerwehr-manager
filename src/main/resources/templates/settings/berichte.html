@@ -27,7 +27,7 @@
     <div class="card__body">
       <p class="hint" style="margin-top:0;">
         Status-Bezeichnungen werden unter Admin → Schnittstellen → DIVERA 24/7 → Status-ID gepflegt.
-        Nur Personal mit den ausgewählten Rückmeldungen wird später automatisch in den Bericht übernommen.
+        Nur Personal mit den ausgewählten Rückmeldungen wird bei aktivierter Abruf-Option in den Bericht geladen.
       </p>
       <form method="post" th:action="@{/settings/berichte/einsatz}" class="berichte-settings-form">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
@@ -43,10 +43,24 @@
             </span>
           </label>
           <label class="toggle-row">
-            <span class="toggle-row__label">Personal aus Divera übernehmen</span>
+            <span class="toggle-row__label">
+              Personal aus Divera abrufen
+              <span class="toggle-row__hint">Lädt Rückmeldungen aus DIVERA in den DIVERA-Pool des Einsatzberichts (links unter Personal).</span>
+            </span>
             <span class="toggle-switch">
               <input type="checkbox" name="importPersonnelFromDivera" value="true"
                      th:checked="${settings.importPersonnelFromDivera}"/>
+              <span class="toggle-switch__track"></span>
+            </span>
+          </label>
+          <label class="toggle-row">
+            <span class="toggle-row__label">
+              Personal aus Divera automatisch in Anwesenheit übernehmen
+              <span class="toggle-row__hint">Übernimmt abgerufenes Personal direkt in „Am Einsatz beteiligt“ (Anwesenheitsliste im Bericht). Erfordert „Personal aus Divera abrufen“.</span>
+            </span>
+            <span class="toggle-switch">
+              <input type="checkbox" name="autoAssignDiveraPersonnelToAnwesenheit" value="true"
+                     th:checked="${settings.autoAssignDiveraPersonnelToAnwesenheit}"/>
               <span class="toggle-switch__track"></span>
             </span>
           </label>

@@ -37,6 +37,7 @@ public class BerichteSettingsService {
             long unitId,
             boolean importIncidentDataFromDivera,
             boolean importPersonnelFromDivera,
+            boolean autoAssignDiveraPersonnelToAnwesenheit,
             boolean allowForeignUnitPersonnel,
             List<String> personnelStatusIds,
             boolean releaseCreateGeraetewart,
@@ -47,6 +48,7 @@ public class BerichteSettingsService {
                 .orElseGet(() -> createDefaults(unitId));
         settings.setImportIncidentDataFromDivera(importIncidentDataFromDivera);
         settings.setImportPersonnelFromDivera(importPersonnelFromDivera);
+        settings.setAutoAssignDiveraPersonnelToAnwesenheit(autoAssignDiveraPersonnelToAnwesenheit);
         settings.setAllowForeignUnitPersonnel(allowForeignUnitPersonnel);
         settings.setEinsatzPersonnelStatusIds(writeStatusIds(personnelStatusIds, unitId));
         settings.setEinsatzReleaseCreateGeraetewart(releaseCreateGeraetewart);
@@ -114,6 +116,7 @@ public class BerichteSettingsService {
         settings.setUnit(unit);
         settings.setImportIncidentDataFromDivera(false);
         settings.setImportPersonnelFromDivera(false);
+        settings.setAutoAssignDiveraPersonnelToAnwesenheit(false);
         settings.setAllowForeignUnitPersonnel(false);
         settings.setEinsatzPersonnelStatusIds("[]");
         settings.setEinsatzReleaseCreateGeraetewart(false);
