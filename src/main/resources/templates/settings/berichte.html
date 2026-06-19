@@ -48,19 +48,22 @@
               <span class="toggle-row__hint">Lädt Rückmeldungen aus DIVERA in den DIVERA-Pool des Einsatzberichts (links unter Personal).</span>
             </span>
             <span class="toggle-switch">
-              <input type="checkbox" name="importPersonnelFromDivera" value="true"
+              <input type="checkbox" id="importPersonnelFromDivera" name="importPersonnelFromDivera" value="true"
                      th:checked="${settings.importPersonnelFromDivera}"/>
               <span class="toggle-switch__track"></span>
             </span>
           </label>
-          <label class="toggle-row">
+          <label class="toggle-row" id="autoAssignDiveraRow"
+                 th:classappend="${!settings.importPersonnelFromDivera ? ' toggle-row--disabled' : ''}">
             <span class="toggle-row__label">
               Personal aus Divera automatisch in Anwesenheit übernehmen
-              <span class="toggle-row__hint">Übernimmt abgerufenes Personal direkt in „Am Einsatz beteiligt“ (Anwesenheitsliste im Bericht). Erfordert „Personal aus Divera abrufen“.</span>
+              <span class="toggle-row__hint">Übernimmt abgerufenes Personal direkt in „Am Einsatz beteiligt“ (Anwesenheitsliste im Bericht). Nur verfügbar, wenn „Personal aus Divera abrufen“ aktiv ist.</span>
             </span>
             <span class="toggle-switch">
-              <input type="checkbox" name="autoAssignDiveraPersonnelToAnwesenheit" value="true"
-                     th:checked="${settings.autoAssignDiveraPersonnelToAnwesenheit}"/>
+              <input type="checkbox" id="autoAssignDiveraPersonnelToAnwesenheit"
+                     name="autoAssignDiveraPersonnelToAnwesenheit" value="true"
+                     th:checked="${settings.autoAssignDiveraPersonnelToAnwesenheit and settings.importPersonnelFromDivera}"
+                     th:disabled="${!settings.importPersonnelFromDivera}"/>
               <span class="toggle-switch__track"></span>
             </span>
           </label>
@@ -130,6 +133,7 @@
           <button type="submit" class="btn btn--primary">Speichern</button>
         </div>
       </form>
+      <script th:src="@{/js/berichte-settings.js}" defer></script>
     </div>
   </div>
 

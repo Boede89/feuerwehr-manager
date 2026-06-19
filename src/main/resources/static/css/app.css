@@ -5298,6 +5298,14 @@ span.required { color: var(--error); }
   line-height: 1.35;
 }
 
+.berichte-settings-page .toggle-row--disabled {
+  opacity: 0.55;
+}
+
+.berichte-settings-page .toggle-row--disabled .toggle-switch {
+  pointer-events: none;
+}
+
 .berichte-settings-page .berichte-status-picker {
   display: flex;
   flex-direction: column;
