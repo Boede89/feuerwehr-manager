@@ -2699,6 +2699,30 @@ body.modal-open {
   flex-wrap: wrap;
 }
 
+.confirm-dialog__checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.confirm-dialog__checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  font-size: var(--fs-sm);
+  color: var(--text);
+  line-height: 1.45;
+}
+
+.confirm-dialog__checkbox input[type="checkbox"] {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
 .text-nowrap {
   white-space: nowrap;
 }

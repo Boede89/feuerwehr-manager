@@ -182,7 +182,7 @@
     }
   }
 
-  function postAction(url, returnPath) {
+  function postAction(url, returnPath, extraFields) {
     var form = document.createElement('form');
     form.method = 'post';
     form.action = url;
@@ -190,6 +190,11 @@
       '<input type="hidden" name="' + esc(root.dataset.csrfParam || '_csrf') + '" value="' + esc(csrfToken) + '"/>' +
       '<input type="hidden" name="unit" value="' + esc(unitId) + '"/>' +
       '<input type="hidden" name="returnUrl" value="' + esc(returnPath) + '"/>';
+    Object.keys(extraFields || {}).forEach(function (key) {
+      if (extraFields[key]) {
+        form.innerHTML += '<input type="hidden" name="' + esc(key) + '" value="true"/>';
+      }
+    });
     document.body.appendChild(form);
     form.submit();
   }
@@ -218,13 +223,22 @@
 
     document.getElementById('btn-modal-close-footer')?.addEventListener('click', closeModal);
     document.getElementById('btn-modal-release')?.addEventListener('click', function () {
-      var ask = window.FwConfirm && window.FwConfirm.releaseReport
-        ? window.FwConfirm.releaseReport('Einsatzbericht')
+      var ask = window.FwConfirm && window.FwConfirm.releaseEinsatzbericht
+        ? window.FwConfirm.releaseEinsatzbericht()
         : Promise.resolve(window.confirm('Einsatzbericht wirklich freigeben?'));
-      ask.then(function (ok) {
-        if (ok) {
-          postAction('/berichte/einsatzberichte/' + meta.reportId + '/freigeben', returnPath);
+      ask.then(function (result) {
+        var ok = result === true || (result && result.ok);
+        if (!ok) {
+          return;
         }
+        var extras = {};
+        if (result && result.createGeraetewart) {
+          extras.createGeraetewart = true;
+        }
+        if (result && result.printReport) {
+          extras.printReport = true;
+        }
+        postAction('/berichte/einsatzberichte/' + meta.reportId + '/freigeben', returnPath, extras);
       });
     });
     document.getElementById('btn-modal-archive')?.addEventListener('click', function () {

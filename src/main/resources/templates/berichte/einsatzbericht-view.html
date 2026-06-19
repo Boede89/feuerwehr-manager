@@ -21,11 +21,7 @@
       <form th:if="${canRelease}" method="post"
             th:action="@{/berichte/einsatzberichte/{id}/freigeben(id=${report.id})}"
             class="bar-form"
-            data-confirm
-            data-confirm-title="Einsatzbericht freigeben?"
-            data-confirm-message="Nach der Freigabe ist der Bericht für die normale Bearbeitung gesperrt. Administratoren können weiterhin Änderungen vornehmen."
-            data-confirm-label="Freigeben"
-            data-confirm-variant="success">
+            data-confirm-einsatz-release>
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="unit" th:value="${unitId}"/>
         <input type="hidden" name="returnUrl" th:value="${einsatzListPath != null ? einsatzListPath : '/berichte?tab=einsatz'}"/>

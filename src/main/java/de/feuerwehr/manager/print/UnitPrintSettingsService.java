@@ -97,6 +97,30 @@ public class UnitPrintSettingsService {
                 settings.isCupsUsePostscript());
     }
 
+    @Transactional(readOnly = true)
+    public CupsPrintService.CupsPrintResult printPdf(long unitId, byte[] pdf) {
+        UnitPrintSettings settings;
+        try {
+            settings = requireSettings(unitId);
+        } catch (IllegalArgumentException e) {
+            return CupsPrintService.CupsPrintResult.failure(
+                    "Keine Druckeinstellungen konfiguriert. Bitte unter Admin → Einheit → Schnittstellen einrichten.");
+        }
+        if (settings.getPrintMode() != PrintMode.CUPS) {
+            return CupsPrintService.CupsPrintResult.failure(
+                    "Automatischer Druck erfordert den Modus „CUPS-Drucker“ unter Admin → Einheit → Schnittstellen.");
+        }
+        String printerName = settings.getCupsPrinterName();
+        if (printerName == null || printerName.isBlank()) {
+            return CupsPrintService.CupsPrintResult.failure("Kein CUPS-Drucker ausgewählt.");
+        }
+        return cupsPrintService.printPdf(
+                pdf,
+                printerName,
+                resolveCupsServer(settings),
+                settings.isCupsUsePostscript());
+    }
+
     public String resolveCupsServer(UnitPrintSettings settings) {
         if (settings.getCupsServer() != null && !settings.getCupsServer().isBlank()) {
             return settings.getCupsServer().trim();

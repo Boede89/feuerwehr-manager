@@ -38,6 +38,8 @@ import de.feuerwehr.manager.berichte.VehicleEquipmentView;
 import de.feuerwehr.manager.pdf.PdfDownloadResponse;
 import de.feuerwehr.manager.divera.DiveraEinsatzberichtSyncService;
 import de.feuerwehr.manager.berichte.KraefteFahrzeugeState;
+import de.feuerwehr.manager.print.CupsPrintService;
+import de.feuerwehr.manager.print.UnitPrintSettingsService;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.UserPermissionService;
@@ -47,6 +49,7 @@ import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -85,6 +88,7 @@ public class BerichteController {
     private final GeraetewartmitteilungPdfService geraetewartmitteilungPdfService;
     private final MaengelberichtService maengelberichtService;
     private final MaengelberichtPdfService maengelberichtPdfService;
+    private final UnitPrintSettingsService unitPrintSettingsService;
 
     @GetMapping
     public String index(
@@ -367,10 +371,66 @@ public class BerichteController {
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
             @RequestParam(name = "returnUrl", required = false) String returnUrl,
+            @RequestParam(name = "createGeraetewart", defaultValue = "false") boolean createGeraetewart,
+            @RequestParam(name = "printReport", defaultValue = "false") boolean printReport,
             @PathVariable long id,
             RedirectAttributes redirectAttributes) {
-        return changeEinsatzberichtStatus(
-                actor, unitId, id, IncidentReportStatus.FREIGEGEBEN, returnUrl, redirectAttributes, "freigeben");
+        try {
+            Unit unit = resolveUnit(unitId, actor);
+            requireModuleEnabled(unit.getId());
+            requireBerichteRead(actor, unit.getId());
+            boolean canApprove = canApprove(actor, unit.getId());
+            einsatzberichtService.transitionStatus(
+                    unit.getId(), id, IncidentReportStatus.FREIGEGEBEN, actor, canApprove);
+
+            List<String> followUpMessages = new ArrayList<>();
+            if (createGeraetewart) {
+                try {
+                    geraetewartmitteilungService.createFromIncidentReport(unit.getId(), id, actor);
+                    followUpMessages.add("Gerätewartmitteilung wurde erstellt.");
+                } catch (IllegalArgumentException e) {
+                    followUpMessages.add("Gerätewartmitteilung: " + e.getMessage());
+                }
+            }
+            if (printReport) {
+                try {
+                    IncidentReport report = einsatzberichtService.requireReport(unit.getId(), id);
+                    byte[] pdf = einsatzberichtPdfService.renderPdf(unit.getId(), id);
+                    CupsPrintService.CupsPrintResult printResult =
+                            unitPrintSettingsService.printPdf(unit.getId(), pdf);
+                    if (printResult.success()) {
+                        followUpMessages.add("Einsatzbericht wurde zum Drucken gesendet.");
+                    } else {
+                        followUpMessages.add("Druck: " + printResult.message());
+                    }
+                    log.info(
+                            "Einsatzbericht-Druck nach Freigabe {} ({}): {}",
+                            id,
+                            einsatzberichtPdfService.suggestedFilename(report),
+                            printResult.success() ? "OK" : printResult.message());
+                } catch (IllegalArgumentException e) {
+                    followUpMessages.add("Druck: " + e.getMessage());
+                }
+            }
+
+            String message = "Einsatzbericht wurde freigeben.";
+            if (!followUpMessages.isEmpty()) {
+                message += " " + String.join(" ", followUpMessages);
+            }
+            redirectAttributes.addFlashAttribute("message", message);
+            String safeReturn = sanitizeReturnUrl(returnUrl);
+            if (safeReturn != null) {
+                return "redirect:" + buildBackUrl(safeReturn, unit.getId());
+            }
+            return redirectBerichte(unit.getId(), "einsatz", null, null, null);
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            String safeReturn = sanitizeReturnUrl(returnUrl);
+            if (safeReturn != null && unitId != null) {
+                return "redirect:" + buildBackUrl(safeReturn, unitId);
+            }
+            return redirectBerichte(unitId, "einsatz", null, null, null);
+        }
     }
 
     @PostMapping("/einsatzberichte/{id}/archivieren")

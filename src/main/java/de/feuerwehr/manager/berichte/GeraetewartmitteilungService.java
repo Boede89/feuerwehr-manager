@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class GeraetewartmitteilungService {
 
     private final EquipmentMaintenanceReportRepository reportRepository;
+    private final IncidentReportEquipmentRepository incidentReportEquipmentRepository;
     private final UnitRepository unitRepository;
     private final UserRepository userRepository;
     private final PersonRepository personRepository;
@@ -112,6 +113,71 @@ public class GeraetewartmitteilungService {
         report.setTestData(testModeService.isEnabled());
         applyCreator(report, actor);
         return reportRepository.save(report);
+    }
+
+    @Transactional
+    public EquipmentMaintenanceReport createFromIncidentReport(
+            long unitId, long incidentReportId, AppUserDetails actor) {
+        IncidentReport incident = einsatzberichtService.requireReport(unitId, incidentReportId);
+        GeraetewartmitteilungForm form = buildFormFromIncidentReport(unitId, incidentReportId, incident);
+        return create(unitId, form, actor);
+    }
+
+    @Transactional(readOnly = true)
+    public GeraetewartmitteilungForm buildFormFromIncidentReport(
+            long unitId, long incidentReportId, IncidentReport incident) {
+        KraefteFahrzeugeState state = einsatzberichtService.buildKraefteFahrzeugeState(unitId, incidentReportId);
+        Map<Long, List<Long>> equipmentByVehicleId = loadEquipmentByVehicleId(incidentReportId);
+        Map<Long, KraefteFahrzeugeState.KraefteVehicleView> vehicleViewById = new LinkedHashMap<>();
+        for (KraefteFahrzeugeState.KraefteVehicleView vehicle : state.vehicles()) {
+            vehicleViewById.put(vehicle.vehicleId(), vehicle);
+        }
+
+        Set<Long> vehicleIds = new LinkedHashSet<>();
+        for (KraefteFahrzeugeState.KraefteVehicleView vehicle : state.involvedVehicles()) {
+            vehicleIds.add(vehicle.vehicleId());
+        }
+        vehicleIds.addAll(equipmentByVehicleId.keySet());
+        if (vehicleIds.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Keine Fahrzeuge im Einsatzbericht – Gerätewartmitteilung kann nicht erstellt werden.");
+        }
+
+        List<GwmVehicleData> gwmVehicles = new ArrayList<>();
+        String equipmentDamage = incident.getEquipmentDamage();
+        boolean damageAssigned = false;
+        for (Long vehicleId : vehicleIds) {
+            KraefteFahrzeugeState.KraefteVehicleView view = vehicleViewById.get(vehicleId);
+            List<Long> equipmentIds = equipmentByVehicleId.getOrDefault(vehicleId, List.of());
+            String defectiveFreitext = null;
+            if (!damageAssigned && equipmentDamage != null && !equipmentDamage.isBlank()) {
+                defectiveFreitext = equipmentDamage.trim();
+                damageAssigned = true;
+            }
+            gwmVehicles.add(new GwmVehicleData(
+                    vehicleId,
+                    view != null ? resolvePersonRef(view.maschinistPersonId()) : null,
+                    view != null ? resolvePersonRef(view.einheitsfuehrerPersonId()) : null,
+                    equipmentIds,
+                    List.of(),
+                    Map.of(),
+                    defectiveFreitext,
+                    null));
+        }
+
+        GeraetewartmitteilungForm form = new GeraetewartmitteilungForm();
+        form.setTyp(GeraetewartTyp.EINSATZ.name());
+        form.setEventArt(mapEventArt(incident).name());
+        form.setEventDate(incident.getIncidentDate() != null ? incident.getIncidentDate() : LocalDate.now());
+        form.setReadiness(GeraetewartReadiness.HERGESTELLT.name());
+        if (incident.getCommanderPerson() != null) {
+            form.setLeaderPersonId(incident.getCommanderPerson().getId());
+        } else if (incident.getIncidentCommander() != null && !incident.getIncidentCommander().isBlank()) {
+            form.setLeaderName(incident.getIncidentCommander().trim());
+        }
+        form.setVehiclesDataJson(GwmVehicleDataSupport.serialize(gwmVehicles, objectMapper));
+        form.setDeployedEquipmentJson(GwmVehicleDataSupport.toDeployedEquipmentJson(gwmVehicles, objectMapper));
+        return form;
     }
 
     @Transactional
@@ -348,6 +414,42 @@ public class GeraetewartmitteilungService {
 
     private boolean includeTestReports() {
         return testModeService.isEnabled();
+    }
+
+    private Map<Long, List<Long>> loadEquipmentByVehicleId(long incidentReportId) {
+        Map<Long, List<Long>> equipmentByVehicleId = new LinkedHashMap<>();
+        for (IncidentReportEquipment row : incidentReportEquipmentRepository.findByIncidentReportId(incidentReportId)) {
+            if (row.getVehicle() == null || row.getVehicleEquipment() == null) {
+                continue;
+            }
+            equipmentByVehicleId
+                    .computeIfAbsent(row.getVehicle().getId(), ignored -> new ArrayList<>())
+                    .add(row.getVehicleEquipment().getId());
+        }
+        return equipmentByVehicleId;
+    }
+
+    private static Long resolvePersonRef(Long refId) {
+        if (refId == null || IncidentPersonnelRefs.isUcrRef(refId)) {
+            return null;
+        }
+        return refId;
+    }
+
+    private static GeraetewartEventArt mapEventArt(IncidentReport incident) {
+        String text = ((incident.getStichwort() != null ? incident.getStichwort() : "") + " "
+                        + (incident.getIncidentTypeLabel() != null ? incident.getIncidentTypeLabel() : ""))
+                .toUpperCase();
+        if (text.contains("CBRN")) {
+            return GeraetewartEventArt.CBRN;
+        }
+        if (text.contains("TECH") || text.contains("THL")) {
+            return GeraetewartEventArt.TECH_HILFE;
+        }
+        if (text.contains("BRAND")) {
+            return GeraetewartEventArt.BRANDEINSATZ;
+        }
+        return GeraetewartEventArt.SONSTIGES;
     }
 
     public record GeraetewartPdfVehicleRow(

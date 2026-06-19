@@ -4,9 +4,11 @@
   var modalEl = null;
   var titleEl = null;
   var messageEl = null;
+  var checkboxesEl = null;
   var confirmBtn = null;
   var cancelBtn = null;
   var resolveFn = null;
+  var activeCheckboxes = [];
 
   function ensureModal() {
     if (modalEl) {
@@ -27,6 +29,7 @@
       '  </div>' +
       '  <div class="modal__body">' +
       '    <p id="fw-confirm-dialog-message" class="confirm-dialog__message"></p>' +
+      '    <div id="fw-confirm-dialog-checkboxes" class="confirm-dialog__checkboxes" hidden></div>' +
       '  </div>' +
       '  <div class="modal__footer confirm-dialog__footer">' +
       '    <button type="button" class="btn btn--outline" id="fw-confirm-dialog-cancel">Abbrechen</button>' +
@@ -37,6 +40,7 @@
 
     titleEl = modalEl.querySelector('#fw-confirm-dialog-title');
     messageEl = modalEl.querySelector('#fw-confirm-dialog-message');
+    checkboxesEl = modalEl.querySelector('#fw-confirm-dialog-checkboxes');
     confirmBtn = modalEl.querySelector('#fw-confirm-dialog-confirm');
     cancelBtn = modalEl.querySelector('#fw-confirm-dialog-cancel');
 
@@ -60,6 +64,40 @@
     return modalEl;
   }
 
+  function renderCheckboxes(checkboxes) {
+    if (!checkboxesEl) {
+      return;
+    }
+    activeCheckboxes = checkboxes || [];
+    if (!activeCheckboxes.length) {
+      checkboxesEl.hidden = true;
+      checkboxesEl.innerHTML = '';
+      return;
+    }
+    var html = '';
+    activeCheckboxes.forEach(function (cb) {
+      var id = cb.id || cb.name;
+      var checked = cb.checked ? ' checked' : '';
+      html +=
+        '<label class="confirm-dialog__checkbox" for="' + id + '">' +
+        '<input type="checkbox" id="' + id + '" name="' + (cb.name || cb.id) + '"' + checked + '/>' +
+        '<span>' + (cb.label || '') + '</span>' +
+        '</label>';
+    });
+    checkboxesEl.innerHTML = html;
+    checkboxesEl.hidden = false;
+  }
+
+  function collectCheckboxValues() {
+    var values = { ok: true };
+    activeCheckboxes.forEach(function (cb) {
+      var key = cb.name || cb.id;
+      var input = checkboxesEl ? checkboxesEl.querySelector('#' + cb.id) : null;
+      values[key] = input ? input.checked : false;
+    });
+    return values;
+  }
+
   function close(result) {
     if (!modalEl) {
       return;
@@ -68,9 +106,16 @@
     modalEl.classList.remove('active');
     document.body.classList.remove('modal-open');
     if (resolveFn) {
-      resolveFn(!!result);
+      if (result && activeCheckboxes.length) {
+        resolveFn(collectCheckboxValues());
+      } else if (activeCheckboxes.length) {
+        resolveFn({ ok: false });
+      } else {
+        resolveFn(!!result);
+      }
       resolveFn = null;
     }
+    activeCheckboxes = [];
   }
 
   function applyVariant(variant) {
@@ -93,6 +138,7 @@
       confirmBtn.textContent = opts.confirmLabel || 'Bestätigen';
       cancelBtn.textContent = opts.cancelLabel || 'Abbrechen';
       applyVariant(opts.variant || 'primary');
+      renderCheckboxes(opts.checkboxes);
       resolveFn = resolve;
       modalEl.hidden = false;
       modalEl.classList.add('active');
@@ -113,11 +159,62 @@
     };
   }
 
+  var EINSATZ_RELEASE_CHECKBOXES = [
+    {
+      id: 'fw-confirm-create-geraetewart',
+      name: 'createGeraetewart',
+      label: 'Gerätewartmitteilung erstellen',
+      checked: false
+    },
+    {
+      id: 'fw-confirm-print-report',
+      name: 'printReport',
+      label: 'Einsatzbericht drucken',
+      checked: false
+    }
+  ];
+
+  function appendReleaseOptions(form, result) {
+    if (!result || !result.ok) {
+      return;
+    }
+    ['createGeraetewart', 'printReport'].forEach(function (name) {
+      form.querySelectorAll('input[name="' + name + '"]').forEach(function (el) {
+        el.remove();
+      });
+      if (result[name]) {
+        var input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = 'true';
+        form.appendChild(input);
+      }
+    });
+  }
+
   function bindFormConfirms() {
     document.addEventListener(
       'submit',
       function (e) {
-        var form = e.target.closest('form[data-confirm], form[data-confirm-message]');
+        var form = e.target.closest('form[data-confirm-einsatz-release]');
+        if (form && form.dataset.confirmSubmitting !== 'true') {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          window.FwConfirm.releaseEinsatzbericht().then(function (result) {
+            if (result && result.ok) {
+              appendReleaseOptions(form, result);
+              form.dataset.confirmSubmitting = 'true';
+              if (typeof form.requestSubmit === 'function') {
+                form.requestSubmit();
+              } else {
+                form.submit();
+              }
+            }
+          });
+          return;
+        }
+
+        form = e.target.closest('form[data-confirm], form[data-confirm-message]');
         if (!form || form.dataset.confirmSubmitting === 'true') {
           return;
         }
@@ -151,6 +248,17 @@
           'Administratoren können weiterhin Änderungen vornehmen.',
         confirmLabel: 'Freigeben',
         variant: 'success'
+      });
+    },
+    releaseEinsatzbericht: function () {
+      return show({
+        title: 'Einsatzbericht freigeben?',
+        message:
+          'Nach der Freigabe ist der Bericht für die normale Bearbeitung gesperrt. ' +
+          'Administratoren können weiterhin Änderungen vornehmen.',
+        confirmLabel: 'Freigeben',
+        variant: 'success',
+        checkboxes: EINSATZ_RELEASE_CHECKBOXES
       });
     },
     archiveReport: function (reportLabel) {
