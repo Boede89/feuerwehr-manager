@@ -56,12 +56,48 @@ Ohne `printer-is-shared=true` meldet Remote-`lpstat` nur `scheduler is running`,
 
 ## Beispiel: Konica Minolta bizhub im LAN
 
-Drucker: `192.168.178.100`, IPPS: `ipps://192.168.178.100/ipp/print`
+Drucker-IP aus der Drucker-Web-Oberfläche oder vom Router ablesen (z. B. `192.168.178.100`).
 
-Auf dem **gleichen Host** wie der Manager (oder in einem CUPS-Container) eine Warteschlange anlegen, z. B. `Zentrale`:
+**Wichtig:** Hostnamen wie `BOEDES-C3350.localdomain` aus der Drucker-UI funktionieren im **CUPS-Docker-Container in der Regel nicht** — dort gibt es kein Windows-/mDNS-Namensauflösung. CUPS meldet dann „Ungültige Geräte-URI“. Stattdessen immer die **IP-Adresse** verwenden:
+
+```
+ipp://192.168.178.100/ipp/print
+```
+
+Falls das scheitert, **`ipps://`** probieren:
+
+```
+ipps://192.168.178.100/ipp/print
+```
+
+Keine Anführungszeichen um die URI eintragen.
+
+### Drucker in der CUPS-Web-UI anlegen
+
+1. `http://<IP-des-Servers>:631` → Anmeldung `print` / `print`
+2. **Administration → Drucker hinzufügen**
+3. Geräte-URI: `ipp://<Drucker-IP>/ipp/print` (nicht den Hostnamen aus der Drucker-UI kopieren)
+4. Modell: **IPP Everywhere** (oder „everywhere“)
+
+### Drucker per Bootstrap (optional)
+
+In `.env` nur die IP setzen:
 
 ```bash
-lpadmin -p Zentrale -E -v ipps://192.168.178.100/ipp/print -m everywhere
+CUPS_PRINTER_HOST=192.168.178.100
+CUPS_PRINTER_NAME=Zentrale
+```
+
+Dann:
+
+```bash
+docker compose run --rm cups-bootstrap
+```
+
+Manuell im Container:
+
+```bash
+lpadmin -p Zentrale -E -v ipp://192.168.178.100/ipp/print -m everywhere
 cupsenable Zentrale
 cupsaccept Zentrale
 ```
@@ -80,6 +116,7 @@ In den Einheitseinstellungen: Modus **CUPS**, Drucker **Zentrale**, CUPS-Server 
 
 | Symptom | Prüfen |
 |---------|--------|
+| „Ungültige Geräte-URI“ beim Drucker anlegen | Hostname (`.localdomain`, `.local`) durch **IP-Adresse** ersetzen; keine Anführungszeichen; ggf. `ipps://` statt `ipp://` |
 | „lp-Befehl nicht gefunden“ | App-Container neu bauen (`--build`) |
 | „Keine Drucker gefunden“ | CUPS-Server, `lpstat -t`, Firewall Port 631 |
 | Druckauftrag „angehalten“, 0 k, Benutzer „Unbekannt“ | Remote-Druck: `cupsctl --remote-any`, Drucker freigeben, alte Jobs löschen (siehe unten) |

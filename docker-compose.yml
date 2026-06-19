@@ -98,6 +98,8 @@ services:
       CUPS_SERVER: print:${CUPS_ADMIN_PASSWORD:-print}@cups:631
       CUPS_PRINTER_NAME: ${CUPS_PRINTER_NAME:-Zentrale}
       CUPS_PRINTER_URI: ${CUPS_PRINTER_URI:-}
+      # Alternative zur URI: nur IP/Hostname (Bootstrap baut ipp://…/ipp/print)
+      CUPS_PRINTER_HOST: ${CUPS_PRINTER_HOST:-}
     volumes:
       - ./docker/cups/bootstrap-printer.sh:/bootstrap.sh:ro
     entrypoint: ["/bin/bash", "-c", "apt-get update -qq && apt-get install -y -qq cups-client >/dev/null && bash /bootstrap.sh"]
