@@ -79,20 +79,19 @@ Keine Anführungszeichen um die URI eintragen.
 3. Geräte-URI: `ipp://<Drucker-IP>/ipp/print` (nicht den Hostnamen aus der Drucker-UI kopieren)
 4. Modell: **IPP Everywhere** (oder „everywhere“)
 
-### Drucker per Bootstrap (optional)
+### Drucker per Skript (empfohlen)
 
-In `.env` nur die IP setzen:
-
-```bash
-CUPS_PRINTER_HOST=192.168.178.100
-CUPS_PRINTER_NAME=Zentrale
-```
-
-Dann:
+Drucker-IP aus der Drucker-Web-UI (Netzwerkseite), **nicht** den Hostnamen (`BOEDES-C3350.localdomain`):
 
 ```bash
-docker compose run --rm cups-bootstrap
+cd /opt/feuerwehr/feuerwehr-manager
+git pull
+chmod +x scripts/cups-add-printer.sh
+./scripts/cups-add-printer.sh 192.168.10.50
+docker compose restart cups app
 ```
+
+In der App: **Admin → Einheit → Schnittstellen → Druckerverwaltung → Drucker laden**.
 
 Manuell im Container:
 
@@ -121,7 +120,7 @@ In den Einheitseinstellungen: Modus **CUPS**, Drucker **Zentrale**, CUPS-Server 
 | Web-UI / App nicht erreichbar | `docker compose ps`; Ports **80**, **443**, **8080**; nach Update `docker compose up -d` und ggf. `docker compose restart caddy app` |
 | Nur `:8080` tot, HTTPS geht | App-Logs: `docker compose logs app --tail 80` (MySQL/CUPS-Start abwarten) |
 | „lp-Befehl nicht gefunden“ | App-Container neu bauen (`--build`) |
-| „Keine Drucker gefunden“ | CUPS-Server, `lpstat -t`, Firewall Port 631 |
+| „Keine Drucker gefunden“ / `scheduler is running` | In CUPS ist **noch kein Drucker** angelegt — `./scripts/cups-add-printer.sh <IP>` |
 | Druckauftrag „angehalten“, 0 k, Benutzer „Unbekannt“ | Remote-Druck: `cupsctl --remote-any`, Drucker freigeben, alte Jobs löschen (siehe unten) |
 
 ### Druckweg (Print-Relay)

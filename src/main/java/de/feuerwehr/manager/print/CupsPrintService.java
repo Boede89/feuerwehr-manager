@@ -62,8 +62,74 @@ public class CupsPrintService {
                 attempts.append(": ").append(attempt.error());
             }
         }
-        return CupsListResult.failure(
-                "CUPS nicht erreichbar oder keine Warteschlangen. Versucht: " + attempts);
+        CupsListResult relay = listPrintersViaRelay();
+        if (!relay.printers().isEmpty()) {
+            return relay;
+        }
+        return CupsListResult.failure(buildNoPrintersMessage(attempts.toString()));
+    }
+
+    private CupsListResult listPrintersViaRelay() {
+        if (printRelayUrl == null || printRelayUrl.isBlank()) {
+            return CupsListResult.failure("");
+        }
+        try {
+            String base = printRelayUrl.trim().replace("://ffm_cups:", "://cups:");
+            String url = base.replaceAll("/+$", "") + "/printers";
+            HttpClient client =
+                    HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .timeout(Duration.ofSeconds(15))
+                    .GET()
+                    .build();
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) {
+                return CupsListResult.failure("Print-Relay HTTP " + response.statusCode());
+            }
+            List<CupsPrinterOption> printers = parseRelayPrinters(response.body());
+            if (!printers.isEmpty()) {
+                return new CupsListResult(printers, null);
+            }
+            return CupsListResult.failure("Print-Relay: keine Drucker in CUPS");
+        } catch (Exception e) {
+            return CupsListResult.failure("Print-Relay: " + e.getMessage());
+        }
+    }
+
+    private static List<CupsPrinterOption> parseRelayPrinters(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        int idx = json.indexOf("\"printers\"");
+        if (idx < 0) {
+            return List.of();
+        }
+        int start = json.indexOf('[', idx);
+        int end = json.indexOf(']', start);
+        if (start < 0 || end <= start) {
+            return List.of();
+        }
+        List<CupsPrinterOption> result = new ArrayList<>();
+        Matcher matcher = Pattern.compile("\"([^\"]+)\"").matcher(json.substring(start + 1, end));
+        while (matcher.find()) {
+            String name = matcher.group(1);
+            if (!name.isBlank()) {
+                result.add(new CupsPrinterOption(name, name));
+            }
+        }
+        return result;
+    }
+
+    private static String buildNoPrintersMessage(String attempts) {
+        if (attempts.contains("scheduler is running")) {
+            return "CUPS läuft, aber es ist noch keine Drucker-Warteschlange angelegt. "
+                    + "Unter http://<Server-IP>:631 (Benutzer print, Passwort print) Drucker mit IP-URI anlegen, "
+                    + "z. B. ipp://192.168.x.x/ipp/print — oder `./scripts/cups-add-printer.sh <IP>` ausführen. "
+                    + "Versucht: "
+                    + attempts;
+        }
+        return "CUPS nicht erreichbar oder keine Warteschlangen. Versucht: " + attempts;
     }
 
     private CupsListResult listPrintersOnce(String executable, String cupsServer) {

@@ -87,6 +87,7 @@ services:
       # Immer aus dem Repo (Volume würde sonst alte cupsd.conf ohne cups.sock behalten → Web-Login scheitert)
       - ./docker/cups/cupsd.conf:/etc/cups/cupsd.conf:ro
       - ./docker/cups/entrypoint.sh:/entrypoint.sh:ro
+      - ./docker/cups/print-relay.py:/print-relay.py:ro
 
   cups-bootstrap:
     image: debian:bookworm-slim
