@@ -30,7 +30,8 @@ services:
       - ffm_caddy_data:/data
       - ffm_caddy_config:/config
     depends_on:
-      - app
+      app:
+        condition: service_started
 
   app:
     build: .

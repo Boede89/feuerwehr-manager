@@ -14,7 +14,14 @@ http://fw-manager.home.arpa {
 }
 
 https://fw-manager.home.arpa {
-	import ffm_https
+	tls internal
+	encode gzip
+	reverse_proxy app:8080 {
+		header_up Host {host}
+		header_up X-Forwarded-Proto https
+		header_up X-Forwarded-For {remote_ip}
+		header_up X-Forwarded-Port 443
+	}
 }
 
 # Fallback für Zugriff per IP oder anderem Hostnamen ohne DNS-Eintrag
@@ -23,16 +30,12 @@ https://fw-manager.home.arpa {
 }
 
 :443 {
-	import ffm_https
-}
-
-(ffm_https) {
 	tls internal
 	encode gzip
 	reverse_proxy app:8080 {
 		header_up Host {host}
 		header_up X-Forwarded-Proto https
-		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-For {remote_ip}
 		header_up X-Forwarded-Port 443
 	}
 }
