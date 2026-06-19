@@ -176,6 +176,7 @@ public class EinsatzberichtService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public KraefteFahrzeugeState buildKraefteFahrzeugeState(long unitId, Long reportId) {
         return buildKraefteFahrzeugeState(unitId, reportId, null, null, null);
     }
@@ -184,12 +185,14 @@ public class EinsatzberichtService {
      * Kräfte-Board für Anwesenheitslisten: Termin-Zielgruppe im Reserve-Pool links,
      * explizit gespeicherte Anwesenheit im Slot „Anwesend“.
      */
+    @Transactional(readOnly = true)
     public KraefteFahrzeugeState buildKraefteFahrzeugeStateForAnwesenheit(
             long unitId, List<Long> anwesendPersonIds, Set<Long> manualPoolPersonIds) {
         return buildKraefteFahrzeugeState(unitId, null, anwesendPersonIds, manualPoolPersonIds, null);
     }
 
     /** Kräfte-Board aus gespeicherter Crew-JSON (Fahrzeuge, Anwesend, Rollen). */
+    @Transactional(readOnly = true)
     public KraefteFahrzeugeState buildKraefteFahrzeugeStateForAnwesenheitWithAssignments(
             long unitId, List<CrewAssignment> crewAssignments, Set<Long> manualPoolPersonIds) {
         return buildKraefteFahrzeugeState(unitId, null, null, manualPoolPersonIds, crewAssignments);
@@ -1206,7 +1209,15 @@ public class EinsatzberichtService {
     private Map<Long, IncidentPersonnelSource> loadExistingSources(long reportId) {
         Map<Long, IncidentPersonnelSource> sources = new HashMap<>();
         for (IncidentReportPersonnel row : incidentReportPersonnelRepository.findByIncidentReportId(reportId)) {
-            sources.put(personnelRefId(row), row.getSource());
+            try {
+                sources.put(personnelRefId(row), row.getSource());
+            } catch (IllegalStateException ex) {
+                log.warn(
+                        "Personaleintrag {} in Bericht {} beim Quellen-Laden übersprungen: {}",
+                        row.getId(),
+                        reportId,
+                        ex.getMessage());
+            }
         }
         return sources;
     }
@@ -1578,6 +1589,9 @@ public class EinsatzberichtService {
             added++;
         }
         report.setStrengthCrew(assignedPersons.size() + alreadyPresentUcrs.size());
+        if (added > 0) {
+            incidentReportRepository.save(report);
+        }
         if (added > 0 || unmatched > 0) {
             log.info(
                     "[Divera→Personal] unit={} alarm={} report={} ucr={} neu={} ohneZuordnung={} autoAnwesenheit={}",
@@ -1601,7 +1615,8 @@ public class EinsatzberichtService {
                     row.setIncidentReport(report);
                     row.setVehicle(null);
                     row.setVehicleName(IncidentCrewSupport.BETEILIGT_VEHICLE_NAME);
-                    return incidentReportVehicleRepository.save(row);
+                    row.setInvolved(true);
+                    return incidentReportVehicleRepository.saveAndFlush(row);
                 });
     }
 
