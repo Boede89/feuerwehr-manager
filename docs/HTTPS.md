@@ -6,9 +6,10 @@ Nach `docker compose up -d --build` ist die App erreichbar über:
 
 | URL | Zweck |
 |-----|--------|
-| **https://fw-manager.home.arpa** | Produktiv (Caddy, Port 443) |
-| **http://fw-manager.home.arpa** | Leitet auf HTTPS um (Port 80) |
-| http://&lt;Server-IP&gt;:8080 | Optional direkt zur App (Debug; Login auch per HTTP möglich) |
+| **https://fw-manager.home.arpa** | Produktiv mit lokalem DNS (Port 443) |
+| **https://&lt;Server-IP&gt;** | Produktiv ohne DNS (Port 443, Zertifikatswarnung bestätigen) |
+| **http://&lt;Server-IP&gt;** | Leitet auf HTTPS um (Port 80) |
+| http://&lt;Server-IP&gt;:8080 | Optional direkt zur App (Debug) |
 
 Caddy nutzt standardmäßig ein **internes Zertifikat** (`tls internal`). Beim ersten Aufruf warnt der Browser – das ist normal im LAN. Zertifikat einmal bestätigen oder für dauerhaftes Vertrauen die Caddy-Root-CA auf den Clients importieren.
 
