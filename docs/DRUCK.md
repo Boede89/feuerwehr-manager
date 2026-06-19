@@ -111,6 +111,36 @@ In den Einheitseinstellungen: Modus **CUPS**, Drucker **Zentrale**, CUPS-Server 
 | `GET /admin/rest/unit/print/printers?unit=` | CUPS-Druckerliste |
 | `POST /admin/rest/unit/print/test` | Testseite drucken |
 
+## Zwei Server / Container — warum unterschiedlich?
+
+**Git-Stand und Docker-Images können identisch sein** — die **CUPS-Drucker-Konfiguration nicht**:
+Sie liegt im Volume `ffm_cups_data` **pro Server getrennt**. Ein Drucker, den du auf Container A in der CUPS-Web-UI anlegst, existiert auf Container B nicht.
+
+| Server A (funktioniert) | Server B (leer) |
+|-------------------------|-----------------|
+| `lpstat -p` zeigt `Zentrale` | `lpstat -p` zeigt nichts |
+| App listet Drucker | App: „scheduler is running“ |
+
+**Diagnose auf dem betroffenen Server:**
+
+```bash
+cd /opt/feuerwehr/feuerwehr-manager   # oder /opt/feuerwehr/feuerwehr-manager
+git pull
+chmod +x scripts/cups-diagnose.sh
+./scripts/cups-diagnose.sh
+```
+
+Wenn `lpstat -p` leer ist, ist der Drucker **auf diesem Server** nicht angelegt (Web-UI-Anlage evtl. fehlgeschlagen oder falscher Hostname in der URI).
+
+**Nach git pull** unbedingt:
+
+```bash
+docker compose up -d --build app
+docker compose restart cups
+```
+
+(Für Print-Relay `/printers` und Druckerliste aus dem CUPS-Container.)
+
 ## Fehlerbehebung
 
 | Symptom | Prüfen |

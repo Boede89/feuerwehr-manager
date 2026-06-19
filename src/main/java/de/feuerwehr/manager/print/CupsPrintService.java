@@ -43,30 +43,44 @@ public class CupsPrintService {
         if (lpstat.isEmpty()) {
             return CupsListResult.failure("lpstat nicht gefunden — App-Image neu bauen (cups-client).");
         }
-        if (cupsServer == null || cupsServer.isBlank()) {
-            return CupsListResult.failure(
-                    "Kein CUPS-Server konfiguriert. In .env: CUPS_SERVER=print:<Passwort>@ffm_cups:631 — danach App-Container neu starten.");
-        }
-        String executable = lpstat.get();
         StringBuilder attempts = new StringBuilder();
+
+        // Print-Relay zuerst: lokales lpstat im CUPS-Container (unabhängig von printer-is-shared)
+        if (printRelayUrl != null && !printRelayUrl.isBlank()) {
+            CupsListResult relay = listPrintersViaRelay();
+            if (!relay.printers().isEmpty()) {
+                return relay;
+            }
+            appendAttempt(attempts, "Print-Relay", relay.error());
+        }
+
+        if (cupsServer == null || cupsServer.isBlank()) {
+            if (attempts.length() > 0) {
+                return CupsListResult.failure(buildNoPrintersMessage(attempts.toString()));
+            }
+            return CupsListResult.failure(
+                    "Kein CUPS-Server konfiguriert. Standard aus docker-compose reicht — Feld „CUPS-Server“ leer lassen.");
+        }
+
+        String executable = lpstat.get();
         for (String candidate : serverCandidates(cupsServer)) {
             CupsListResult attempt = listPrintersOnce(executable, candidate);
             if (!attempt.printers().isEmpty()) {
                 return attempt;
             }
-            if (attempts.length() > 0) {
-                attempts.append(" | ");
-            }
-            attempts.append(maskCupsServer(candidate));
-            if (attempt.error() != null && !attempt.error().isBlank()) {
-                attempts.append(": ").append(attempt.error());
-            }
-        }
-        CupsListResult relay = listPrintersViaRelay();
-        if (!relay.printers().isEmpty()) {
-            return relay;
+            appendAttempt(attempts, maskCupsServer(candidate), attempt.error());
         }
         return CupsListResult.failure(buildNoPrintersMessage(attempts.toString()));
+    }
+
+    private static void appendAttempt(StringBuilder attempts, String label, String error) {
+        if (attempts.length() > 0) {
+            attempts.append(" | ");
+        }
+        attempts.append(label);
+        if (error != null && !error.isBlank()) {
+            attempts.append(": ").append(error);
+        }
     }
 
     private CupsListResult listPrintersViaRelay() {
@@ -122,14 +136,21 @@ public class CupsPrintService {
     }
 
     private static String buildNoPrintersMessage(String attempts) {
-        if (attempts.contains("scheduler is running")) {
-            return "CUPS läuft, aber es ist noch keine Drucker-Warteschlange angelegt. "
-                    + "Unter http://<Server-IP>:631 (Benutzer print, Passwort print) Drucker mit IP-URI anlegen, "
-                    + "z. B. ipp://192.168.x.x/ipp/print — oder `./scripts/cups-add-printer.sh <IP>` ausführen. "
-                    + "Versucht: "
+        if (attempts.contains("Print-Relay: keine Drucker")
+                || attempts.contains("scheduler is running")) {
+            return "Auf diesem Server ist in CUPS noch kein Drucker angelegt (jeder Container hat ein "
+                    + "eigenes CUPS-Volume — Drucker müssen pro Server einmal eingerichtet werden). "
+                    + "Prüfen: `docker compose exec cups lpstat -p` — leer = Drucker fehlt. "
+                    + "Anlegen: `./scripts/cups-add-printer.sh <Drucker-IP>` oder CUPS-Web-UI http://<IP>:631. "
+                    + "Danach: `docker compose restart cups app`. Details: "
                     + attempts;
         }
-        return "CUPS nicht erreichbar oder keine Warteschlangen. Versucht: " + attempts;
+        if (attempts.contains("Print-Relay HTTP 404")) {
+            return "Print-Relay veraltet (kein /printers). Bitte `git pull`, "
+                    + "`docker compose restart cups app` und App neu bauen (`docker compose up -d --build app`). "
+                    + attempts;
+        }
+        return "CUPS-Drucker konnten nicht geladen werden. " + attempts;
     }
 
     private CupsListResult listPrintersOnce(String executable, String cupsServer) {
