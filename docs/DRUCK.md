@@ -116,6 +116,7 @@ In den Einheitseinstellungen: Modus **CUPS**, Drucker **Zentrale**, CUPS-Server 
 
 | Symptom | Prüfen |
 |---------|--------|
+| App „Restarting“, Log: Flyway V37 | `./scripts/repair-flyway-v37.sh` (siehe docs/FLYWAY-REPARATUR.md) |
 | „Ungültige Geräte-URI“ beim Drucker anlegen | Hostname (`.localdomain`, `.local`) durch **IP-Adresse** ersetzen; keine Anführungszeichen; ggf. `ipps://` statt `ipp://` |
 | Web-UI / App nicht erreichbar | `docker compose ps`; Ports **80**, **443**, **8080**; nach Update `docker compose up -d` und ggf. `docker compose restart caddy app` |
 | Nur `:8080` tot, HTTPS geht | App-Logs: `docker compose logs app --tail 80` (MySQL/CUPS-Start abwarten) |

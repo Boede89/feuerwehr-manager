@@ -23,10 +23,17 @@ Das Skript legt das Schema an, markiert V72 in Flyway als erfolgreich (SQL-Typ +
 
 ## V37 — Atemschutz-Kursauswahl
 
-Symptom:
+Symptom (fehlgeschlagen):
 
 ```text
 Detected failed migration to version 37 (AtemschutzCourseSelection).
+```
+
+Symptom (Checksum / alter Java-Eintrag):
+
+```text
+Detected applied migration not resolved locally: 37.
+Detected resolved migration not applied to database: 37.
 ```
 
 **Hinweis:** Ab dem SQL-Fix (`V37__atemschutz_course_selection.sql`) tritt das auf frischen Installationen nicht mehr auf.

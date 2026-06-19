@@ -19,7 +19,7 @@ INSERT INTO flyway_schema_history (
     'atemschutz course selection',
     'SQL',
     'V37__atemschutz_course_selection.sql',
-    NULL,
+    -530345842,
     'manual-repair',
     NOW(),
     0,

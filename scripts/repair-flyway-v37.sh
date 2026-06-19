@@ -15,10 +15,10 @@ docker compose exec -T mysql mysql -uff -pffsecret feuerwehr_manager < scripts/r
 
 echo "==> Flyway-Status:"
 docker compose exec mysql mysql -uff -pffsecret feuerwehr_manager -e \
-  "SELECT version, success, script FROM flyway_schema_history WHERE version='37';"
+  "SELECT version, success, type, script, checksum FROM flyway_schema_history WHERE version='37';"
 
-echo "==> App starten"
-docker compose up -d app
+echo "==> App neu bauen und starten"
+docker compose up -d --build app
 
 echo "==> Warte 40 Sekunden …"
 sleep 40

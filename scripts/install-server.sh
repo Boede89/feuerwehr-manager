@@ -221,7 +221,7 @@ app_is_up() {
 }
 
 flyway_v37_needs_repair() {
-  if compose_cmd logs app 2>&1 | grep -qiE 'version 37|atemschutz course'; then
+  if compose_cmd logs app 2>&1 | grep -qiE 'version 37|atemschutz course|not resolved locally: 37'; then
     return 0
   fi
   compose_cmd exec mysql mysql -uff -pffsecret -N -e \
