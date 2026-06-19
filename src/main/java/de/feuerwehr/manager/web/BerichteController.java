@@ -148,6 +148,11 @@ public class BerichteController {
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return redirectHome(unitId);
+        } catch (RuntimeException e) {
+            log.error("Berichte-Übersicht unit={} konnte nicht geladen werden: {}", unitId, e.getMessage(), e);
+            redirectAttributes.addFlashAttribute(
+                    "error", "Berichte konnten nicht geladen werden. Bitte Administrator informieren.");
+            return redirectHome(unitId);
         }
     }
 
@@ -169,24 +174,30 @@ public class BerichteController {
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
             @PathVariable long id,
-            Model model) {
-        Unit unit = resolveUnit(unitId, actor, model);
-        requireModuleEnabled(unit.getId());
-        requireBerichteRead(actor, unit.getId());
-        IncidentReport report = einsatzberichtService.requireReport(unit.getId(), id);
-        EinsatzberichtForm form = EinsatzberichtForm.fromReport(report);
-        populateEinsatzFormModel(model, unit.getId(), report, form, false);
-        model.addAttribute("formMode", "view");
-        boolean canApprove = canApprove(actor, unit.getId());
-        model.addAttribute("canEditReport", EinsatzberichtAccess.canEdit(report, actor, canApprove));
-        model.addAttribute("canRelease", EinsatzberichtAccess.canRelease(report, canApprove, actor));
-        model.addAttribute("canArchive", EinsatzberichtAccess.canArchive(report, canApprove, actor));
-        String stichwort = report.getStichwort() != null && !report.getStichwort().isBlank()
-                ? report.getStichwort()
-                : report.getIncidentTypeLabel();
-        String number = report.getIncidentNumber() != null ? report.getIncidentNumber() : String.valueOf(id);
-        model.addAttribute("modalTitle", number + " — " + stichwort);
-        return "berichte/einsatzbericht-modal-body";
+            Model model,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor, model);
+            requireModuleEnabled(unit.getId());
+            requireBerichteRead(actor, unit.getId());
+            IncidentReport report = einsatzberichtService.requireReport(unit.getId(), id);
+            EinsatzberichtForm form = EinsatzberichtForm.fromReport(report);
+            populateEinsatzFormModel(model, unit.getId(), report, form, false);
+            model.addAttribute("formMode", "view");
+            boolean canApprove = canApprove(actor, unit.getId());
+            model.addAttribute("canEditReport", EinsatzberichtAccess.canEdit(report, actor, canApprove));
+            model.addAttribute("canRelease", EinsatzberichtAccess.canRelease(report, canApprove, actor));
+            model.addAttribute("canArchive", EinsatzberichtAccess.canArchive(report, canApprove, actor));
+            String stichwort = report.getStichwort() != null && !report.getStichwort().isBlank()
+                    ? report.getStichwort()
+                    : report.getIncidentTypeLabel();
+            String number = report.getIncidentNumber() != null ? report.getIncidentNumber() : String.valueOf(id);
+            model.addAttribute("modalTitle", number + " — " + stichwort);
+            return "berichte/einsatzbericht-modal-body";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectBerichte(unitId, "einsatz");
+        }
     }
 
     @GetMapping("/einsatzberichte/suggest-number")
@@ -565,26 +576,32 @@ public class BerichteController {
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
             @PathVariable long id,
-            Model model) {
-        Unit unit = resolveUnit(unitId, actor, model);
-        requireModuleEnabled(unit.getId());
-        requireBerichteRead(actor, unit.getId());
-        AnwesenheitFormBundle bundle = anwesenheitslisteService.buildFormBundle(unit.getId(), id);
-        AttendanceReport report = bundle.report();
-        applyAnwesenheitFormBundle(model, unit.getId(), bundle);
-        model.addAttribute("formMode", "view");
-        boolean canApprove = canApprove(actor, unit.getId());
-        model.addAttribute("canEditReport", AnwesenheitslisteAccess.canEdit(report, actor, canApprove));
-        model.addAttribute("canRelease", AnwesenheitslisteAccess.canRelease(report, canApprove, actor));
-        model.addAttribute("canArchive", AnwesenheitslisteAccess.canArchive(report, canApprove, actor));
-        String title = report.getTitle() != null && !report.getTitle().isBlank() ? report.getTitle() : "Anwesenheitsliste";
-        String dateLabel = report.getEventDate() != null
-                ? report.getEventDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
-                : "";
-        model.addAttribute(
-                "modalTitle",
-                dateLabel.isEmpty() ? title : title + " — " + dateLabel);
-        return "berichte/anwesenheitsliste-modal-body";
+            Model model,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor, model);
+            requireModuleEnabled(unit.getId());
+            requireBerichteRead(actor, unit.getId());
+            AnwesenheitFormBundle bundle = anwesenheitslisteService.buildFormBundle(unit.getId(), id);
+            AttendanceReport report = bundle.report();
+            applyAnwesenheitFormBundle(model, unit.getId(), bundle);
+            model.addAttribute("formMode", "view");
+            boolean canApprove = canApprove(actor, unit.getId());
+            model.addAttribute("canEditReport", AnwesenheitslisteAccess.canEdit(report, actor, canApprove));
+            model.addAttribute("canRelease", AnwesenheitslisteAccess.canRelease(report, canApprove, actor));
+            model.addAttribute("canArchive", AnwesenheitslisteAccess.canArchive(report, canApprove, actor));
+            String title = report.getTitle() != null && !report.getTitle().isBlank() ? report.getTitle() : "Anwesenheitsliste";
+            String dateLabel = report.getEventDate() != null
+                    ? report.getEventDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+                    : "";
+            model.addAttribute(
+                    "modalTitle",
+                    dateLabel.isEmpty() ? title : title + " — " + dateLabel);
+            return "berichte/anwesenheitsliste-modal-body";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectBerichte(unitId, "anwesenheit");
+        }
     }
 
     @GetMapping("/anwesenheitslisten/{id}")
@@ -1370,51 +1387,67 @@ public class BerichteController {
     private void populateEinsatzFormModel(
             Model model, long unitId, IncidentReport report, EinsatzberichtForm form, boolean refreshDivera) {
         Long reportId = report != null ? report.getId() : null;
-        if (refreshDivera && reportId != null && report.getDiveraAlarmId() != null) {
-            try {
-                einsatzberichtService.refreshDiveraFromLatestAlarmData(unitId, reportId);
-                report = einsatzberichtService.requireReport(unitId, reportId);
-                form.setIncidentDate(report.getIncidentDate());
-                form.setAlarmTime(report.getAlarmTime());
-                form.setLocation(report.getLocation());
-                form.setPostalCode(report.getPostalCode());
-                form.setDistrict(report.getDistrict());
-                form.setStreet(report.getStreet());
-                form.setHouseNumber(report.getHouseNumber());
-                form.setAlarmierungDurch(report.getAlarmierungDurch());
-            } catch (Exception e) {
-                log.warn("DIVERA-Aktualisierung für Einsatzbericht {} fehlgeschlagen: {}", reportId, e.getMessage(), e);
+        try {
+            if (refreshDivera && reportId != null && report.getDiveraAlarmId() != null) {
+                try {
+                    einsatzberichtService.refreshDiveraFromLatestAlarmData(unitId, reportId);
+                    report = einsatzberichtService.requireReport(unitId, reportId);
+                    form.setIncidentDate(report.getIncidentDate());
+                    form.setAlarmTime(report.getAlarmTime());
+                    form.setLocation(report.getLocation());
+                    form.setPostalCode(report.getPostalCode());
+                    form.setDistrict(report.getDistrict());
+                    form.setStreet(report.getStreet());
+                    form.setHouseNumber(report.getHouseNumber());
+                    form.setAlarmierungDurch(report.getAlarmierungDurch());
+                } catch (Exception e) {
+                    log.warn(
+                            "DIVERA-Aktualisierung für Einsatzbericht {} fehlgeschlagen: {}",
+                            reportId,
+                            e.getMessage(),
+                            e);
+                }
             }
+            KraefteFahrzeugeState kraefteState = einsatzberichtService.buildKraefteFahrzeugeState(unitId, reportId);
+            model.addAttribute("report", report);
+            model.addAttribute("form", form);
+            model.addAttribute("unitPersons", einsatzberichtService.listPersonsForForm(unitId));
+            model.addAttribute("knownStichworte", einsatzberichtService.listKnownStichworte(unitId));
+            model.addAttribute("kraefteState", kraefteState);
+            model.addAttribute("kraefteInitialJson", einsatzberichtService.serializeKraefteFahrzeugeState(kraefteState));
+            model.addAttribute(
+                    "allowForeignUnitPersonnel", einsatzberichtService.isForeignUnitPersonnelAllowed(unitId));
+            if (form.getCrewAssignmentsJson() == null || form.getCrewAssignmentsJson().isBlank()) {
+                form.setCrewAssignmentsJson(buildCrewJson(kraefteState));
+            }
+            if (form.getDeployedEquipmentJson() == null || form.getDeployedEquipmentJson().isBlank()) {
+                form.setDeployedEquipmentJson(
+                        reportId != null ? einsatzberichtService.buildDeployedEquipmentJson(reportId) : "[]");
+            }
+            if (form.getPersonDamageDetailsJson() == null || form.getPersonDamageDetailsJson().isBlank()) {
+                form.setPersonDamageDetailsJson(PersonDamageDetailsSupport.emptyJson());
+            }
+            if (form.getDamagePerpetratorJson() == null || form.getDamagePerpetratorJson().isBlank()) {
+                form.setDamagePerpetratorJson(DamagePerpetratorSupport.emptyJson());
+            }
+            boolean showHistory = EinsatzberichtAccess.showChangeHistory(report);
+            model.addAttribute("showChangeHistory", showHistory);
+            model.addAttribute(
+                    "reportChanges",
+                    showHistory && report != null
+                            ? einsatzberichtService.listChanges(unitId, report.getId())
+                            : List.of());
+        } catch (Exception e) {
+            log.error(
+                    "Einsatzbericht-Formular konnte nicht geladen werden (unit={}, report={}): {}",
+                    unitId,
+                    reportId,
+                    e.getMessage(),
+                    e);
+            throw new IllegalArgumentException(
+                    "Einsatzbericht konnte nicht geladen werden. Bitte erneut versuchen oder den Administrator informieren.",
+                    e);
         }
-        KraefteFahrzeugeState kraefteState = einsatzberichtService.buildKraefteFahrzeugeState(unitId, reportId);
-        model.addAttribute("report", report);
-        model.addAttribute("form", form);
-        model.addAttribute("unitPersons", einsatzberichtService.listPersonsForForm(unitId));
-        model.addAttribute("knownStichworte", einsatzberichtService.listKnownStichworte(unitId));
-        model.addAttribute("kraefteState", kraefteState);
-        model.addAttribute("kraefteInitialJson", einsatzberichtService.serializeKraefteFahrzeugeState(kraefteState));
-        model.addAttribute(
-                "allowForeignUnitPersonnel", einsatzberichtService.isForeignUnitPersonnelAllowed(unitId));
-        if (form.getCrewAssignmentsJson() == null || form.getCrewAssignmentsJson().isBlank()) {
-            form.setCrewAssignmentsJson(buildCrewJson(kraefteState));
-        }
-        if (form.getDeployedEquipmentJson() == null || form.getDeployedEquipmentJson().isBlank()) {
-            form.setDeployedEquipmentJson(
-                    reportId != null ? einsatzberichtService.buildDeployedEquipmentJson(reportId) : "[]");
-        }
-        if (form.getPersonDamageDetailsJson() == null || form.getPersonDamageDetailsJson().isBlank()) {
-            form.setPersonDamageDetailsJson(PersonDamageDetailsSupport.emptyJson());
-        }
-        if (form.getDamagePerpetratorJson() == null || form.getDamagePerpetratorJson().isBlank()) {
-            form.setDamagePerpetratorJson(DamagePerpetratorSupport.emptyJson());
-        }
-        boolean showHistory = EinsatzberichtAccess.showChangeHistory(report);
-        model.addAttribute("showChangeHistory", showHistory);
-        model.addAttribute(
-                "reportChanges",
-                showHistory && report != null
-                        ? einsatzberichtService.listChanges(unitId, report.getId())
-                        : List.of());
     }
 
     @GetMapping("/einsatzberichte/{id}/pdf")
@@ -1577,15 +1610,27 @@ public class BerichteController {
     }
 
     private void addEinsatzReleaseDefaults(Model model, long unitId) {
-        UnitBerichteSettings settings = berichteSettingsService.ensureSettings(unitId);
-        model.addAttribute("releaseDefaultCreateGeraetewart", settings.isEinsatzReleaseCreateGeraetewart());
-        model.addAttribute("releaseDefaultPrintReport", settings.isEinsatzReleasePrintReport());
-        model.addAttribute("releaseDefaultPrintGeraetewart", settings.isEinsatzReleasePrintGeraetewart());
+        try {
+            UnitBerichteSettings settings = berichteSettingsService.ensureSettings(unitId);
+            model.addAttribute("releaseDefaultCreateGeraetewart", settings.isEinsatzReleaseCreateGeraetewart());
+            model.addAttribute("releaseDefaultPrintReport", settings.isEinsatzReleasePrintReport());
+            model.addAttribute("releaseDefaultPrintGeraetewart", settings.isEinsatzReleasePrintGeraetewart());
+        } catch (Exception e) {
+            log.warn("Einsatz-Freigabe-Defaults unit={} nicht ladbar: {}", unitId, e.getMessage());
+            model.addAttribute("releaseDefaultCreateGeraetewart", false);
+            model.addAttribute("releaseDefaultPrintReport", false);
+            model.addAttribute("releaseDefaultPrintGeraetewart", false);
+        }
     }
 
     private void addAnwesenheitReleaseDefaults(Model model, long unitId) {
-        UnitBerichteSettings settings = berichteSettingsService.ensureSettings(unitId);
-        model.addAttribute("anwesenheitReleaseDefaultPrintReport", settings.isAnwesenheitReleasePrintReport());
+        try {
+            UnitBerichteSettings settings = berichteSettingsService.ensureSettings(unitId);
+            model.addAttribute("anwesenheitReleaseDefaultPrintReport", settings.isAnwesenheitReleasePrintReport());
+        } catch (Exception e) {
+            log.warn("Anwesenheits-Freigabe-Defaults unit={} nicht ladbar: {}", unitId, e.getMessage());
+            model.addAttribute("anwesenheitReleaseDefaultPrintReport", false);
+        }
     }
 
     private String printBerichteDocument(

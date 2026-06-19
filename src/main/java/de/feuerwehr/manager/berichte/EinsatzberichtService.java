@@ -122,6 +122,7 @@ public class EinsatzberichtService {
         return incidentReportChangeRepository.findByReportIdWithFields(reportId);
     }
 
+    @Transactional(readOnly = true)
     public List<Person> listPersonsForForm(long unitId) {
         return personalService.listPersons(unitId);
     }
@@ -304,13 +305,17 @@ public class EinsatzberichtService {
                     }
                 }
             }
-            incidentReportRepository.findById(reportId).ifPresent(report -> {
+            incidentReportRepository
+                    .findByIdAndUnitId(reportId, unitId, includeTestReports())
+                    .ifPresent(report -> {
                 Person commander = report.getCommanderPerson();
                 if (commander == null) {
                     return;
                 }
                 long commanderId = commander.getId();
-                personById.putIfAbsent(commanderId, commander);
+                personRepository
+                        .findActiveByIdIn(List.of(commanderId), includeTestReports())
+                        .forEach(person -> personById.putIfAbsent(person.getId(), person));
                 if (!onVehicleRefIds.contains(commanderId)) {
                     if (!beteiligtCrewIds.contains(commanderId)) {
                         beteiligtCrewIds.add(commanderId);
@@ -1516,6 +1521,20 @@ public class EinsatzberichtService {
     }
 
     private void importDiveraPersonnel(IncidentReport report, DiveraAlarmDetails details, long unitId) {
+        try {
+            importDiveraPersonnelInternal(report, details, unitId);
+        } catch (Exception e) {
+            log.warn(
+                    "[Divera→Personal] Import fehlgeschlagen unit={} alarm={} report={}: {}",
+                    unitId,
+                    details != null ? details.alarmId() : null,
+                    report != null ? report.getId() : null,
+                    e.getMessage(),
+                    e);
+        }
+    }
+
+    private void importDiveraPersonnelInternal(IncidentReport report, DiveraAlarmDetails details, long unitId) {
         UnitBerichteSettings settings = berichteSettingsService.ensureSettings(unitId);
         if (!settings.isImportPersonnelFromDivera()) {
             return;

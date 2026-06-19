@@ -160,6 +160,17 @@ public class AnwesenheitslisteService {
 
     @Transactional
     public AnwesenheitFormBundle buildFormBundle(long unitId, Long reportId) {
+        try {
+            return buildFormBundleInternal(unitId, reportId);
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IllegalArgumentException(
+                    "Anwesenheitsliste konnte nicht geladen werden. Bitte erneut versuchen.", e);
+        }
+    }
+
+    private AnwesenheitFormBundle buildFormBundleInternal(long unitId, Long reportId) {
         AttendanceReport report = reportId != null ? requireReport(unitId, reportId) : null;
         if (report != null) {
             clearLegacyTerminPersonnelPreload(report, unitId);
