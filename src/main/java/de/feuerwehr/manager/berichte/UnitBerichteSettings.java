@@ -42,6 +42,18 @@ public class UnitBerichteSettings {
     @Column(name = "einsatz_personnel_status_ids", columnDefinition = "TEXT")
     private String einsatzPersonnelStatusIds;
 
+    @Column(name = "einsatz_release_create_geraetewart", nullable = false)
+    private boolean einsatzReleaseCreateGeraetewart;
+
+    @Column(name = "einsatz_release_print_report", nullable = false)
+    private boolean einsatzReleasePrintReport;
+
+    @Column(name = "einsatz_release_print_geraetewart", nullable = false)
+    private boolean einsatzReleasePrintGeraetewart;
+
+    @Column(name = "anwesenheit_release_print_report", nullable = false)
+    private boolean anwesenheitReleasePrintReport;
+
     @Column(name = "updated_at", nullable = false, insertable = false, updatable = false)
     private Instant updatedAt;
 }

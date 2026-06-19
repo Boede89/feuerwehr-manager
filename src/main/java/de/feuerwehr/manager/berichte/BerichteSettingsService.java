@@ -38,7 +38,10 @@ public class BerichteSettingsService {
             boolean importIncidentDataFromDivera,
             boolean importPersonnelFromDivera,
             boolean allowForeignUnitPersonnel,
-            List<String> personnelStatusIds) {
+            List<String> personnelStatusIds,
+            boolean releaseCreateGeraetewart,
+            boolean releasePrintReport,
+            boolean releasePrintGeraetewart) {
         UnitBerichteSettings settings = settingsRepository
                 .findByUnitId(unitId)
                 .orElseGet(() -> createDefaults(unitId));
@@ -46,6 +49,18 @@ public class BerichteSettingsService {
         settings.setImportPersonnelFromDivera(importPersonnelFromDivera);
         settings.setAllowForeignUnitPersonnel(allowForeignUnitPersonnel);
         settings.setEinsatzPersonnelStatusIds(writeStatusIds(personnelStatusIds, unitId));
+        settings.setEinsatzReleaseCreateGeraetewart(releaseCreateGeraetewart);
+        settings.setEinsatzReleasePrintReport(releasePrintReport);
+        settings.setEinsatzReleasePrintGeraetewart(releasePrintGeraetewart);
+        return settingsRepository.save(settings);
+    }
+
+    @Transactional
+    public UnitBerichteSettings saveAnwesenheitReleaseSettings(long unitId, boolean releasePrintReport) {
+        UnitBerichteSettings settings = settingsRepository
+                .findByUnitId(unitId)
+                .orElseGet(() -> createDefaults(unitId));
+        settings.setAnwesenheitReleasePrintReport(releasePrintReport);
         return settingsRepository.save(settings);
     }
 
@@ -101,6 +116,10 @@ public class BerichteSettingsService {
         settings.setImportPersonnelFromDivera(false);
         settings.setAllowForeignUnitPersonnel(false);
         settings.setEinsatzPersonnelStatusIds("[]");
+        settings.setEinsatzReleaseCreateGeraetewart(false);
+        settings.setEinsatzReleasePrintReport(false);
+        settings.setEinsatzReleasePrintGeraetewart(false);
+        settings.setAnwesenheitReleasePrintReport(false);
         return settingsRepository.save(settings);
     }
 }

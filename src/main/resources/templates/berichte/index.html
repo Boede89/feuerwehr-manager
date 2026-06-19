@@ -28,7 +28,10 @@
                 data-can-approve=${canApprove},
                 data-csrf-token=${_csrf.token},
                 data-csrf-param=${_csrf.parameterName},
-                data-csrf-header=${_csrf.headerName}">
+                data-csrf-header=${_csrf.headerName},
+                data-release-create-geraetewart=${releaseDefaultCreateGeraetewart},
+                data-release-print-report=${releaseDefaultPrintReport},
+                data-release-print-geraetewart=${releaseDefaultPrintGeraetewart}">
     <div class="page-header berichte-einsatz-header">
       <div class="berichte-einsatz-header__main">
         <div class="berichte-einsatz-header__text">
@@ -84,7 +87,8 @@
                 data-is-admin=${isAdmin},
                 data-can-approve=${canApprove},
                 data-csrf-token=${_csrf.token},
-                data-csrf-param=${_csrf.parameterName}">
+                data-csrf-param=${_csrf.parameterName},
+                data-release-print-report=${anwesenheitReleaseDefaultPrintReport}">
     <div class="page-header berichte-einsatz-header">
       <div class="berichte-einsatz-header__main">
         <div class="berichte-einsatz-header__text">

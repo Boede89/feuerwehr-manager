@@ -139,7 +139,7 @@
     }
   }
 
-  function postAction(url, returnPath) {
+  function postAction(url, returnPath, extraFields) {
     var form = document.createElement('form');
     form.method = 'post';
     form.action = url;
@@ -147,8 +147,19 @@
       '<input type="hidden" name="' + esc(csrfParam) + '" value="' + esc(csrfToken) + '"/>' +
       '<input type="hidden" name="unit" value="' + esc(unitId) + '"/>' +
       '<input type="hidden" name="returnUrl" value="' + esc(returnPath) + '"/>';
+    Object.keys(extraFields || {}).forEach(function (key) {
+      if (extraFields[key]) {
+        form.innerHTML += '<input type="hidden" name="' + esc(key) + '" value="true"/>';
+      }
+    });
     document.body.appendChild(form);
     form.submit();
+  }
+
+  function releaseDefaults() {
+    return {
+      printReport: root.dataset.releasePrintReport === 'true'
+    };
   }
 
   function buildFooter(meta) {
@@ -179,13 +190,19 @@
       postAction('/berichte/anwesenheitslisten/' + meta.reportId + '/drucken', returnPath);
     });
     document.getElementById('btn-attendance-modal-release')?.addEventListener('click', function () {
-      var ask = window.FwConfirm && window.FwConfirm.releaseReport
-        ? window.FwConfirm.releaseReport('Anwesenheitsliste')
+      var ask = window.FwConfirm && window.FwConfirm.releaseAnwesenheitsliste
+        ? window.FwConfirm.releaseAnwesenheitsliste(releaseDefaults())
         : Promise.resolve(window.confirm('Anwesenheitsliste wirklich freigeben?'));
-      ask.then(function (ok) {
-        if (ok) {
-          postAction('/berichte/anwesenheitslisten/' + meta.reportId + '/freigeben', returnPath);
+      ask.then(function (result) {
+        var ok = result === true || (result && result.ok);
+        if (!ok) {
+          return;
         }
+        var extras = {};
+        if (result && result.printReport) {
+          extras.printReport = true;
+        }
+        postAction('/berichte/anwesenheitslisten/' + meta.reportId + '/freigeben', returnPath, extras);
       });
     });
     document.getElementById('btn-attendance-modal-archive')?.addEventListener('click', function () {

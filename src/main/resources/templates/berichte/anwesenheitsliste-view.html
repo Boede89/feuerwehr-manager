@@ -28,11 +28,8 @@
       <form th:if="${canRelease}" method="post"
             th:action="@{/berichte/anwesenheitslisten/{id}/freigeben(id=${report.id})}"
             class="bar-form"
-            data-confirm
-            data-confirm-title="Anwesenheitsliste freigeben?"
-            data-confirm-message="Nach der Freigabe ist die Liste für die normale Bearbeitung gesperrt. Administratoren können weiterhin Änderungen vornehmen."
-            data-confirm-label="Freigeben"
-            data-confirm-variant="success">
+            data-confirm-anwesenheit-release
+            th:attr="data-release-print-report=${anwesenheitReleaseDefaultPrintReport}">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="unit" th:value="${unitId}"/>
         <input type="hidden" name="returnUrl"

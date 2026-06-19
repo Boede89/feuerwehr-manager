@@ -80,6 +80,14 @@
     });
   }
 
+  function releaseDefaults() {
+    return {
+      createGeraetewart: root.dataset.releaseCreateGeraetewart === 'true',
+      printReport: root.dataset.releasePrintReport === 'true',
+      printGeraetewart: root.dataset.releasePrintGeraetewart === 'true'
+    };
+  }
+
   function listReturnPath() {
     var path = '/berichte?tab=einsatz&year=' + filters.year;
     if (filters.stichwort) {
@@ -252,7 +260,7 @@
     });
     document.getElementById('btn-modal-release')?.addEventListener('click', function () {
       var ask = window.FwConfirm && window.FwConfirm.releaseEinsatzbericht
-        ? window.FwConfirm.releaseEinsatzbericht()
+        ? window.FwConfirm.releaseEinsatzbericht(releaseDefaults())
         : Promise.resolve(window.confirm('Einsatzbericht wirklich freigeben?'));
       ask.then(function (result) {
         var ok = result === true || (result && result.ok);
@@ -265,6 +273,9 @@
         }
         if (result && result.printReport) {
           extras.printReport = true;
+        }
+        if (result && result.printGeraetewart) {
+          extras.printGeraetewart = true;
         }
         postAction('/berichte/einsatzberichte/' + meta.reportId + '/freigeben', returnPath, extras);
       });

@@ -159,26 +159,48 @@
     };
   }
 
-  var EINSATZ_RELEASE_CHECKBOXES = [
-    {
-      id: 'fw-confirm-create-geraetewart',
-      name: 'createGeraetewart',
-      label: 'Gerätewartmitteilung erstellen',
-      checked: false
-    },
-    {
-      id: 'fw-confirm-print-report',
-      name: 'printReport',
-      label: 'Einsatzbericht drucken',
-      checked: false
-    }
-  ];
+  var EINSATZ_RELEASE_FIELD_NAMES = ['createGeraetewart', 'printReport', 'printGeraetewart'];
 
-  function appendReleaseOptions(form, result) {
+  function releaseDefaultsFromElement(el) {
+    if (!el || !el.dataset) {
+      return {};
+    }
+    return {
+      createGeraetewart: el.dataset.releaseCreateGeraetewart === 'true',
+      printReport: el.dataset.releasePrintReport === 'true',
+      printGeraetewart: el.dataset.releasePrintGeraetewart === 'true'
+    };
+  }
+
+  function buildEinsatzReleaseCheckboxes(defaults) {
+    var d = defaults || {};
+    return [
+      {
+        id: 'fw-confirm-create-geraetewart',
+        name: 'createGeraetewart',
+        label: 'Gerätewartmitteilung erstellen',
+        checked: !!d.createGeraetewart
+      },
+      {
+        id: 'fw-confirm-print-report',
+        name: 'printReport',
+        label: 'Einsatzbericht drucken',
+        checked: !!d.printReport
+      },
+      {
+        id: 'fw-confirm-print-geraetewart',
+        name: 'printGeraetewart',
+        label: 'Gerätewartmitteilung drucken',
+        checked: !!d.printGeraetewart
+      }
+    ];
+  }
+
+  function appendReleaseOptions(form, result, fieldNames) {
     if (!result || !result.ok) {
       return;
     }
-    ['createGeraetewart', 'printReport'].forEach(function (name) {
+    (fieldNames || EINSATZ_RELEASE_FIELD_NAMES).forEach(function (name) {
       form.querySelectorAll('input[name="' + name + '"]').forEach(function (el) {
         el.remove();
       });
@@ -200,9 +222,27 @@
         if (form && form.dataset.confirmSubmitting !== 'true') {
           e.preventDefault();
           e.stopImmediatePropagation();
-          window.FwConfirm.releaseEinsatzbericht().then(function (result) {
+          window.FwConfirm.releaseEinsatzbericht(releaseDefaultsFromElement(form)).then(function (result) {
             if (result && result.ok) {
-              appendReleaseOptions(form, result);
+              appendReleaseOptions(form, result, EINSATZ_RELEASE_FIELD_NAMES);
+              form.dataset.confirmSubmitting = 'true';
+              if (typeof form.requestSubmit === 'function') {
+                form.requestSubmit();
+              } else {
+                form.submit();
+              }
+            }
+          });
+          return;
+        }
+
+        form = e.target.closest('form[data-confirm-anwesenheit-release]');
+        if (form && form.dataset.confirmSubmitting !== 'true') {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          window.FwConfirm.releaseAnwesenheitsliste(releaseDefaultsFromElement(form)).then(function (result) {
+            if (result && result.ok) {
+              appendReleaseOptions(form, result, ['printReport']);
               form.dataset.confirmSubmitting = 'true';
               if (typeof form.requestSubmit === 'function') {
                 form.requestSubmit();
@@ -250,7 +290,7 @@
         variant: 'success'
       });
     },
-    releaseEinsatzbericht: function () {
+    releaseEinsatzbericht: function (defaults) {
       return show({
         title: 'Einsatzbericht freigeben?',
         message:
@@ -258,7 +298,26 @@
           'Administratoren können weiterhin Änderungen vornehmen.',
         confirmLabel: 'Freigeben',
         variant: 'success',
-        checkboxes: EINSATZ_RELEASE_CHECKBOXES
+        checkboxes: buildEinsatzReleaseCheckboxes(defaults)
+      });
+    },
+    releaseAnwesenheitsliste: function (defaults) {
+      var d = defaults || {};
+      return show({
+        title: 'Anwesenheitsliste freigeben?',
+        message:
+          'Nach der Freigabe ist die Liste für die normale Bearbeitung gesperrt. ' +
+          'Administratoren können weiterhin Änderungen vornehmen.',
+        confirmLabel: 'Freigeben',
+        variant: 'success',
+        checkboxes: [
+          {
+            id: 'fw-confirm-print-report',
+            name: 'printReport',
+            label: 'Anwesenheitsliste drucken',
+            checked: !!d.printReport
+          }
+        ]
       });
     },
     archiveReport: function (reportLabel) {

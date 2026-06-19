@@ -72,6 +72,9 @@ public class BerichteSettingsController {
             @RequestParam(name = "importPersonnelFromDivera", defaultValue = "false") boolean importPersonnelFromDivera,
             @RequestParam(name = "allowForeignUnitPersonnel", defaultValue = "false") boolean allowForeignUnitPersonnel,
             @RequestParam(name = "personnelStatusIds", required = false) String[] personnelStatusIds,
+            @RequestParam(name = "einsatzReleaseCreateGeraetewart", defaultValue = "false") boolean einsatzReleaseCreateGeraetewart,
+            @RequestParam(name = "einsatzReleasePrintReport", defaultValue = "false") boolean einsatzReleasePrintReport,
+            @RequestParam(name = "einsatzReleasePrintGeraetewart", defaultValue = "false") boolean einsatzReleasePrintGeraetewart,
             RedirectAttributes redirectAttributes) {
         try {
             accessControlService.requireAdminLevel(actor);
@@ -79,12 +82,38 @@ public class BerichteSettingsController {
             requireModuleEnabled(unit);
             List<String> statusIds = personnelStatusIds == null ? List.of() : Arrays.asList(personnelStatusIds);
             berichteSettingsService.saveEinsatzSettings(
-                    unit, importIncidentDataFromDivera, importPersonnelFromDivera, allowForeignUnitPersonnel, statusIds);
+                    unit,
+                    importIncidentDataFromDivera,
+                    importPersonnelFromDivera,
+                    allowForeignUnitPersonnel,
+                    statusIds,
+                    einsatzReleaseCreateGeraetewart,
+                    einsatzReleasePrintReport,
+                    einsatzReleasePrintGeraetewart);
             redirectAttributes.addFlashAttribute("message", "Einsatzbericht-Einstellungen gespeichert.");
             return "redirect:/settings/berichte?unit=" + unit + "&tab=einsatz";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return "redirect:/settings/berichte?unit=" + unit + "&tab=einsatz";
+        }
+    }
+
+    @PostMapping("/anwesenheit")
+    public String saveAnwesenheit(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam(name = "anwesenheitReleasePrintReport", defaultValue = "false") boolean anwesenheitReleasePrintReport,
+            RedirectAttributes redirectAttributes) {
+        try {
+            accessControlService.requireAdminLevel(actor);
+            accessControlService.requireUnitAccess(actor, unit);
+            requireModuleEnabled(unit);
+            berichteSettingsService.saveAnwesenheitReleaseSettings(unit, anwesenheitReleasePrintReport);
+            redirectAttributes.addFlashAttribute("message", "Anwesenheitslisten-Einstellungen gespeichert.");
+            return "redirect:/settings/berichte?unit=" + unit + "&tab=anwesenheit";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return "redirect:/settings/berichte?unit=" + unit + "&tab=anwesenheit";
         }
     }
 

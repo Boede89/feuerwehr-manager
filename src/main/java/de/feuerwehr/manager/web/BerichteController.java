@@ -7,6 +7,7 @@ import de.feuerwehr.manager.berichte.KraefteCrewJsonSupport;
 import de.feuerwehr.manager.berichte.AnwesenheitslisteService;
 import de.feuerwehr.manager.berichte.AnwesenheitslisteTerminSyncService;
 import de.feuerwehr.manager.berichte.AttendanceReport;
+import de.feuerwehr.manager.berichte.BerichteSettingsService;
 import de.feuerwehr.manager.berichte.BerichteTab;
 import de.feuerwehr.manager.berichte.CrewAssignment;
 import de.feuerwehr.manager.berichte.DeployedEquipmentAssignment;
@@ -34,6 +35,7 @@ import de.feuerwehr.manager.berichte.DefectReport;
 import de.feuerwehr.manager.berichte.EquipmentMaintenanceReport;
 import de.feuerwehr.manager.berichte.DamagePerpetratorSupport;
 import de.feuerwehr.manager.berichte.PersonDamageDetailsSupport;
+import de.feuerwehr.manager.berichte.UnitBerichteSettings;
 import de.feuerwehr.manager.berichte.VehicleEquipmentView;
 import de.feuerwehr.manager.pdf.PdfDownloadResponse;
 import de.feuerwehr.manager.divera.DiveraEinsatzberichtSyncService;
@@ -90,6 +92,7 @@ public class BerichteController {
     private final MaengelberichtService maengelberichtService;
     private final MaengelberichtPdfService maengelberichtPdfService;
     private final UnitPrintSettingsService unitPrintSettingsService;
+    private final BerichteSettingsService berichteSettingsService;
 
     @GetMapping
     public String index(
@@ -139,6 +142,8 @@ public class BerichteController {
             } else if (berichteTab == BerichteTab.MAENGEL) {
                 model.addAttribute("filterYear", filterYear != null ? filterYear : LocalDate.now().getYear());
             }
+            addEinsatzReleaseDefaults(model, unit.getId());
+            addAnwesenheitReleaseDefaults(model, unit.getId());
             return "berichte/index";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
@@ -246,6 +251,7 @@ public class BerichteController {
             model.addAttribute(
                     "pageSubtitle",
                     report.getIncidentNumber() != null ? report.getIncidentNumber() : "Anzeige");
+            addEinsatzReleaseDefaults(model, unit.getId());
             return "berichte/einsatzbericht-view";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
@@ -374,6 +380,7 @@ public class BerichteController {
             @RequestParam(name = "returnUrl", required = false) String returnUrl,
             @RequestParam(name = "createGeraetewart", defaultValue = "false") boolean createGeraetewart,
             @RequestParam(name = "printReport", defaultValue = "false") boolean printReport,
+            @RequestParam(name = "printGeraetewart", defaultValue = "false") boolean printGeraetewart,
             @PathVariable long id,
             RedirectAttributes redirectAttributes) {
         try {
@@ -385,9 +392,12 @@ public class BerichteController {
                     unit.getId(), id, IncidentReportStatus.FREIGEGEBEN, actor, canApprove);
 
             List<String> followUpMessages = new ArrayList<>();
+            Long geraetewartReportId = null;
             if (createGeraetewart) {
                 try {
-                    geraetewartmitteilungService.createFromIncidentReport(unit.getId(), id, actor);
+                    EquipmentMaintenanceReport gwm =
+                            geraetewartmitteilungService.createFromIncidentReport(unit.getId(), id, actor);
+                    geraetewartReportId = gwm.getId();
                     followUpMessages.add("Gerätewartmitteilung wurde erstellt.");
                 } catch (IllegalArgumentException e) {
                     followUpMessages.add("Gerätewartmitteilung: " + e.getMessage());
@@ -413,8 +423,37 @@ public class BerichteController {
                     followUpMessages.add("Druck: " + e.getMessage());
                 }
             }
+            if (printGeraetewart) {
+                try {
+                    if (geraetewartReportId == null) {
+                        EquipmentMaintenanceReport gwm =
+                                geraetewartmitteilungService.createFromIncidentReport(unit.getId(), id, actor);
+                        geraetewartReportId = gwm.getId();
+                        if (!createGeraetewart) {
+                            followUpMessages.add("Gerätewartmitteilung wurde für den Druck erstellt.");
+                        }
+                    }
+                    EquipmentMaintenanceReport gwmReport =
+                            geraetewartmitteilungService.requireReport(unit.getId(), geraetewartReportId);
+                    byte[] pdf = geraetewartmitteilungPdfService.renderPdf(unit.getId(), geraetewartReportId);
+                    CupsPrintService.CupsPrintResult printResult =
+                            unitPrintSettingsService.printPdf(unit.getId(), pdf);
+                    if (printResult.success()) {
+                        followUpMessages.add("Gerätewartmitteilung wurde zum Drucken gesendet.");
+                    } else {
+                        followUpMessages.add("Gerätewartmitteilung drucken: " + printResult.message());
+                    }
+                    log.info(
+                            "Gerätewartmitteilung-Druck nach Freigabe {} ({}): {}",
+                            geraetewartReportId,
+                            geraetewartmitteilungPdfService.suggestedFilename(gwmReport),
+                            printResult.success() ? "OK" : printResult.message());
+                } catch (IllegalArgumentException e) {
+                    followUpMessages.add("Gerätewartmitteilung drucken: " + e.getMessage());
+                }
+            }
 
-            String message = "Einsatzbericht wurde freigeben.";
+            String message = "Einsatzbericht wurde freigegeben.";
             if (!followUpMessages.isEmpty()) {
                 message += " " + String.join(" ", followUpMessages);
             }
@@ -577,6 +616,7 @@ public class BerichteController {
             model.addAttribute(
                     "pageSubtitle",
                     report.getReportNumber() != null ? report.getReportNumber() : "Anzeige");
+            addAnwesenheitReleaseDefaults(model, unit.getId());
             return "berichte/anwesenheitsliste-view";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
@@ -694,10 +734,57 @@ public class BerichteController {
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
             @RequestParam(name = "returnUrl", required = false) String returnUrl,
+            @RequestParam(name = "printReport", defaultValue = "false") boolean printReport,
             @PathVariable long id,
             RedirectAttributes redirectAttributes) {
-        return changeAnwesenheitslisteStatus(
-                actor, unitId, id, IncidentReportStatus.FREIGEGEBEN, returnUrl, redirectAttributes, "freigegeben");
+        try {
+            Unit unit = resolveUnit(unitId, actor);
+            requireModuleEnabled(unit.getId());
+            requireBerichteRead(actor, unit.getId());
+            boolean canApprove = canApprove(actor, unit.getId());
+            anwesenheitslisteService.transitionStatus(
+                    unit.getId(), id, IncidentReportStatus.FREIGEGEBEN, actor, canApprove);
+
+            List<String> followUpMessages = new ArrayList<>();
+            if (printReport) {
+                try {
+                    AttendanceReport report = anwesenheitslisteService.requireReport(unit.getId(), id);
+                    byte[] pdf = anwesenheitslistePdfService.renderPdf(unit.getId(), id);
+                    CupsPrintService.CupsPrintResult printResult =
+                            unitPrintSettingsService.printPdf(unit.getId(), pdf);
+                    if (printResult.success()) {
+                        followUpMessages.add("Anwesenheitsliste wurde zum Drucken gesendet.");
+                    } else {
+                        followUpMessages.add("Druck: " + printResult.message());
+                    }
+                    log.info(
+                            "Anwesenheitsliste-Druck nach Freigabe {} ({}): {}",
+                            id,
+                            anwesenheitslistePdfService.suggestedFilename(report),
+                            printResult.success() ? "OK" : printResult.message());
+                } catch (IllegalArgumentException e) {
+                    followUpMessages.add("Druck: " + e.getMessage());
+                }
+            }
+
+            String message = "Anwesenheitsliste wurde freigegeben.";
+            if (!followUpMessages.isEmpty()) {
+                message += " " + String.join(" ", followUpMessages);
+            }
+            redirectAttributes.addFlashAttribute("message", message);
+            String safeReturn = sanitizeReturnUrl(returnUrl);
+            if (safeReturn != null) {
+                return "redirect:" + buildBackUrl(safeReturn, unit.getId());
+            }
+            return redirectBerichte(unit.getId(), "anwesenheit");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            String safeReturn = sanitizeReturnUrl(returnUrl);
+            if (safeReturn != null && unitId != null) {
+                return "redirect:" + buildBackUrl(safeReturn, unitId);
+            }
+            return redirectBerichte(unitId, "anwesenheit");
+        }
     }
 
     @PostMapping("/anwesenheitslisten/{id}/archivieren")
@@ -1487,6 +1574,18 @@ public class BerichteController {
 
     private static String redirectBerichte(Long unitId, String tab) {
         return redirectBerichte(unitId, tab, null, null, null);
+    }
+
+    private void addEinsatzReleaseDefaults(Model model, long unitId) {
+        UnitBerichteSettings settings = berichteSettingsService.ensureSettings(unitId);
+        model.addAttribute("releaseDefaultCreateGeraetewart", settings.isEinsatzReleaseCreateGeraetewart());
+        model.addAttribute("releaseDefaultPrintReport", settings.isEinsatzReleasePrintReport());
+        model.addAttribute("releaseDefaultPrintGeraetewart", settings.isEinsatzReleasePrintGeraetewart());
+    }
+
+    private void addAnwesenheitReleaseDefaults(Model model, long unitId) {
+        UnitBerichteSettings settings = berichteSettingsService.ensureSettings(unitId);
+        model.addAttribute("anwesenheitReleaseDefaultPrintReport", settings.isAnwesenheitReleasePrintReport());
     }
 
     private String printBerichteDocument(
