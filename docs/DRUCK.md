@@ -23,7 +23,7 @@ Pro Einheit konfigurierbar:
 
 1. **CUPS-Client** im App-Container (`cups-client`, `ghostscript`, `poppler-utils`) — ab Image-Neubau via `docker compose up -d --build`.
 2. **CUPS-Server** als Docker-Service `cups` (Port **631** auf dem Host des Managers).
-3. In `.env`: `CUPS_SERVER=print:print@cups:631` und optional `CUPS_PRINTER_URI` für automatische Warteschlange.
+3. **Keine `.env`-Pflicht:** Standard-Login Web-UI ist **`print` / `print`**. Optional `CUPS_PRINTER_URI` in `.env` für automatische Warteschlange beim ersten Start.
 
 ### CUPS-Web-Oberfläche
 
@@ -33,17 +33,23 @@ Pro Einheit konfigurierbar:
 http://<IP-des-fw-manager>:631
 ```
 
-Anmeldung: Benutzer **`print`**, Passwort aus `.env` (`CUPS_ADMIN_PASSWORD`).
+Anmeldung: Benutzer **`print`**, Passwort **`print`** (oder Wert aus `CUPS_ADMIN_PASSWORD`, falls in `.env` gesetzt).
 
-**Wichtig:** Das Image `olbat/cupsd` hat intern immer den Benutzer `print`. Ohne unser Entrypoint-Skript ist das Passwort fest **`print`** — nicht der Wert aus der `.env`. Nach Update setzt `docker/cups/entrypoint.sh` das Passwort beim Start aus `CUPS_ADMIN_PASSWORD`.
+**Wichtig:** `cupsd.conf` und `entrypoint.sh` werden per Bind-Mount aus dem Git-Repo geladen — nach `git pull` und `docker compose up -d` gilt die aktuelle Konfiguration, auch wenn das CUPS-Volume schon älter ist.
 
-Falls die Anmeldung trotzdem scheitert: gespeicherte Zugangsdaten im Browser löschen (oder Inkognito-Fenster) und erneut versuchen.
+Falls die Anmeldung trotzdem scheitert: gespeicherte Zugangsdaten im Browser löschen (oder Inkognito-Fenster) und erneut versuchen. Danach Container neu starten:
+
+```bash
+docker compose up -d cups
+```
+
+Extremfall (altes Volume, Drucker neu anlegen): `docker compose down` und Volume `*_ffm_cups_data` löschen, dann `docker compose up -d`.
 
 Falls der Drucker in CUPS existiert, aber der App-Container ihn nicht sieht: Warteschlange **freigeben**:
 
 ```bash
 docker exec ffm_cups lpadmin -p Zentrale -o printer-is-shared=true
-docker exec ffm_app lpstat -h ffm_cups:631 -U print:DEIN_PASSWORT -t
+docker exec ffm_app lpstat -h cups:631 -U print:print -t
 ```
 
 Ohne `printer-is-shared=true` meldet Remote-`lpstat` nur `scheduler is running`, listet aber keine Drucker.
