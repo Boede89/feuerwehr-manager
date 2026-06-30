@@ -94,7 +94,8 @@ public class TestAlarmController {
     public ActionResultDto startSample(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam long unit,
-            @PathVariable long id) {
+            @PathVariable long id,
+            @RequestParam(name = "sendPush", defaultValue = "false") boolean sendPush) {
         try {
             requireTestMode();
             unitService
@@ -102,7 +103,16 @@ public class TestAlarmController {
                     .orElseThrow(() -> new IllegalArgumentException("Kein Zugriff auf diese Einheit."));
             WebhookOutcome outcome = diveraAlarmSampleService.startEinsatzFromSample(unit, id);
             if (outcome.status() == WebhookStatus.ACCEPTED) {
-                return ActionResultDto.success(outcome.message());
+                if (sendPush) {
+                    diveraAlarmSampleService
+                            .payloadForUnit(unit, id)
+                            .ifPresent(payload -> diveraWebhookService.tryDispatchEinsatzAppPush(unit, payload));
+                }
+                String msg = outcome.message();
+                if (sendPush) {
+                    msg += " — Push-Versand an Einsatz-App ausgelöst";
+                }
+                return ActionResultDto.success(msg);
             }
             return ActionResultDto.failure(
                     outcome.message() != null ? outcome.message() : "Einsatz konnte nicht gestartet werden");
@@ -172,15 +182,19 @@ public class TestAlarmController {
     public ActionResultDto send(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam long unit,
-            @RequestParam String payload) {
+            @RequestParam String payload,
+            @RequestParam(name = "sendPush", defaultValue = "false") boolean sendPush) {
         try {
             requireTestMode();
             unitService
                     .resolveActiveUnit(unit, actor)
                     .orElseThrow(() -> new IllegalArgumentException("Kein Zugriff auf diese Einheit."));
-            WebhookOutcome outcome = diveraWebhookService.handleTestWebhook(unit, payload);
+            WebhookOutcome outcome = diveraWebhookService.handleTestWebhook(unit, payload, sendPush);
             if (outcome.status() == WebhookStatus.ACCEPTED) {
                 String msg = outcome.message();
+                if (sendPush) {
+                    msg += " — Push-Versand an Einsatz-App ausgelöst";
+                }
                 if (outcome.externalId() != null && !outcome.externalId().isBlank()) {
                     msg += " (ID: " + outcome.externalId() + ")";
                 }

@@ -127,12 +127,21 @@
     }, 400);
   }
 
+  function confirmSendPush() {
+    return window.confirm(
+      'Push-Benachrichtigung an registrierte Einsatz-App-Geräte senden?\n\n' +
+        'OK = Ja, Push senden\nAbbrechen = Nein, nur Einsatz starten'
+    );
+  }
+
   function startSample(sampleId, triggerBtn) {
     var unitId = meta.getAttribute('data-unit-id');
     if (!unitId || !sampleId) return;
+    var sendPush = confirmSendPush();
     if (triggerBtn) triggerBtn.disabled = true;
     var body = new URLSearchParams();
     body.set('unit', unitId);
+    body.set('sendPush', sendPush ? 'true' : 'false');
     fetch('/test-alarm/samples/' + sampleId + '/start', {
       method: 'POST',
       headers: {
@@ -299,11 +308,13 @@
       notify('Bitte JSON eintragen', 'warning');
       return;
     }
+    var sendPush = confirmSendPush();
     var btn = document.getElementById('btn-test-alarm-send');
     if (btn) btn.disabled = true;
     var body = new URLSearchParams();
     body.set('unit', unitId);
     body.set('payload', payload);
+    body.set('sendPush', sendPush ? 'true' : 'false');
     fetch('/test-alarm/send', {
       method: 'POST',
       headers: {

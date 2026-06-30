@@ -138,6 +138,14 @@ Das `fcmToken` kommt **von der Android-App** (Phase 3), nicht aus der Dienstkont
 3. Android Studio → Ordner `android/einsatzapp` öffnen
 4. App installieren → **Server-Adresse** eintragen → anmelden
 
+## Push im Testmodus testen
+
+1. **Voraussetzungen:** Modul Einsatz-App aktiv, Push in Schnittstellen eingeschaltet, FCM-Dienstkonto hochgeladen, Android-App installiert und angemeldet (gleiche Einheit, Berechtigung `einsatzapp.read`).
+2. **Testmodus** aktivieren (Admin → Konfiguration).
+3. **Testalarm** öffnen (`/test-alarm`) → bei einem Beispiel **Einsatz starten** klicken.
+4. Im Dialog **OK** = Push senden, **Abbrechen** = nur Einsatz auf der Startseite (ohne Push).
+5. Ergebnis prüfen: Benachrichtigung auf dem Handy; unter **Einsatz-App** → Push-Protokoll der letzten Versände.
+
 ## Nächste Schritte
 
 - **Phase 4:** Pro Benutzer steuern, ob und welche Einsatzdaten (Adresse, Stichwort, …) er erhält

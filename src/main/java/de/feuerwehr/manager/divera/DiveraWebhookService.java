@@ -38,14 +38,21 @@ public class DiveraWebhookService {
      * Simuliert einen DIVERA-Webhook im Testmodus (kein Aufruf nach DIVERA, keine Secret-Prüfung).
      * Speichert den Alarm für die Startseite; beim Beenden des Testmodus werden alle Testalarme gelöscht.
      */
-    public WebhookOutcome handleTestWebhook(long unitId, String rawBody) {
+    public WebhookOutcome handleTestWebhook(long unitId, String rawBody, boolean sendPush) {
         WebhookOutcome outcome = testDiveraAlarmService.ingestTestWebhook(unitId, rawBody);
         if (outcome.status() == WebhookStatus.ACCEPTED) {
             diveraAlarmSampleService.captureFromWebhook(unitId, rawBody);
-            dispatchEinsatzAppPush(unitId, rawBody);
-            log.info("[Divera-Webhook-Test] unit={} externalId={}", unitId, outcome.externalId());
+            if (sendPush) {
+                tryDispatchEinsatzAppPush(unitId, rawBody);
+            }
+            log.info("[Divera-Webhook-Test] unit={} externalId={} push={}", unitId, outcome.externalId(), sendPush);
         }
         return outcome;
+    }
+
+    /** Löst einen Einsatz-App-Push aus dem Webhook-JSON aus (z. B. Testalarm „Einsatz starten“). */
+    public void tryDispatchEinsatzAppPush(long unitId, String rawBody) {
+        dispatchEinsatzAppPush(unitId, rawBody);
     }
 
     public WebhookOutcome handleWebhook(long unitId, String secretFromQuery, String secretFromHeader, String rawBody) {
