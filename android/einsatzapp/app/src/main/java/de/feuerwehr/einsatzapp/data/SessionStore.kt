@@ -3,7 +3,6 @@ package de.feuerwehr.einsatzapp.data
 import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
-import androidx.datastore.preferences.core.remove
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -34,11 +33,11 @@ class SessionStore(private val context: Context) {
 
     suspend fun clear() {
         context.appDataStore.edit { prefs ->
-            prefs.remove(KEY_SESSION_COOKIE)
-            prefs.remove(KEY_USER_ID)
-            prefs.remove(KEY_DISPLAY_NAME)
-            prefs.remove(KEY_UNIT_ID)
-            prefs.remove(KEY_FCM_TOKEN)
+            prefs -= KEY_SESSION_COOKIE
+            prefs -= KEY_USER_ID
+            prefs -= KEY_DISPLAY_NAME
+            prefs -= KEY_UNIT_ID
+            prefs -= KEY_FCM_TOKEN
         }
     }
 
