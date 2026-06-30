@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('Einsatz-App', ~{::main})}">
+<main>
+  <div class="page-header">
+    <div>
+      <h2 th:text="${pageTitle}">Einsatz-App</h2>
+      <p th:text="${pageSubtitle}">Android-Alarmierung bei DIVERA-Einsätzen</p>
+    </div>
+  </div>
+
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
+
+  <div class="card">
+    <div class="card__header">In Vorbereitung</div>
+    <div class="card__body">
+      <p>
+        Das Modul <strong>Einsatz-App</strong> bringt DIVERA-Alarmierungen auf Android-Geräte Ihrer Einsatzkräfte.
+        Die Verwaltungsoberfläche im Browser wird hier eingerichtet; die mobile App folgt in späteren Schritten.
+      </p>
+      <h3 class="mt-md" style="margin-bottom: 0.5rem;">Geplanter Ablauf</h3>
+      <ol class="hint" style="margin-top: 0;">
+        <li><strong>Phase 1 (aktuell):</strong> Modul aktivieren, Berechtigungen, diese Übersicht</li>
+        <li><strong>Phase 2:</strong> Geräte-Registrierung, Push-Versand (FCM) aus DIVERA-Webhooks</li>
+        <li><strong>Phase 3:</strong> Android-App — Anmeldung, Push-Empfang, Einsatzdetails</li>
+      </ol>
+      <p class="hint" style="margin-top: 1.25rem;">
+        Technische Basis im Backend ist bereits angelegt: DIVERA-Webhook, optionales Polling und
+        <code>GET /api/v1/units/{unitId}/divera/alarms</code> für die spätere App.
+        Details: <code>docs/EINSATZ-APP.md</code>
+      </p>
+    </div>
+  </div>
+
+  <div class="card mt-md">
+    <div class="card__header">Modul aktivieren</div>
+    <div class="card__body">
+      <p class="hint" style="margin-top: 0;">
+        Adminpanel → Einheit → <strong>Module</strong> → „Einsatz-App“ einschalten.
+        Anschließend unter <strong>Rollen</strong> die Berechtigungen <em>Einsatz-App (Lesen/Schreiben)</em> vergeben.
+      </p>
+      <a class="btn btn--outline btn--sm"
+         th:href="@{/admin(scope='einheit', tab='module', unit=${unitId})}">Zu den Modul-Einstellungen</a>
+    </div>
+  </div>
+</main>
+</html>

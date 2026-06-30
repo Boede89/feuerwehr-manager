@@ -7,6 +7,7 @@ public enum AppModule {
     ATEMSCHUTZ("atemschutz", "Atemschutz", "Tauglichkeiten und Nachweise", "🛡️", true),
     BERICHTE("berichte", "Berichte", "Einsatz- und Dienstberichte", "📋", true),
     TERMINE("termine", "Termine", "Kalender und Terminplanung", "📅", true),
+    EINSATZAPP("einsatzapp", "Einsatz-App", "Android-Alarmierung bei DIVERA-Einsätzen", "📱", true),
     AUSWERTUNG("auswertung", "Auswertung", "Statistiken und Auswertungen", "📊", false);
 
     private final String key;

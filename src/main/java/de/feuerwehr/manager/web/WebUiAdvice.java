@@ -177,6 +177,9 @@ public class WebUiAdvice {
         if (path.startsWith("/termine")) {
             return "termine";
         }
+        if (path.startsWith("/einsatzapp")) {
+            return "einsatzapp";
+        }
         if (path.startsWith("/my-area") || path.startsWith("/profile")) {
             return "my-area";
         }

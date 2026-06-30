@@ -22,6 +22,10 @@ Die Antwort wird wie in der PHP-Funktion `fetch_divera_alarms` ausgewertet: JSON
 | JSON für Android/extern | `GET /api/v1/units/{unitId}/divera/alarms` |
 | Optional Polling | `DiveraPollScheduler` bei `feuerwehr.divera.poll-enabled=true` |
 
+## Modul Einsatz-App
+
+Android-Alarmierung über Push (FCM) — Modul `einsatzapp` im Feuerwehr-Manager. Dokumentation: `docs/EINSATZ-APP.md`.
+
 ## Später: Push-Benachrichtigung (Android)
 
 Typischer Ablauf:
