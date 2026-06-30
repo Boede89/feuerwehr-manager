@@ -106,6 +106,37 @@ public class DiveraApiClient {
         }
     }
 
+    /** Einzelnen Alarm inkl. Rückmeldungen ({@code GET /api/v2/alarms/{id}}). */
+    public java.util.Optional<JsonNode> fetchAlarmItemById(String apiBaseUrl, String accessKey, long alarmId) {
+        if (alarmId <= 0) {
+            return java.util.Optional.empty();
+        }
+        String key = normalizeAccessKey(accessKey);
+        if (key.isEmpty()) {
+            return java.util.Optional.empty();
+        }
+        String base = normalizeApiBase(apiBaseUrl);
+        URI uri = UriComponentsBuilder.fromUriString(base + "/api/v2/alarms/" + alarmId)
+                .queryParam("accesskey", key)
+                .encode(StandardCharsets.UTF_8)
+                .build()
+                .toUri();
+        RawApiResponse raw = fetchRawGet(uri, base + "/api/v2/alarms/" + alarmId + "?accesskey=…");
+        if (!raw.success() || raw.body() == null || raw.body().isBlank()) {
+            return java.util.Optional.empty();
+        }
+        try {
+            JsonNode root = objectMapper.readTree(raw.body());
+            JsonNode data = root.path("data");
+            if (data.isObject() && !data.isNull() && data.has("id")) {
+                return java.util.Optional.of(data);
+            }
+            return java.util.Optional.empty();
+        } catch (Exception e) {
+            return java.util.Optional.empty();
+        }
+    }
+
     private static String normalizeAccessKey(String accessKey) {
         return accessKey == null ? "" : accessKey.trim().replaceAll("[\\r\\n\\t\\v]+", "");
     }

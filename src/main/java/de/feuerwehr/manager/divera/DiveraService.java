@@ -3,8 +3,10 @@ package de.feuerwehr.manager.divera;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import de.feuerwehr.manager.divera.DiveraAlarmDetailsMapper;
 import de.feuerwehr.manager.divera.DiveraAlarmDetailsMapper.DiveraAlarmDetails;
 import de.feuerwehr.manager.settings.TestModeService;
+import de.feuerwehr.manager.unit.UnitDiveraSettings;
 import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -131,15 +133,56 @@ public class DiveraService {
                     root = null;
                 }
             }
-            try {
-                return DiveraAlarmDetailsMapper.fromSummary(summary, root);
-            } catch (Exception e) {
-                org.slf4j.LoggerFactory.getLogger(DiveraService.class)
-                        .warn("DIVERA-Alarmdetails {} konnten nicht gelesen werden: {}", alarmId, e.getMessage(), e);
-                return Optional.empty();
-            }
+            return resolveAlarmDetails(unitId, summary, root);
         }
         return Optional.empty();
+    }
+
+    /**
+     * Alarmdetails aus Listen-Payload; bei fehlenden Rückmeldungen Nachladen per {@code GET /api/v2/alarms/{id}}.
+     */
+    @Transactional(readOnly = true)
+    public Optional<DiveraAlarmDetails> resolveAlarmDetails(long unitId, DiveraAlarmSummary summary, JsonNode root) {
+        if (summary == null || summary.id() <= 0) {
+            return Optional.empty();
+        }
+        try {
+            Optional<DiveraAlarmDetails> fromList = DiveraAlarmDetailsMapper.fromSummary(summary, root);
+            if (fromList.isEmpty()) {
+                return Optional.empty();
+            }
+            DiveraAlarmDetails details = fromList.get();
+            if (DiveraAlarmDetailsMapper.hasPersonnelResponses(details)) {
+                return Optional.of(details);
+            }
+            if (testModeService.isEnabled()) {
+                return Optional.of(details);
+            }
+            return fetchAlarmDetailsFromApi(unitId, summary.id()).or(() -> Optional.of(details));
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(DiveraService.class)
+                    .warn("DIVERA-Alarmdetails {} konnten nicht gelesen werden: {}", summary.id(), e.getMessage(), e);
+            return Optional.empty();
+        }
+    }
+
+    private Optional<DiveraAlarmDetails> fetchAlarmDetailsFromApi(long unitId, long alarmId) {
+        return diveraSettingsRepository
+                .findByUnitId(unitId)
+                .flatMap(cfg -> diveraApiClient.fetchAlarmItemById(
+                        cfg.getApiBaseUrl() != null ? cfg.getApiBaseUrl() : DiveraIntegrationSupport.DEFAULT_API_BASE,
+                        cfg.getAccessKey(),
+                        alarmId))
+                .flatMap(item -> {
+                    try {
+                        ObjectNode root = objectMapper.createObjectNode();
+                        root.set("data", item);
+                        return DiveraAlarmDetailsMapper.fromWebhookJson(root);
+                    } catch (Exception e) {
+                        return Optional.empty();
+                    }
+                })
+                .filter(DiveraAlarmDetailsMapper::hasPersonnelResponses);
     }
 
     private String buildTestAlarmPayload(TestDiveraAlarm alarm) {

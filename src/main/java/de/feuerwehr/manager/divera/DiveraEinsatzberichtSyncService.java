@@ -86,7 +86,8 @@ public class DiveraEinsatzberichtSyncService {
             }
         }
         try {
-            return DiveraAlarmDetailsMapper.fromSummary(alarm, root)
+            return diveraService
+                    .resolveAlarmDetails(unitId, alarm, root)
                     .map(details -> {
                         boolean created = einsatzberichtService.createDraftFromDiveraIfMissing(unitId, details);
                         einsatzberichtService.refreshDiveraPersonnelFromDetails(unitId, details);

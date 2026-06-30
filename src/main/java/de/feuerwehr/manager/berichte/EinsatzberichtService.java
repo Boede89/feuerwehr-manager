@@ -2,6 +2,7 @@ package de.feuerwehr.manager.berichte;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import de.feuerwehr.manager.divera.DiveraAlarmDetailsMapper;
 import de.feuerwehr.manager.divera.DiveraAlarmDetailsMapper.DiveraAlarmDetails;
 import de.feuerwehr.manager.divera.DiveraApiClient;
 import static de.feuerwehr.manager.divera.DiveraIntegrationSupport.DIVERA_ZONE;
@@ -1543,29 +1544,42 @@ public class EinsatzberichtService {
         Map<Long, Integer> statusByUcr = loadDiveraUserStatuses(unitId);
         Set<Long> targetUcrIds = resolveTargetUcrIds(details, allowedStatusIds, statusByUcr);
         if (targetUcrIds.isEmpty()) {
-            log.debug(
+            log.info(
                     "[Divera→Personal] unit={} alarm={} report={} — keine UCR-IDs "
-                            + "(ucr_answered leer oder keine passende Status-ID? hits={})",
+                            + "(ucr_answered leer oder keine passende Status-ID? hits={} ucrIds={} statusFilter={})",
                     unitId,
                     details.alarmId(),
                     report.getId(),
-                    details.answeredHits() != null ? details.answeredHits().size() : 0);
+                    details.answeredHits() != null ? details.answeredHits().size() : 0,
+                    details.answeredUcrIds() != null ? details.answeredUcrIds().size() : 0,
+                    allowedStatusIds);
             return;
         }
         boolean autoAnwesenheit = settings.isAutoAssignDiveraPersonnelToAnwesenheit();
         IncidentReportVehicle anwesenheitVehicle = autoAnwesenheit ? resolveBeteiligtVehicle(report) : null;
         boolean testData = testModeService.isEnabled();
         Map<Long, String> displayNameByUcr = displayNamesByUcr(details);
-        Set<Long> alreadyPresentPersons = incidentReportPersonnelRepository.findByIncidentReportId(report.getId()).stream()
+        List<IncidentReportPersonnel> existingRows =
+                incidentReportPersonnelRepository.findByIncidentReportId(report.getId());
+        Set<Long> alreadyPresentPersons = existingRows.stream()
                 .map(IncidentReportPersonnel::getPerson)
                 .filter(Objects::nonNull)
                 .map(Person::getId)
                 .collect(Collectors.toCollection(HashSet::new));
-        Set<String> alreadyPresentUcrs = incidentReportPersonnelRepository.findByIncidentReportId(report.getId()).stream()
+        Set<String> alreadyPresentUcrs = existingRows.stream()
                 .map(IncidentReportPersonnel::getDiveraUcrId)
                 .filter(ucr -> ucr != null && !ucr.isBlank())
                 .map(String::trim)
                 .collect(Collectors.toCollection(HashSet::new));
+        if (autoAnwesenheit && anwesenheitVehicle != null) {
+            for (IncidentReportPersonnel row : existingRows) {
+                if (row.getSource() != IncidentPersonnelSource.DIVERA || row.getIncidentReportVehicle() != null) {
+                    continue;
+                }
+                row.setIncidentReportVehicle(anwesenheitVehicle);
+                incidentReportPersonnelRepository.save(row);
+            }
+        }
         Set<Long> assignedPersons = new HashSet<>(alreadyPresentPersons);
         int added = 0;
         int unmatched = 0;
@@ -1647,15 +1661,12 @@ public class EinsatzberichtService {
                 if (hit.ucrId() == null || hit.ucrId().isBlank()) {
                     continue;
                 }
-                if (!allowedStatusIds.isEmpty()) {
-                    String statusId = hit.statusId() != null ? hit.statusId().trim() : "";
-                    if (statusId.isEmpty() || !allowedStatusIds.contains(statusId)) {
-                        continue;
-                    }
-                }
                 try {
                     long ucrId = Long.parseLong(hit.ucrId().trim());
-                    if (ucrId > 0) {
+                    if (ucrId <= 0) {
+                        continue;
+                    }
+                    if (matchesPersonnelStatusFilter(hit.statusId(), ucrId, allowedStatusIds, statusByUcr)) {
                         fromAnswered.add(ucrId);
                     }
                 } catch (NumberFormatException ignored) {
@@ -1668,24 +1679,36 @@ public class EinsatzberichtService {
         }
         if (details.answeredUcrIds() != null) {
             for (Long ucrId : details.answeredUcrIds()) {
-                if (ucrId != null && ucrId > 0) {
+                if (ucrId != null
+                        && ucrId > 0
+                        && matchesPersonnelStatusFilter(null, ucrId, allowedStatusIds, statusByUcr)) {
                     fromAnswered.add(ucrId);
                 }
             }
         }
-        if (!fromAnswered.isEmpty()) {
-            return fromAnswered;
+        return fromAnswered;
+    }
+
+    /**
+     * Status-Filter: verschachteltes {@code ucr_answered} liefert Status pro Treffer;
+     * flache UCR-Arrays ohne Status werden bei aktivem Filter über {@code /api/users} aufgelöst.
+     */
+    private static boolean matchesPersonnelStatusFilter(
+            String hitStatusId, long ucrId, List<String> allowedStatusIds, Map<Long, Integer> statusByUcr) {
+        if (allowedStatusIds == null || allowedStatusIds.isEmpty()) {
+            return true;
         }
-        if (allowedStatusIds.isEmpty()) {
-            return Set.of();
-        }
-        Set<Long> result = new LinkedHashSet<>();
-        for (Map.Entry<Long, Integer> entry : statusByUcr.entrySet()) {
-            if (allowedStatusIds.contains(String.valueOf(entry.getValue()))) {
-                result.add(entry.getKey());
+        String statusId = hitStatusId != null ? hitStatusId.trim() : "";
+        if (statusId.isEmpty()) {
+            Integer liveStatus = statusByUcr.get(ucrId);
+            if (liveStatus != null && liveStatus > 0) {
+                statusId = String.valueOf(liveStatus);
             }
         }
-        return result;
+        if (statusId.isEmpty()) {
+            return true;
+        }
+        return allowedStatusIds.contains(statusId);
     }
 
     private Map<Long, Integer> loadDiveraUserStatuses(long unitId) {
@@ -1711,23 +1734,31 @@ public class EinsatzberichtService {
 
     private static Map<Long, String> displayNamesByUcr(DiveraAlarmDetails details) {
         Map<Long, String> names = new LinkedHashMap<>();
-        if (details.answeredHits() == null) {
-            return names;
+        collectDisplayNames(details.answeredHits(), names);
+        if (details.personnelHits() != null) {
+            collectDisplayNames(details.personnelHits(), names);
         }
-        for (var hit : details.answeredHits()) {
+        return names;
+    }
+
+    private static void collectDisplayNames(
+            List<DiveraAlarmDetailsMapper.DiveraPersonnelHit> hits, Map<Long, String> names) {
+        if (hits == null) {
+            return;
+        }
+        for (var hit : hits) {
             if (hit.ucrId() == null || hit.ucrId().isBlank()) {
                 continue;
             }
             try {
                 long ucrId = Long.parseLong(hit.ucrId().trim());
                 if (hit.displayName() != null && !hit.displayName().isBlank()) {
-                    names.put(ucrId, hit.displayName().trim());
+                    names.putIfAbsent(ucrId, hit.displayName().trim());
                 }
             } catch (NumberFormatException ignored) {
                 // ignore malformed UCR
             }
         }
-        return names;
     }
 
     private String writeDiveraResources(DiveraAlarmDetails details) {

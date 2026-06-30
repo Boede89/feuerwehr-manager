@@ -59,6 +59,45 @@ public final class DiveraAlarmDetailsMapper {
             if (parsed.isPresent()) {
                 return Optional.of(fromAlarmNode(extractAlarmNode(root), parsed.get()));
             }
+            JsonNode alarmNode = extractAlarmNode(root);
+            if (alarmNode != null && alarmNode.isObject()) {
+                List<DiveraPersonnelHit> answeredHits = parsePersonnelResponses(alarmNode);
+                List<Long> answeredUcrIds = flattenAnsweredUcrIds(answeredHits);
+                if (answeredUcrIds.isEmpty()) {
+                    answeredUcrIds = parseUcrIdArray(alarmNode, "ucr_answered");
+                }
+                AddressParts address = parseAddress(summary.address());
+                return Optional.of(new DiveraAlarmDetails(
+                        summary.id(),
+                        null,
+                        blankToNull(summary.title()),
+                        blankToNull(summary.text()),
+                        blankToNull(summary.address()),
+                        summary.dateEpochSeconds(),
+                        summary.tsCreate(),
+                        0,
+                        0,
+                        0,
+                        summary.closed(),
+                        address.postalCode(),
+                        address.street(),
+                        address.houseNumber(),
+                        address.city(),
+                        address.ortsteil(),
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        false,
+                        false,
+                        parseGroupIds(alarmNode),
+                        answeredUcrIds,
+                        answeredHits,
+                        collectPersonnel(alarmNode)));
+            }
         }
         AddressParts address = parseAddress(summary.address());
         return Optional.of(new DiveraAlarmDetails(
@@ -105,7 +144,7 @@ public final class DiveraAlarmDetailsMapper {
         AddressParts structured = parseAddress(parsed.address());
         AddressParts merged = mergeAddress(structured, alarm);
         List<DiveraPersonnelHit> personnel = collectPersonnel(alarm);
-        List<DiveraPersonnelHit> answeredHits = parseUcrAnswered(alarm);
+        List<DiveraPersonnelHit> answeredHits = parsePersonnelResponses(alarm);
         List<Long> answeredUcrIds = flattenAnsweredUcrIds(answeredHits);
         if (answeredUcrIds.isEmpty()) {
             answeredUcrIds = parseUcrIdArray(alarm, "ucr_answered");
@@ -145,15 +184,67 @@ public final class DiveraAlarmDetailsMapper {
                 personnel);
     }
 
+    /** Liefert true, wenn mindestens eine DIVERA-Rückmeldung (UCR) erkannt wurde. */
+    public static boolean hasPersonnelResponses(DiveraAlarmDetails details) {
+        if (details == null) {
+            return false;
+        }
+        if (details.answeredHits() != null && !details.answeredHits().isEmpty()) {
+            return true;
+        }
+        return details.answeredUcrIds() != null && !details.answeredUcrIds().isEmpty();
+    }
+
     /**
-     * DIVERA liefert {@code ucr_answered} als Objekt: Status-ID → UCR-ID → {@code {ts, note}}.
-     * Beispiel: {@code "44986": {"230073": {"ts": 1780784431, "note": ""}}}.
+     * DIVERA-Rückmeldungen aus {@code ucr_answered}:
+     * <ul>
+     *   <li>v2 verschachtelt: Status-ID → UCR-ID → {@code {ts, note}}</li>
+     *   <li>v2/v1 flach: Array von UCR-IDs</li>
+     *   <li>alternativ: UCR-ID → Status-ID (Zahl)</li>
+     * </ul>
      */
-    private static List<DiveraPersonnelHit> parseUcrAnswered(JsonNode alarm) {
+    static List<DiveraPersonnelHit> parsePersonnelResponses(JsonNode alarm) {
+        if (alarm == null || alarm.isNull()) {
+            return List.of();
+        }
         List<DiveraPersonnelHit> hits = new ArrayList<>();
         Set<String> seen = new LinkedHashSet<>();
-        JsonNode node = alarm.path("ucr_answered");
-        if (node.isObject() && !node.isEmpty()) {
+        for (String key : new String[] {"ucr_answered", "UcrAnswered", "ucrAnswered"}) {
+            JsonNode node = alarm.path(key);
+            if (node.isMissingNode() || node.isNull()) {
+                continue;
+            }
+            parsePersonnelResponsesNode(node, hits, seen);
+            if (!hits.isEmpty()) {
+                return hits;
+            }
+        }
+        return hits;
+    }
+
+    private static void parsePersonnelResponsesNode(JsonNode node, List<DiveraPersonnelHit> hits, Set<String> seen) {
+        if (node.isArray()) {
+            for (JsonNode item : node) {
+                long id = extractUcrId(item);
+                if (id > 0) {
+                    String ucr = String.valueOf(id);
+                    if (seen.add("|" + ucr)) {
+                        hits.add(new DiveraPersonnelHit(ucr, null, null));
+                    }
+                }
+            }
+            return;
+        }
+        if (!node.isObject() || node.isEmpty()) {
+            return;
+        }
+        boolean nestedStatusFormat = false;
+        var fieldIterator = node.fields();
+        if (fieldIterator.hasNext()) {
+            JsonNode firstValue = fieldIterator.next().getValue();
+            nestedStatusFormat = firstValue != null && firstValue.isObject() && firstValue.has("ts");
+        }
+        if (nestedStatusFormat) {
             node.fields().forEachRemaining(statusEntry -> {
                 String statusId = statusEntry.getKey();
                 JsonNode ucrMap = statusEntry.getValue();
@@ -171,19 +262,25 @@ public final class DiveraAlarmDetailsMapper {
                     }
                 });
             });
+            return;
         }
-        if (hits.isEmpty() && node.isArray()) {
-            for (JsonNode item : node) {
-                long id = extractUcrId(item);
-                if (id > 0) {
-                    String ucr = String.valueOf(id);
-                    if (seen.add("|" + ucr)) {
-                        hits.add(new DiveraPersonnelHit(ucr, null, null));
-                    }
-                }
+        node.fields().forEachRemaining(ucrEntry -> {
+            String ucrId = ucrEntry.getKey();
+            if (ucrId == null || !ucrId.matches("\\d+")) {
+                return;
             }
-        }
-        return hits;
+            JsonNode value = ucrEntry.getValue();
+            String statusId = null;
+            if (value != null && value.isNumber()) {
+                statusId = String.valueOf(value.asInt());
+            } else if (value != null && value.isTextual() && value.asText("").trim().matches("\\d+")) {
+                statusId = value.asText("").trim();
+            }
+            String dedupe = (statusId != null ? statusId : "") + "|" + ucrId;
+            if (seen.add(dedupe)) {
+                hits.add(new DiveraPersonnelHit(ucrId, statusId, null));
+            }
+        });
     }
 
     private static List<Long> flattenAnsweredUcrIds(List<DiveraPersonnelHit> hits) {
