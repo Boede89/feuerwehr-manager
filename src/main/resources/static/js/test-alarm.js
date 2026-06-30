@@ -256,7 +256,9 @@
         if (showToast) {
           var n = Array.isArray(items) ? items.length : 0;
           notify(
-            n === 0 ? 'Keine Einsätze von DIVERA' : n + ' Beispiel-Einsatz/Einsätze gespeichert',
+            n === 0
+              ? 'Keine gespeicherten Beispiele — DIVERA lieferte nichts Neues'
+              : n + ' gespeicherte Beispiel-Einsatz/Einsätze (inkl. ältere aus der Datenbank)',
             n === 0 ? 'warning' : 'success'
           );
         }

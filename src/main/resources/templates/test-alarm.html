@@ -21,12 +21,14 @@
     <div class="card__header">Beispiel-Einsätze von DIVERA</div>
     <div class="card__body">
       <p class="hint">
-        Einsätze von DIVERA werden hier als Vorlagen gespeichert — auch automatisch per
-        <strong>Webhook</strong>, sobald der Testmodus aktiv ist (ohne Anmeldung, z. B. nachts).
-        Mit <strong>Einsatz starten</strong> erscheinen sie auf der Startseite.
+        Gespeicherte Beispiel-Einsätze aus der Datenbank (<code>divera_alarm_samples</code>) — unabhängig davon,
+        ob DIVERA sie noch liefert. Neue Einsätze werden automatisch per <strong>Webhook</strong> und
+        periodischem API-Abruf übernommen, solange der Testmodus aktiv ist.
+        Mit <strong>Einsatz starten</strong> erscheinen sie auf der Startseite (lokal, nichts wird an DIVERA gesendet).
       </p>
       <p class="hint" id="test-alarm-samples-empty" th:classappend="${!#lists.isEmpty(alarmSamples)} ? 'hidden' : ''">
-        Keine Beispiele vorhanden. Prüfen Sie den Access Key und klicken Sie auf <strong>Von DIVERA aktualisieren</strong>.
+        Noch keine Beispiele gespeichert. Webhook in DIVERA eintragen oder <strong>Von DIVERA aktualisieren</strong>
+        (legt aktuelle DIVERA-Einsätze als Vorlage an — bleiben auch nach Archivierung in DIVERA erhalten).
       </p>
       <p class="hint" id="test-alarm-samples-loading" hidden>Lade Einsätze von DIVERA …</p>
       <div id="test-alarm-samples-page-list">

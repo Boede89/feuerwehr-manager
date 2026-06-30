@@ -5,7 +5,6 @@ import de.feuerwehr.manager.atemschutz.AtemschutzFitnessRecordRepository;
 import de.feuerwehr.manager.atemschutz.StreckeTerminRepository;
 import de.feuerwehr.manager.berichte.IncidentReportRepository;
 import de.feuerwehr.manager.config.StorageProperties;
-import de.feuerwehr.manager.divera.DiveraAlarmSampleRepository;
 import de.feuerwehr.manager.divera.TestDiveraAlarmRepository;
 import de.feuerwehr.manager.personal.CourseRepository;
 import de.feuerwehr.manager.personal.InstructorGroupRepository;
@@ -40,7 +39,6 @@ public class TestModeService {
     private final UnitRepository unitRepository;
     private final UnitDiveraSettingsRepository diveraSettingsRepository;
     private final TestDiveraAlarmRepository testDiveraAlarmRepository;
-    private final DiveraAlarmSampleRepository diveraAlarmSampleRepository;
     private final IncidentReportRepository incidentReportRepository;
     private final StorageProperties storageProperties;
     private final AtemschutzFitnessRecordRepository fitnessRecordRepository;
@@ -108,7 +106,6 @@ public class TestModeService {
         diveraSettingsRepository.deleteAllByUnitTestDataTrue();
         unitRepository.deleteAllByTestDataTrue();
         testDiveraAlarmRepository.deleteAllAlarms();
-        diveraAlarmSampleRepository.deleteAllSamples();
         entityManager.flush();
     }
 

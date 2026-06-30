@@ -38,6 +38,7 @@ public class DiveraWebhookService {
     public WebhookOutcome handleTestWebhook(long unitId, String rawBody) {
         WebhookOutcome outcome = testDiveraAlarmService.ingestTestWebhook(unitId, rawBody);
         if (outcome.status() == WebhookStatus.ACCEPTED) {
+            diveraAlarmSampleService.captureFromWebhook(unitId, rawBody);
             log.info("[Divera-Webhook-Test] unit={} externalId={}", unitId, outcome.externalId());
         }
         return outcome;

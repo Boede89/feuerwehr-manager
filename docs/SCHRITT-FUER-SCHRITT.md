@@ -165,9 +165,9 @@ Wenn die Anwendung **dauerhaft läuft** (Docker/Proxmox) und der **Testmodus** a
    `https://<Ihre-Domain>/api/webhook/divera?unit=1&secret=…`
 2. Jeder eingehende DIVERA-Webhook wird **automatisch in der Datenbank** gespeichert (`divera_alarm_samples`) — **ohne** dass jemand die Webseite öffnet.
 3. Kommt zuerst ein Webhook beim **Einsatzstart** und später einer beim **Beenden**, wird das **gleiche Beispiel aktualisiert** (vollständiges JSON inkl. `closed: true`).
-4. Die Beispiele sind später unter **Testalarm** sichtbar (auch wenn der Einsatz längst beendet ist). Dort können Sie mit **Einsatz starten** einen Test auf der Startseite simulieren.
+4. Die Beispiele sind später unter **Testalarm** sichtbar (auch wenn der Einsatz in DIVERA längst archiviert ist). Dort können Sie mit **Einsatz starten** einen Test auf der Startseite simulieren.
 
-**Wichtig:** Der Testmodus muss während des Einsatzes **an** bleiben. Beim Beenden des Testmodus oder Abmelden werden alle Test-Beispiele gelöscht.
+**Wichtig:** Der Testmodus muss während des Einsatzes **an** bleiben, damit Webhooks als Beispiel gespeichert werden. Gespeicherte Beispiele (`divera_alarm_samples`) **bleiben in der Datenbank**, auch wenn der Testmodus später ausgeschaltet wird. Beim Testmodus-Ende werden nur laufende Test-Einsätze auf der Startseite entfernt, nicht die Beispiel-Vorlagen.
 
 **Logs prüfen** (optional):
 
