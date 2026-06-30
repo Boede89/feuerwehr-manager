@@ -66,6 +66,7 @@ public class SecurityConfig {
                         .ignoringRequestMatchers(
                                 "/api/webhook/**",
                                 "/api/v1/auth/login",
+                                "/api/v1/auth/logout",
                                 "/api/v1/einsatzapp/**"))
                 .sessionManagement(session -> session
                         .sessionFixation(sf -> sf.changeSessionId())

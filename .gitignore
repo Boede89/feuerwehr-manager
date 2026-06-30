@@ -8,3 +8,8 @@
 .DS_Store
 .env
 docker/caddy/certs/
+android/**/local.properties
+android/**/.gradle/
+android/**/build/
+android/**/.idea/
+android/**/app/google-services.json

@@ -2,16 +2,27 @@
 
 Android-Alarmierung: Wenn DIVERA einen Einsatz meldet, erhalten registrierte Geräte eine Push-Benachrichtigung in der Feuerwehr-App.
 
-## Phase 2 (aktuell)
+## Phase 3 (aktuell)
 
 | Komponente | Status |
 |------------|--------|
-| Modul `einsatzapp` in Admin → Module | aktiv |
-| Push-Einstellungen pro Einheit (Admin → Schnittstellen) | aktiv |
-| FCM-Versand bei DIVERA-Webhook (HTTP v1) | aktiv |
-| Geräte-Token (REST-API) | aktiv |
-| REST-Login für Android (`POST /api/v1/auth/login`) | aktiv |
-| Android-App (Phase 3) | folgt |
+| Android-Projekt (`android/einsatzapp/`) | aktiv |
+| Server-URL in der App konfigurierbar | aktiv |
+| Login + Geräteregistrierung | aktiv |
+| Push-Empfang + Einsatzliste | aktiv |
+| Pro-Benutzer-Datenfilter (Phase 4) | folgt |
+
+## Server-Adresse in der Android-App
+
+Die URL des Feuerwehr-Managers wird **in der App** eingetragen (gespeichert auf dem Gerät):
+
+- Login-Bildschirm: Feld **Server-Adresse** (z. B. `https://fw-manager.home.arpa`)
+- Button **Verbindung testen** (`GET /actuator/health`)
+- Nach Login: auf der Startseite **Server-Adresse ändern**
+
+Anleitung: `android/einsatzapp/README.md`
+
+## Phase 2 (Backend)
 
 ## Zwei verschiedene Firebase-Dateien
 
@@ -122,9 +133,11 @@ Das `fcmToken` kommt **von der Android-App** (Phase 3), nicht aus der Dienstkont
 
 ## Phase 3 (Android Studio)
 
-1. Firebase → **App hinzufügen** → Android
-2. Package-Name eintragen (z. B. `de.feuerwehr.einsatzapp`)
-3. `google-services.json` in Android Studio ins `app/`-Modul legen
-4. App: Login → FCM-Token holen → `POST /api/v1/einsatzapp/devices`
+1. Firebase → **App hinzufügen** → Android, Package `de.feuerwehr.einsatzapp`
+2. `google-services.json` nach `android/einsatzapp/app/` kopieren
+3. Android Studio → Ordner `android/einsatzapp` öffnen
+4. App installieren → **Server-Adresse** eintragen → anmelden
 
-Die Server-JSON und `google-services.json` gehören zum **selben Firebase-Projekt**, sind aber **unterschiedliche Dateien**.
+## Nächste Schritte
+
+- **Phase 4:** Pro Benutzer steuern, ob und welche Einsatzdaten (Adresse, Stichwort, …) er erhält

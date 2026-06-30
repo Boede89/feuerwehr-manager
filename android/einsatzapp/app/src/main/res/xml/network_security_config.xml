@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Produktion: HTTPS verwenden. Für lokales Testen (http://…:8080) ist HTTP erlaubt. -->
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
