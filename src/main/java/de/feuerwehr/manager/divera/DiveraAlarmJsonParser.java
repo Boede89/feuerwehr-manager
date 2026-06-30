@@ -1,6 +1,7 @@
 package de.feuerwehr.manager.divera;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.Iterator;
 import java.util.Optional;
 
@@ -18,6 +19,21 @@ public final class DiveraAlarmJsonParser {
             long dateEpochSeconds,
             long tsCreateSeconds,
             boolean closed) {}
+
+    /**
+     * Setzt {@code closed=false} im Alarm-Objekt eines Webhook-JSON.
+     * DIVERA-Beispiele aus der Datenbank sind oft archiviert — beim lokalen „Einsatz starten“ soll Push trotzdem möglich sein.
+     */
+    public static void forceAlarmOpen(JsonNode root) {
+        if (root == null || root.isNull()) {
+            return;
+        }
+        JsonNode alarm = extractAlarmNode(root);
+        if (alarm instanceof ObjectNode obj) {
+            obj.put("closed", false);
+            obj.put("Closed", false);
+        }
+    }
 
     public static Optional<ParsedAlarm> parseFirst(JsonNode root) {
         if (root == null || root.isNull()) {

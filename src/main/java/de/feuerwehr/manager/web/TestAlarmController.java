@@ -106,7 +106,7 @@ public class TestAlarmController {
                 if (sendPush) {
                     diveraAlarmSampleService
                             .payloadForUnit(unit, id)
-                            .ifPresent(payload -> diveraWebhookService.tryDispatchEinsatzAppPush(unit, payload));
+                            .ifPresent(payload -> diveraWebhookService.tryDispatchEinsatzAppPushForStartedSample(unit, payload));
                 }
                 String msg = outcome.message();
                 if (sendPush) {

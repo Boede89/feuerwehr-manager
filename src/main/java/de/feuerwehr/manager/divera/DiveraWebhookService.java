@@ -50,6 +50,23 @@ public class DiveraWebhookService {
         return outcome;
     }
 
+    /** Wie {@link #tryDispatchEinsatzAppPush}, aber der Alarm gilt als offen (Testalarm „Einsatz starten“). */
+    public void tryDispatchEinsatzAppPushForStartedSample(long unitId, String rawBody) {
+        if (rawBody == null || rawBody.isBlank()) {
+            einsatzAppPushService.recordSkipped(unitId, "Übersprungen: Leerer Webhook-Body");
+            return;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(rawBody);
+            DiveraAlarmJsonParser.forceAlarmOpen(root);
+            tryDispatchEinsatzAppPush(unitId, objectMapper.writeValueAsString(root));
+        } catch (Exception e) {
+            einsatzAppPushService.recordSkipped(
+                    unitId, "Übersprungen: JSON ungültig — " + e.getMessage());
+            log.debug("[Einsatz-App] Push für gestarteten Test-Einsatz unit={}: {}", unitId, e.getMessage());
+        }
+    }
+
     /** Löst einen Einsatz-App-Push aus dem Webhook-JSON aus (z. B. Testalarm „Einsatz starten“). */
     public void tryDispatchEinsatzAppPush(long unitId, String rawBody) {
         if (rawBody == null || rawBody.isBlank()) {
