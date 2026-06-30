@@ -60,12 +60,14 @@ services:
       FEUERWEHR_DATA_DIR: /data
       FEUERWEHR_SESSION_COOKIE_SECURE: ${FEUERWEHR_SESSION_COOKIE_SECURE:-true}
       FEUERWEHR_FCM_ENABLED: ${FEUERWEHR_FCM_ENABLED:-false}
-      FEUERWEHR_FCM_SERVER_KEY: ${FEUERWEHR_FCM_SERVER_KEY:-}
+      FEUERWEHR_FCM_SERVICE_ACCOUNT_PATH: ${FEUERWEHR_FCM_SERVICE_ACCOUNT_PATH:-/data/fcm-service-account.json}
       # Passwort immer zu CUPS_ADMIN_PASSWORD; CUPS_SERVER nur bei externem CUPS-Server in .env setzen
       CUPS_SERVER: ${CUPS_SERVER:-print:${CUPS_ADMIN_PASSWORD:-print}@cups:631}
       FEUERWEHR_PRINT_RELAY_URL: ${FEUERWEHR_PRINT_RELAY_URL:-http://cups:8766}
     volumes:
       - ffm_app_data:/data
+      # Optional: Firebase-Dienstkonto einbinden (Datei muss existieren, siehe docs/EINSATZ-APP.md)
+      # - ./secrets/fcm-service-account.json:/data/fcm-service-account.json:ro
     depends_on:
       mysql:
         condition: service_healthy

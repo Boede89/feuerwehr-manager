@@ -69,4 +69,4 @@ feuerwehr:
     poll-interval-ms: 120000
   fcm:
     enabled: ${FEUERWEHR_FCM_ENABLED:false}
-    server-key: ${FEUERWEHR_FCM_SERVER_KEY:}
+    service-account-path: ${FEUERWEHR_FCM_SERVICE_ACCOUNT_PATH:}

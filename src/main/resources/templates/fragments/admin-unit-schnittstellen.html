@@ -209,8 +209,8 @@
         Unter <a th:href="@{/admin(scope='einheit', tab='module', unit=${unitId})}">Module</a> aktivieren.
       </p>
       <p class="hint" th:if="${einsatzappModuleEnabled and !einsatzappFcmConfigured}">
-        FCM ist serverseitig nicht konfiguriert (<code>FEUERWEHR_FCM_SERVER_KEY</code> in der <code>.env</code>).
-        Push-Versand ist erst nach Einrichtung möglich.
+        FCM ist serverseitig nicht konfiguriert — Firebase-Dienstkonto-JSON nach
+        <code>secrets/fcm-service-account.json</code> legen und <code>FEUERWEHR_FCM_ENABLED=true</code> setzen.
       </p>
       <p class="hint" th:if="${einsatzappModuleEnabled and einsatzappFcmConfigured}">
         Registrierte Geräte: <strong th:text="${einsatzappDeviceCount}">0</strong>.
