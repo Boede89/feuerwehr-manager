@@ -238,13 +238,7 @@ public final class DiveraAlarmDetailsMapper {
         if (!node.isObject() || node.isEmpty()) {
             return;
         }
-        boolean nestedStatusFormat = false;
-        var fieldIterator = node.fields();
-        if (fieldIterator.hasNext()) {
-            JsonNode firstValue = fieldIterator.next().getValue();
-            nestedStatusFormat = firstValue != null && firstValue.isObject() && firstValue.has("ts");
-        }
-        if (nestedStatusFormat) {
+        if (isStatusToUcrToEntryFormat(node)) {
             node.fields().forEachRemaining(statusEntry -> {
                 String statusId = statusEntry.getKey();
                 JsonNode ucrMap = statusEntry.getValue();
@@ -256,6 +250,10 @@ public final class DiveraAlarmDetailsMapper {
                     if (ucrId == null || !ucrId.matches("\\d+")) {
                         return;
                     }
+                    JsonNode answer = ucrEntry.getValue();
+                    if (answer == null || !answer.isObject() || !answer.has("ts")) {
+                        return;
+                    }
                     String dedupe = statusId + "|" + ucrId;
                     if (seen.add(dedupe)) {
                         hits.add(new DiveraPersonnelHit(ucrId, statusId, null));
@@ -264,12 +262,18 @@ public final class DiveraAlarmDetailsMapper {
             });
             return;
         }
+        if (isStatusToEntryFormat(node)) {
+            return;
+        }
         node.fields().forEachRemaining(ucrEntry -> {
             String ucrId = ucrEntry.getKey();
             if (ucrId == null || !ucrId.matches("\\d+")) {
                 return;
             }
             JsonNode value = ucrEntry.getValue();
+            if (value != null && value.isObject()) {
+                return;
+            }
             String statusId = null;
             if (value != null && value.isNumber()) {
                 statusId = String.valueOf(value.asInt());
@@ -281,6 +285,43 @@ public final class DiveraAlarmDetailsMapper {
                 hits.add(new DiveraPersonnelHit(ucrId, statusId, null));
             }
         });
+    }
+
+    /** {@code status_id → ucr_id → {ts, note}} — nicht den äußeren Status-Schlüssel als UCR lesen. */
+    private static boolean isStatusToUcrToEntryFormat(JsonNode node) {
+        if (!node.isObject()) {
+            return false;
+        }
+        var it = node.fields();
+        while (it.hasNext()) {
+            JsonNode middle = it.next().getValue();
+            if (!middle.isObject()) {
+                continue;
+            }
+            var inner = middle.fields();
+            while (inner.hasNext()) {
+                JsonNode leaf = inner.next().getValue();
+                if (leaf.isObject() && leaf.has("ts")) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** {@code status_id → {ts, note}} ohne UCR-Ebene — hier sind keine Personen-IDs ableitbar. */
+    private static boolean isStatusToEntryFormat(JsonNode node) {
+        if (!node.isObject() || node.isEmpty()) {
+            return false;
+        }
+        var it = node.fields();
+        while (it.hasNext()) {
+            JsonNode value = it.next().getValue();
+            if (!value.isObject() || !value.has("ts")) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static List<Long> flattenAnsweredUcrIds(List<DiveraPersonnelHit> hits) {

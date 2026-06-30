@@ -101,6 +101,28 @@ class DiveraAlarmDetailsMapperTest {
     }
 
     @Test
+    void parsePersonnelResponses_doesNotTreatStatusIdAsUcr() throws Exception {
+        String json =
+                """
+                {
+                  "id": 102,
+                  "ucr_answered": {
+                    "44985": {
+                      "230073": { "ts": 1780784431, "note": "" }
+                    }
+                  }
+                }
+                """;
+
+        var hits = DiveraAlarmDetailsMapper.parsePersonnelResponses(objectMapper.readTree(json));
+
+        assertThat(hits).hasSize(1);
+        assertThat(hits.get(0).ucrId()).isEqualTo("230073");
+        assertThat(hits.get(0).statusId()).isEqualTo("44985");
+        assertThat(hits).noneMatch(hit -> "44985".equals(hit.ucrId()));
+    }
+
+    @Test
     void fromWebhookJson_includesUcrAnsweredInDetails() throws Exception {
         String json =
                 """

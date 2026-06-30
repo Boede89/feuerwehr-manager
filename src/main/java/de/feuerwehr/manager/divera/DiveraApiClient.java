@@ -247,9 +247,14 @@ public class DiveraApiClient {
 
     /** UCR-ID → aktuelle Status-ID aus DIVERA (/api/users). */
     public Map<Long, Integer> fetchUserStatusByUcr(String apiBaseUrl, String accessKey) {
+        return fetchUserDirectory(apiBaseUrl, accessKey).statusByUcr();
+    }
+
+    /** DIVERA-Benutzer mit UCR, Status und Anzeigenamen. */
+    public DiveraUserDirectory fetchUserDirectory(String apiBaseUrl, String accessKey) {
         String key = accessKey == null ? "" : accessKey.trim().replaceAll("[\\r\\n\\t\\v]+", "");
         if (key.isEmpty()) {
-            return Map.of();
+            return DiveraUserDirectory.empty();
         }
         String base = trimTrailingSlash(apiBaseUrl);
         if (base.isEmpty()) {
@@ -263,25 +268,61 @@ public class DiveraApiClient {
         try {
             String raw = restClient.get().uri(uri).retrieve().body(String.class);
             if (raw == null || raw.isBlank()) {
-                return Map.of();
+                return DiveraUserDirectory.empty();
             }
             JsonNode root = objectMapper.readTree(raw);
             JsonNode data = root.path("data");
             if (!data.isArray()) {
-                return Map.of();
+                return DiveraUserDirectory.empty();
             }
-            Map<Long, Integer> result = new HashMap<>();
+            Map<Long, Integer> statusByUcr = new HashMap<>();
+            Map<Long, String> displayNameByUcr = new LinkedHashMap<>();
             for (JsonNode user : data) {
                 long ucrId = user.path("user_cluster_relation_id").asLong(0);
+                if (ucrId <= 0) {
+                    continue;
+                }
                 int statusId = user.path("status_id").asInt(0);
-                if (ucrId > 0 && statusId > 0) {
-                    result.put(ucrId, statusId);
+                if (statusId > 0) {
+                    statusByUcr.put(ucrId, statusId);
+                }
+                String displayName = displayNameFromUser(user);
+                if (displayName != null && !displayName.isBlank()) {
+                    displayNameByUcr.put(ucrId, displayName);
                 }
             }
-            return result;
+            return new DiveraUserDirectory(statusByUcr, displayNameByUcr);
         } catch (Exception e) {
-            return Map.of();
+            return DiveraUserDirectory.empty();
         }
+    }
+
+    private static String displayNameFromUser(JsonNode user) {
+        if (user == null || user.isNull()) {
+            return null;
+        }
+        String first = textField(user, "firstname", "first_name", "Firstname");
+        String last = textField(user, "lastname", "last_name", "Lastname");
+        if (first != null && last != null) {
+            return (first + " " + last).trim();
+        }
+        if (first != null) {
+            return first;
+        }
+        if (last != null) {
+            return last;
+        }
+        return textField(user, "name", "display_name", "fullname", "full_name", "user_name");
+    }
+
+    private static String textField(JsonNode node, String... keys) {
+        for (String key : keys) {
+            String value = node.path(key).asText("");
+            if (!value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 
     private static String trimTrailingSlash(String url) {

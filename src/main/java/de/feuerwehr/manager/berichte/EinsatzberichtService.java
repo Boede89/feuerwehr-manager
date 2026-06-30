@@ -8,6 +8,7 @@ import de.feuerwehr.manager.divera.DiveraApiClient;
 import static de.feuerwehr.manager.divera.DiveraIntegrationSupport.DIVERA_ZONE;
 
 import de.feuerwehr.manager.divera.DiveraIntegrationSupport;
+import de.feuerwehr.manager.divera.DiveraUserDirectory;
 import de.feuerwehr.manager.atemschutz.AtemschutzService;
 import de.feuerwehr.manager.divera.DiveraMappingService;
 import de.feuerwehr.manager.divera.DiveraService;
@@ -1541,7 +1542,8 @@ public class EinsatzberichtService {
             return;
         }
         List<String> allowedStatusIds = berichteSettingsService.parsePersonnelStatusIds(settings);
-        Map<Long, Integer> statusByUcr = loadDiveraUserStatuses(unitId);
+        DiveraUserDirectory diveraUsers = loadDiveraUserDirectory(unitId);
+        Map<Long, Integer> statusByUcr = diveraUsers.statusByUcr();
         Set<Long> targetUcrIds = resolveTargetUcrIds(details, allowedStatusIds, statusByUcr);
         if (targetUcrIds.isEmpty()) {
             log.info(
@@ -1558,7 +1560,7 @@ public class EinsatzberichtService {
         boolean autoAnwesenheit = settings.isAutoAssignDiveraPersonnelToAnwesenheit();
         IncidentReportVehicle anwesenheitVehicle = autoAnwesenheit ? resolveBeteiligtVehicle(report) : null;
         boolean testData = testModeService.isEnabled();
-        Map<Long, String> displayNameByUcr = displayNamesByUcr(details);
+        Map<Long, String> displayNameByUcr = displayNamesByUcr(details, diveraUsers.displayNameByUcr());
         List<IncidentReportPersonnel> existingRows =
                 incidentReportPersonnelRepository.findByIncidentReportId(report.getId());
         Set<Long> alreadyPresentPersons = existingRows.stream()
@@ -1580,6 +1582,7 @@ public class EinsatzberichtService {
                 incidentReportPersonnelRepository.save(row);
             }
         }
+        refreshDiveraPersonnelDisplayNames(existingRows, targetUcrIds, displayNameByUcr, unitId, testData);
         Set<Long> assignedPersons = new HashSet<>(alreadyPresentPersons);
         int added = 0;
         int unmatched = 0;
@@ -1615,7 +1618,7 @@ public class EinsatzberichtService {
             row.setPerson(null);
             row.setIncidentReportVehicle(anwesenheitVehicle);
             row.setDiveraUcrId(ucr);
-            row.setDisplayName(displayNameByUcr.getOrDefault(ucrId, IncidentPersonnelRefs.displayNameForUcr(ucrId)));
+            row.setDisplayName(resolveDiveraDisplayName(ucrId, displayNameByUcr));
             row.setSource(IncidentPersonnelSource.DIVERA);
             incidentReportPersonnelRepository.save(row);
             alreadyPresentUcrs.add(ucr);
@@ -1712,12 +1715,73 @@ public class EinsatzberichtService {
     }
 
     private Map<Long, Integer> loadDiveraUserStatuses(long unitId) {
+        return loadDiveraUserDirectory(unitId).statusByUcr();
+    }
+
+    private DiveraUserDirectory loadDiveraUserDirectory(long unitId) {
         return diveraSettingsRepository
                 .findByUnitId(unitId)
-                .map(cfg -> diveraApiClient.fetchUserStatusByUcr(
+                .map(cfg -> diveraApiClient.fetchUserDirectory(
                         cfg.getApiBaseUrl() != null ? cfg.getApiBaseUrl() : DiveraIntegrationSupport.DEFAULT_API_BASE,
                         cfg.getAccessKey()))
-                .orElse(Map.of());
+                .orElse(DiveraUserDirectory.empty());
+    }
+
+    private void refreshDiveraPersonnelDisplayNames(
+            List<IncidentReportPersonnel> existingRows,
+            Set<Long> targetUcrIds,
+            Map<Long, String> displayNameByUcr,
+            long unitId,
+            boolean testData) {
+        Set<Long> validUcrs = targetUcrIds != null ? targetUcrIds : Set.of();
+        for (IncidentReportPersonnel row : List.copyOf(existingRows)) {
+            if (row.getSource() != IncidentPersonnelSource.DIVERA || row.getDiveraUcrId() == null) {
+                continue;
+            }
+            long ucrId;
+            try {
+                ucrId = Long.parseLong(row.getDiveraUcrId().trim());
+            } catch (NumberFormatException e) {
+                continue;
+            }
+            if (!validUcrs.contains(ucrId) && row.getPerson() == null && isPlaceholderDiveraDisplayName(row.getDisplayName())) {
+                incidentReportPersonnelRepository.delete(row);
+                continue;
+            }
+            if (row.getPerson() == null) {
+                resolvePersonForDiveraUcr(unitId, ucrId, testData).ifPresent(person -> {
+                    row.setPerson(person);
+                    row.setDisplayName(person.anwesenheitDisplayName());
+                    if (person.getUnit() != null && person.getUnit().getId() != unitId) {
+                        row.setSource(IncidentPersonnelSource.FOREIGN);
+                        row.setForeignUnit(person.getUnit());
+                    }
+                    incidentReportPersonnelRepository.save(row);
+                });
+            }
+            if (row.getPerson() != null) {
+                continue;
+            }
+            String resolved = resolveDiveraDisplayName(ucrId, displayNameByUcr);
+            if (!resolved.equals(row.getDisplayName())) {
+                row.setDisplayName(resolved);
+                incidentReportPersonnelRepository.save(row);
+            }
+        }
+    }
+
+    private static boolean isPlaceholderDiveraDisplayName(String displayName) {
+        return displayName != null && displayName.startsWith("DIVERA UCR ");
+    }
+
+    private static String resolveDiveraDisplayName(long ucrId, Map<Long, String> displayNameByUcr) {
+        if (displayNameByUcr != null) {
+            String name = displayNameByUcr.get(ucrId);
+            if (name != null && !name.isBlank()) {
+                return name.trim();
+            }
+        }
+        return IncidentPersonnelRefs.displayNameForUcr(ucrId);
     }
 
     private Optional<Person> resolvePersonForDiveraUcr(long unitId, long ucrId, boolean testData) {
@@ -1732,8 +1796,11 @@ public class EinsatzberichtService {
         return personRepository.findAllByDiveraUcrId(ucr, testData).stream().findFirst();
     }
 
-    private static Map<Long, String> displayNamesByUcr(DiveraAlarmDetails details) {
+    private static Map<Long, String> displayNamesByUcr(DiveraAlarmDetails details, Map<Long, String> diveraUserNames) {
         Map<Long, String> names = new LinkedHashMap<>();
+        if (diveraUserNames != null) {
+            names.putAll(diveraUserNames);
+        }
         collectDisplayNames(details.answeredHits(), names);
         if (details.personnelHits() != null) {
             collectDisplayNames(details.personnelHits(), names);
