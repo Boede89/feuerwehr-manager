@@ -18,7 +18,7 @@ public class EinsatzAppSettingsService {
     private final UnitRepository unitRepository;
     private final EinsatzappDeviceTokenRepository deviceTokenRepository;
     private final EinsatzappPushLogRepository pushLogRepository;
-    private final FcmProperties fcmProperties;
+    private final FcmConfigService fcmConfigService;
 
     @Transactional
     public UnitEinsatzappSettings ensureSettings(long unitId) {
@@ -51,7 +51,7 @@ public class EinsatzAppSettingsService {
 
     @Transactional(readOnly = true)
     public boolean isFcmConfigured() {
-        return fcmProperties.isConfigured();
+        return fcmConfigService.isConfigured();
     }
 
     @Transactional

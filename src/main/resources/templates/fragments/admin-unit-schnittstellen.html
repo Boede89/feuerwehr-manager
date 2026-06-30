@@ -209,8 +209,9 @@
         Unter <a th:href="@{/admin(scope='einheit', tab='module', unit=${unitId})}">Module</a> aktivieren.
       </p>
       <p class="hint" th:if="${einsatzappModuleEnabled and !einsatzappFcmConfigured}">
-        FCM ist serverseitig nicht konfiguriert — Firebase-Dienstkonto-JSON nach
-        <code>secrets/fcm-service-account.json</code> legen und <code>FEUERWEHR_FCM_ENABLED=true</code> setzen.
+        Firebase-Dienstkonto fehlt —
+        <a th:href="@{/settings/einsatzapp(unit=${unitId})}">Einsatz-App-Einstellungen</a>
+        → JSON hochladen.
       </p>
       <p class="hint" th:if="${einsatzappModuleEnabled and einsatzappFcmConfigured}">
         Registrierte Geräte: <strong th:text="${einsatzappDeviceCount}">0</strong>.
@@ -228,7 +229,7 @@
         </div>
         <div class="form-group form-group--full">
           <button type="submit" class="btn btn--primary btn--sm" th:disabled="${!einsatzappModuleEnabled}">Speichern</button>
-          <a class="btn btn--outline btn--sm" th:href="@{/einsatzapp(unit=${unitId})}">Status &amp; Protokoll</a>
+          <a class="btn btn--outline btn--sm" th:href="@{/settings/einsatzapp(unit=${unitId})}">Firebase &amp; Push</a>
         </div>
       </form>
     </div>

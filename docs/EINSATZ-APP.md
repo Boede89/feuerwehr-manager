@@ -46,32 +46,25 @@ Push wird nur gesendet wenn:
 2. **Projekteinstellungen** → **Dienstkonten**
 3. **Neuen privaten Schlüssel generieren** → JSON herunterladen
 
-### 2. JSON auf den Server legen
+### 2. JSON hochladen (empfohlen)
 
-Im Projektordner auf dem Server (nicht ins Git):
+**Admin → Einheit → Module → Einsatz-App → Einstellungen** → Firebase-Dienstkonto-JSON hochladen.
+
+Die Datei wird im Datenverzeichnis gespeichert (`/data/einsatzapp/` im Container) — kein Terminal nötig.
+
+### 2b. Alternativ: Datei per Server / .env
 
 ```bash
 mkdir -p secrets
-cp ~/Downloads/dein-projekt-firebase-adminsdk-xxxxx.json secrets/fcm-service-account.json
-chmod 600 secrets/fcm-service-account.json
+cp dein-projekt-firebase-adminsdk.json secrets/fcm-service-account.json
 ```
-
-### 3. `.env` anpassen
 
 ```env
 FEUERWEHR_FCM_ENABLED=true
 FEUERWEHR_FCM_SERVICE_ACCOUNT_PATH=/data/fcm-service-account.json
 ```
 
-`docker-compose.yml` — Zeile unter `app.volumes` einkommentieren:
-
-```yaml
-- ./secrets/fcm-service-account.json:/data/fcm-service-account.json:ro
-```
-
-Alternativ nach dem Start: `docker cp secrets/fcm-service-account.json ffm_app:/data/fcm-service-account.json`
-
-### 4. Deploy
+Volume in `docker-compose.yml` einkommentieren oder `docker cp` nutzen.
 
 ```bash
 docker compose up -d --build

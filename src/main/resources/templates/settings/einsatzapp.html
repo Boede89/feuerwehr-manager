@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('Einsatz-App-Einstellungen', ~{::main})}">
+<main>
+  <div class="page-header page-header--toolbar">
+    <div>
+      <h2>Einsatz-App — Einstellungen</h2>
+      <p th:text="${currentUnitName}">Einheit</p>
+    </div>
+    <div class="toolbar-actions">
+      <a class="btn btn--outline btn--sm" th:href="@{/admin(scope='einheit', tab='module', unit=${unitId})}">← Module</a>
+      <a class="btn btn--outline btn--sm" th:href="@{/einsatzapp(unit=${unitId})}">Status</a>
+    </div>
+  </div>
+
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
+
+  <div class="card">
+    <div class="card__header">Firebase-Dienstkonto (Push-Versand)</div>
+    <div class="card__body">
+      <p class="hint" style="margin-top:0;">
+        Lade die JSON-Datei aus der Firebase Console hoch
+        (<strong>Projekteinstellungen → Dienstkonten → Neuen privaten Schlüssel generieren</strong>).
+        Gilt für die gesamte Installation — nicht ins Git committen.
+      </p>
+      <dl class="detail-list" style="margin: 1rem 0;">
+        <dt>Status</dt>
+        <dd>
+          <span class="badge" th:classappend="${fcmConfigured} ? ' active' : ' inactive'"
+                th:text="${fcmConfigured} ? 'Konfiguriert' : 'Nicht konfiguriert'">—</span>
+        </dd>
+        <dt th:if="${fcmProjectId != null}">Firebase-Projekt</dt>
+        <dd th:if="${fcmProjectId != null}" th:text="${fcmProjectId}">—</dd>
+        <dt th:if="${fcmClientEmail != null}">Dienstkonto</dt>
+        <dd th:if="${fcmClientEmail != null}" class="text-muted text-sm" th:text="${fcmClientEmail}">—</dd>
+        <dt>Quelle</dt>
+        <dd class="text-muted text-sm" th:text="${fcmUploaded} ? 'Hochgeladen über Web-UI' : (${fcmConfigured} ? 'Server-Pfad (.env)' : '—')">—</dd>
+      </dl>
+
+      <form method="post" th:action="@{/settings/einsatzapp/fcm-upload}" enctype="multipart/form-data"
+            class="form-grid" style="margin-top: 1rem;">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <div class="form-group form-group--full">
+          <label for="serviceAccountFile">Dienstkonto-JSON</label>
+          <input id="serviceAccountFile" name="serviceAccountFile" type="file" accept=".json,application/json"
+                 th:required="${!fcmConfigured}"/>
+          <p class="hint">Dateiname endet meist auf <code>firebase-adminsdk-….json</code></p>
+        </div>
+        <div class="form-group form-group--full">
+          <button type="submit" class="btn btn--primary btn--sm">JSON hochladen &amp; speichern</button>
+        </div>
+      </form>
+      <form th:if="${fcmUploaded}" method="post" th:action="@{/settings/einsatzapp/fcm-delete}" class="form-grid"
+            style="margin-top: 0.5rem;"
+            onsubmit="return confirm('Hochgeladenes Dienstkonto wirklich entfernen?');">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <div class="form-group form-group--full">
+          <button type="submit" class="btn btn--danger btn--sm">Hochgeladenes Konto entfernen</button>
+        </div>
+      </form>
+      <p class="hint" style="margin-top: 0.75rem;">
+        Für die spätere Android-App in Android Studio brauchst du zusätzlich die
+        <strong>google-services.json</strong> — das ist eine andere Datei aus Firebase.
+      </p>
+    </div>
+  </div>
+
+  <div class="card mt-md">
+    <div class="card__header">Push für diese Einheit</div>
+    <div class="card__body">
+      <p class="hint" style="margin-top:0;">
+        Registrierte Geräte: <strong th:text="${deviceCount}">0</strong>
+        (nur nach Android-App und Anmeldung).
+      </p>
+      <form method="post" th:action="@{/settings/einsatzapp}" class="form-grid" style="margin-top: 1rem;">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <div class="form-group form-group--full">
+          <label class="checkbox-inline">
+            <input type="checkbox" name="pushEnabled" value="true" th:checked="${pushEnabled}"/>
+            Push-Benachrichtigungen bei DIVERA-Einsätzen aktivieren
+          </label>
+          <p class="hint">Erfordert konfiguriertes Firebase-Dienstkonto und Nutzer mit Berechtigung „Einsatz-App (Lesen)“.</p>
+        </div>
+        <div class="form-group form-group--full">
+          <button type="submit" class="btn btn--primary btn--sm">Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</main>
+</html>

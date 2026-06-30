@@ -21,14 +21,14 @@ public class FcmAccessTokenProvider {
 
     private static final String FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
 
-    private final FcmProperties fcmProperties;
+    private final FcmConfigService fcmConfigService;
     private final ObjectMapper objectMapper;
 
     private volatile GoogleCredentials credentials;
     private volatile String projectId;
 
     public Optional<String> getProjectId() {
-        if (!fcmProperties.isConfigured()) {
+        if (!fcmConfigService.isConfigured()) {
             return Optional.empty();
         }
         ensureLoaded();
@@ -36,7 +36,7 @@ public class FcmAccessTokenProvider {
     }
 
     public Optional<String> getAccessToken() {
-        if (!fcmProperties.isConfigured()) {
+        if (!fcmConfigService.isConfigured()) {
             return Optional.empty();
         }
         try {
@@ -55,6 +55,13 @@ public class FcmAccessTokenProvider {
         }
     }
 
+    public void invalidateCache() {
+        synchronized (this) {
+            credentials = null;
+            projectId = null;
+        }
+    }
+
     private void ensureLoaded() {
         if (credentials != null && projectId != null) {
             return;
@@ -68,7 +75,12 @@ public class FcmAccessTokenProvider {
     }
 
     private void loadCredentials() {
-        Path path = Path.of(fcmProperties.serviceAccountPath().trim());
+        Path path = fcmConfigService.resolveEffectivePath().orElse(null);
+        if (path == null) {
+            credentials = null;
+            projectId = null;
+            return;
+        }
         try (InputStream in = Files.newInputStream(path)) {
             JsonNode root = objectMapper.readTree(in);
             projectId = root.path("project_id").asText(null);

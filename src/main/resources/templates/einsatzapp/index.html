@@ -29,12 +29,12 @@
         <dd th:text="${deviceCount}">0</dd>
       </dl>
       <p class="hint" style="margin-top: 1rem;" th:if="${!fcmConfigured}">
-        Für Push-Versand <code>FEUERWEHR_FCM_ENABLED=true</code> setzen und die Firebase-
-        <strong>Dienstkonto-JSON</strong> nach <code>secrets/fcm-service-account.json</code> legen
-        (siehe <code>docs/EINSATZ-APP.md</code>).
+        Firebase-Dienstkonto unter
+        <a th:href="@{/settings/einsatzapp(unit=${unitId})}">Einsatz-App-Einstellungen</a>
+        hochladen (Admin → Module → Einsatz-App → Einstellungen).
       </p>
       <a class="btn btn--outline btn--sm" style="margin-top: 0.75rem;"
-         th:href="@{/admin(scope='einheit', tab='schnittstellen', unit=${unitId})}">Push-Einstellungen</a>
+         th:href="@{/settings/einsatzapp(unit=${unitId})}">Einstellungen öffnen</a>
     </div>
   </div>
 

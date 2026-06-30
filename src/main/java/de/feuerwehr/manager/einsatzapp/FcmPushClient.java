@@ -22,15 +22,14 @@ import org.springframework.web.client.RestClientResponseException;
 @Slf4j
 public class FcmPushClient {
 
-    private final FcmProperties fcmProperties;
     private final FcmAccessTokenProvider accessTokenProvider;
+    private final FcmConfigService fcmConfigService;
     private final ObjectMapper objectMapper;
 
     public record FcmSendResult(int successCount, int failureCount, List<String> invalidTokens) {}
 
     public boolean isAvailable() {
-        return fcmProperties.isConfigured()
-                && accessTokenProvider.getProjectId().isPresent();
+        return fcmConfigService.isConfigured();
     }
 
     public FcmSendResult sendAlarmNotification(List<String> registrationTokens, String title, String body, long alarmId) {
