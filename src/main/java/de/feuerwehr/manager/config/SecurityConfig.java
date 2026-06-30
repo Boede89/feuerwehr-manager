@@ -65,7 +65,6 @@ public class SecurityConfig {
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                         .ignoringRequestMatchers(
                                 "/api/webhook/**",
-                                HttpMethod.POST,
                                 "/api/v1/auth/login",
                                 "/api/v1/einsatzapp/**"))
                 .sessionManagement(session -> session
