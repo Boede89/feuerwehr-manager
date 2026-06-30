@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.web;
 
+import de.feuerwehr.manager.einsatzapp.EinsatzAppPushService;
 import de.feuerwehr.manager.einsatzapp.EinsatzAppSettingsService;
 import de.feuerwehr.manager.einsatzapp.FcmAccessTokenProvider;
 import de.feuerwehr.manager.einsatzapp.FcmConfigService;
@@ -29,6 +30,7 @@ public class EinsatzAppSettingsController {
     private final ModuleSettingsService moduleSettingsService;
     private final AccessControlService accessControlService;
     private final EinsatzAppSettingsService einsatzAppSettingsService;
+    private final EinsatzAppPushService einsatzAppPushService;
     private final FcmConfigService fcmConfigService;
     private final FcmAccessTokenProvider fcmAccessTokenProvider;
 
@@ -117,6 +119,25 @@ public class EinsatzAppSettingsController {
             redirectAttributes.addFlashAttribute("error", "Entfernen fehlgeschlagen: " + e.getMessage());
         }
         return "redirect:/settings/einsatzapp?unit=" + unit;
+    }
+
+    @PostMapping("/test-push")
+    public String sendTestPush(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            RedirectAttributes redirectAttributes) {
+        try {
+            accessControlService.requireAdminLevel(actor);
+            accessControlService.requireUnitAccess(actor, unit);
+            requireModuleEnabled(unit);
+            einsatzAppPushService.sendTestPush(unit);
+            redirectAttributes.addFlashAttribute(
+                    "message",
+                    "Test-Push ausgelöst — Ergebnis unter Einsatz-App → Letzte Push-Versuche prüfen.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/einsatzapp?unit=" + unit;
     }
 
     private void requireModuleEnabled(long unitId) {

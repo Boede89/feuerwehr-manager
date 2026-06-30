@@ -64,7 +64,11 @@
           </tbody>
         </table>
       </div>
-      <p class="table-empty" th:if="${#lists.isEmpty(recentPushLog)}">Noch keine Push-Versuche protokolliert.</p>
+      <p class="table-empty" th:if="${#lists.isEmpty(recentPushLog)}">
+        Noch keine Push-Versuche protokolliert.
+        Unter <a th:href="@{/settings/einsatzapp(unit=${unitId})}">Einsatz-App-Einstellungen</a>
+        kann ein <strong>Test-Push</strong> ausgelöst werden — danach erscheint hier der Grund (z. B. fehlendes FCM oder keine Geräte).
+      </p>
     </div>
   </div>
 

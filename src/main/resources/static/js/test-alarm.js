@@ -128,15 +128,15 @@
   }
 
   function confirmSendPush() {
-    return window.confirm(
-      'Push-Benachrichtigung an registrierte Einsatz-App-Geräte senden?\n\n' +
-        'OK = Ja, Push senden\nAbbrechen = Nein, nur Einsatz starten'
-    );
+    return window.confirm('Push-Benachrichtigung an registrierte Einsatz-App-Geräte senden?');
   }
 
   function startSample(sampleId, triggerBtn) {
     var unitId = meta.getAttribute('data-unit-id');
     if (!unitId || !sampleId) return;
+    if (!window.confirm('Einsatz auf der Startseite starten?')) {
+      return;
+    }
     var sendPush = confirmSendPush();
     if (triggerBtn) triggerBtn.disabled = true;
     var body = new URLSearchParams();

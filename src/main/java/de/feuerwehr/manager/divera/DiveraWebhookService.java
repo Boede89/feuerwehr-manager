@@ -52,7 +52,21 @@ public class DiveraWebhookService {
 
     /** Löst einen Einsatz-App-Push aus dem Webhook-JSON aus (z. B. Testalarm „Einsatz starten“). */
     public void tryDispatchEinsatzAppPush(long unitId, String rawBody) {
-        dispatchEinsatzAppPush(unitId, rawBody);
+        if (rawBody == null || rawBody.isBlank()) {
+            einsatzAppPushService.recordSkipped(unitId, "Übersprungen: Leerer Webhook-Body");
+            return;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(rawBody);
+            DiveraAlarmDetailsMapper.fromWebhookJson(root)
+                    .ifPresentOrElse(
+                            details -> einsatzAppPushService.tryDispatchFromWebhook(unitId, details),
+                            () -> einsatzAppPushService.recordSkipped(unitId, "Übersprungen: Kein Alarm im JSON"));
+        } catch (Exception e) {
+            einsatzAppPushService.recordSkipped(
+                    unitId, "Übersprungen: JSON ungültig — " + e.getMessage());
+            log.debug("[Einsatz-App] Push aus Webhook nicht auslösbar unit={}: {}", unitId, e.getMessage());
+        }
     }
 
     public WebhookOutcome handleWebhook(long unitId, String secretFromQuery, String secretFromHeader, String rawBody) {
@@ -100,13 +114,7 @@ public class DiveraWebhookService {
         if (rawBody == null || rawBody.isBlank()) {
             return;
         }
-        try {
-            JsonNode root = objectMapper.readTree(rawBody);
-            DiveraAlarmDetailsMapper.fromWebhookJson(root)
-                    .ifPresent(details -> einsatzAppPushService.tryDispatchFromWebhook(unitId, details));
-        } catch (Exception e) {
-            log.debug("[Einsatz-App] Push aus Webhook nicht auslösbar unit={}: {}", unitId, e.getMessage());
-        }
+        tryDispatchEinsatzAppPush(unitId, rawBody);
     }
 
     private static String extractExternalId(JsonNode root) {

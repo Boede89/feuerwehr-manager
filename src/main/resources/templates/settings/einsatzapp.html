@@ -88,6 +88,15 @@
           <button type="submit" class="btn btn--primary btn--sm">Speichern</button>
         </div>
       </form>
+      <form method="post" th:action="@{/settings/einsatzapp/test-push}" class="form-grid" style="margin-top: 0.75rem;"
+            onsubmit="return confirm('Test-Push an alle registrierten Geräte dieser Einheit senden?');">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <div class="form-group form-group--full">
+          <button type="submit" class="btn btn--outline btn--sm">Test-Push senden</button>
+          <p class="hint">Sendet eine Test-Benachrichtigung — unabhängig vom Testalarm. Ergebnis im Push-Protokoll.</p>
+        </div>
+      </form>
     </div>
   </div>
 </main>

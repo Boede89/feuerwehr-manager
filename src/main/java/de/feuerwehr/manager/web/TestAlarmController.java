@@ -110,7 +110,7 @@ public class TestAlarmController {
                 }
                 String msg = outcome.message();
                 if (sendPush) {
-                    msg += " — Push-Versand an Einsatz-App ausgelöst";
+                    msg += " — Push-Versuch protokolliert (Einsatz-App → Letzte Push-Versuche)";
                 }
                 return ActionResultDto.success(msg);
             }
@@ -193,7 +193,7 @@ public class TestAlarmController {
             if (outcome.status() == WebhookStatus.ACCEPTED) {
                 String msg = outcome.message();
                 if (sendPush) {
-                    msg += " — Push-Versand an Einsatz-App ausgelöst";
+                    msg += " — Push-Versuch protokolliert (Einsatz-App → Letzte Push-Versuche)";
                 }
                 if (outcome.externalId() != null && !outcome.externalId().isBlank()) {
                     msg += " (ID: " + outcome.externalId() + ")";
