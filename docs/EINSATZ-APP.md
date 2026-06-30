@@ -2,30 +2,93 @@
 
 Android-Alarmierung: Wenn DIVERA einen Einsatz meldet, erhalten registrierte Geräte eine Push-Benachrichtigung in der Feuerwehr-App.
 
-## Phase 1 (aktuell)
+## Phase 2 (aktuell)
 
 | Komponente | Status |
 |------------|--------|
 | Modul `einsatzapp` in Admin → Module | aktiv |
-| Navigation „Einsatz-App“ | Platzhalter-Seite |
-| Rollen-Berechtigungen `einsatzapp.read` / `einsatzapp.write` | aktiv |
-| Android-App, FCM, Geräteverwaltung | folgt |
+| Push-Einstellungen pro Einheit (Admin → Schnittstellen) | aktiv |
+| FCM-Versand bei DIVERA-Webhook | aktiv |
+| Geräte-Token (REST-API) | aktiv |
+| REST-Login für Android (`POST /api/v1/auth/login`) | aktiv |
+| Android-App (Phase 3) | folgt |
 
-## Architektur (Ziel)
+## Architektur
 
-1. **DIVERA** → Webhook an Feuerwehr-Manager (`POST /api/webhook/divera`)
-2. **Backend** erkennt neuen/geänderten Einsatz, legt Push in Outbox
-3. **Firebase Cloud Messaging (FCM)** → Android-Geräte
-4. **App** zeigt Alarm, lädt Details über REST (`/api/v1/units/{unitId}/divera/alarms`)
+1. **DIVERA** → Webhook an Feuerwehr-Manager (`POST /api/webhook/divera?unit=…`)
+2. **Backend** parst Alarm, prüft Modul + `push_enabled` + FCM-Konfiguration
+3. **Firebase Cloud Messaging (FCM)** → registrierte Android-Geräte
+4. **App** lädt Details über `GET /api/v1/units/{unitId}/divera/alarms`
 
-Die App soll **nicht** dauerhaft die DIVERA-API pollen (Akku, Hintergrundlimits). Zentraler Versand über den Server — siehe auch `docs/DIVERA.md`.
+Die App soll **nicht** dauerhaft die DIVERA-API pollen. Zentraler Versand über den Server — siehe auch `docs/DIVERA.md`.
 
-## Nächste Schritte (geplant)
+Push wird nur gesendet wenn:
 
-- **Phase 2:** Geräte-Token speichern, FCM-Konfiguration, Push bei DIVERA-Webhook
-- **Phase 3:** Android-App (Login, Token-Registrierung, Push + Einsatzansicht)
+- Modul `einsatzapp` für die Einheit aktiv ist
+- `push_enabled` in den Einsatz-App-Einstellungen (Admin → Schnittstellen)
+- FCM serverseitig konfiguriert (`FEUERWEHR_FCM_ENABLED=true`, `FEUERWEHR_FCM_SERVER_KEY`)
+- Einsatz nicht geschlossen (`closed=false`)
+- Gerät registriert und Nutzer hat `einsatzapp.read`
+
+## FCM einrichten (Server)
+
+1. Firebase-Projekt anlegen, Android-App registrieren (Phase 3)
+2. **Legacy Server Key** aus Firebase Console → Cloud Messaging
+3. In `.env` setzen (nicht ins Git committen):
+
+```env
+FEUERWEHR_FCM_ENABLED=true
+FEUERWEHR_FCM_SERVER_KEY=<Firebase Legacy Server Key>
+```
+
+4. `docker compose up -d --build`
+
+## REST-API (Android)
+
+### Anmeldung
+
+`POST /api/v1/auth/login`
+
+```json
+{ "username": "max", "password": "…" }
+```
+
+Antwort bei Erfolg: Session-Cookie (`JSESSIONID`). Bei aktivierter 2FA: `totpRequired: true` (App muss Web-TOTP nutzen).
+
+### Gerät registrieren
+
+`POST /api/v1/einsatzapp/devices` (authentifiziert)
+
+```json
+{
+  "unitId": 1,
+  "fcmToken": "…",
+  "deviceLabel": "Pixel 8",
+  "platform": "android"
+}
+```
+
+### Gerät abmelden
+
+`DELETE /api/v1/einsatzapp/devices`
+
+```json
+{ "fcmToken": "…" }
+```
+
+### Push-Payload (data)
+
+| Feld | Bedeutung |
+|------|-----------|
+| `type` | `divera_alarm` |
+| `alarmId` | DIVERA-Alarm-ID (long) |
 
 ## Modul aktivieren
 
 1. Adminpanel → Einheit → **Module** → „Einsatz-App“ aktivieren
-2. Unter **Rollen** Berechtigung „Einsatz-App“ vergeben (Lesen für Anzeige, Schreiben für spätere Verwaltung)
+2. Adminpanel → Einheit → **Schnittstellen** → Push aktivieren
+3. Unter **Rollen** Berechtigung „Einsatz-App“ vergeben (Lesen für Push-Empfang)
+
+## Nächste Schritte
+
+- **Phase 3:** Android-App (Login, Token-Registrierung, Push + Einsatzansicht)

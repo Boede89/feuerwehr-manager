@@ -1,6 +1,7 @@
 package de.feuerwehr.manager.config;
 
 import de.feuerwehr.manager.dsgvo.DsgvoProperties;
+import de.feuerwehr.manager.einsatzapp.FcmProperties;
 import de.feuerwehr.manager.security.AppUserDetailsService;
 import de.feuerwehr.manager.security.AuditLogoutSuccessHandler;
 import de.feuerwehr.manager.security.TestModeLogoutHandler;
@@ -26,7 +27,7 @@ import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
-@EnableConfigurationProperties({SecurityProperties.class, DsgvoProperties.class})
+@EnableConfigurationProperties({SecurityProperties.class, DsgvoProperties.class, FcmProperties.class})
 public class SecurityConfig {
 
     @Bean
@@ -60,7 +61,13 @@ public class SecurityConfig {
             throws Exception {
         http.authenticationManager(authenticationManager);
         http
-                .csrf(csrf -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse()))
+                .csrf(csrf -> csrf
+                        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                        .ignoringRequestMatchers(
+                                "/api/webhook/**",
+                                HttpMethod.POST,
+                                "/api/v1/auth/login",
+                                "/api/v1/einsatzapp/**"))
                 .sessionManagement(session -> session
                         .sessionFixation(sf -> sf.changeSessionId())
                         .maximumSessions(1)
@@ -77,7 +84,11 @@ public class SecurityConfig {
                                 "/actuator/health",
                                 "/error")
                         .permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/rfid", "/api/v1/auth/rfid/register-unknown")
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/v1/auth/login",
+                                "/api/v1/auth/rfid",
+                                "/api/v1/auth/rfid/register-unknown")
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/webhook/**")
                         .permitAll()

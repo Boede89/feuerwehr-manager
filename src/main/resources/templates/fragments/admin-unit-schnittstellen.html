@@ -202,6 +202,39 @@
   </div>
 
   <div class="card">
+    <div class="card__header">Einsatz-App (Push)</div>
+    <div class="card__body">
+      <p class="hint" th:if="${!einsatzappModuleEnabled}">
+        Das Modul <strong>Einsatz-App</strong> ist für diese Einheit deaktiviert.
+        Unter <a th:href="@{/admin(scope='einheit', tab='module', unit=${unitId})}">Module</a> aktivieren.
+      </p>
+      <p class="hint" th:if="${einsatzappModuleEnabled and !einsatzappFcmConfigured}">
+        FCM ist serverseitig nicht konfiguriert (<code>FEUERWEHR_FCM_SERVER_KEY</code> in der <code>.env</code>).
+        Push-Versand ist erst nach Einrichtung möglich.
+      </p>
+      <p class="hint" th:if="${einsatzappModuleEnabled and einsatzappFcmConfigured}">
+        Registrierte Geräte: <strong th:text="${einsatzappDeviceCount}">0</strong>.
+        Push wird bei DIVERA-Webhooks ausgelöst (nur offene Einsätze).
+      </p>
+      <form method="post" th:action="@{/admin/unit/einsatzapp}" class="form-grid" style="margin-top: 1rem;">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <div class="form-group form-group--full">
+          <label class="checkbox-inline">
+            <input type="checkbox" name="pushEnabled" value="true" th:checked="${einsatzappPushEnabled}"/>
+            Push-Benachrichtigungen für diese Einheit aktivieren
+          </label>
+          <p class="hint">Nur Nutzer mit Berechtigung „Einsatz-App (Lesen)“ und registriertem Gerät erhalten Push.</p>
+        </div>
+        <div class="form-group form-group--full">
+          <button type="submit" class="btn btn--primary btn--sm" th:disabled="${!einsatzappModuleEnabled}">Speichern</button>
+          <a class="btn btn--outline btn--sm" th:href="@{/einsatzapp(unit=${unitId})}">Status &amp; Protokoll</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
     <div class="card__header">Druckerverwaltung</div>
     <div class="card__body">
       <p class="hint">

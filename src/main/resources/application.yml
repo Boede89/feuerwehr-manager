@@ -67,3 +67,6 @@ feuerwehr:
     # Host vor „docker compose up“: export FEUERWEHR_DIVERA_POLL_ENABLED=true (siehe docs/SCHRITT-FUER-SCHRITT.md)
     poll-enabled: ${FEUERWEHR_DIVERA_POLL_ENABLED:false}
     poll-interval-ms: 120000
+  fcm:
+    enabled: ${FEUERWEHR_FCM_ENABLED:false}
+    server-key: ${FEUERWEHR_FCM_SERVER_KEY:}

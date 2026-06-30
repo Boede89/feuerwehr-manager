@@ -2,6 +2,8 @@ package de.feuerwehr.manager.divera;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import de.feuerwehr.manager.divera.DiveraAlarmDetailsMapper;
+import de.feuerwehr.manager.einsatzapp.EinsatzAppPushService;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.UnitDiveraSettings;
 import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
@@ -20,6 +22,7 @@ public class DiveraWebhookService {
     private final DiveraAlarmSampleService diveraAlarmSampleService;
     private final DiveraEinsatzberichtSyncService einsatzberichtSyncService;
     private final TestModeService testModeService;
+    private final EinsatzAppPushService einsatzAppPushService;
     private final ObjectMapper objectMapper;
 
     public enum WebhookStatus {
@@ -39,6 +42,7 @@ public class DiveraWebhookService {
         WebhookOutcome outcome = testDiveraAlarmService.ingestTestWebhook(unitId, rawBody);
         if (outcome.status() == WebhookStatus.ACCEPTED) {
             diveraAlarmSampleService.captureFromWebhook(unitId, rawBody);
+            dispatchEinsatzAppPush(unitId, rawBody);
             log.info("[Divera-Webhook-Test] unit={} externalId={}", unitId, outcome.externalId());
         }
         return outcome;
@@ -71,6 +75,7 @@ public class DiveraWebhookService {
                 sampleSaved = diveraAlarmSampleService.captureFromWebhook(unitId, rawBody);
             }
             boolean draftCreated = einsatzberichtSyncService.syncFromWebhook(unitId, rawBody);
+            dispatchEinsatzAppPush(unitId, rawBody);
             String externalId = extractExternalId(root);
             String message = sampleSaved
                     ? (draftCreated
@@ -81,6 +86,19 @@ public class DiveraWebhookService {
         } catch (Exception e) {
             log.error("[Divera-Webhook] JSON-Fehler unit={}: {}", unitId, e.getMessage());
             return new WebhookOutcome(WebhookStatus.BAD_REQUEST, null, "Ungültiges JSON");
+        }
+    }
+
+    private void dispatchEinsatzAppPush(long unitId, String rawBody) {
+        if (rawBody == null || rawBody.isBlank()) {
+            return;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(rawBody);
+            DiveraAlarmDetailsMapper.fromWebhookJson(root)
+                    .ifPresent(details -> einsatzAppPushService.tryDispatchFromWebhook(unitId, details));
+        } catch (Exception e) {
+            log.debug("[Einsatz-App] Push aus Webhook nicht auslösbar unit={}: {}", unitId, e.getMessage());
         }
     }
 

@@ -1,6 +1,7 @@
 package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.divera.DiveraMappingService;
+import de.feuerwehr.manager.einsatzapp.EinsatzAppSettingsService;
 import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.technik.UnitVehicleTypeService;
 import de.feuerwehr.manager.technik.VehicleChecklistService;
@@ -45,6 +46,7 @@ public class AdminUnitController {
     private final VehicleChecklistService vehicleChecklistService;
     private final DiveraMappingService diveraMappingService;
     private final UnitPrintSettingsService unitPrintSettingsService;
+    private final EinsatzAppSettingsService einsatzAppSettingsService;
 
     @PostMapping("/config")
     public String saveConfig(
@@ -311,6 +313,18 @@ public class AdminUnitController {
             }
             unitPrintSettingsService.saveSettings(unit, mode, cupsPrinterName, cupsServer, cupsUsePostscript);
             redirectAttributes.addFlashAttribute("message", "Druckeinstellungen gespeichert.");
+        });
+    }
+
+    @PostMapping("/einsatzapp")
+    public String saveEinsatzapp(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam(required = false, defaultValue = "false") boolean pushEnabled,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(actor, unit, redirectAttributes, "schnittstellen", () -> {
+            einsatzAppSettingsService.savePushEnabled(unit, pushEnabled);
+            redirectAttributes.addFlashAttribute("message", "Einsatz-App-Einstellungen gespeichert.");
         });
     }
 

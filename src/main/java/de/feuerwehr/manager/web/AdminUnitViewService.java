@@ -22,6 +22,7 @@ import de.feuerwehr.manager.print.UnitPrintSettingsService;
 import de.feuerwehr.manager.unit.UnitPrintSettings;
 import de.feuerwehr.manager.divera.DiveraIntegrationSupport;
 import de.feuerwehr.manager.divera.DiveraMappingService;
+import de.feuerwehr.manager.einsatzapp.EinsatzAppSettingsService;
 import de.feuerwehr.manager.settings.GlobalSettingsService;
 import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
 import de.feuerwehr.manager.unit.UnitRole;
@@ -53,6 +54,7 @@ public class AdminUnitViewService {
     private final VehicleChecklistService vehicleChecklistService;
     private final DiveraMappingService diveraMappingService;
     private final UnitPrintSettingsService unitPrintSettingsService;
+    private final EinsatzAppSettingsService einsatzAppSettingsService;
 
     public void populateKonfiguration(Model model, Unit unit) {
         model.addAttribute("unit", unit);
@@ -91,6 +93,7 @@ public class AdminUnitViewService {
         model.addAttribute("appBaseUrl", appBase != null ? appBase : "");
         populateDivera(model, unitId);
         populatePrint(model, unitId);
+        populateEinsatzapp(model, unitId);
         model.addAttribute("diveraRecipientGroups", diveraMappingService.listRecipientGroups(unitId));
         model.addAttribute("diveraStatusIds", diveraMappingService.listStatusIds(unitId));
     }
@@ -197,6 +200,14 @@ public class AdminUnitViewService {
         model.addAttribute("printModes", PrintMode.values());
         model.addAttribute("cupsClientAvailable", unitPrintSettingsService.isCupsClientAvailable());
         model.addAttribute("defaultCupsServer", unitPrintSettingsService.resolveCupsServer(settings));
+    }
+
+    private void populateEinsatzapp(Model model, long unitId) {
+        var settings = einsatzAppSettingsService.ensureSettings(unitId);
+        model.addAttribute("einsatzappPushEnabled", settings.isPushEnabled());
+        model.addAttribute("einsatzappFcmConfigured", einsatzAppSettingsService.isFcmConfigured());
+        model.addAttribute("einsatzappDeviceCount", einsatzAppSettingsService.countDevices(unitId));
+        model.addAttribute("einsatzappModuleEnabled", moduleSettingsService.isEnabled(AppModule.EINSATZAPP, unitId));
     }
 
     public void populateImportExport(Model model, long unitId) {

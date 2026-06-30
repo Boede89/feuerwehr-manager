@@ -12,35 +12,71 @@
   <div th:replace="~{fragments/flash-messages :: alerts}"></div>
 
   <div class="card">
-    <div class="card__header">In Vorbereitung</div>
+    <div class="card__header">Status</div>
     <div class="card__body">
-      <p>
-        Das Modul <strong>Einsatz-App</strong> bringt DIVERA-Alarmierungen auf Android-Geräte Ihrer Einsatzkräfte.
-        Die Verwaltungsoberfläche im Browser wird hier eingerichtet; die mobile App folgt in späteren Schritten.
+      <dl class="detail-list">
+        <dt>Push pro Einheit</dt>
+        <dd>
+          <span class="badge" th:classappend="${pushEnabled} ? ' active' : ' inactive'"
+                th:text="${pushEnabled} ? 'Aktiv' : 'Deaktiviert'">Deaktiviert</span>
+        </dd>
+        <dt>FCM (Server)</dt>
+        <dd>
+          <span class="badge" th:classappend="${fcmConfigured} ? ' active' : ' inactive'"
+                th:text="${fcmConfigured} ? 'Konfiguriert' : 'Nicht konfiguriert'">—</span>
+        </dd>
+        <dt>Registrierte Geräte</dt>
+        <dd th:text="${deviceCount}">0</dd>
+      </dl>
+      <p class="hint" style="margin-top: 1rem;" th:if="${!fcmConfigured}">
+        Für Push-Versand <code>FEUERWEHR_FCM_ENABLED=true</code> und
+        <code>FEUERWEHR_FCM_SERVER_KEY</code> in der <code>.env</code> setzen (Firebase Legacy Server Key).
       </p>
-      <h3 class="mt-md" style="margin-bottom: 0.5rem;">Geplanter Ablauf</h3>
-      <ol class="hint" style="margin-top: 0;">
-        <li><strong>Phase 1 (aktuell):</strong> Modul aktivieren, Berechtigungen, diese Übersicht</li>
-        <li><strong>Phase 2:</strong> Geräte-Registrierung, Push-Versand (FCM) aus DIVERA-Webhooks</li>
-        <li><strong>Phase 3:</strong> Android-App — Anmeldung, Push-Empfang, Einsatzdetails</li>
-      </ol>
-      <p class="hint" style="margin-top: 1.25rem;">
-        Technische Basis im Backend ist bereits angelegt: DIVERA-Webhook, optionales Polling und
-        <code>GET /api/v1/units/{unitId}/divera/alarms</code> für die spätere App.
-        Details: <code>docs/EINSATZ-APP.md</code>
-      </p>
+      <a class="btn btn--outline btn--sm" style="margin-top: 0.75rem;"
+         th:href="@{/admin(scope='einheit', tab='schnittstellen', unit=${unitId})}">Push-Einstellungen</a>
     </div>
   </div>
 
   <div class="card mt-md">
-    <div class="card__header">Modul aktivieren</div>
+    <div class="card__header">Letzte Push-Versuche</div>
+    <div class="card__body card__body--flush">
+      <div class="table-wrapper" th:if="${!#lists.isEmpty(recentPushLog)}">
+        <table class="table">
+          <thead>
+          <tr>
+            <th>Zeit</th>
+            <th>Einsatz</th>
+            <th>Ziele</th>
+            <th>Gesendet</th>
+            <th>Hinweis</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="row : ${recentPushLog}">
+            <td class="text-muted text-sm"
+                th:text="${row.createdAt != null ? #temporals.format(row.createdAt.atZone(T(java.time.ZoneId).of('Europe/Berlin')), 'dd.MM.yyyy HH:mm') : '—'}">—</td>
+            <td th:text="${row.alarmTitle != null ? row.alarmTitle : ('#' + row.diveraAlarmId)}">Einsatz</td>
+            <td th:text="${row.tokensTargeted}">0</td>
+            <td th:text="${row.tokensSent}">0</td>
+            <td class="text-muted text-sm" th:text="${row.errorMessage != null ? row.errorMessage : '—'}">—</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="table-empty" th:if="${#lists.isEmpty(recentPushLog)}">Noch keine Push-Versuche protokolliert.</p>
+    </div>
+  </div>
+
+  <div class="card mt-md">
+    <div class="card__header">API für die Android-App</div>
     <div class="card__body">
-      <p class="hint" style="margin-top: 0;">
-        Adminpanel → Einheit → <strong>Module</strong> → „Einsatz-App“ einschalten.
-        Anschließend unter <strong>Rollen</strong> die Berechtigungen <em>Einsatz-App (Lesen/Schreiben)</em> vergeben.
-      </p>
-      <a class="btn btn--outline btn--sm"
-         th:href="@{/admin(scope='einheit', tab='module', unit=${unitId})}">Zu den Modul-Einstellungen</a>
+      <ul class="hint" style="margin-top: 0;">
+        <li><code>POST /api/v1/auth/login</code> — Anmeldung (Session-Cookie)</li>
+        <li><code>POST /api/v1/einsatzapp/devices</code> — FCM-Token registrieren</li>
+        <li><code>DELETE /api/v1/einsatzapp/devices</code> — FCM-Token entfernen</li>
+        <li><code>GET /api/v1/units/{unitId}/divera/alarms</code> — Einsatzdetails</li>
+      </ul>
+      <p class="hint">Details: <code>docs/EINSATZ-APP.md</code></p>
     </div>
   </div>
 </main>
