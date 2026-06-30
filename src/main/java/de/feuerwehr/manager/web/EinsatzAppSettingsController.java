@@ -1,6 +1,7 @@
 package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.einsatzapp.EinsatzAppSettingsService;
+import de.feuerwehr.manager.einsatzapp.FcmAccessTokenProvider;
 import de.feuerwehr.manager.einsatzapp.FcmConfigService;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
