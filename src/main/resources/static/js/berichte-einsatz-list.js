@@ -80,12 +80,17 @@
     });
   }
 
-  function releaseDefaults() {
-    return {
+  function releaseDefaults(meta) {
+    var defaults = {
       createGeraetewart: root.dataset.releaseCreateGeraetewart === 'true',
       printReport: root.dataset.releasePrintReport === 'true',
-      printGeraetewart: root.dataset.releasePrintGeraetewart === 'true'
+      printGeraetewart: root.dataset.releasePrintGeraetewart === 'true',
+      hasMaterialDamages: false
     };
+    if (meta && meta.hasMaterialDamages === 'true') {
+      defaults.hasMaterialDamages = true;
+    }
+    return defaults;
   }
 
   function listReturnPath() {
@@ -260,7 +265,7 @@
     });
     document.getElementById('btn-modal-release')?.addEventListener('click', function () {
       var ask = window.FwConfirm && window.FwConfirm.releaseEinsatzbericht
-        ? window.FwConfirm.releaseEinsatzbericht(releaseDefaults())
+        ? window.FwConfirm.releaseEinsatzbericht(releaseDefaults(meta))
         : Promise.resolve(window.confirm('Einsatzbericht wirklich freigeben?'));
       ask.then(function (result) {
         var ok = result === true || (result && result.ok);
@@ -276,6 +281,9 @@
         }
         if (result && result.printGeraetewart) {
           extras.printGeraetewart = true;
+        }
+        if (result && result.printMaengel) {
+          extras.printMaengel = true;
         }
         postAction('/berichte/einsatzberichte/' + meta.reportId + '/freigeben', returnPath, extras);
       });

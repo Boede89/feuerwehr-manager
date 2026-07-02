@@ -194,6 +194,8 @@ public class BerichteController {
                     : report.getIncidentTypeLabel();
             String number = report.getIncidentNumber() != null ? report.getIncidentNumber() : String.valueOf(id);
             model.addAttribute("modalTitle", number + " — " + stichwort);
+            model.addAttribute("releaseHasMaterialDamages", einsatzberichtService.hasMaterialDamageEntries(report));
+            addEinsatzReleaseDefaults(model, unit.getId());
             return "berichte/einsatzbericht-modal-body";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
@@ -263,7 +265,7 @@ public class BerichteController {
             model.addAttribute(
                     "pageSubtitle",
                     report.getIncidentNumber() != null ? report.getIncidentNumber() : "Anzeige");
-            addEinsatzReleaseDefaults(model, unit.getId());
+            addEinsatzReleaseAttributes(model, unit.getId(), report);
             return "berichte/einsatzbericht-view";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
@@ -400,6 +402,7 @@ public class BerichteController {
             @RequestParam(name = "createGeraetewart", defaultValue = "false") boolean createGeraetewart,
             @RequestParam(name = "printReport", defaultValue = "false") boolean printReport,
             @RequestParam(name = "printGeraetewart", defaultValue = "false") boolean printGeraetewart,
+            @RequestParam(name = "printMaengel", defaultValue = "false") boolean printMaengel,
             @PathVariable long id,
             RedirectAttributes redirectAttributes) {
         try {
@@ -424,6 +427,38 @@ public class BerichteController {
                             maengelReports.size() == 1
                                     ? "1 Mängelbericht wurde automatisch erstellt."
                                     : maengelReports.size() + " Mängelberichte wurden automatisch erstellt.");
+                }
+                if (printMaengel && !maengelReports.isEmpty()) {
+                    int printed = 0;
+                    int failed = 0;
+                    String lastError = null;
+                    for (DefectReport maengelReport : maengelReports) {
+                        try {
+                            byte[] pdf = maengelberichtPdfService.renderPdf(unit.getId(), maengelReport.getId());
+                            CupsPrintService.CupsPrintResult printResult =
+                                    unitPrintSettingsService.printPdf(unit.getId(), pdf);
+                            if (printResult.success()) {
+                                printed++;
+                            } else {
+                                failed++;
+                                lastError = printResult.message();
+                            }
+                        } catch (IllegalArgumentException e) {
+                            failed++;
+                            lastError = e.getMessage();
+                        }
+                    }
+                    if (printed > 0) {
+                        followUpMessages.add(
+                                printed == 1
+                                        ? "1 Mängelbericht wurde zum Drucken gesendet."
+                                        : printed + " Mängelberichte wurden zum Drucken gesendet.");
+                    }
+                    if (failed > 0) {
+                        followUpMessages.add(
+                                "Mängelbericht drucken: "
+                                        + (lastError != null ? lastError : failed + " fehlgeschlagen"));
+                    }
                 }
             } catch (IllegalArgumentException e) {
                 followUpMessages.add("Mängelberichte: " + e.getMessage());
@@ -1644,6 +1679,13 @@ public class BerichteController {
 
     private static String redirectBerichte(Long unitId, String tab) {
         return redirectBerichte(unitId, tab, null, null, null);
+    }
+
+    private void addEinsatzReleaseAttributes(Model model, long unitId, IncidentReport report) {
+        addEinsatzReleaseDefaults(model, unitId);
+        model.addAttribute(
+                "releaseHasMaterialDamages",
+                report != null && einsatzberichtService.hasMaterialDamageEntries(report));
     }
 
     private void addEinsatzReleaseDefaults(Model model, long unitId) {

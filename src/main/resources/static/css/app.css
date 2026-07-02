@@ -2685,7 +2685,7 @@ body.modal-open {
 }
 
 .confirm-dialog__box {
-  max-width: 440px;
+  max-width: 480px;
 }
 
 .confirm-dialog__message {
@@ -2721,6 +2721,17 @@ body.modal-open {
 .confirm-dialog__checkbox input[type="checkbox"] {
   margin-top: 3px;
   flex-shrink: 0;
+}
+
+.confirm-dialog__checkbox-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px 16px;
+  align-items: start;
+}
+
+.confirm-dialog__checkbox-dependent[hidden] {
+  display: none !important;
 }
 
 .text-nowrap {

@@ -642,6 +642,17 @@ public class EinsatzberichtService {
                 .orElseThrow(() -> new IllegalArgumentException("Einsatzbericht nicht gefunden."));
     }
 
+    @Transactional(readOnly = true)
+    public boolean hasMaterialDamageEntries(IncidentReport report) {
+        if (report == null) {
+            return false;
+        }
+        return !MaterialDamageEntriesSupport.parse(report.getMaterialDamageEntriesJson())
+                .normalized()
+                .entries()
+                .isEmpty();
+    }
+
     public EinsatzberichtForm newForm(long unitId) {
         Unit unit = requireUnit(unitId);
         LocalDate today = LocalDate.now();

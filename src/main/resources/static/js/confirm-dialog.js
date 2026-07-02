@@ -159,7 +159,7 @@
     };
   }
 
-  var EINSATZ_RELEASE_FIELD_NAMES = ['createGeraetewart', 'printReport', 'printGeraetewart'];
+  var EINSATZ_RELEASE_FIELD_NAMES = ['printReport', 'createGeraetewart', 'printGeraetewart', 'printMaengel'];
 
   function releaseDefaultsFromElement(el) {
     if (!el || !el.dataset) {
@@ -168,24 +168,64 @@
     return {
       createGeraetewart: el.dataset.releaseCreateGeraetewart === 'true',
       printReport: el.dataset.releasePrintReport === 'true',
-      printGeraetewart: el.dataset.releasePrintGeraetewart === 'true'
+      printGeraetewart: el.dataset.releasePrintGeraetewart === 'true',
+      hasMaterialDamages: el.dataset.releaseHasMaterialDamages === 'true'
     };
   }
 
-  function buildEinsatzReleaseCheckboxes(defaults) {
+  function checkboxMarkup(id, name, label, checked) {
+    var isChecked = checked ? ' checked' : '';
+    return (
+      '<label class="confirm-dialog__checkbox" for="' + id + '">' +
+      '<input type="checkbox" id="' + id + '" name="' + name + '"' + isChecked + '/>' +
+      '<span>' + label + '</span>' +
+      '</label>'
+    );
+  }
+
+  function bindEinsatzReleaseCheckboxInteractions(defaults) {
+    var createCb = document.getElementById('fw-confirm-create-geraetewart');
+    var gwmPrintWrap = document.getElementById('fw-confirm-print-geraetewart-wrap');
+    var gwmPrintCb = document.getElementById('fw-confirm-print-geraetewart');
+
+    function syncGeraetewartPrintVisibility() {
+      var show = !!(createCb && createCb.checked);
+      if (gwmPrintWrap) {
+        gwmPrintWrap.hidden = !show;
+      }
+      if (!show && gwmPrintCb) {
+        gwmPrintCb.checked = false;
+      }
+    }
+
+    if (createCb) {
+      createCb.addEventListener('change', syncGeraetewartPrintVisibility);
+    }
+    syncGeraetewartPrintVisibility();
+
+    if (defaults && defaults.printGeraetewart && createCb && createCb.checked && gwmPrintCb) {
+      gwmPrintCb.checked = true;
+    }
+  }
+
+  function renderEinsatzReleaseCheckboxes(defaults) {
+    if (!checkboxesEl) {
+      return;
+    }
     var d = defaults || {};
-    return [
-      {
-        id: 'fw-confirm-create-geraetewart',
-        name: 'createGeraetewart',
-        label: 'Gerätewartmitteilung erstellen',
-        checked: !!d.createGeraetewart
-      },
+    var hasMaengel = !!d.hasMaterialDamages;
+    activeCheckboxes = [
       {
         id: 'fw-confirm-print-report',
         name: 'printReport',
         label: 'Einsatzbericht drucken',
         checked: !!d.printReport
+      },
+      {
+        id: 'fw-confirm-create-geraetewart',
+        name: 'createGeraetewart',
+        label: 'Gerätewartmitteilung erstellen',
+        checked: !!d.createGeraetewart
       },
       {
         id: 'fw-confirm-print-geraetewart',
@@ -194,6 +234,49 @@
         checked: !!d.printGeraetewart
       }
     ];
+    if (hasMaengel) {
+      activeCheckboxes.push({
+        id: 'fw-confirm-print-maengel',
+        name: 'printMaengel',
+        label: 'Mängelbericht drucken',
+        checked: !!d.printMaengel
+      });
+    }
+
+    var html = checkboxMarkup(
+      'fw-confirm-print-report',
+      'printReport',
+      'Einsatzbericht drucken',
+      d.printReport
+    );
+    html +=
+      '<div class="confirm-dialog__checkbox-row">' +
+      checkboxMarkup(
+        'fw-confirm-create-geraetewart',
+        'createGeraetewart',
+        'Gerätewartmitteilung erstellen',
+        d.createGeraetewart
+      ) +
+      '<div class="confirm-dialog__checkbox-dependent" id="fw-confirm-print-geraetewart-wrap" hidden>' +
+      checkboxMarkup(
+        'fw-confirm-print-geraetewart',
+        'printGeraetewart',
+        'Gerätewartmitteilung drucken',
+        d.printGeraetewart
+      ) +
+      '</div></div>';
+    if (hasMaengel) {
+      html += checkboxMarkup(
+        'fw-confirm-print-maengel',
+        'printMaengel',
+        'Mängelbericht drucken',
+        d.printMaengel
+      );
+    }
+
+    checkboxesEl.innerHTML = html;
+    checkboxesEl.hidden = false;
+    bindEinsatzReleaseCheckboxInteractions(d);
   }
 
   function appendReleaseOptions(form, result, fieldNames) {
@@ -291,14 +374,23 @@
       });
     },
     releaseEinsatzbericht: function (defaults) {
-      return show({
-        title: 'Einsatzbericht freigeben?',
-        message:
+      return new Promise(function (resolve) {
+        ensureModal();
+        titleEl.textContent = 'Einsatzbericht freigeben?';
+        messageEl.textContent =
           'Nach der Freigabe ist der Bericht für die normale Bearbeitung gesperrt. ' +
-          'Administratoren können weiterhin Änderungen vornehmen.',
-        confirmLabel: 'Freigeben',
-        variant: 'success',
-        checkboxes: buildEinsatzReleaseCheckboxes(defaults)
+          'Administratoren können weiterhin Änderungen vornehmen.';
+        confirmBtn.textContent = 'Freigeben';
+        cancelBtn.textContent = 'Abbrechen';
+        applyVariant('success');
+        renderEinsatzReleaseCheckboxes(defaults);
+        resolveFn = resolve;
+        modalEl.hidden = false;
+        modalEl.classList.add('active');
+        document.body.classList.add('modal-open');
+        window.setTimeout(function () {
+          confirmBtn.focus();
+        }, 0);
       });
     },
     releaseAnwesenheitsliste: function (defaults) {
