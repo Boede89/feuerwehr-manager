@@ -709,8 +709,7 @@ public class EinsatzberichtService {
 
     @Transactional
     public void refreshDiveraFromLatestAlarmData(long unitId, long reportId) {
-        IncidentReport report = requireReport(unitId, reportId);
-        report = writableReport(report);
+        final IncidentReport report = writableReport(requireReport(unitId, reportId));
         Long alarmId = report.getDiveraAlarmId();
         if (alarmId == null || alarmId <= 0) {
             return;
