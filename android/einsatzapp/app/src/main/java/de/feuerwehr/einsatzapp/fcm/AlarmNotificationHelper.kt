@@ -4,8 +4,10 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
-import android.media.RingtoneManager
+import android.media.MediaPlayer
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import de.feuerwehr.einsatzapp.MainActivity
@@ -18,6 +20,11 @@ object AlarmNotificationHelper {
 
   private const val TEST_ALARM_ID = 999_001L
   private const val TEST_NOTIFICATION_ID = 999_001
+  private const val PREVIEW_MAX_MS = 15_000L
+
+  private val previewHandler = Handler(Looper.getMainLooper())
+  @Volatile
+  private var previewPlayer: MediaPlayer? = null
 
   fun showAlarm(
       context: Context,
@@ -27,6 +34,7 @@ object AlarmNotificationHelper {
       isTest: Boolean = false,
       scheduleRepeats: Boolean = true,
   ) {
+      stopPreviewSound()
       val prefs = runBlocking { PushPreferencesStore(context).current() }
       NotificationChannelHelper.syncChannels(context, prefs)
 
@@ -69,21 +77,43 @@ object AlarmNotificationHelper {
           body = "Test der Push-Einstellungen — kein echter Einsatz",
           isTest = true,
       )
-      val prefs = runBlocking { PushPreferencesStore(context).current() }
-      if (prefs.overrideAndroidTones) {
-          playPreviewSound(context, prefs.alarmToneUriParsed())
-      }
   }
 
   fun playPreviewSound(context: Context, uri: Uri) {
+      stopPreviewSound()
       runCatching {
-          val ringtone = RingtoneManager.getRingtone(context, uri) ?: return
-          ringtone.audioAttributes = AudioAttributes.Builder()
-              .setUsage(AudioAttributes.USAGE_ALARM)
-              .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-              .build()
-          ringtone.play()
+          val player = MediaPlayer().apply {
+              setDataSource(context, uri)
+              setAudioAttributes(
+                  AudioAttributes.Builder()
+                      .setUsage(AudioAttributes.USAGE_ALARM)
+                      .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                      .build(),
+              )
+              isLooping = false
+              setOnCompletionListener { stopPreviewSound() }
+              prepare()
+          }
+          previewPlayer = player
+          player.start()
+          val durationMs = player.duration
+          val stopAfterMs = when {
+              durationMs > 0 -> (durationMs + 500L).coerceAtMost(PREVIEW_MAX_MS)
+              else -> 8_000L
+          }
+          previewHandler.postDelayed({ stopPreviewSound() }, stopAfterMs)
+      }.onFailure {
+          stopPreviewSound()
       }
+  }
+
+  fun stopPreviewSound() {
+      previewHandler.removeCallbacksAndMessages(null)
+      previewPlayer?.runCatching {
+          if (isPlaying) stop()
+          release()
+      }
+      previewPlayer = null
   }
 
   fun cancelRepeats(context: Context) {

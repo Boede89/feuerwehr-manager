@@ -218,6 +218,10 @@ private fun PushSettingsTab() {
     val tones = remember { AlarmToneCatalog.load(context) }
     val repeatOptions = listOf(0, 1, 3, 5, 10)
 
+    DisposableEffect(Unit) {
+        onDispose { AlarmNotificationHelper.stopPreviewSound() }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
