@@ -58,7 +58,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import android.os.Build
 import de.feuerwehr.einsatzapp.data.PushPreferencesStore
 import de.feuerwehr.einsatzapp.data.SessionStore
 import de.feuerwehr.einsatzapp.fcm.AlarmNotificationHelper
@@ -521,7 +520,6 @@ private fun DeviceSettingsTab() {
 
     val notificationsOk = remember(refreshKey) { SystemSettingsHelper.hasNotificationPermission(context) }
     val batteryOk = remember(refreshKey) { SystemSettingsHelper.isBatteryOptimizationDisabled(context) }
-    val lockScreenOk = remember(refreshKey) { SystemSettingsHelper.canUseFullScreenIntent(context) }
 
     Column(
         modifier = Modifier
@@ -543,19 +541,10 @@ private fun DeviceSettingsTab() {
 
         DeviceSettingsItem(
             title = "Benachrichtigungen",
-            description = "Push-Meldungen erlauben. Kanal „Einsätze“ sollte aktiv sein und „Auf Sperrbildschirm“ erlauben.",
+            description = "Push-Meldungen erlauben. Kanal „Einsätze“ aktiv und „Auf Sperrbildschirm“ auf „Inhalt anzeigen“ stellen.",
             statusOk = notificationsOk,
             onClick = { SystemSettingsHelper.openNotificationSettings(context) },
         )
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            DeviceSettingsItem(
-                title = "Sperrbildschirm-Alarm",
-                description = "Vollbild-Benachrichtigungen für Einsätze auf dem Sperrbildschirm erlauben (Android 14+).",
-                statusOk = lockScreenOk,
-                onClick = { SystemSettingsHelper.openFullScreenIntentSettings(context) },
-            )
-        }
 
         DeviceSettingsItem(
             title = "Akku-Optimierung",
