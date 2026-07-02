@@ -23,6 +23,7 @@ import de.feuerwehr.einsatzapp.data.CredentialStore
 import de.feuerwehr.einsatzapp.data.ServerConfigStore
 import de.feuerwehr.einsatzapp.data.SessionStore
 import de.feuerwehr.einsatzapp.fcm.DeviceRegistrar
+import de.feuerwehr.einsatzapp.fcm.AlarmNotificationHelper
 import de.feuerwehr.einsatzapp.fcm.PushMessagingService
 import de.feuerwehr.einsatzapp.ui.AlarmDetailScreen
 import de.feuerwehr.einsatzapp.ui.AppBottomBar
@@ -122,6 +123,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        AlarmNotificationHelper.dismissActiveAlarm(this)
         lifecycleScope.launch {
             viewModel.restoreSession()
         }

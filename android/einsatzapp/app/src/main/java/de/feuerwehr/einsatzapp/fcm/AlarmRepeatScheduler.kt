@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.SystemClock
+import de.feuerwehr.einsatzapp.AppForegroundTracker
 
 object AlarmRepeatScheduler {
 
@@ -63,6 +64,10 @@ object AlarmRepeatScheduler {
 
     fun onRepeatAlarm(context: Context, intent: Intent?) {
         if (intent?.action != ACTION_REPEAT) return
+        if (AppForegroundTracker.isInForeground()) {
+            cancel(context)
+            return
+        }
         val alarmId = intent.getLongExtra(EXTRA_ALARM_ID, 0L)
         val title = intent.getStringExtra(EXTRA_TITLE).orEmpty()
         val body = intent.getStringExtra(EXTRA_BODY).orEmpty()

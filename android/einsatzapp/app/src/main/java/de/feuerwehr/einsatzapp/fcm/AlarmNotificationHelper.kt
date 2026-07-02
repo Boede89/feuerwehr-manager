@@ -20,14 +20,18 @@ object AlarmNotificationHelper {
 
   private const val TEST_ALARM_ID = 999_001L
   private const val TEST_NOTIFICATION_ID = 999_001
-  private const val PREVIEW_MAX_MS = 15_000L
+  private const val ALARM_MAX_PLAY_MS = 15_000L
+  private const val ALARM_FALLBACK_PLAY_MS = 8_000L
 
   private val handler = Handler(Looper.getMainLooper())
   private var previewStopRunnable: Runnable? = null
+  private var alarmStopRunnable: Runnable? = null
   @Volatile
   private var previewPlayer: MediaPlayer? = null
   @Volatile
   private var alarmPlayer: MediaPlayer? = null
+  @Volatile
+  private var activeNotificationId: Int? = null
 
   fun showAlarm(
       context: Context,
@@ -65,6 +69,7 @@ object AlarmNotificationHelper {
           .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 
       val notificationId = if (isTest) TEST_NOTIFICATION_ID else alarmId.toInt()
+      activeNotificationId = notificationId
       NotificationManagerCompat.from(context).notify(notificationId, builder.build())
 
       if (prefs.overrideAndroidTones) {
@@ -84,6 +89,14 @@ object AlarmNotificationHelper {
           body = "Test der Push-Einstellungen — kein echter Einsatz",
           isTest = true,
       )
+  }
+
+  /** Stoppt laufenden Alarmton, bricht Wiederholungen ab und entfernt aktive Alarm-Benachrichtigungen. */
+  fun dismissActiveAlarm(context: Context) {
+      stopPreviewSound()
+      stopAlarmSound()
+      AlarmRepeatScheduler.cancel(context)
+      clearActiveNotifications(context)
   }
 
   fun playPreviewSound(context: Context, uri: Uri, volumePercent: Int) {
@@ -136,23 +149,33 @@ object AlarmNotificationHelper {
               alarmPlayer = player
           }
           player.start()
-          val durationMs = player.duration
-          val stopAfterMs = when {
-              durationMs > 0 -> (durationMs + 500L).coerceAtMost(PREVIEW_MAX_MS)
-              else -> 8_000L
-          }
+          val stopAfterMs = playbackStopDelayMs(player.duration)
           if (isPreview) {
               schedulePreviewStop(onComplete, stopAfterMs)
+          } else {
+              scheduleAlarmStop(onComplete, stopAfterMs)
           }
       }.onFailure {
           onComplete()
       }
   }
 
+  private fun playbackStopDelayMs(durationMs: Int): Long = when {
+      durationMs > 0 -> (durationMs + 500L).coerceAtMost(ALARM_MAX_PLAY_MS)
+      else -> ALARM_FALLBACK_PLAY_MS
+  }
+
   private fun schedulePreviewStop(onComplete: () -> Unit, delayMs: Long) {
       previewStopRunnable?.let { handler.removeCallbacks(it) }
       val runnable = Runnable { onComplete() }
       previewStopRunnable = runnable
+      handler.postDelayed(runnable, delayMs)
+  }
+
+  private fun scheduleAlarmStop(onComplete: () -> Unit, delayMs: Long) {
+      alarmStopRunnable?.let { handler.removeCallbacks(it) }
+      val runnable = Runnable { onComplete() }
+      alarmStopRunnable = runnable
       handler.postDelayed(runnable, delayMs)
   }
 
@@ -164,8 +187,17 @@ object AlarmNotificationHelper {
   }
 
   private fun stopAlarmSound() {
+      alarmStopRunnable?.let { handler.removeCallbacks(it) }
+      alarmStopRunnable = null
       releasePlayer(alarmPlayer)
       alarmPlayer = null
+  }
+
+  private fun clearActiveNotifications(context: Context) {
+      val manager = NotificationManagerCompat.from(context)
+      activeNotificationId?.let { manager.cancel(it) }
+      activeNotificationId = null
+      manager.cancel(TEST_NOTIFICATION_ID)
   }
 
   private fun releasePlayer(player: MediaPlayer?) {
