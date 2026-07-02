@@ -16,7 +16,7 @@ class MaterialDamageEntriesSupportTest {
         MaterialDamageEntries entries = MaterialDamageEntriesSupport.parse(json);
 
         assertThat(entries.entries()).hasSize(1);
-        MaterialDamageEntry entry = entries.entries().getFirst();
+        MaterialDamageEntry entry = entries.entries().get(0);
         assertThat(entry.mangelAn()).isEqualTo("GERAET");
         assertThat(entry.bezeichnung()).isEqualTo("Atemschutzgerät 42");
         assertThat(entry.vehicleId()).isEqualTo(7L);
