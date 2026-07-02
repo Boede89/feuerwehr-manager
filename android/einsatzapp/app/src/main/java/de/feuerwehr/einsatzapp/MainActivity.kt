@@ -25,6 +25,7 @@ import de.feuerwehr.einsatzapp.ui.AlarmDetailScreen
 import de.feuerwehr.einsatzapp.ui.HomeScreen
 import de.feuerwehr.einsatzapp.ui.LoginScreen
 import de.feuerwehr.einsatzapp.ui.MainViewModel
+import de.feuerwehr.einsatzapp.ui.SettingsScreen
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -53,33 +54,42 @@ class MainActivity : ComponentActivity() {
                     val status by viewModel.statusMessage.collectAsState()
                     val busy by viewModel.isBusy.collectAsState()
                     var detailAlarmId by rememberSaveable { mutableLongStateOf(0L) }
+                    var showSettings by rememberSaveable { mutableStateOf(false) }
 
-                    if (detailAlarmId > 0L) {
-                        AlarmDetailScreen(
-                            alarm = viewModel.alarmById(detailAlarmId),
-                            onBack = { detailAlarmId = 0L },
-                        )
-                    } else if (session == null) {
-                        LoginScreen(
-                            initialServerUrl = serverUrl,
-                            isBusy = busy,
-                            statusMessage = status,
-                            onTestConnection = viewModel::testServerConnection,
-                            onLogin = viewModel::login,
-                            onClearStatus = viewModel::clearStatus,
-                        )
-                    } else {
-                        HomeScreen(
-                            session = session!!,
-                            serverUrl = serverUrl,
-                            alarms = alarms,
-                            statusMessage = status,
-                            isBusy = busy,
-                            onRefresh = viewModel::refreshAlarms,
-                            onLogout = viewModel::logout,
-                            onOpenAlarm = { detailAlarmId = it },
-                            onSaveServerUrl = viewModel::updateServerUrl,
-                        )
+                    when {
+                        detailAlarmId > 0L -> {
+                            AlarmDetailScreen(
+                                alarm = viewModel.alarmById(detailAlarmId),
+                                onBack = { detailAlarmId = 0L },
+                            )
+                        }
+                        showSettings && session != null -> {
+                            SettingsScreen(onBack = { showSettings = false })
+                        }
+                        session == null -> {
+                            LoginScreen(
+                                initialServerUrl = serverUrl,
+                                isBusy = busy,
+                                statusMessage = status,
+                                onTestConnection = viewModel::testServerConnection,
+                                onLogin = viewModel::login,
+                                onClearStatus = viewModel::clearStatus,
+                            )
+                        }
+                        else -> {
+                            HomeScreen(
+                                session = session!!,
+                                serverUrl = serverUrl,
+                                alarms = alarms,
+                                statusMessage = status,
+                                isBusy = busy,
+                                onRefresh = viewModel::refreshAlarms,
+                                onLogout = viewModel::logout,
+                                onOpenAlarm = { detailAlarmId = it },
+                                onSaveServerUrl = viewModel::updateServerUrl,
+                                onOpenSettings = { showSettings = true },
+                            )
+                        }
                     }
                 }
             }

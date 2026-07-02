@@ -35,6 +35,7 @@ fun HomeScreen(
     onLogout: () -> Unit,
     onOpenAlarm: (Long) -> Unit,
     onSaveServerUrl: (String) -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     var editingServer by rememberSaveable { mutableStateOf(false) }
     var serverDraft by rememberSaveable(serverUrl) { mutableStateOf(serverUrl) }
@@ -80,6 +81,9 @@ fun HomeScreen(
 
         Button(onClick = onRefresh, enabled = !isBusy, modifier = Modifier.fillMaxWidth()) {
             Text(if (isBusy) "Lädt…" else "Einsätze aktualisieren")
+        }
+        OutlinedButton(onClick = onOpenSettings, modifier = Modifier.fillMaxWidth()) {
+            Text("Einstellungen")
         }
         OutlinedButton(onClick = onLogout, modifier = Modifier.fillMaxWidth()) {
             Text("Abmelden")

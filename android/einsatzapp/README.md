@@ -29,6 +29,7 @@ Optionaler Standard beim ersten Öffnen: `local.properties` → `default.server.
 3. FCM-Token wird automatisch registriert (`POST /api/v1/einsatzapp/devices`)
 4. Push bei DIVERA-Einsatz → Tipp öffnet Einsatzdetails
 5. Liste offener Einsätze per Pull/Aktualisieren
+6. **Einstellungen** → Checkliste für Benachrichtigungen & Akku (öffnet Android-Systemeinstellungen)
 
 **Dauerhafte Anmeldung:** Zugangsdaten werden verschlüsselt auf dem Gerät gespeichert; bei abgelaufener Session meldet die App sich automatisch wieder an (kein 2FA). Server-Session: 30 Tage Inaktivität.
 
