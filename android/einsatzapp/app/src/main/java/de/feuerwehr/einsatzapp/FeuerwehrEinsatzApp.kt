@@ -1,11 +1,10 @@
 package de.feuerwehr.einsatzapp
 
 import android.app.Application
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.os.Build
 import de.feuerwehr.einsatzapp.data.CredentialStore
+import de.feuerwehr.einsatzapp.data.PushPreferencesStore
 import de.feuerwehr.einsatzapp.fcm.TokenRefreshWorker
+import de.feuerwehr.einsatzapp.settings.NotificationChannelHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -17,29 +16,12 @@ class FeuerwehrEinsatzApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        createNotificationChannel()
         appScope.launch {
+            val prefs = PushPreferencesStore(this@FeuerwehrEinsatzApp).current()
+            NotificationChannelHelper.syncChannels(this@FeuerwehrEinsatzApp, prefs)
             if (CredentialStore(this@FeuerwehrEinsatzApp).load() != null) {
                 TokenRefreshWorker.schedule(this@FeuerwehrEinsatzApp)
             }
         }
-    }
-
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-        val channel = NotificationChannel(
-            CHANNEL_ALARMS,
-            "Einsätze",
-            NotificationManager.IMPORTANCE_HIGH,
-        ).apply {
-            description = "DIVERA-Einsatzbenachrichtigungen"
-            enableVibration(true)
-        }
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(channel)
-    }
-
-    companion object {
-        const val CHANNEL_ALARMS = "divera_alarms"
     }
 }

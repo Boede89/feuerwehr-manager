@@ -11,7 +11,7 @@ Die **Server-URL wird in der App eingetragen** — nicht fest im Code (außer op
    - oder `http://192.168.1.10:8080` (nur Test/LAN)
 2. **„Verbindung testen“** prüft `/actuator/health`
 3. Die Adresse wird **lokal gespeichert** (DataStore)
-4. Nach Login: unter **„Server-Adresse ändern“** auf der Startseite anpassbar (danach neu anmelden)
+4. Nach Login: **Einstellungen → Allgemein** → Server-Adresse ändern (danach neu anmelden)
 
 Optionaler Standard beim ersten Öffnen: `local.properties` → `default.server.url=…` (siehe `local.properties.example`).
 
@@ -28,8 +28,11 @@ Optionaler Standard beim ersten Öffnen: `local.properties` → `default.server.
 2. Mit Feuerwehr-Manager-Benutzer anmelden
 3. FCM-Token wird automatisch registriert (`POST /api/v1/einsatzapp/devices`)
 4. Push bei DIVERA-Einsatz → Tipp öffnet Einsatzdetails
-5. Liste offener Einsätze per Pull/Aktualisieren
-6. **Einstellungen** → Checkliste für Benachrichtigungen & Akku (öffnet Android-Systemeinstellungen)
+5. **Einsätze**-Tab: Liste offener Einsätze, Aktualisieren oben rechts
+6. **Einstellungen**-Tab (Struktur ähnlich DIVERA 24/7, Farben Feuerwehr-Manager):
+   - **Allgemein:** Konto, Server, Abmelden
+   - **Push:** Android-Töne überschreiben, System-Alarmton wählen, Wiederholungen, Probe-Alarm
+   - **Gerät:** Checkliste Benachrichtigungen & Akku
 
 **Dauerhafte Anmeldung:** Zugangsdaten werden verschlüsselt auf dem Gerät gespeichert; bei abgelaufener Session meldet die App sich automatisch wieder an (kein 2FA). Server-Session: 30 Tage Inaktivität.
 
