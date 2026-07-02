@@ -926,7 +926,9 @@ public class EinsatzberichtService {
     private void applyForm(IncidentReport report, EinsatzberichtFormData form, long unitId) {
         String stichwort = form.stichwort() != null ? form.stichwort().trim() : "";
         if (form.incidentNumber() != null && !form.incidentNumber().isBlank()) {
-            report.setIncidentNumber(form.incidentNumber().trim());
+            if (!(report.isTestData() && report.getProductionSourceId() != null)) {
+                report.setIncidentNumber(form.incidentNumber().trim());
+            }
         }
         report.setIncidentDate(form.incidentDate());
         report.setAlarmTime(form.alarmTime());
@@ -1938,7 +1940,7 @@ public class EinsatzberichtService {
     private IncidentReport copyIncidentReportScalars(IncidentReport source) {
         IncidentReport copy = new IncidentReport();
         copy.setUnit(source.getUnit());
-        copy.setIncidentNumber(source.getIncidentNumber());
+        copy.setIncidentNumber(buildShadowIncidentNumber(source));
         copy.setIncidentDate(source.getIncidentDate());
         copy.setAlarmTime(source.getAlarmTime());
         copy.setDepartureTime(source.getDepartureTime());
@@ -2007,6 +2009,12 @@ public class EinsatzberichtService {
         copy.setTestData(true);
         copy.setProductionSourceId(source.getId());
         return copy;
+    }
+
+    private static String buildShadowIncidentNumber(IncidentReport source) {
+        long sourceId = source.getId() != null ? source.getId() : 0L;
+        String candidate = "TEST-" + sourceId;
+        return candidate.length() > 32 ? candidate.substring(0, 32) : candidate;
     }
 
     private void copyIncidentReportRelations(IncidentReport source, IncidentReport target) {
