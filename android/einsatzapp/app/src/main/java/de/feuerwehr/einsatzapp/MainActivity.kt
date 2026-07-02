@@ -3,6 +3,7 @@ package de.feuerwehr.einsatzapp
 import android.Manifest
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -138,10 +139,19 @@ class MainActivity : ComponentActivity() {
     private fun handleAlarmIntent(intent: android.content.Intent?) {
         val alarmId = intent?.getLongExtra(PushMessagingService.EXTRA_ALARM_ID, 0L) ?: 0L
         if (alarmId > 0L) {
+            enableAlarmLockScreenPresentation()
             lifecycleScope.launch {
                 viewModel.refreshAlarms()
             }
         }
+    }
+
+    private fun enableAlarmLockScreenPresentation() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        }
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
     private fun requestNotificationPermissionIfNeeded() {
