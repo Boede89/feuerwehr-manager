@@ -100,20 +100,20 @@ public class FcmPushClient {
     }
 
     private String buildMessagePayload(String deviceToken, String title, String body, long alarmId) throws Exception {
-        ObjectNode notification = objectMapper.createObjectNode();
-        notification.put("title", title != null && !title.isBlank() ? title.trim() : "Einsatz");
-        notification.put("body", body != null && !body.isBlank() ? body.trim() : "Neuer DIVERA-Einsatz");
-
+        // Nur Data-Payload: Android ruft dann immer onMessageReceived auf und die App
+        // zeigt die Benachrichtigung mit dem gewählten Alarmton-Kanal an.
+        // Mit "notification"-Payload übernimmt das System im Hintergrund den Standardton.
         ObjectNode data = objectMapper.createObjectNode();
         data.put("type", "divera_alarm");
         data.put("alarmId", String.valueOf(alarmId));
+        data.put("title", title != null && !title.isBlank() ? title.trim() : "Einsatz");
+        data.put("body", body != null && !body.isBlank() ? body.trim() : "Neuer DIVERA-Einsatz");
 
         ObjectNode android = objectMapper.createObjectNode();
         android.put("priority", "HIGH");
 
         ObjectNode message = objectMapper.createObjectNode();
         message.put("token", deviceToken);
-        message.set("notification", notification);
         message.set("data", data);
         message.set("android", android);
 

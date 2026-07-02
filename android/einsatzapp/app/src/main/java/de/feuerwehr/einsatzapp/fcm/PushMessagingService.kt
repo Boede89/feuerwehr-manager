@@ -14,8 +14,8 @@ class PushMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(message: RemoteMessage) {
         val alarmId = message.data["alarmId"]?.toLongOrNull() ?: 0L
-        val title = message.notification?.title ?: message.data["title"] ?: "Einsatz"
-        val body = message.notification?.body ?: message.data["body"] ?: "Neuer DIVERA-Einsatz"
+        val title = message.data["title"] ?: message.notification?.title ?: "Einsatz"
+        val body = message.data["body"] ?: message.notification?.body ?: "Neuer DIVERA-Einsatz"
         AlarmNotificationHelper.showAlarm(
             context = this,
             alarmId = alarmId,
