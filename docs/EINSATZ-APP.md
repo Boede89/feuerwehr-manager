@@ -153,6 +153,7 @@ Das `fcmToken` kommt **von der Android-App** (Phase 3), nicht aus der Dienstkont
 - Die Android-App speichert Zugangsdaten **verschlüsselt** und meldet sich bei abgelaufener Session **automatisch** wieder an.
 - **Push-Empfang** funktioniert unabhängig von der Session; nur das Nachladen der Einsatzliste braucht eine gültige Anmeldung.
 - **2FA:** Automatische Wiederanmeldung scheitert — App-Account ohne 2FA oder TOTP in der App (Phase 4).
+- **Hintergrund:** WorkManager registriert das FCM-Token **täglich** neu am Server (mit stiller Wiederanmeldung). Verbessert Push-Zuverlässigkeit nach langer Inaktivität; 100 % Garantie gibt es wegen Android/FCM nicht — Akku-Optimierung für die App ausschalten.
 
 ## Nächste Schritte
 

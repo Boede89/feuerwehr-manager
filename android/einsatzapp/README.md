@@ -32,6 +32,8 @@ Optionaler Standard beim ersten Öffnen: `local.properties` → `default.server.
 
 **Dauerhafte Anmeldung:** Zugangsdaten werden verschlüsselt auf dem Gerät gespeichert; bei abgelaufener Session meldet die App sich automatisch wieder an (kein 2FA). Server-Session: 30 Tage Inaktivität.
 
+**Hintergrund-Token-Refresh:** WorkManager aktualisiert täglich (wenn Netz verfügbar) das FCM-Token am Server — auch ohne App-Öffnung. Akku-Optimierung für die App deaktivieren empfohlen.
+
 ## Voraussetzungen (Server)
 
 - Modul **Einsatz-App** aktiv

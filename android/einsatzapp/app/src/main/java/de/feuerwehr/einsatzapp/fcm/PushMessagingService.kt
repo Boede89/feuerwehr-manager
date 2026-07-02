@@ -9,14 +9,10 @@ import com.google.firebase.messaging.RemoteMessage
 import de.feuerwehr.einsatzapp.FeuerwehrEinsatzApp
 import de.feuerwehr.einsatzapp.MainActivity
 import de.feuerwehr.einsatzapp.R
-import de.feuerwehr.einsatzapp.data.CredentialStore
-import de.feuerwehr.einsatzapp.data.ServerConfigStore
-import de.feuerwehr.einsatzapp.data.SessionRefreshHelper
 import de.feuerwehr.einsatzapp.data.SessionStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class PushMessagingService : FirebaseMessagingService() {
@@ -32,15 +28,8 @@ class PushMessagingService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         serviceScope.launch {
-            val sessionStore = SessionStore(this@PushMessagingService)
-            sessionStore.saveFcmToken(token)
-            val credentials = CredentialStore(this@PushMessagingService).load() ?: return@launch
-            if (sessionStore.session.first() == null) {
-                SessionRefreshHelper.silentReLogin(this@PushMessagingService)
-            } else {
-                val serverConfigStore = ServerConfigStore(this@PushMessagingService)
-                DeviceRegistrar.registerIfPossible(sessionStore, serverConfigStore, credentials.deviceName)
-            }
+            SessionStore(this@PushMessagingService).saveFcmToken(token)
+            DeviceRegistrationHelper.ensureRegistered(this@PushMessagingService)
         }
     }
 

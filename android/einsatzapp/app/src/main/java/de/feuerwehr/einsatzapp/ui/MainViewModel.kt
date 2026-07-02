@@ -13,6 +13,7 @@ import de.feuerwehr.einsatzapp.data.SessionExpiredException
 import de.feuerwehr.einsatzapp.data.SessionRefreshHelper
 import de.feuerwehr.einsatzapp.data.SessionStore
 import de.feuerwehr.einsatzapp.fcm.DeviceRegistrar
+import de.feuerwehr.einsatzapp.fcm.TokenRefreshWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -107,6 +108,7 @@ class MainViewModel(
                 withContext(Dispatchers.IO) {
                     DeviceRegistrar.registerIfPossible(sessionStore, serverConfigStore, deviceName).getOrThrow()
                 }
+                TokenRefreshWorker.schedule(appContext)
                 refreshAlarmsInternal(retryOnExpired = false)
             }
             _statusMessage.value = result.fold(
@@ -128,6 +130,7 @@ class MainViewModel(
             }
             sessionStore.clear()
             credentialStore.clear()
+            TokenRefreshWorker.cancel(appContext)
             _alarms.value = emptyList()
             _statusMessage.value = "Abgemeldet"
         }
