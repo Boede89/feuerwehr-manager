@@ -247,6 +247,9 @@ public class IncidentReport {
     @Column(name = "test_data", nullable = false)
     private boolean testData;
 
+    @Column(name = "production_source_id")
+    private Long productionSourceId;
+
     @Column(name = "divera_alarm_id")
     private Long diveraAlarmId;
 

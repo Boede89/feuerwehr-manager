@@ -710,7 +710,7 @@ public class EinsatzberichtService {
     @Transactional
     public void refreshDiveraFromLatestAlarmData(long unitId, long reportId) {
         IncidentReport report = requireReport(unitId, reportId);
-        ensureWritableReportInTestMode(report);
+        report = writableReport(report);
         Long alarmId = report.getDiveraAlarmId();
         if (alarmId == null || alarmId <= 0) {
             return;
@@ -775,7 +775,7 @@ public class EinsatzberichtService {
             boolean canApprove) {
         validateRequired(form);
         IncidentReport report = requireReport(unitId, reportId);
-        ensureWritableReportInTestMode(report);
+        report = writableReport(report);
         if (!EinsatzberichtAccess.canEdit(report, actor, canApprove)) {
             throw new IllegalArgumentException("Dieser Einsatzbericht kann nicht bearbeitet werden.");
         }
@@ -1418,7 +1418,7 @@ public class EinsatzberichtService {
     }
 
     @Transactional
-    public void transitionStatus(
+    public IncidentReport transitionStatus(
             long unitId, long reportId, IncidentReportStatus newStatus, AppUserDetails actor, boolean canApprove) {
         if (actor == null) {
             throw new IllegalArgumentException("Keine Berechtigung für diese Aktion.");
@@ -1427,14 +1427,14 @@ public class EinsatzberichtService {
             throw new IllegalArgumentException("Keine Berechtigung zum Ändern des Status.");
         }
         IncidentReport report = requireReport(unitId, reportId);
-        ensureWritableReportInTestMode(report);
+        report = writableReport(report);
         validateStatusTransition(report.getStatus(), newStatus);
         report.setStatus(newStatus);
         if (newStatus == IncidentReportStatus.FREIGEGEBEN) {
             userRepository.findById(actor.getUserId()).ifPresent(report::setReleasedByUser);
             report.setReleasedAt(Instant.now());
         }
-        incidentReportRepository.save(report);
+        return incidentReportRepository.save(report);
     }
 
     private static void validateStatusTransition(IncidentReportStatus from, IncidentReportStatus to) {
@@ -1917,6 +1917,137 @@ public class EinsatzberichtService {
         if (testModeService.isEnabled() && !report.isTestData()) {
             throw new IllegalArgumentException(
                     "Produktiv-Einsatzberichte können im Testmodus nur angesehen werden.");
+        }
+    }
+
+    /** Im Testmodus: Produktiv-Bericht nur lesen, Änderungen auf Schattenkopie. */
+    private IncidentReport writableReport(IncidentReport viewed) {
+        if (!testModeService.isEnabled() || viewed.isTestData()) {
+            return viewed;
+        }
+        return incidentReportRepository
+                .findByProductionSourceId(viewed.getId())
+                .orElseGet(() -> createShadowFromProduction(viewed));
+    }
+
+    private IncidentReport createShadowFromProduction(IncidentReport production) {
+        IncidentReport shadow = incidentReportRepository.save(copyIncidentReportScalars(production));
+        copyIncidentReportRelations(production, shadow);
+        return shadow;
+    }
+
+    private IncidentReport copyIncidentReportScalars(IncidentReport source) {
+        IncidentReport copy = new IncidentReport();
+        copy.setUnit(source.getUnit());
+        copy.setIncidentNumber(source.getIncidentNumber());
+        copy.setIncidentDate(source.getIncidentDate());
+        copy.setAlarmTime(source.getAlarmTime());
+        copy.setDepartureTime(source.getDepartureTime());
+        copy.setArrivalTime(source.getArrivalTime());
+        copy.setEndTime(source.getEndTime());
+        copy.setIncidentTypeKey(source.getIncidentTypeKey());
+        copy.setIncidentTypeLabel(source.getIncidentTypeLabel());
+        copy.setStichwort(source.getStichwort());
+        copy.setAlarmierungDurch(source.getAlarmierungDurch());
+        copy.setLocation(source.getLocation());
+        copy.setPostalCode(source.getPostalCode());
+        copy.setDistrict(source.getDistrict());
+        copy.setStreet(source.getStreet());
+        copy.setHouseNumber(source.getHouseNumber());
+        copy.setObjekt(source.getObjekt());
+        copy.setEigentuemer(source.getEigentuemer());
+        copy.setChargeable(source.getChargeable());
+        copy.setFireWatch(source.getFireWatch());
+        copy.setExtinguishedBeforeArrival(source.isExtinguishedBeforeArrival());
+        copy.setMaliciousAlarm(source.isMaliciousAlarm());
+        copy.setFalseAlarm(source.isFalseAlarm());
+        copy.setSupraregional(source.isSupraregional());
+        copy.setBfInvolved(source.isBfInvolved());
+        copy.setViolenceAgainstCrew(source.isViolenceAgainstCrew());
+        copy.setViolenceCount(source.getViolenceCount());
+        copy.setIncidentCommander(source.getIncidentCommander());
+        copy.setCommanderPerson(source.getCommanderPerson());
+        copy.setReporterName(source.getReporterName());
+        copy.setReporterPhone(source.getReporterPhone());
+        copy.setStrengthLeadership(source.getStrengthLeadership());
+        copy.setStrengthSub(source.getStrengthSub());
+        copy.setStrengthCrew(source.getStrengthCrew());
+        copy.setFireObject(source.getFireObject());
+        copy.setSituation(source.getSituation());
+        copy.setMeasures(source.getMeasures());
+        copy.setNotes(source.getNotes());
+        copy.setThlType(source.getThlType());
+        copy.setWeatherInfluence(source.getWeatherInfluence());
+        copy.setHandoverTo(source.getHandoverTo());
+        copy.setHandoverNotes(source.getHandoverNotes());
+        copy.setPoliceCaseNumber(source.getPoliceCaseNumber());
+        copy.setPoliceStation(source.getPoliceStation());
+        copy.setPoliceOfficer(source.getPoliceOfficer());
+        copy.setPersonsRescued(source.getPersonsRescued());
+        copy.setPersonsEvacuated(source.getPersonsEvacuated());
+        copy.setPersonsInjured(source.getPersonsInjured());
+        copy.setPersonsInjuredOwn(source.getPersonsInjuredOwn());
+        copy.setPersonsRecovered(source.getPersonsRecovered());
+        copy.setPersonsDead(source.getPersonsDead());
+        copy.setPersonsDeadOwn(source.getPersonsDeadOwn());
+        copy.setPersonDamagesEnabled(source.isPersonDamagesEnabled());
+        copy.setPersonDamageDetailsJson(source.getPersonDamageDetailsJson());
+        copy.setDamagePerpetratorJson(source.getDamagePerpetratorJson());
+        copy.setAnimalsRescued(source.getAnimalsRescued());
+        copy.setAnimalsInjured(source.getAnimalsInjured());
+        copy.setAnimalsRecovered(source.getAnimalsRecovered());
+        copy.setAnimalsDead(source.getAnimalsDead());
+        copy.setAnimalDamagesEnabled(source.isAnimalDamagesEnabled());
+        copy.setVehicleDamage(source.getVehicleDamage());
+        copy.setEquipmentDamage(source.getEquipmentDamage());
+        copy.setMaterialDamageEntriesJson(source.getMaterialDamageEntriesJson());
+        copy.setResourcesJson(source.getResourcesJson());
+        copy.setStatus(source.getStatus());
+        copy.setCreatedByUser(source.getCreatedByUser());
+        copy.setCreatedByName(source.getCreatedByName());
+        copy.setTestData(true);
+        copy.setProductionSourceId(source.getId());
+        return copy;
+    }
+
+    private void copyIncidentReportRelations(IncidentReport source, IncidentReport target) {
+        Map<Long, IncidentReportVehicle> vehiclesBySourceId = new HashMap<>();
+        for (IncidentReportVehicle sourceVehicle :
+                incidentReportVehicleRepository.findByIncidentReportId(source.getId())) {
+            IncidentReportVehicle copyVehicle = new IncidentReportVehicle();
+            copyVehicle.setIncidentReport(target);
+            copyVehicle.setVehicle(sourceVehicle.getVehicle());
+            copyVehicle.setVehicleName(sourceVehicle.getVehicleName());
+            copyVehicle.setInvolved(sourceVehicle.isInvolved());
+            IncidentReportVehicle savedVehicle = incidentReportVehicleRepository.save(copyVehicle);
+            vehiclesBySourceId.put(sourceVehicle.getId(), savedVehicle);
+        }
+        for (IncidentReportPersonnel sourcePersonnel :
+                incidentReportPersonnelRepository.findByIncidentReportId(source.getId())) {
+            IncidentReportPersonnel copyPersonnel = new IncidentReportPersonnel();
+            copyPersonnel.setIncidentReport(target);
+            if (sourcePersonnel.getIncidentReportVehicle() != null) {
+                copyPersonnel.setIncidentReportVehicle(
+                        vehiclesBySourceId.get(sourcePersonnel.getIncidentReportVehicle().getId()));
+            }
+            copyPersonnel.setPerson(sourcePersonnel.getPerson());
+            copyPersonnel.setDisplayName(sourcePersonnel.getDisplayName());
+            copyPersonnel.setSource(sourcePersonnel.getSource());
+            copyPersonnel.setDiveraUcrId(sourcePersonnel.getDiveraUcrId());
+            copyPersonnel.setForeignUnit(sourcePersonnel.getForeignUnit());
+            copyPersonnel.setVehicleRole(sourcePersonnel.getVehicleRole());
+            copyPersonnel.setUsesPa(sourcePersonnel.isUsesPa());
+            incidentReportPersonnelRepository.save(copyPersonnel);
+        }
+        for (IncidentReportEquipment sourceEquipment :
+                incidentReportEquipmentRepository.findByIncidentReportId(source.getId())) {
+            IncidentReportEquipment copyEquipment = new IncidentReportEquipment();
+            copyEquipment.setIncidentReport(target);
+            copyEquipment.setVehicle(sourceEquipment.getVehicle());
+            copyEquipment.setVehicleEquipment(sourceEquipment.getVehicleEquipment());
+            copyEquipment.setEquipmentName(sourceEquipment.getEquipmentName());
+            copyEquipment.setCategoryName(sourceEquipment.getCategoryName());
+            incidentReportEquipmentRepository.save(copyEquipment);
         }
     }
 

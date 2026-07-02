@@ -3,6 +3,8 @@ package de.feuerwehr.manager.settings;
 import de.feuerwehr.manager.atemschutz.AtemschutzCarrierRepository;
 import de.feuerwehr.manager.atemschutz.AtemschutzFitnessRecordRepository;
 import de.feuerwehr.manager.atemschutz.StreckeTerminRepository;
+import de.feuerwehr.manager.berichte.DefectReportRepository;
+import de.feuerwehr.manager.berichte.EquipmentMaintenanceReportRepository;
 import de.feuerwehr.manager.berichte.IncidentReportRepository;
 import de.feuerwehr.manager.config.StorageProperties;
 import de.feuerwehr.manager.divera.TestDiveraAlarmRepository;
@@ -40,6 +42,8 @@ public class TestModeService {
     private final UnitDiveraSettingsRepository diveraSettingsRepository;
     private final TestDiveraAlarmRepository testDiveraAlarmRepository;
     private final IncidentReportRepository incidentReportRepository;
+    private final DefectReportRepository defectReportRepository;
+    private final EquipmentMaintenanceReportRepository equipmentMaintenanceReportRepository;
     private final StorageProperties storageProperties;
     private final AtemschutzFitnessRecordRepository fitnessRecordRepository;
     private final StreckeTerminRepository streckeTerminRepository;
@@ -85,6 +89,8 @@ public class TestModeService {
             deleteReportAttachmentDirectory(reportId);
         }
         incidentReportRepository.deleteAllByTestDataTrue();
+        defectReportRepository.deleteAllByTestDataTrue();
+        equipmentMaintenanceReportRepository.deleteAllByTestDataTrue();
 
         fitnessRecordRepository.deleteAllByTestDataTrue();
         streckeTerminRepository.deleteAllByTestDataTrue();

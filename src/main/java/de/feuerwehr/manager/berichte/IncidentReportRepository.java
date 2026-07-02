@@ -96,6 +96,12 @@ public interface IncidentReportRepository extends JpaRepository<IncidentReport, 
             @Param("diveraAlarmId") long diveraAlarmId,
             @Param("includeTestReports") boolean includeTestReports);
 
+    @Query("""
+            SELECT r FROM IncidentReport r
+            WHERE r.productionSourceId = :productionSourceId
+            """)
+    Optional<IncidentReport> findByProductionSourceId(@Param("productionSourceId") long productionSourceId);
+
     @Modifying
     @Query("DELETE FROM IncidentReport r WHERE r.testData = true")
     void deleteAllByTestDataTrue();

@@ -467,7 +467,10 @@
         '</div>' +
       '</div>';
     row.querySelector('[data-action="remove-material-damage"]')?.addEventListener('click', function () {
-      materialDamageState = collectMaterialState();
+      var damageWrap = document.getElementById('material-damage-wrap');
+      if (damageWrap && damageWrap.querySelector('[data-material-damage-index]')) {
+        materialDamageState = collectMaterialState();
+      }
       materialDamageState.splice(index, 1);
       renderMaterialDamages();
     });
@@ -488,9 +491,6 @@
     if (!wrapEl) {
       return;
     }
-    if (wrapEl.querySelector('[data-material-damage-index]')) {
-      materialDamageState = collectMaterialState();
-    }
     wrapEl.innerHTML = '';
     var entries = materialDamageState.length ? materialDamageState : (materialDamageReadonly ? [] : []);
     if (!entries.length && materialDamageReadonly) {
@@ -509,7 +509,9 @@
       actions.innerHTML =
         '<button type="button" class="btn btn--outline btn--sm" data-action="add-material-damage">+ Sachschaden hinzufügen</button>';
       actions.querySelector('[data-action="add-material-damage"]')?.addEventListener('click', function () {
-        materialDamageState = collectMaterialState();
+        if (wrapEl.querySelector('[data-material-damage-index]')) {
+          materialDamageState = collectMaterialState();
+        }
         materialDamageState.push(emptyMaterialEntry());
         renderMaterialDamages();
       });

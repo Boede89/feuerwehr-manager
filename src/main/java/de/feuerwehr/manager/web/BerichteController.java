@@ -346,13 +346,20 @@ public class BerichteController {
             List<CrewAssignment> crewAssignments = einsatzberichtService.parseCrewAssignments(form.getCrewAssignmentsJson());
             List<DeployedEquipmentAssignment> deployedEquipment =
                     einsatzberichtService.parseDeployedEquipment(form.getDeployedEquipmentJson());
-            einsatzberichtService.update(
+            IncidentReport saved = einsatzberichtService.update(
                     unit.getId(),
                     id,
                     form.toData(crewAssignments, deployedEquipment),
                     form.getChangeComment(),
                     actor,
                     canApprove);
+            if (!saved.getId().equals(id)) {
+                redirectAttributes.addFlashAttribute("saved", true);
+                redirectAttributes.addFlashAttribute(
+                        "message",
+                        "Änderungen wurden in einer Test-Kopie gespeichert (Produktivbericht unverändert).");
+                return "redirect:/berichte/einsatzberichte/" + saved.getId() + "/bearbeiten?unit=" + unit.getId();
+            }
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Einsatzbericht wurde aktualisiert.");
             return redirectBerichte(unit.getId(), "einsatz", null, null, null);
@@ -400,13 +407,18 @@ public class BerichteController {
             requireModuleEnabled(unit.getId());
             requireBerichteRead(actor, unit.getId());
             boolean canApprove = canApprove(actor, unit.getId());
-            einsatzberichtService.transitionStatus(
+            IncidentReport released = einsatzberichtService.transitionStatus(
                     unit.getId(), id, IncidentReportStatus.FREIGEGEBEN, actor, canApprove);
+            long effectiveReportId = released.getId();
 
             List<String> followUpMessages = new ArrayList<>();
+            if (!released.getId().equals(id)) {
+                followUpMessages.add(
+                        "Testmodus: Freigabe auf Test-Kopie durchgeführt (Produktivbericht unverändert).");
+            }
             try {
                 List<DefectReport> maengelReports =
-                        maengelberichtService.createFromIncidentReport(unit.getId(), id, actor);
+                        maengelberichtService.createFromIncidentReport(unit.getId(), effectiveReportId, actor);
                 if (!maengelReports.isEmpty()) {
                     followUpMessages.add(
                             maengelReports.size() == 1
@@ -420,7 +432,8 @@ public class BerichteController {
             if (createGeraetewart) {
                 try {
                     EquipmentMaintenanceReport gwm =
-                            geraetewartmitteilungService.createFromIncidentReport(unit.getId(), id, actor);
+                            geraetewartmitteilungService.createFromIncidentReport(
+                                    unit.getId(), effectiveReportId, actor);
                     geraetewartReportId = gwm.getId();
                     followUpMessages.add("Gerätewartmitteilung wurde erstellt.");
                 } catch (IllegalArgumentException e) {
@@ -429,8 +442,8 @@ public class BerichteController {
             }
             if (printReport) {
                 try {
-                    IncidentReport report = einsatzberichtService.requireReport(unit.getId(), id);
-                    byte[] pdf = einsatzberichtPdfService.renderPdf(unit.getId(), id);
+                    IncidentReport report = einsatzberichtService.requireReport(unit.getId(), effectiveReportId);
+                    byte[] pdf = einsatzberichtPdfService.renderPdf(unit.getId(), effectiveReportId);
                     CupsPrintService.CupsPrintResult printResult =
                             unitPrintSettingsService.printPdf(unit.getId(), pdf);
                     if (printResult.success()) {
@@ -451,7 +464,8 @@ public class BerichteController {
                 try {
                     if (geraetewartReportId == null) {
                         EquipmentMaintenanceReport gwm =
-                                geraetewartmitteilungService.createFromIncidentReport(unit.getId(), id, actor);
+                                geraetewartmitteilungService.createFromIncidentReport(
+                                        unit.getId(), effectiveReportId, actor);
                         geraetewartReportId = gwm.getId();
                         if (!createGeraetewart) {
                             followUpMessages.add("Gerätewartmitteilung wurde für den Druck erstellt.");
@@ -521,8 +535,13 @@ public class BerichteController {
             requireModuleEnabled(unit.getId());
             requireBerichteRead(actor, unit.getId());
             boolean canApprove = canApprove(actor, unit.getId());
-            einsatzberichtService.transitionStatus(unit.getId(), id, newStatus, actor, canApprove);
-            redirectAttributes.addFlashAttribute("message", "Einsatzbericht wurde " + actionLabel + ".");
+            IncidentReport changed =
+                    einsatzberichtService.transitionStatus(unit.getId(), id, newStatus, actor, canApprove);
+            String message = "Einsatzbericht wurde " + actionLabel + ".";
+            if (!changed.getId().equals(id)) {
+                message += " Testmodus: Änderung auf Test-Kopie (Produktivbericht unverändert).";
+            }
+            redirectAttributes.addFlashAttribute("message", message);
             String safeReturn = sanitizeReturnUrl(returnUrl);
             if (safeReturn != null) {
                 return "redirect:" + buildBackUrl(safeReturn, unit.getId());
