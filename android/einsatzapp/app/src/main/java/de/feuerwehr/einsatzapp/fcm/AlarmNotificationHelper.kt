@@ -22,9 +22,12 @@ object AlarmNotificationHelper {
   private const val TEST_NOTIFICATION_ID = 999_001
   private const val PREVIEW_MAX_MS = 15_000L
 
-  private val previewHandler = Handler(Looper.getMainLooper())
+  private val handler = Handler(Looper.getMainLooper())
+  private var previewStopRunnable: Runnable? = null
   @Volatile
   private var previewPlayer: MediaPlayer? = null
+  @Volatile
+  private var alarmPlayer: MediaPlayer? = null
 
   fun showAlarm(
       context: Context,
@@ -64,6 +67,10 @@ object AlarmNotificationHelper {
       val notificationId = if (isTest) TEST_NOTIFICATION_ID else alarmId.toInt()
       NotificationManagerCompat.from(context).notify(notificationId, builder.build())
 
+      if (prefs.overrideAndroidTones) {
+          playAlarmSound(context, prefs.alarmToneUriParsed(), prefs.alarmVolumePercent)
+      }
+
       if (!isTest && scheduleRepeats && prefs.alarmRepeatCount > 0) {
           AlarmRepeatScheduler.schedule(context, alarmId, title, body, prefs.alarmRepeatCount)
       }
@@ -79,9 +86,37 @@ object AlarmNotificationHelper {
       )
   }
 
-  fun playPreviewSound(context: Context, uri: Uri) {
+  fun playPreviewSound(context: Context, uri: Uri, volumePercent: Int) {
       stopPreviewSound()
+      startOneShotPlayer(
+          context = context,
+          uri = uri,
+          volumePercent = volumePercent,
+          isPreview = true,
+          onComplete = { stopPreviewSound() },
+      )
+  }
+
+  private fun playAlarmSound(context: Context, uri: Uri, volumePercent: Int) {
+      stopAlarmSound()
+      startOneShotPlayer(
+          context = context,
+          uri = uri,
+          volumePercent = volumePercent,
+          isPreview = false,
+          onComplete = { stopAlarmSound() },
+      )
+  }
+
+  private fun startOneShotPlayer(
+      context: Context,
+      uri: Uri,
+      volumePercent: Int,
+      isPreview: Boolean,
+      onComplete: () -> Unit,
+  ) {
       runCatching {
+          val volume = volumePercent.coerceIn(0, 100) / 100f
           val player = MediaPlayer().apply {
               setDataSource(context, uri)
               setAudioAttributes(
@@ -91,29 +126,53 @@ object AlarmNotificationHelper {
                       .build(),
               )
               isLooping = false
-              setOnCompletionListener { stopPreviewSound() }
+              setVolume(volume, volume)
+              setOnCompletionListener { onComplete() }
               prepare()
           }
-          previewPlayer = player
+          if (isPreview) {
+              previewPlayer = player
+          } else {
+              alarmPlayer = player
+          }
           player.start()
           val durationMs = player.duration
           val stopAfterMs = when {
               durationMs > 0 -> (durationMs + 500L).coerceAtMost(PREVIEW_MAX_MS)
               else -> 8_000L
           }
-          previewHandler.postDelayed({ stopPreviewSound() }, stopAfterMs)
+          if (isPreview) {
+              schedulePreviewStop(onComplete, stopAfterMs)
+          }
       }.onFailure {
-          stopPreviewSound()
+          onComplete()
       }
   }
 
+  private fun schedulePreviewStop(onComplete: () -> Unit, delayMs: Long) {
+      previewStopRunnable?.let { handler.removeCallbacks(it) }
+      val runnable = Runnable { onComplete() }
+      previewStopRunnable = runnable
+      handler.postDelayed(runnable, delayMs)
+  }
+
   fun stopPreviewSound() {
-      previewHandler.removeCallbacksAndMessages(null)
-      previewPlayer?.runCatching {
+      previewStopRunnable?.let { handler.removeCallbacks(it) }
+      previewStopRunnable = null
+      releasePlayer(previewPlayer)
+      previewPlayer = null
+  }
+
+  private fun stopAlarmSound() {
+      releasePlayer(alarmPlayer)
+      alarmPlayer = null
+  }
+
+  private fun releasePlayer(player: MediaPlayer?) {
+      player?.runCatching {
           if (isPlaying) stop()
           release()
       }
-      previewPlayer = null
   }
 
   fun cancelRepeats(context: Context) {

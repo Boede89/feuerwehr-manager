@@ -14,6 +14,8 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.VolumeDown
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -26,6 +28,10 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
@@ -37,6 +43,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,6 +65,7 @@ import de.feuerwehr.einsatzapp.settings.AlarmToneCatalog
 import de.feuerwehr.einsatzapp.settings.NotificationChannelHelper
 import de.feuerwehr.einsatzapp.settings.SystemSettingsHelper
 import de.feuerwehr.einsatzapp.ui.theme.FeuerwehrRot
+import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
 private enum class SettingsTab(val label: String) {
@@ -213,10 +221,14 @@ private fun PushSettingsTab() {
             alarmToneUri = PushPreferencesStore.defaultAlarmToneUri(),
             alarmRepeatCount = PushPreferencesStore.DEFAULT_REPEAT_COUNT,
             alarmInSilentMode = true,
+            alarmVolumePercent = PushPreferencesStore.DEFAULT_ALARM_VOLUME_PERCENT,
         ),
     )
     val tones = remember { AlarmToneCatalog.load(context) }
     val repeatOptions = listOf(0, 1, 3, 5, 10)
+    var volumeDraft by remember(prefs.alarmVolumePercent) {
+        mutableFloatStateOf(prefs.alarmVolumePercent.toFloat())
+    }
 
     DisposableEffect(Unit) {
         onDispose { AlarmNotificationHelper.stopPreviewSound() }
@@ -290,7 +302,11 @@ private fun PushSettingsTab() {
                                     scope.launch {
                                         pushStore.setAlarmToneUri(tone.id)
                                         NotificationChannelHelper.syncChannels(context, pushStore.current())
-                                        AlarmNotificationHelper.playPreviewSound(context, tone.uri)
+                                        AlarmNotificationHelper.playPreviewSound(
+                                            context,
+                                            tone.uri,
+                                            prefs.alarmVolumePercent,
+                                        )
                                     }
                                 }
                                 .padding(horizontal = 8.dp),
@@ -302,7 +318,11 @@ private fun PushSettingsTab() {
                                     scope.launch {
                                         pushStore.setAlarmToneUri(tone.id)
                                         NotificationChannelHelper.syncChannels(context, pushStore.current())
-                                        AlarmNotificationHelper.playPreviewSound(context, tone.uri)
+                                        AlarmNotificationHelper.playPreviewSound(
+                                            context,
+                                            tone.uri,
+                                            prefs.alarmVolumePercent,
+                                        )
                                     }
                                 },
                             )
@@ -315,29 +335,112 @@ private fun PushSettingsTab() {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("Lautstärke", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "${volumeDraft.roundToInt()} %",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = FeuerwehrRot,
+                        )
+                    }
+                    Text(
+                        "Gilt für Alarmton und Probe-Alarm, wenn Android-Töne überschrieben werden.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(
+                            Icons.Default.VolumeDown,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Slider(
+                            value = volumeDraft,
+                            onValueChange = { volumeDraft = it },
+                            onValueChangeFinished = {
+                                scope.launch {
+                                    val percent = volumeDraft.roundToInt()
+                                    pushStore.setAlarmVolumePercent(percent)
+                                }
+                            },
+                            valueRange = 0f..100f,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Icon(
+                            Icons.Default.VolumeUp,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            AlarmNotificationHelper.playPreviewSound(
+                                context,
+                                prefs.alarmToneUriParsed(),
+                                volumeDraft.roundToInt(),
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Lautstärke testen")
+                    }
+                }
+            }
+
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Text("Wiederholungen", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        repeatSelectionSummary(prefs.alarmRepeatCount),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = FeuerwehrRot,
+                    )
                     Text(
                         "Alarm erneut alle 20 Sekunden (wie DIVERA)",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        repeatOptions.forEach { count ->
-                            val selected = prefs.alarmRepeatCount == count
-                            OutlinedButton(
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        repeatOptions.forEachIndexed { index, count ->
+                            SegmentedButton(
+                                shape = SegmentedButtonDefaults.itemShape(
+                                    index = index,
+                                    count = repeatOptions.size,
+                                ),
                                 onClick = {
                                     scope.launch { pushStore.setAlarmRepeatCount(count) }
                                 },
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Text(
-                                    if (count == 0) "Aus" else count.toString(),
-                                    color = if (selected) FeuerwehrRot else MaterialTheme.colorScheme.onSurface,
-                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                                )
-                            }
+                                selected = prefs.alarmRepeatCount == count,
+                                colors = SegmentedButtonDefaults.colors(
+                                    activeContainerColor = FeuerwehrRot,
+                                    activeContentColor = MaterialTheme.colorScheme.onPrimary,
+                                ),
+                                label = {
+                                    Text(
+                                        if (count == 0) "Aus" else count.toString(),
+                                        fontWeight = if (prefs.alarmRepeatCount == count) {
+                                            FontWeight.Bold
+                                        } else {
+                                            FontWeight.Normal
+                                        },
+                                    )
+                                },
+                            )
                         }
                     }
                 }
@@ -391,6 +494,12 @@ private fun PushSettingsTab() {
             Text("Android-Benachrichtigungseinstellungen")
         }
     }
+}
+
+private fun repeatSelectionSummary(count: Int): String = when (count) {
+    0 -> "Aktuell: keine Wiederholung"
+    1 -> "Aktuell: 1 Wiederholung"
+    else -> "Aktuell: $count Wiederholungen"
 }
 
 @Composable
