@@ -85,6 +85,7 @@
       createGeraetewart: root.dataset.releaseCreateGeraetewart === 'true',
       printReport: root.dataset.releasePrintReport === 'true',
       printGeraetewart: root.dataset.releasePrintGeraetewart === 'true',
+      printMaengel: root.dataset.releasePrintMaengel === 'true',
       hasMaterialDamages: false
     };
     if (meta && meta.hasMaterialDamages === 'true') {

@@ -169,6 +169,7 @@
       createGeraetewart: el.dataset.releaseCreateGeraetewart === 'true',
       printReport: el.dataset.releasePrintReport === 'true',
       printGeraetewart: el.dataset.releasePrintGeraetewart === 'true',
+      printMaengel: el.dataset.releasePrintMaengel === 'true',
       hasMaterialDamages: el.dataset.releaseHasMaterialDamages === 'true'
     };
   }

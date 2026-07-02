@@ -1694,11 +1694,13 @@ public class BerichteController {
             model.addAttribute("releaseDefaultCreateGeraetewart", settings.isEinsatzReleaseCreateGeraetewart());
             model.addAttribute("releaseDefaultPrintReport", settings.isEinsatzReleasePrintReport());
             model.addAttribute("releaseDefaultPrintGeraetewart", settings.isEinsatzReleasePrintGeraetewart());
+            model.addAttribute("releaseDefaultPrintMaengel", settings.isEinsatzReleasePrintMaengel());
         } catch (Exception e) {
             log.warn("Einsatz-Freigabe-Defaults unit={} nicht ladbar: {}", unitId, e.getMessage());
             model.addAttribute("releaseDefaultCreateGeraetewart", false);
             model.addAttribute("releaseDefaultPrintReport", false);
             model.addAttribute("releaseDefaultPrintGeraetewart", false);
+            model.addAttribute("releaseDefaultPrintMaengel", false);
         }
     }
 

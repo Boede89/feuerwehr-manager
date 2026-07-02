@@ -77,6 +77,7 @@ public class BerichteSettingsController {
             @RequestParam(name = "einsatzReleaseCreateGeraetewart", defaultValue = "false") boolean einsatzReleaseCreateGeraetewart,
             @RequestParam(name = "einsatzReleasePrintReport", defaultValue = "false") boolean einsatzReleasePrintReport,
             @RequestParam(name = "einsatzReleasePrintGeraetewart", defaultValue = "false") boolean einsatzReleasePrintGeraetewart,
+            @RequestParam(name = "einsatzReleasePrintMaengel", defaultValue = "false") boolean einsatzReleasePrintMaengel,
             RedirectAttributes redirectAttributes) {
         try {
             accessControlService.requireAdminLevel(actor);
@@ -92,7 +93,8 @@ public class BerichteSettingsController {
                     statusIds,
                     einsatzReleaseCreateGeraetewart,
                     einsatzReleasePrintReport,
-                    einsatzReleasePrintGeraetewart);
+                    einsatzReleasePrintGeraetewart,
+                    einsatzReleasePrintMaengel);
             redirectAttributes.addFlashAttribute("message", "Einsatzbericht-Einstellungen gespeichert.");
             return "redirect:/settings/berichte?unit=" + unit + "&tab=einsatz";
         } catch (IllegalArgumentException e) {

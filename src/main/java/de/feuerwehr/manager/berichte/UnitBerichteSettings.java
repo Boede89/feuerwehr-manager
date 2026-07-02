@@ -54,6 +54,9 @@ public class UnitBerichteSettings {
     @Column(name = "einsatz_release_print_geraetewart", nullable = false)
     private boolean einsatzReleasePrintGeraetewart;
 
+    @Column(name = "einsatz_release_print_maengel", nullable = false)
+    private boolean einsatzReleasePrintMaengel;
+
     @Column(name = "anwesenheit_release_print_report", nullable = false)
     private boolean anwesenheitReleasePrintReport;
 

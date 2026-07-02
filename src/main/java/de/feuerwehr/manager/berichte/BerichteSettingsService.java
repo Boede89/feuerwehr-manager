@@ -42,7 +42,8 @@ public class BerichteSettingsService {
             List<String> personnelStatusIds,
             boolean releaseCreateGeraetewart,
             boolean releasePrintReport,
-            boolean releasePrintGeraetewart) {
+            boolean releasePrintGeraetewart,
+            boolean releasePrintMaengel) {
         UnitBerichteSettings settings = settingsRepository
                 .findByUnitId(unitId)
                 .orElseGet(() -> createDefaults(unitId));
@@ -55,6 +56,7 @@ public class BerichteSettingsService {
         settings.setEinsatzReleaseCreateGeraetewart(releaseCreateGeraetewart);
         settings.setEinsatzReleasePrintReport(releasePrintReport);
         settings.setEinsatzReleasePrintGeraetewart(releasePrintGeraetewart);
+        settings.setEinsatzReleasePrintMaengel(releasePrintMaengel);
         return settingsRepository.save(settings);
     }
 
@@ -123,6 +125,7 @@ public class BerichteSettingsService {
         settings.setEinsatzReleaseCreateGeraetewart(false);
         settings.setEinsatzReleasePrintReport(false);
         settings.setEinsatzReleasePrintGeraetewart(false);
+        settings.setEinsatzReleasePrintMaengel(false);
         settings.setAnwesenheitReleasePrintReport(false);
         return settingsRepository.save(settings);
     }

@@ -126,6 +126,15 @@
                 <span class="toggle-switch__track"></span>
               </span>
             </label>
+            <label class="toggle-row">
+              <span class="toggle-row__label">Mängelbericht drucken</span>
+              <span class="toggle-switch">
+                <input type="checkbox" name="einsatzReleasePrintMaengel" value="true"
+                       th:checked="${settings.einsatzReleasePrintMaengel}"/>
+                <span class="toggle-switch__track"></span>
+              </span>
+            </label>
+            <p class="hint text-sm">„Mängelbericht drucken“ erscheint beim Freigeben nur, wenn Sachschäden erfasst sind.</p>
           </div>
         </div>
 
