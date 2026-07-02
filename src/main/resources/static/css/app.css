@@ -4077,6 +4077,72 @@ span.required { color: var(--error); }
   font-size: var(--fs-xs);
 }
 
+.incident-material-damages {
+  display: grid;
+  gap: 12px;
+}
+
+.material-damage-details-hint {
+  margin: 0;
+}
+
+.material-damage-list {
+  display: grid;
+  gap: 14px;
+}
+
+.material-damage-entry {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  padding: 12px 14px;
+  background: var(--bg-card-hover, rgba(0, 0, 0, 0.02));
+}
+
+.material-damage-entry__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.material-damage-entry__title {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.material-damage-entry__fields .form-group label {
+  font-size: var(--fs-xs);
+}
+
+.material-damage-entry__readonly {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+  margin: 0;
+}
+
+.material-damage-entry__readonly dt {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.material-damage-entry__readonly dd {
+  margin: 0 0 4px;
+  font-size: var(--fs-sm);
+}
+
+.material-damage-entry__readonly--full {
+  grid-column: 1 / -1;
+}
+
+.material-damage-actions {
+  margin-top: 4px;
+}
+
 .einsatzbericht-form-page .incident-form-stack {
   display: grid;
   gap: 14px;

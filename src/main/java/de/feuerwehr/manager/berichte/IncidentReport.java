@@ -220,6 +220,9 @@ public class IncidentReport {
     @Column(name = "equipment_damage", columnDefinition = "TEXT")
     private String equipmentDamage;
 
+    @Column(name = "material_damage_entries_json", columnDefinition = "TEXT")
+    private String materialDamageEntriesJson = MaterialDamageEntriesSupport.emptyJson();
+
     @Column(name = "resources_json", nullable = false, columnDefinition = "TEXT")
     private String resourcesJson = "{}";
 

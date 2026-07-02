@@ -254,12 +254,320 @@
   var perpetratorState = emptyPerpetrator();
   var perpetratorReadonly = false;
 
+  var MANGEL_AN_TYPES = [
+    { key: 'GEBAEUDE', label: 'Gebäude' },
+    { key: 'FAHRZEUG', label: 'Fahrzeug' },
+    { key: 'GERAET', label: 'Gerät' },
+    { key: 'PSA', label: 'PSA' }
+  ];
+
+  function emptyMaterialEntry() {
+    return {
+      mangelAn: 'GEBAEUDE',
+      bezeichnung: '',
+      vehicleId: null,
+      mangelBeschreibung: '',
+      ursache: '',
+      verbleib: ''
+    };
+  }
+
+  function parseMaterialInitial(raw) {
+    if (!raw) {
+      return [];
+    }
+    try {
+      var parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+      return parsed.map(function (item) {
+        return {
+          mangelAn: item && item.mangelAn ? String(item.mangelAn) : 'GEBAEUDE',
+          bezeichnung: item && item.bezeichnung ? String(item.bezeichnung) : '',
+          vehicleId: item && item.vehicleId ? Number(item.vehicleId) : null,
+          mangelBeschreibung: item && item.mangelBeschreibung ? String(item.mangelBeschreibung) : '',
+          ursache: item && item.ursache ? String(item.ursache) : '',
+          verbleib: item && item.verbleib ? String(item.verbleib) : ''
+        };
+      });
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function parseVehicles(raw) {
+    if (!raw) {
+      return [];
+    }
+    try {
+      var parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function materialEntryHasContent(entry) {
+    if (!entry) {
+      return false;
+    }
+    return Boolean(
+      (entry.bezeichnung && entry.bezeichnung.trim())
+        || (entry.mangelBeschreibung && entry.mangelBeschreibung.trim())
+        || (entry.ursache && entry.ursache.trim())
+        || (entry.verbleib && entry.verbleib.trim())
+        || (entry.vehicleId && Number(entry.vehicleId) > 0)
+    );
+  }
+
+  function normalizeMaterialPayload(entries) {
+    return (entries || [])
+      .map(function (entry) {
+        var vehicleId = entry.vehicleId && Number(entry.vehicleId) > 0 ? Number(entry.vehicleId) : null;
+        return {
+          mangelAn: entry.mangelAn || 'GEBAEUDE',
+          bezeichnung: entry.bezeichnung ? entry.bezeichnung.trim() : null,
+          vehicleId: vehicleId,
+          mangelBeschreibung: entry.mangelBeschreibung ? entry.mangelBeschreibung.trim() : null,
+          ursache: entry.ursache ? entry.ursache.trim() : null,
+          verbleib: entry.verbleib ? entry.verbleib.trim() : null
+        };
+      })
+      .filter(materialEntryHasContent);
+  }
+
+  function collectMaterialState() {
+    var wrapEl = document.getElementById('material-damage-wrap');
+    if (!wrapEl) {
+      return [];
+    }
+    var entries = [];
+    wrapEl.querySelectorAll('[data-material-damage-index]').forEach(function (row) {
+      var typeSelect = row.querySelector('[data-field="mangelAn"]');
+      var bezeichnungInput = row.querySelector('[data-field="bezeichnung"]');
+      var vehicleSelect = row.querySelector('[data-field="vehicleId"]');
+      var beschreibungInput = row.querySelector('[data-field="mangelBeschreibung"]');
+      var ursacheInput = row.querySelector('[data-field="ursache"]');
+      var verbleibInput = row.querySelector('[data-field="verbleib"]');
+      var vehicleValue = vehicleSelect && vehicleSelect.value ? Number(vehicleSelect.value) : null;
+      entries.push({
+        mangelAn: typeSelect ? typeSelect.value : 'GEBAEUDE',
+        bezeichnung: bezeichnungInput ? bezeichnungInput.value.trim() : '',
+        vehicleId: Number.isFinite(vehicleValue) && vehicleValue > 0 ? vehicleValue : null,
+        mangelBeschreibung: beschreibungInput ? beschreibungInput.value.trim() : '',
+        ursache: ursacheInput ? ursacheInput.value.trim() : '',
+        verbleib: verbleibInput ? verbleibInput.value.trim() : ''
+      });
+    });
+    return entries;
+  }
+
+  function syncMaterialHidden(entries) {
+    var hidden = document.getElementById('materialDamageEntriesJson');
+    if (!hidden) {
+      return;
+    }
+    hidden.value = JSON.stringify(normalizeMaterialPayload(entries || collectMaterialState()));
+  }
+
+  function mangelAnLabel(key) {
+    var found = MANGEL_AN_TYPES.find(function (item) {
+      return item.key === key;
+    });
+    return found ? found.label : key;
+  }
+
+  function vehicleLabel(vehicles, vehicleId) {
+    if (!vehicleId) {
+      return '—';
+    }
+    var found = vehicles.find(function (vehicle) {
+      return Number(vehicle.id) === Number(vehicleId);
+    });
+    return found ? found.name : 'Fahrzeug #' + vehicleId;
+  }
+
+  function buildMangelAnOptions(selected) {
+    return MANGEL_AN_TYPES.map(function (item) {
+      return '<option value="' + esc(item.key) + '"' + (item.key === selected ? ' selected' : '') + '>'
+        + esc(item.label) + '</option>';
+    }).join('');
+  }
+
+  function buildVehicleOptions(vehicles, selectedId) {
+    var html = '<option value="">— kein Fahrzeug / nicht zutreffend —</option>';
+    vehicles.forEach(function (vehicle) {
+      var id = Number(vehicle.id);
+      html += '<option value="' + esc(String(id)) + '"' + (id === Number(selectedId) ? ' selected' : '') + '>'
+        + esc(vehicle.name || ('Fahrzeug #' + id)) + '</option>';
+    });
+    return html;
+  }
+
+  var materialDamageState = [];
+  var materialDamageReadonly = false;
+  var materialDamageVehicles = [];
+
+  function renderMaterialEntry(index, entry, readonly) {
+    var row = document.createElement('div');
+    row.className = 'material-damage-entry';
+    row.dataset.materialDamageIndex = String(index);
+    if (readonly) {
+      row.innerHTML =
+        '<div class="material-damage-entry__title">Sachschaden ' + (index + 1) + '</div>' +
+        '<dl class="material-damage-entry__readonly">' +
+          '<div><dt>Art</dt><dd>' + esc(mangelAnLabel(entry.mangelAn)) + '</dd></div>' +
+          '<div><dt>Bezeichnung</dt><dd>' + esc(entry.bezeichnung || '—') + '</dd></div>' +
+          '<div><dt>Fahrzeug</dt><dd>' + esc(vehicleLabel(materialDamageVehicles, entry.vehicleId)) + '</dd></div>' +
+          '<div class="material-damage-entry__readonly--full"><dt>Beschreibung</dt><dd>'
+            + esc(entry.mangelBeschreibung || '—') + '</dd></div>' +
+          '<div><dt>Ursache</dt><dd>' + esc(entry.ursache || '—') + '</dd></div>' +
+          '<div><dt>Verbleib</dt><dd>' + esc(entry.verbleib || '—') + '</dd></div>' +
+        '</dl>';
+      return row;
+    }
+    row.innerHTML =
+      '<div class="material-damage-entry__header">' +
+        '<div class="material-damage-entry__title">Sachschaden ' + (index + 1) + '</div>' +
+        '<button type="button" class="btn btn--outline btn--sm material-damage-entry__remove" ' +
+          'data-action="remove-material-damage">Entfernen</button>' +
+      '</div>' +
+      '<div class="incident-form-grid-2 material-damage-entry__fields">' +
+        '<div class="form-group">' +
+          '<label>Art</label>' +
+          '<select data-field="mangelAn" class="field">' + buildMangelAnOptions(entry.mangelAn || 'GEBAEUDE') + '</select>' +
+        '</div>' +
+        '<div class="form-group">' +
+          '<label>Bezeichnung, ggf. Gerätenummer</label>' +
+          '<input type="text" maxlength="255" data-field="bezeichnung" class="field" ' +
+            'value="' + esc(entry.bezeichnung || '') + '" placeholder="z. B. TLF 16/25, Gerätenummer 123"/>' +
+        '</div>' +
+        '<div class="form-group form-group--full">' +
+          '<label>Fahrzeug (auf dem sich das Gerät befindet)</label>' +
+          '<select data-field="vehicleId" class="field">' +
+            buildVehicleOptions(materialDamageVehicles, entry.vehicleId) +
+          '</select>' +
+          '<p class="hint text-sm">Wichtig, da Geräte auf mehreren Fahrzeugen existieren können.</p>' +
+        '</div>' +
+        '<div class="form-group form-group--full">' +
+          '<label>Schaden Beschreibung</label>' +
+          '<textarea data-field="mangelBeschreibung" class="field" rows="3" ' +
+            'placeholder="Beschreibung des Schadens">' + esc(entry.mangelBeschreibung || '') + '</textarea>' +
+        '</div>' +
+        '<div class="form-group">' +
+          '<label>Ursache</label>' +
+          '<input type="text" data-field="ursache" class="field" ' +
+            'value="' + esc(entry.ursache || '') + '" placeholder="Vermutete oder festgestellte Ursache"/>' +
+        '</div>' +
+        '<div class="form-group">' +
+          '<label>Verbleib</label>' +
+          '<input type="text" data-field="verbleib" class="field" ' +
+            'value="' + esc(entry.verbleib || '') + '" placeholder="Verbleib"/>' +
+        '</div>' +
+      '</div>';
+    row.querySelector('[data-action="remove-material-damage"]')?.addEventListener('click', function () {
+      materialDamageState = collectMaterialState();
+      materialDamageState.splice(index, 1);
+      renderMaterialDamages();
+    });
+    row.querySelectorAll('input, select, textarea').forEach(function (input) {
+      input.addEventListener('input', onMaterialFieldChange);
+      input.addEventListener('change', onMaterialFieldChange);
+    });
+    return row;
+  }
+
+  function onMaterialFieldChange() {
+    materialDamageState = collectMaterialState();
+    syncMaterialHidden(materialDamageState);
+  }
+
+  function renderMaterialDamages() {
+    var wrapEl = document.getElementById('material-damage-wrap');
+    if (!wrapEl) {
+      return;
+    }
+    if (wrapEl.querySelector('[data-material-damage-index]')) {
+      materialDamageState = collectMaterialState();
+    }
+    wrapEl.innerHTML = '';
+    var entries = materialDamageState.length ? materialDamageState : (materialDamageReadonly ? [] : []);
+    if (!entries.length && materialDamageReadonly) {
+      wrapEl.innerHTML = '<p class="hint material-damage-details-hint">Keine Sachschäden erfasst.</p>';
+      return;
+    }
+    var list = document.createElement('div');
+    list.className = 'material-damage-list';
+    entries.forEach(function (entry, index) {
+      list.appendChild(renderMaterialEntry(index, entry, materialDamageReadonly));
+    });
+    wrapEl.appendChild(list);
+    if (!materialDamageReadonly) {
+      var actions = document.createElement('div');
+      actions.className = 'material-damage-actions';
+      actions.innerHTML =
+        '<button type="button" class="btn btn--outline btn--sm" data-action="add-material-damage">+ Sachschaden hinzufügen</button>';
+      actions.querySelector('[data-action="add-material-damage"]')?.addEventListener('click', function () {
+        materialDamageState = collectMaterialState();
+        materialDamageState.push(emptyMaterialEntry());
+        renderMaterialDamages();
+      });
+      wrapEl.appendChild(actions);
+    }
+    syncMaterialHidden(entries);
+  }
+
+  function readMaterialInitialPayload() {
+    var hidden = document.getElementById('materialDamageEntriesJson');
+    if (hidden && hidden.value) {
+      return hidden.value;
+    }
+    var wrapEl = document.getElementById('material-damage-wrap');
+    if (wrapEl && wrapEl.dataset.initial) {
+      return wrapEl.dataset.initial;
+    }
+    return '[]';
+  }
+
+  function initMaterialHiddenFromInitial() {
+    var hidden = document.getElementById('materialDamageEntriesJson');
+    if (!hidden || hidden.value) {
+      return;
+    }
+    var initial = readMaterialInitialPayload();
+    if (initial) {
+      hidden.value = initial;
+    }
+  }
+
+  function initMaterialDamages(scope) {
+    var wrapEl = scope.querySelector
+        ? scope.querySelector('#material-damage-wrap')
+        : document.getElementById('material-damage-wrap');
+    if (!wrapEl) {
+      return;
+    }
+    materialDamageReadonly = wrapEl.dataset.readonly === 'true';
+    materialDamageVehicles = parseVehicles(wrapEl.dataset.vehicles || '[]');
+    if (wrapEl.querySelector('[data-material-damage-index]') && !materialDamageReadonly) {
+      materialDamageState = collectMaterialState();
+      syncMaterialHidden(materialDamageState);
+      return;
+    }
+    initMaterialHiddenFromInitial();
+    materialDamageState = parseMaterialInitial(readMaterialInitialPayload());
+    renderMaterialDamages();
+  }
+
   function syncBeforeSave() {
     ensurePersonDamagesEnabled();
     state = collectState(state);
     syncHidden(state);
     perpetratorState = collectPerpetratorState();
     syncPerpetratorHidden();
+    materialDamageState = collectMaterialState();
+    syncMaterialHidden(materialDamageState);
   }
 
   function renderEntry(category, index, entry, readonly) {
@@ -454,6 +762,7 @@
     bindSaveSync(scope);
     initPersonDamage(scope);
     initPerpetrator(scope);
+    initMaterialDamages(scope);
   }
 
   window.BerichteSchaeden = { init: init, syncBeforeSave: syncBeforeSave };

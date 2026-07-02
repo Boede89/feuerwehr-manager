@@ -9,6 +9,7 @@ import de.feuerwehr.manager.unit.UnitRepository;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -79,6 +80,65 @@ public class MaengelberichtService {
     @Transactional(readOnly = true)
     public List<Vehicle> listVehicles(long unitId) {
         return einsatzberichtService.listVehiclesForForm(unitId);
+    }
+
+    @Transactional
+    public List<DefectReport> createFromIncidentReport(
+            long unitId, long incidentReportId, AppUserDetails actor) {
+        IncidentReport incident = einsatzberichtService.requireReport(unitId, incidentReportId);
+        List<MaterialDamageEntry> entries = MaterialDamageEntriesSupport.parse(
+                        incident.getMaterialDamageEntriesJson())
+                .normalized()
+                .entries();
+        if (entries.isEmpty()) {
+            return List.of();
+        }
+        List<DefectReport> created = new ArrayList<>();
+        for (MaterialDamageEntry entry : entries) {
+            created.add(create(unitId, toMaengelFormFromIncident(incident, entry, actor), actor));
+        }
+        return created;
+    }
+
+    private MaengelberichtForm toMaengelFormFromIncident(
+            IncidentReport incident, MaterialDamageEntry entry, AppUserDetails actor) {
+        MaengelberichtForm form = new MaengelberichtForm();
+        form.setStandort(MaengelberichtStandort.GH_AMERN.name());
+        form.setMangelAn(MaengelberichtMangelAn.fromKey(entry.mangelAn()).name());
+        form.setBezeichnung(entry.bezeichnung());
+        if (entry.vehicleId() != null && entry.vehicleId() > 0) {
+            form.setVehicleId(entry.vehicleId());
+        }
+        form.setMangelBeschreibung(buildIncidentDamageDescription(incident, entry.mangelBeschreibung()));
+        form.setUrsache(entry.ursache());
+        form.setVerbleib(entry.verbleib());
+        form.setAufgenommenAm(incident.getIncidentDate() != null ? incident.getIncidentDate() : LocalDate.now());
+        if (incident.getCommanderPerson() != null) {
+            form.setRecordedPersonId(incident.getCommanderPerson().getId());
+            form.setRecordedByName(incident.getCommanderPerson().anwesenheitDisplayName());
+        } else if (incident.getIncidentCommander() != null && !incident.getIncidentCommander().isBlank()) {
+            form.setRecordedByName(incident.getIncidentCommander().trim());
+        } else if (actor != null && actor.getDisplayName() != null && !actor.getDisplayName().isBlank()) {
+            form.setRecordedByName(actor.getDisplayName().trim());
+        }
+        return form;
+    }
+
+    private static String buildIncidentDamageDescription(IncidentReport incident, String beschreibung) {
+        String prefix = "Einsatz ";
+        if (incident.getIncidentNumber() != null && !incident.getIncidentNumber().isBlank()) {
+            prefix += incident.getIncidentNumber().trim();
+        } else {
+            prefix += "#" + incident.getId();
+        }
+        if (incident.getIncidentDate() != null) {
+            prefix += " vom " + incident.getIncidentDate().format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+        }
+        prefix += ": ";
+        if (beschreibung == null || beschreibung.isBlank()) {
+            return prefix.trim();
+        }
+        return prefix + beschreibung.trim();
     }
 
     @Transactional

@@ -54,8 +54,7 @@ public final class IncidentReportSnapshot {
             Map.entry("animalsInjured", "Verletzte Tiere"),
             Map.entry("animalsRecovered", "Geborgene Tiere"),
             Map.entry("animalsDead", "Tote Tiere"),
-            Map.entry("vehicleDamage", "Fahrzeugschäden"),
-            Map.entry("equipmentDamage", "Geräteschäden"));
+            Map.entry("materialDamageEntriesJson", "Sachschäden"));
 
     private IncidentReportSnapshot() {}
 
@@ -104,8 +103,7 @@ public final class IncidentReportSnapshot {
         map.put("animalsInjured", String.valueOf(report.getAnimalsInjured()));
         map.put("animalsRecovered", String.valueOf(report.getAnimalsRecovered()));
         map.put("animalsDead", String.valueOf(report.getAnimalsDead()));
-        map.put("vehicleDamage", norm(report.getVehicleDamage()));
-        map.put("equipmentDamage", norm(report.getEquipmentDamage()));
+        map.put("materialDamageEntriesJson", formatMaterialDamages(report.getMaterialDamageEntriesJson()));
         return map;
     }
 
@@ -168,5 +166,27 @@ public final class IncidentReportSnapshot {
             parts.add("Kennzeichen: " + details.licensePlate().trim());
         }
         return String.join(", ", parts);
+    }
+
+    private static String formatMaterialDamages(String json) {
+        List<MaterialDamageEntry> entries =
+                MaterialDamageEntriesSupport.parse(json).normalized().entries();
+        if (entries.isEmpty()) {
+            return "";
+        }
+        List<String> parts = new ArrayList<>();
+        for (MaterialDamageEntry entry : entries) {
+            MaengelberichtMangelAn type = MaengelberichtMangelAn.fromKey(entry.mangelAn());
+            List<String> line = new ArrayList<>();
+            line.add(type.label());
+            if (entry.bezeichnung() != null && !entry.bezeichnung().isBlank()) {
+                line.add(entry.bezeichnung().trim());
+            }
+            if (entry.mangelBeschreibung() != null && !entry.mangelBeschreibung().isBlank()) {
+                line.add(entry.mangelBeschreibung().trim());
+            }
+            parts.add(String.join(": ", line));
+        }
+        return String.join(" | ", parts);
     }
 }

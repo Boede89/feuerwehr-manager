@@ -52,4 +52,5 @@ public record EinsatzberichtFormData(
         int animalsRecovered,
         int animalsDead,
         String vehicleDamage,
-        String equipmentDamage) {}
+        String equipmentDamage,
+        String materialDamageEntriesJson) {}

@@ -34,6 +34,7 @@ import de.feuerwehr.manager.berichte.MaengelberichtService;
 import de.feuerwehr.manager.berichte.DefectReport;
 import de.feuerwehr.manager.berichte.EquipmentMaintenanceReport;
 import de.feuerwehr.manager.berichte.DamagePerpetratorSupport;
+import de.feuerwehr.manager.berichte.MaterialDamageEntriesSupport;
 import de.feuerwehr.manager.berichte.PersonDamageDetailsSupport;
 import de.feuerwehr.manager.berichte.UnitBerichteSettings;
 import de.feuerwehr.manager.berichte.VehicleEquipmentView;
@@ -403,6 +404,18 @@ public class BerichteController {
                     unit.getId(), id, IncidentReportStatus.FREIGEGEBEN, actor, canApprove);
 
             List<String> followUpMessages = new ArrayList<>();
+            try {
+                List<DefectReport> maengelReports =
+                        maengelberichtService.createFromIncidentReport(unit.getId(), id, actor);
+                if (!maengelReports.isEmpty()) {
+                    followUpMessages.add(
+                            maengelReports.size() == 1
+                                    ? "1 Mängelbericht wurde automatisch erstellt."
+                                    : maengelReports.size() + " Mängelberichte wurden automatisch erstellt.");
+                }
+            } catch (IllegalArgumentException e) {
+                followUpMessages.add("Mängelberichte: " + e.getMessage());
+            }
             Long geraetewartReportId = null;
             if (createGeraetewart) {
                 try {
@@ -1430,6 +1443,11 @@ public class BerichteController {
             if (form.getDamagePerpetratorJson() == null || form.getDamagePerpetratorJson().isBlank()) {
                 form.setDamagePerpetratorJson(DamagePerpetratorSupport.emptyJson());
             }
+            if (form.getMaterialDamageEntriesJson() == null || form.getMaterialDamageEntriesJson().isBlank()) {
+                form.setMaterialDamageEntriesJson(MaterialDamageEntriesSupport.emptyJson());
+            }
+            model.addAttribute("unitVehicles", maengelberichtService.listVehicles(unitId));
+            model.addAttribute("unitVehiclesJson", einsatzberichtService.serializeUnitVehiclesJson(unitId));
             boolean showHistory = EinsatzberichtAccess.showChangeHistory(report);
             model.addAttribute("showChangeHistory", showHistory);
             model.addAttribute(

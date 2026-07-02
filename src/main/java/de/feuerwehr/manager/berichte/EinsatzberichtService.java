@@ -133,6 +133,17 @@ public class EinsatzberichtService {
         return unitAdminService.listVehicles(unitId);
     }
 
+    public String serializeUnitVehiclesJson(long unitId) {
+        try {
+            List<Map<String, Object>> items = listVehiclesForForm(unitId).stream()
+                    .map(vehicle -> Map.<String, Object>of("id", vehicle.getId(), "name", vehicle.getName()))
+                    .toList();
+            return objectMapper.writeValueAsString(items);
+        } catch (Exception e) {
+            return "[]";
+        }
+    }
+
     public List<String> listKnownStichworte(long unitId) {
         return incidentReportRepository.findDistinctStichworteByUnitId(unitId, includeTestReports());
     }
@@ -996,6 +1007,9 @@ public class EinsatzberichtService {
         }
         report.setVehicleDamage(null);
         report.setEquipmentDamage(null);
+        MaterialDamageEntries materialDamages =
+                MaterialDamageEntriesSupport.parse(form.materialDamageEntriesJson()).normalized();
+        report.setMaterialDamageEntriesJson(MaterialDamageEntriesSupport.serialize(materialDamages));
     }
 
     private void applyCommander(IncidentReport report, EinsatzberichtFormData form, long unitId) {

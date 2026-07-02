@@ -173,6 +173,8 @@
          th:value="${form.personDamageDetailsJson}"/>
   <input type="hidden" name="damagePerpetratorJson" id="damagePerpetratorJson" th:if="${formMode != 'view'}"
          th:value="${form.damagePerpetratorJson}"/>
+  <input type="hidden" name="materialDamageEntriesJson" id="materialDamageEntriesJson" th:if="${formMode != 'view'}"
+         th:value="${form.materialDamageEntriesJson}"/>
   <div class="incident-kraefte-board" id="incident-kraefte-board"
        th:data-unit-id="${unitId}"
        th:data-initial="${kraefteInitialJson}"
@@ -519,6 +521,15 @@
     <div id="damage-perpetrator-wrap" class="incident-damage-perpetrator incident-section-block"
          th:data-readonly="${formMode == 'view' ? 'true' : 'false'}"
          th:data-initial="${form.damagePerpetratorJson}"></div>
+
+    <h4 class="incident-section-title">Sachschäden (Gerät, Fahrzeug, Gebäude, PSA)</h4>
+    <p class="hint text-sm incident-section-block" th:if="${formMode != 'view'}">
+      Schäden an Gerät, Fahrzeug, Gebäude oder PSA erfassen — beim Freigeben des Einsatzberichts werden daraus automatisch Mängelberichte erstellt.
+    </p>
+    <div id="material-damage-wrap" class="incident-material-damages incident-section-block"
+         th:data-readonly="${formMode == 'view' ? 'true' : 'false'}"
+         th:data-initial="${form.materialDamageEntriesJson}"
+         th:attr="data-vehicles=${unitVehiclesJson != null ? unitVehiclesJson : '[]'}"></div>
   </div>
 
   <!-- Tab 5: Bericht -->
