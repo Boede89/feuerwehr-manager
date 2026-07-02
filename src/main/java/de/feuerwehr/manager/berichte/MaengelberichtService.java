@@ -109,7 +109,7 @@ public class MaengelberichtService {
         if (entry.vehicleId() != null && entry.vehicleId() > 0) {
             form.setVehicleId(entry.vehicleId());
         }
-        form.setMangelBeschreibung(buildIncidentDamageDescription(incident, entry.mangelBeschreibung()));
+        form.setMangelBeschreibung(entry.mangelBeschreibung());
         form.setUrsache(entry.ursache());
         form.setVerbleib(entry.verbleib());
         form.setAufgenommenAm(incident.getIncidentDate() != null ? incident.getIncidentDate() : LocalDate.now());
@@ -122,23 +122,6 @@ public class MaengelberichtService {
             form.setRecordedByName(actor.getDisplayName().trim());
         }
         return form;
-    }
-
-    private static String buildIncidentDamageDescription(IncidentReport incident, String beschreibung) {
-        String prefix = "Einsatz ";
-        if (incident.getIncidentNumber() != null && !incident.getIncidentNumber().isBlank()) {
-            prefix += incident.getIncidentNumber().trim();
-        } else {
-            prefix += "#" + incident.getId();
-        }
-        if (incident.getIncidentDate() != null) {
-            prefix += " vom " + incident.getIncidentDate().format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy"));
-        }
-        prefix += ": ";
-        if (beschreibung == null || beschreibung.isBlank()) {
-            return prefix.trim();
-        }
-        return prefix + beschreibung.trim();
     }
 
     @Transactional
