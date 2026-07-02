@@ -53,17 +53,6 @@ object AlarmNotificationHelper {
           .setContentIntent(pending)
           .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 
-      if (prefs.overrideAndroidTones) {
-          val uri = prefs.alarmToneUriParsed()
-          builder.setSound(
-              uri,
-              AudioAttributes.Builder()
-                  .setUsage(AudioAttributes.USAGE_ALARM)
-                  .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                  .build(),
-          )
-      }
-
       val notificationId = if (isTest) TEST_NOTIFICATION_ID else alarmId.toInt()
       NotificationManagerCompat.from(context).notify(notificationId, builder.build())
 
