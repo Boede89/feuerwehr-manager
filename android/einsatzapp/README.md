@@ -30,6 +30,8 @@ Optionaler Standard beim ersten Öffnen: `local.properties` → `default.server.
 4. Push bei DIVERA-Einsatz → Tipp öffnet Einsatzdetails
 5. Liste offener Einsätze per Pull/Aktualisieren
 
+**Dauerhafte Anmeldung:** Zugangsdaten werden verschlüsselt auf dem Gerät gespeichert; bei abgelaufener Session meldet die App sich automatisch wieder an (kein 2FA). Server-Session: 30 Tage Inaktivität.
+
 ## Voraussetzungen (Server)
 
 - Modul **Einsatz-App** aktiv

@@ -6,6 +6,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 import java.util.concurrent.TimeUnit
 
 class FeuerwehrApiClient {
@@ -15,7 +16,7 @@ class FeuerwehrApiClient {
     private val http = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
-        .followRedirects(true)
+        .followRedirects(false)
         .build()
 
     suspend fun testServerConnection(baseUrl: String): Result<String> = runCatching {
@@ -38,12 +39,11 @@ class FeuerwehrApiClient {
                 .toRequestBody(jsonMedia)
             val request = Request.Builder()
                 .url("${normalize(baseUrl)}/api/v1/auth/login")
+                .header("Accept", "application/json")
                 .post(body)
                 .build()
             http.newCall(request).execute().use { response ->
-                val raw = response.body?.string().orEmpty()
-                val parsed = moshi.adapter(LoginResponse::class.java).fromJson(raw)
-                    ?: throw IllegalStateException("Ungültige Server-Antwort")
+                val parsed = parseJson(response, LoginResponse::class.java)
                 if (!response.isSuccessful && !parsed.success) {
                     throw IllegalStateException(parsed.message ?: "Anmeldung fehlgeschlagen")
                 }
@@ -59,11 +59,9 @@ class FeuerwehrApiClient {
     suspend fun fetchSession(baseUrl: String, sessionCookie: String): Result<SessionResponse> = runCatching {
         val request = authorizedGet("${normalize(baseUrl)}/api/v1/auth/session", sessionCookie)
         http.newCall(request).execute().use { response ->
-            val raw = response.body?.string().orEmpty()
-            val parsed = moshi.adapter(SessionResponse::class.java).fromJson(raw)
-                ?: throw IllegalStateException("Ungültige Server-Antwort")
+            val parsed = parseJson(response, SessionResponse::class.java)
             if (!response.isSuccessful || !parsed.success) {
-                throw IllegalStateException(parsed.message ?: "Session ungültig")
+                throw SessionExpiredException(parsed.message ?: "Session ungültig")
             }
             parsed
         }
@@ -73,6 +71,7 @@ class FeuerwehrApiClient {
         val request = Request.Builder()
             .url("${normalize(baseUrl)}/api/v1/auth/logout")
             .header("Cookie", sessionCookie)
+            .header("Accept", "application/json")
             .post("".toRequestBody(jsonMedia))
             .build()
         http.newCall(request).execute().use { /* ignore */ }
@@ -91,13 +90,13 @@ class FeuerwehrApiClient {
         val request = Request.Builder()
             .url("${normalize(baseUrl)}/api/v1/einsatzapp/devices")
             .header("Cookie", sessionCookie)
+            .header("Accept", "application/json")
             .post(payload)
             .build()
         http.newCall(request).execute().use { response ->
-            val raw = response.body?.string().orEmpty()
-            val parsed = moshi.adapter(ApiMessageResponse::class.java).fromJson(raw)
-            if (!response.isSuccessful || parsed?.success != true) {
-                throw IllegalStateException(parsed?.message ?: "Geräteregistrierung fehlgeschlagen")
+            val parsed = parseJson(response, ApiMessageResponse::class.java)
+            if (!response.isSuccessful || !parsed.success) {
+                throw IllegalStateException(parsed.message ?: "Geräteregistrierung fehlgeschlagen")
             }
         }
     }
@@ -106,9 +105,7 @@ class FeuerwehrApiClient {
         runCatching {
             val request = authorizedGet("${normalize(baseUrl)}/api/v1/units/$unitId/divera/alarms", sessionCookie)
             http.newCall(request).execute().use { response ->
-                val raw = response.body?.string().orEmpty()
-                val parsed = moshi.adapter(DiveraAlarmsResponse::class.java).fromJson(raw)
-                    ?: throw IllegalStateException("Ungültige Server-Antwort")
+                val parsed = parseJson(response, DiveraAlarmsResponse::class.java)
                 if (!response.isSuccessful) {
                     throw IllegalStateException(parsed.message ?: "Einsätze nicht abrufbar")
                 }
@@ -120,8 +117,27 @@ class FeuerwehrApiClient {
         Request.Builder()
             .url(url)
             .header("Cookie", sessionCookie)
+            .header("Accept", "application/json")
             .get()
             .build()
+
+    private fun <T> parseJson(response: Response, type: Class<T>): T {
+        if (response.code == 401 || response.code == 403) {
+            throw SessionExpiredException()
+        }
+        if (response.code in 300..399) {
+            throw SessionExpiredException("Sitzung abgelaufen — bitte erneut anmelden")
+        }
+        val raw = response.body?.string().orEmpty().trim()
+        if (raw.isEmpty() || (!raw.startsWith("{") && !raw.startsWith("["))) {
+            if (raw.contains("<html", ignoreCase = true) || raw.contains("<!DOCTYPE", ignoreCase = true)) {
+                throw SessionExpiredException("Sitzung abgelaufen — bitte erneut anmelden")
+            }
+            throw IllegalStateException("Ungültige Server-Antwort (kein JSON)")
+        }
+        return moshi.adapter(type).fromJson(raw)
+            ?: throw IllegalStateException("Ungültige Server-Antwort")
+    }
 
     private fun extractSessionCookie(setCookies: List<String>): String? {
         for (header in setCookies) {

@@ -2,6 +2,7 @@ package de.feuerwehr.manager.config;
 
 import de.feuerwehr.manager.dsgvo.DsgvoProperties;
 import de.feuerwehr.manager.einsatzapp.FcmProperties;
+import de.feuerwehr.manager.security.ApiAuthenticationEntryPoint;
 import de.feuerwehr.manager.security.AppUserDetailsService;
 import de.feuerwehr.manager.security.AuditLogoutSuccessHandler;
 import de.feuerwehr.manager.security.TestModeLogoutHandler;
@@ -57,7 +58,8 @@ public class SecurityConfig {
             AuthenticationManager authenticationManager,
             AuditLogoutSuccessHandler auditLogoutSuccessHandler,
             TestModeLogoutHandler testModeLogoutHandler,
-            TotpAuthenticationSuccessHandler totpAuthenticationSuccessHandler)
+            TotpAuthenticationSuccessHandler totpAuthenticationSuccessHandler,
+            ApiAuthenticationEntryPoint apiAuthenticationEntryPoint)
             throws Exception {
         http.authenticationManager(authenticationManager);
         http
@@ -70,8 +72,9 @@ public class SecurityConfig {
                                 "/api/v1/einsatzapp/**"))
                 .sessionManagement(session -> session
                         .sessionFixation(sf -> sf.changeSessionId())
-                        .maximumSessions(1)
+                        .maximumSessions(2)
                         .maxSessionsPreventsLogin(false))
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(apiAuthenticationEntryPoint))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/login",

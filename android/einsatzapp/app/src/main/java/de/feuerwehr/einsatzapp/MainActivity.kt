@@ -16,6 +16,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
+import de.feuerwehr.einsatzapp.data.CredentialStore
 import de.feuerwehr.einsatzapp.data.ServerConfigStore
 import de.feuerwehr.einsatzapp.data.SessionStore
 import de.feuerwehr.einsatzapp.fcm.DeviceRegistrar
@@ -24,15 +25,15 @@ import de.feuerwehr.einsatzapp.ui.AlarmDetailScreen
 import de.feuerwehr.einsatzapp.ui.HomeScreen
 import de.feuerwehr.einsatzapp.ui.LoginScreen
 import de.feuerwehr.einsatzapp.ui.MainViewModel
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
     private val serverConfigStore by lazy { ServerConfigStore(this) }
     private val sessionStore by lazy { SessionStore(this) }
+    private val credentialStore by lazy { CredentialStore(this) }
     private val viewModel: MainViewModel by viewModels {
-        MainViewModel.Factory(serverConfigStore, sessionStore)
+        MainViewModel.Factory(applicationContext, serverConfigStore, sessionStore, credentialStore)
     }
 
     private val notificationPermission = registerForActivityResult(
@@ -85,11 +86,16 @@ class MainActivity : ComponentActivity() {
         }
 
         lifecycleScope.launch {
-            if (sessionStore.session.first() != null) {
-                viewModel.refreshAlarms()
-            }
+            viewModel.restoreSession()
         }
         handleAlarmIntent(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        lifecycleScope.launch {
+            viewModel.restoreSession()
+        }
     }
 
     override fun onNewIntent(intent: android.content.Intent) {

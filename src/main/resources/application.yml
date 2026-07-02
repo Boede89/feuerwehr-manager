@@ -33,7 +33,8 @@ server:
     max-swallow-size: 128MB
   servlet:
     session:
-      timeout: 8h
+      # Wird zusätzlich über feuerwehr.security.session-timeout-minutes gesetzt (SessionTimeoutConfig).
+      timeout: 30d
       cookie:
         http-only: true
         same-site: lax
@@ -53,7 +54,7 @@ feuerwehr:
     bootstrap-admin-username: ${FEUERWEHR_BOOTSTRAP_ADMIN_USERNAME:admin}
     bootstrap-admin-password: ${FEUERWEHR_BOOTSTRAP_ADMIN_PASSWORD:changeme}
     bootstrap-admin-display-name: Administrator
-    session-timeout-minutes: 480
+    session-timeout-minutes: ${FEUERWEHR_SESSION_TIMEOUT_MINUTES:43200}
     rfid-api-enabled: ${FEUERWEHR_RFID_API_ENABLED:true}
     bootstrap-admin-reset-password: ${FEUERWEHR_BOOTSTRAP_ADMIN_RESET_PASSWORD:false}
     min-password-length: ${FEUERWEHR_MIN_PASSWORD_LENGTH:4}

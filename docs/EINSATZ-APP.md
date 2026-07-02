@@ -146,6 +146,14 @@ Das `fcmToken` kommt **von der Android-App** (Phase 3), nicht aus der Dienstkont
 4. Im Dialog **OK** = Push senden, **Abbrechen** = nur Einsatz auf der Startseite (ohne Push).
 5. Ergebnis prüfen: Benachrichtigung auf dem Handy; unter **Einsatz-App** → Push-Protokoll der letzten Versände.
 
+## Dauerhafte Anmeldung (Einsatz-App)
+
+- Server-Session: **30 Tage** Inaktivität (`feuerwehr.security.session-timeout-minutes`, Standard 43200).
+- API-Anfragen ohne gültige Session liefern **JSON 401** (kein HTML-Login mehr).
+- Die Android-App speichert Zugangsdaten **verschlüsselt** und meldet sich bei abgelaufener Session **automatisch** wieder an.
+- **Push-Empfang** funktioniert unabhängig von der Session; nur das Nachladen der Einsatzliste braucht eine gültige Anmeldung.
+- **2FA:** Automatische Wiederanmeldung scheitert — App-Account ohne 2FA oder TOTP in der App (Phase 4).
+
 ## Nächste Schritte
 
 - **Phase 4:** Pro Benutzer steuern, ob und welche Einsatzdaten (Adresse, Stichwort, …) er erhält
