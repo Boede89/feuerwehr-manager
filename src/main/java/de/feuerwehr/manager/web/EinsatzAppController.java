@@ -45,6 +45,7 @@ public class EinsatzAppController {
             model.addAttribute("pushEnabled", einsatzAppSettingsService.isPushEnabled(unit.getId()));
             model.addAttribute("fcmConfigured", einsatzAppSettingsService.isFcmConfigured());
             model.addAttribute("deviceCount", einsatzAppSettingsService.countDevices(unit.getId()));
+            model.addAttribute("registeredUsers", einsatzAppSettingsService.listRegisteredUsers(unit.getId()));
             List<EinsatzappPushLog> recentPushLog = einsatzAppSettingsService.recentPushLog(unit.getId());
             model.addAttribute("recentPushLog", recentPushLog);
             return "einsatzapp/index";
@@ -71,6 +72,9 @@ public class EinsatzAppController {
     }
 
     private void requireEinsatzAppRead(AppUserDetails actor, long unitId) {
+        if (actor != null && actor.getRole().isAdminLevel()) {
+            return;
+        }
         userPermissionService.requirePermission(actor, unitId, "einsatzapp.read");
     }
 

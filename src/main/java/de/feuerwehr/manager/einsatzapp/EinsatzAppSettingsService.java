@@ -1,11 +1,16 @@
 package de.feuerwehr.manager.einsatzapp;
 
+import de.feuerwehr.manager.security.AppUserDetails;
+import de.feuerwehr.manager.security.UserPermissionService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +24,7 @@ public class EinsatzAppSettingsService {
     private final EinsatzappDeviceTokenRepository deviceTokenRepository;
     private final EinsatzappPushLogRepository pushLogRepository;
     private final FcmConfigService fcmConfigService;
+    private final UserPermissionService userPermissionService;
 
     @Transactional
     public UnitEinsatzappSettings ensureSettings(long unitId) {
@@ -47,6 +53,43 @@ public class EinsatzAppSettingsService {
     @Transactional(readOnly = true)
     public List<EinsatzappPushLog> recentPushLog(long unitId) {
         return pushLogRepository.findTop10ByUnitIdOrderByCreatedAtDesc(unitId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<EinsatzappRegisteredUserRow> listRegisteredUsers(long unitId) {
+        Map<Long, AggregatedUserDevices> byUser = new LinkedHashMap<>();
+        for (EinsatzappDeviceToken token : deviceTokenRepository.findByUnitIdWithUserOrderByUserAndLastSeen(unitId)) {
+            User user = token.getUser();
+            if (user == null || user.getAnonymizedAt() != null) {
+                continue;
+            }
+            AggregatedUserDevices agg =
+                    byUser.computeIfAbsent(user.getId(), id -> new AggregatedUserDevices(user));
+            agg.add(token);
+        }
+        List<EinsatzappRegisteredUserRow> rows = new ArrayList<>();
+        for (AggregatedUserDevices agg : byUser.values()) {
+            User user = agg.user();
+            boolean pushEligible =
+                    userPermissionService.hasPermission(AppUserDetails.from(user), unitId, "einsatzapp.read");
+            rows.add(new EinsatzappRegisteredUserRow(
+                    user.getId(),
+                    user.getUsername(),
+                    user.getDisplayName(),
+                    agg.deviceCount(),
+                    agg.deviceSummary(),
+                    agg.firstRegisteredAt(),
+                    agg.lastSeenAt(),
+                    pushEligible));
+        }
+        rows.sort((a, b) -> {
+            int byName = a.displayName().compareToIgnoreCase(b.displayName());
+            if (byName != 0) {
+                return byName;
+            }
+            return a.username().compareToIgnoreCase(b.username());
+        });
+        return rows;
     }
 
     @Transactional(readOnly = true)
@@ -104,6 +147,59 @@ public class EinsatzAppSettingsService {
             return null;
         }
         return value.trim();
+    }
+
+    private static final class AggregatedUserDevices {
+        private final User user;
+        private int deviceCount;
+        private final List<String> labels = new ArrayList<>();
+        private Instant firstRegisteredAt;
+        private Instant lastSeenAt;
+
+        private AggregatedUserDevices(User user) {
+            this.user = user;
+        }
+
+        private User user() {
+            return user;
+        }
+
+        private void add(EinsatzappDeviceToken token) {
+            deviceCount++;
+            String label = token.getDeviceLabel();
+            if (label != null && !label.isBlank()) {
+                labels.add(label.trim());
+            } else if (token.getPlatform() != null && !token.getPlatform().isBlank()) {
+                labels.add(token.getPlatform().trim());
+            }
+            Instant created = token.getCreatedAt();
+            if (created != null && (firstRegisteredAt == null || created.isBefore(firstRegisteredAt))) {
+                firstRegisteredAt = created;
+            }
+            Instant seen = token.getLastSeenAt();
+            if (seen != null && (lastSeenAt == null || seen.isAfter(lastSeenAt))) {
+                lastSeenAt = seen;
+            }
+        }
+
+        private int deviceCount() {
+            return deviceCount;
+        }
+
+        private String deviceSummary() {
+            if (labels.isEmpty()) {
+                return deviceCount == 1 ? "1 Gerät" : deviceCount + " Geräte";
+            }
+            return String.join(", ", labels);
+        }
+
+        private Instant firstRegisteredAt() {
+            return firstRegisteredAt;
+        }
+
+        private Instant lastSeenAt() {
+            return lastSeenAt;
+        }
     }
 
     private final UserRepository userRepository;

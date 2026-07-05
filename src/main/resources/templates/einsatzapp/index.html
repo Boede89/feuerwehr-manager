@@ -39,6 +39,53 @@
   </div>
 
   <div class="card mt-md">
+    <div class="card__header">Angemeldete App-Nutzer</div>
+    <div class="card__body card__body--flush">
+      <p class="hint" style="padding: 0 1rem 0.75rem;">
+        Benutzer mit installierter Einsatz-App, die sich mindestens einmal angemeldet und das Gerät registriert haben.
+        <strong>Push</strong> = Berechtigung „Einsatz-App“ (Lesen) für diese Einheit.
+      </p>
+      <div class="table-wrapper" th:if="${!#lists.isEmpty(registeredUsers)}">
+        <table class="table">
+          <thead>
+          <tr>
+            <th>Benutzer</th>
+            <th>Geräte</th>
+            <th>Erstmals</th>
+            <th>Zuletzt aktiv</th>
+            <th>Push</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="row : ${registeredUsers}">
+            <td>
+              <span th:text="${row.displayName}">Max Mustermann</span>
+              <span class="text-muted text-sm" th:text="'(' + ${row.username} + ')'">(max)</span>
+            </td>
+            <td>
+              <span th:text="${row.deviceCount}">1</span>
+              <span class="text-muted text-sm" th:if="${row.deviceSummary != null}"
+                    th:text="' — ' + ${row.deviceSummary}"> — Pixel</span>
+            </td>
+            <td class="text-muted text-sm"
+                th:text="${row.firstRegisteredAt != null ? #temporals.format(row.firstRegisteredAt.atZone(T(java.time.ZoneId).of('Europe/Berlin')), 'dd.MM.yyyy HH:mm') : '—'}">—</td>
+            <td class="text-muted text-sm"
+                th:text="${row.lastSeenAt != null ? #temporals.format(row.lastSeenAt.atZone(T(java.time.ZoneId).of('Europe/Berlin')), 'dd.MM.yyyy HH:mm') : '—'}">—</td>
+            <td>
+              <span class="badge" th:classappend="${row.pushEligible} ? ' active' : ' inactive'"
+                    th:text="${row.pushEligible} ? 'Ja' : 'Nein'">Ja</span>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="table-empty" th:if="${#lists.isEmpty(registeredUsers)}">
+        Noch keine App-Anmeldungen für diese Einheit registriert.
+      </p>
+    </div>
+  </div>
+
+  <div class="card mt-md">
     <div class="card__header">Letzte Push-Versuche</div>
     <div class="card__body card__body--flush">
       <div class="table-wrapper" th:if="${!#lists.isEmpty(recentPushLog)}">
