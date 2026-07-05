@@ -8,8 +8,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Optional: erkennt neue Divera-Einsätze per Polling und loggt sie.
- * Später: hier ansetzen für FCM / Web-Push / Benachrichtigungs-Outbox.
+ * Optional: erkennt neue Divera-Einsätze per Polling und synchronisiert Einsatzberichte.
+ * Push-Benachrichtigungen: {@link de.feuerwehr.manager.einsatzapp.EinsatzAppAlarmPollScheduler}.
  */
 @Component
 @RequiredArgsConstructor

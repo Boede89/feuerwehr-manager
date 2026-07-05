@@ -214,7 +214,7 @@ public class DiveraApiClient {
         if (tsCreate > 10_000_000_000L) {
             tsCreate = tsCreate / 1000;
         }
-        boolean closed = isClosed(item);
+        boolean closed = DiveraAlarmClosedSupport.isClosed(item);
         return java.util.Optional.of(new DiveraAlarmSummary(
                 id,
                 item.path("title").asText(""),
@@ -223,17 +223,6 @@ public class DiveraApiClient {
                 dateTs,
                 tsCreate,
                 closed));
-    }
-
-    private static boolean isClosed(JsonNode item) {
-        JsonNode closedNode = item.path("closed");
-        if (closedNode.isBoolean()) {
-            return closedNode.asBoolean(false);
-        }
-        if (closedNode.isNumber()) {
-            return closedNode.asInt(0) != 0;
-        }
-        return "1".equals(closedNode.asText("").trim()) || "true".equalsIgnoreCase(closedNode.asText(""));
     }
 
     private static String textOr(JsonNode n, String a, String b, String def) {

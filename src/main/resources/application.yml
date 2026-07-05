@@ -68,6 +68,11 @@ feuerwehr:
     # Host vor „docker compose up“: export FEUERWEHR_DIVERA_POLL_ENABLED=true (siehe docs/SCHRITT-FUER-SCHRITT.md)
     poll-enabled: ${FEUERWEHR_DIVERA_POLL_ENABLED:false}
     poll-interval-ms: 120000
+  einsatzapp:
+    # Fallback-Push wenn DIVERA keinen Webhook liefert (DIVERA-API alle 30 s abfragen)
+    alarm-poll-enabled: ${FEUERWEHR_EINSATZAPP_ALARM_POLL_ENABLED:true}
+    alarm-poll-interval-ms: ${FEUERWEHR_EINSATZAPP_ALARM_POLL_INTERVAL_MS:30000}
+    alarm-poll-initial-delay-ms: ${FEUERWEHR_EINSATZAPP_ALARM_POLL_INITIAL_DELAY_MS:60000}
   fcm:
     enabled: ${FEUERWEHR_FCM_ENABLED:false}
     service-account-path: ${FEUERWEHR_FCM_SERVICE_ACCOUNT_PATH:}

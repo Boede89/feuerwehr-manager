@@ -89,7 +89,7 @@ public final class DiveraAlarmJsonParser {
                 textOrNull(alarm, "address", "Address"),
                 dateTs,
                 tsCreate,
-                alarm.path("closed").asBoolean(false) || alarm.path("Closed").asBoolean(false)));
+                DiveraAlarmClosedSupport.isClosed(alarm)));
     }
 
     private static JsonNode extractAlarmNode(JsonNode root) {

@@ -36,10 +36,14 @@ Für Android Studio brauchst du später eine **zweite** Datei aus Firebase → A
 
 ## Architektur
 
-1. **DIVERA** → Webhook an Feuerwehr-Manager (`POST /api/webhook/divera?unit=…`)
+1. **DIVERA** → Webhook an Feuerwehr-Manager (`POST /api/webhook/divera?unit=…`) **oder** periodischer API-Abruf (Fallback)
 2. **Backend** parst Alarm, prüft Modul + `push_enabled` + FCM-Konfiguration
 3. **Firebase Cloud Messaging (HTTP v1)** → registrierte Android-Geräte
 4. **App** lädt Details über `GET /api/v1/units/{unitId}/divera/alarms`
+
+**Webhook (schnell):** DIVERA muss den Webhook in den Schnittstellen-Einstellungen korrekt eintragen (URL + Secret).
+
+**Polling-Fallback (zuverlässig):** Wenn kein Webhook ankommt, fragt der Server standardmäßig alle **30 Sekunden** die DIVERA-API ab (`feuerwehr.einsatzapp.alarm-poll-enabled`, Standard: an). Dafür reicht der DIVERA Access Key — kein Webhook nötig. Bereits erfolgreich gesendete Alarme werden nicht erneut verschickt.
 
 Push wird nur gesendet wenn:
 

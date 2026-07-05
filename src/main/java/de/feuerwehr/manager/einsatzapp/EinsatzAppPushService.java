@@ -8,6 +8,7 @@ import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.unit.UnitRepository;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,8 +31,21 @@ public class EinsatzAppPushService {
 
     @Transactional
     public void tryDispatchFromWebhook(long unitId, DiveraAlarmDetails details) {
+        tryDispatch(unitId, details, false);
+    }
+
+    @Transactional
+    public void sendTestPush(long unitId) {
+        tryDispatch(unitId, testPushDetails(), true);
+    }
+
+    private void tryDispatch(long unitId, DiveraAlarmDetails details, boolean force) {
         if (details == null || details.alarmId() <= 0) {
             recordSkipped(unitId, null, null, "Übersprungen: Ungültige Alarm-ID");
+            return;
+        }
+        if (!force && alreadyHandled(unitId, details.alarmId())) {
+            log.debug("[Einsatz-App] Push bereits behandelt unit={} alarm={}", unitId, details.alarmId());
             return;
         }
         if (details.closed()) {
@@ -78,11 +92,6 @@ public class EinsatzAppPushService {
     }
 
     @Transactional
-    public void sendTestPush(long unitId) {
-        tryDispatchFromWebhook(unitId, testPushDetails());
-    }
-
-    @Transactional
     public void recordSkipped(long unitId, String reason) {
         recordSkipped(unitId, null, null, reason);
     }
@@ -91,6 +100,30 @@ public class EinsatzAppPushService {
     public void recordSkipped(long unitId, Long alarmId, String alarmTitle, String reason) {
         logPush(unitId, alarmId, alarmTitle, 0, 0, reason);
         log.info("[Einsatz-App] Push übersprungen unit={}: {}", unitId, reason);
+    }
+
+    private boolean alreadyHandled(long unitId, long alarmId) {
+        Optional<EinsatzappPushLog> latest =
+                pushLogRepository.findTopByUnitIdAndDiveraAlarmIdOrderByCreatedAtDesc(unitId, alarmId);
+        if (latest.isEmpty()) {
+            return false;
+        }
+        EinsatzappPushLog entry = latest.get();
+        if (entry.getTokensSent() > 0) {
+            return true;
+        }
+        String error = entry.getErrorMessage();
+        if (error == null || error.isBlank()) {
+            return false;
+        }
+        if (!error.startsWith("Übersprungen:")) {
+            return false;
+        }
+        return error.contains("geschlossen")
+                || error.contains("deaktiviert")
+                || error.contains("nicht aktiv")
+                || error.contains("FCM nicht konfiguriert")
+                || error.contains("Ungültige Alarm-ID");
     }
 
     private List<String> resolveTargetTokens(long unitId) {
