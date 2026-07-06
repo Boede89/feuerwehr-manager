@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de" xmlns:th="http://www.thymeleaf.org"
       th:replace="~{fragments/layout :: layout('Einsatz anlegen', ~{::main})}">
-<main>
+<main class="manual-alarm-page">
   <div class="page-header page-header--toolbar">
     <div>
       <h2 th:text="${pageTitle}">Einsatz anlegen</h2>
@@ -14,29 +14,27 @@
 
   <div th:replace="~{fragments/flash-messages :: alerts}"></div>
 
-  <form method="post" th:action="@{/einsatz/manuell}" class="form-grid manual-alarm-form einsatzbericht-form-page" id="manual-alarm-form">
+  <form method="post" th:action="@{/einsatz/manuell}" class="manual-alarm-form" id="manual-alarm-form">
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
     <input type="hidden" name="unit" th:value="${unitId}"/>
 
-    <div class="card form-grid--full">
+    <div class="card">
       <div class="card__header">Einsatzart</div>
-      <div class="card__body">
-        <div class="form-group form-group--inline-options">
-          <label class="radio-inline">
-            <input type="radio" name="exercise" value="false" checked/>
-            Realer Einsatz
-          </label>
-          <label class="radio-inline">
-            <input type="radio" name="exercise" value="true"/>
-            Übung
-          </label>
-        </div>
+      <div class="card__body manual-alarm-form__section">
+        <label class="radio-inline">
+          <input type="radio" name="exercise" value="false" checked/>
+          Realer Einsatz
+        </label>
+        <label class="radio-inline">
+          <input type="radio" name="exercise" value="true"/>
+          Übung
+        </label>
       </div>
     </div>
 
-    <div class="card form-grid--full">
+    <div class="card">
       <div class="card__header">Einsatz</div>
-      <div class="card__body incident-form-grid-2">
+      <div class="card__body manual-alarm-form__section">
         <div class="form-group">
           <label for="alarmNumber">Einsatznummer</label>
           <input id="alarmNumber" name="alarmNumber" type="text" maxlength="64" class="field"
@@ -55,19 +53,19 @@
             </ul>
           </div>
         </div>
-        <div class="form-group form-group--full">
+        <div class="form-group">
           <label for="meldebild">Meldebild</label>
           <textarea id="meldebild" name="meldebild" rows="3" class="field"
                     placeholder="z. B. Brennt Mülltonne / Müllcontainer"></textarea>
         </div>
-        <div class="form-group form-group--full">
+        <div class="form-group">
           <label for="bemerkung">Bemerkung</label>
           <input id="bemerkung" name="bemerkung" type="text" maxlength="512" class="field"
                  placeholder="Zusätzliche Hinweise"/>
         </div>
-        <div class="form-group form-group--full">
+        <div class="form-group">
           <span class="field-label">Sondersignal</span>
-          <div class="form-group--inline-options">
+          <div class="manual-alarm-form__options">
             <label class="radio-inline">
               <input type="radio" name="sondersignal" value="true" checked/>
               Mit Sondersignal
@@ -81,46 +79,43 @@
       </div>
     </div>
 
-    <div class="card form-grid--full">
+    <div class="card">
       <div class="card__header">Einsatzort</div>
-      <div class="card__body incident-form-grid-2">
-        <div class="form-group form-group--full">
+      <div class="card__body manual-alarm-form__section">
+        <div class="form-group">
           <label for="objectName">Objekt</label>
           <input id="objectName" name="objectName" type="text" maxlength="255" class="field"
                  placeholder="z. B. Kindergarten Anna Polmans"/>
         </div>
         <div class="form-group">
           <label for="postalCode">PLZ</label>
-          <input type="hidden" name="postalCode" th:value="${defaults.postalCode}"/>
-          <input id="postalCode" type="text" maxlength="16" class="field"
-                 th:value="${defaults.postalCode}" readonly="readonly" tabindex="-1"/>
+          <input id="postalCode" name="postalCode" type="text" maxlength="16" class="field"
+                 th:value="${defaults.postalCode}"/>
         </div>
         <div class="form-group">
           <label for="city">Ort</label>
-          <input type="hidden" name="city" th:value="${defaults.city}"/>
-          <input id="city" type="text" maxlength="128" class="field"
-                 th:value="${defaults.city}" readonly="readonly" tabindex="-1"/>
+          <input id="city" name="city" type="text" maxlength="128" class="field"
+                 th:value="${defaults.city}"/>
         </div>
         <div class="form-group">
           <label for="district">Ortsteil</label>
-          <input type="hidden" name="district" th:value="${defaults.district}"/>
-          <input id="district" type="text" maxlength="128" class="field"
-                 th:value="${defaults.district}" readonly="readonly" tabindex="-1"/>
+          <input id="district" name="district" type="text" maxlength="128" class="field"
+                 th:value="${defaults.district}" placeholder="z. B. Amern"/>
         </div>
         <div class="form-group">
-          <label for="street">Straße <span class="required">*</span></label>
-          <input id="street" name="street" type="text" maxlength="255" class="field" required/>
+          <label for="street">Straße</label>
+          <input id="street" name="street" type="text" maxlength="255" class="field"/>
         </div>
         <div class="form-group">
-          <label for="houseNumber">Hausnummer <span class="required">*</span></label>
-          <input id="houseNumber" name="houseNumber" type="text" maxlength="64" class="field" required/>
+          <label for="houseNumber">Hausnummer</label>
+          <input id="houseNumber" name="houseNumber" type="text" maxlength="64" class="field"/>
         </div>
       </div>
     </div>
 
-    <div class="card form-grid--full">
+    <div class="card">
       <div class="card__header">Meldung &amp; Kräfte</div>
-      <div class="card__body incident-form-grid-2">
+      <div class="card__body manual-alarm-form__section">
         <div class="form-group">
           <label for="reporterName">Meldender (Name)</label>
           <input id="reporterName" name="reporterName" type="text" maxlength="255" class="field"/>
@@ -133,7 +128,7 @@
           <label for="meldeweg">Meldeweg</label>
           <input id="meldeweg" name="meldeweg" type="text" maxlength="128" class="field" value="Notruf 112"/>
         </div>
-        <div class="form-group form-group--full">
+        <div class="form-group">
           <label for="beteiligteEinsatzmittel">Beteiligte Einsatzmittel</label>
           <input id="beteiligteEinsatzmittel" name="beteiligteEinsatzmittel" type="text" maxlength="512" class="field"
                  th:value="${defaults.beteiligteEinsatzmittel}"/>
@@ -141,15 +136,15 @@
       </div>
     </div>
 
-    <div class="card form-grid--full">
+    <div class="card">
       <div class="card__header">Leitstelle (Alarmdepesche)</div>
-      <div class="card__body incident-form-grid-2">
-        <div class="form-group form-group--full">
+      <div class="card__body manual-alarm-form__section">
+        <div class="form-group">
           <label for="leitstelleName">Name</label>
           <input id="leitstelleName" name="leitstelleName" type="text" maxlength="255" class="field"
                  th:value="${defaults.leitstelleName}"/>
         </div>
-        <div class="form-group form-group--full">
+        <div class="form-group">
           <label for="leitstelleAddress">Adresse</label>
           <input id="leitstelleAddress" name="leitstelleAddress" type="text" maxlength="512" class="field"
                  th:value="${defaults.leitstelleAddress}"/>
@@ -165,13 +160,9 @@
       </div>
     </div>
 
-    <div class="card form-grid--full">
-      <div class="card__body">
-        <div class="btn-group">
-          <button type="submit" class="btn btn--primary" name="another" value="false">Einsatz speichern</button>
-          <button type="submit" class="btn btn--outline" name="another" value="true">Speichern &amp; weiteren anlegen</button>
-        </div>
-      </div>
+    <div class="manual-alarm-form__actions">
+      <button type="submit" class="btn btn--primary" name="another" value="false">Einsatz speichern</button>
+      <button type="submit" class="btn btn--outline" name="another" value="true">Speichern &amp; weiteren anlegen</button>
     </div>
   </form>
 

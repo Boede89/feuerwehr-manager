@@ -34,8 +34,16 @@
               <form method="post" th:action="@{/einsatz/manuell/{id}/depesche(id=${a.manualRecordId})}" class="table-inline-form">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
                 <input type="hidden" name="unit" th:value="${unitId}"/>
+                <input type="hidden" name="useGeraetehaus" value="true"/>
+                <input type="hidden" name="routeStartAddress" th:value="${geraetehausAddress}"/>
                 <input type="hidden" name="computeRoute" value="true"/>
                 <button type="submit" class="btn btn--outline btn--sm">Depesche</button>
+              </form>
+              <form method="post" th:action="@{/einsatz/manuell/{id}/delete(id=${a.manualRecordId})}" class="table-inline-form"
+                    onsubmit="return confirm('Geplanten Einsatz wirklich löschen?');">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <input type="hidden" name="unit" th:value="${unitId}"/>
+                <button type="submit" class="btn btn--outline btn--sm btn--danger">Löschen</button>
               </form>
             </span>
           </div>

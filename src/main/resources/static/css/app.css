@@ -5859,3 +5859,43 @@ span.required { color: var(--error); }
   white-space: pre-wrap;
 }
 
+/* Manueller Einsatz – Formular */
+.manual-alarm-page .manual-alarm-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 40rem;
+}
+
+.manual-alarm-page .manual-alarm-form__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.manual-alarm-page .manual-alarm-form__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+}
+
+.manual-alarm-page .manual-alarm-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.manual-alarm-page .radio-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+}
+
+.manual-alarm-page .field-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+

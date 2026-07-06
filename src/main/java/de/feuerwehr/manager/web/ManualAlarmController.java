@@ -177,6 +177,23 @@ public class ManualAlarmController {
         }
     }
 
+    @PostMapping("/{id}/delete")
+    public String delete(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @PathVariable long id,
+            RedirectAttributes redirectAttributes) {
+        try {
+            accessControlService.requireUnitAccess(actor, unit);
+            manualAlarmService.deleteDraft(unit, id);
+            redirectAttributes.addFlashAttribute("success", "Geplanter Einsatz gelöscht.");
+            return "redirect:/?unit=" + unit;
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return "redirect:/?unit=" + unit;
+        }
+    }
+
     @PostMapping("/{id}/close")
     public String close(
             @AuthenticationPrincipal AppUserDetails actor,

@@ -183,11 +183,23 @@ public class ManualAlarmService {
         if (alarm.isClosed()) {
             throw new IllegalArgumentException("Beendete Einsätze können nicht gedruckt werden.");
         }
-        if (computeRoute && (alarm.getRouteStepsJson() == null || alarm.getRouteStepsJson().isBlank())) {
-            applyRoute(alarm, alarm.getUnit(), useGeraetehaus, routeStartAddressOverride, true);
+        String routeMessage = null;
+        if (computeRoute) {
+            routeMessage = applyRoute(alarm, alarm.getUnit(), useGeraetehaus, routeStartAddressOverride, true);
             alarm = repository.save(alarm);
         }
-        return new ActionResult(printDepescheInternal(unitId, alarm).message());
+        CupsPrintService.CupsPrintResult printResult = printDepescheInternal(unitId, alarm);
+        StringBuilder msg = new StringBuilder(printResult.message());
+        if (routeMessage != null) {
+            msg.append(' ').append(routeMessage);
+        }
+        return new ActionResult(msg.toString());
+    }
+
+    @Transactional
+    public void deleteDraft(long unitId, long manualRecordId) {
+        ManualAlarm alarm = loadOpenDraft(unitId, manualRecordId);
+        repository.delete(alarm);
     }
 
     private CupsPrintService.CupsPrintResult printDepescheInternal(long unitId, ManualAlarm alarm) {
@@ -219,7 +231,7 @@ public class ManualAlarmService {
         if (start == null) {
             return "Route: Keine Startadresse (Gerätehaus-Adresse in Einheit-Stammdaten pflegen).";
         }
-        String destination = buildAddressLine(alarm);
+        String destination = buildRoutingDestination(alarm);
         if (destination == null) {
             return "Route: Einsatzort unvollständig — keine Route berechnet.";
         }
@@ -402,6 +414,19 @@ public class ManualAlarmService {
         }
         String line = sb.toString().trim();
         return line.isEmpty() ? null : line;
+    }
+
+    /** Zieladresse für Routing — auch ohne Straße/Hausnummer (PLZ/Ort/Ortsteil/Objekt). */
+    static String buildRoutingDestination(ManualAlarm alarm) {
+        String line = buildAddressLine(alarm);
+        if (alarm.getObjectName() != null && !alarm.getObjectName().isBlank()) {
+            String object = alarm.getObjectName().trim();
+            if (line != null && !line.isBlank()) {
+                return object + ", " + line;
+            }
+            return object;
+        }
+        return line;
     }
 
     private static String blankToNull(String value) {
