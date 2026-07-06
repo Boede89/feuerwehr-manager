@@ -3,8 +3,9 @@
     <string name="app_name">Feuerwehr Einsatz</string>
     <string name="alarm_tones_bundled_header">App-Töne (Feuerwehr-Manager)</string>
     <string name="alarm_tones_system_header">System-Töne</string>
-    <!-- Optionale Anzeigenamen — Ressourcenname in res/raw muss tone_alarm_1.mp3 usw. heißen -->
-    <string name="alarm_tone_1">Alarmton 1</string>
-    <string name="alarm_tone_2">Alarmton 2</string>
-    <string name="alarm_tone_3">Alarmton 3</string>
+    <string name="alarm_tone_quattrolang">Quattro lang</string>
+    <string name="alarm_tone_quattro_96_schleife">Quattro 96 Schleife</string>
+    <string name="alarm_tone_quattro_98_1">Quattro 98 (1)</string>
+    <string name="alarm_tone_quattro_98_2">Quattro 98 (2)</string>
+    <string name="alarm_tone_swissphone_q96">Swissphone Q96</string>
 </resources>

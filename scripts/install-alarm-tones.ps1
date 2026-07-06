@@ -1,6 +1,6 @@
-# Kopiert MP3-Alarmtöne nach android/einsatzapp/app/src/main/res/raw/
+# Kopiert MP3-Alarmtoene nach android/einsatzapp/app/src/main/res/raw/
 $ErrorActionPreference = "Stop"
-$root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+$root = Split-Path -Parent $PSScriptRoot
 $src = Join-Path $root "android\einsatzapp\alarm-tones-source"
 $dst = Join-Path $root "android\einsatzapp\app\src\main\res\raw"
 
@@ -12,7 +12,7 @@ New-Item -ItemType Directory -Force -Path $dst | Out-Null
 
 $files = Get-ChildItem -Path $src -Filter "*.mp3" -File
 if ($files.Count -eq 0) {
-    Write-Host "Keine MP3-Dateien in $src — bitte Dateien ablegen und Skript erneut starten."
+    Write-Host "Keine MP3-Dateien in $src - bitte Dateien ablegen und Skript erneut starten."
     exit 0
 }
 

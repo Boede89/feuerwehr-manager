@@ -14,9 +14,11 @@ import de.feuerwehr.einsatzapp.R
 object BundledAlarmTones {
 
     private val TITLE_OVERRIDES = mapOf(
-        "tone_alarm_1" to R.string.alarm_tone_1,
-        "tone_alarm_2" to R.string.alarm_tone_2,
-        "tone_alarm_3" to R.string.alarm_tone_3,
+        "tone_quattrolang" to R.string.alarm_tone_quattrolang,
+        "tone_quattro_96_schleife" to R.string.alarm_tone_quattro_96_schleife,
+        "tone_quattro_98_1" to R.string.alarm_tone_quattro_98_1,
+        "tone_quattro_98_2" to R.string.alarm_tone_quattro_98_2,
+        "tone_swissphone_q96" to R.string.alarm_tone_swissphone_q96,
     )
 
     fun load(context: Context): List<AlarmToneCatalog.AlarmTone> {
