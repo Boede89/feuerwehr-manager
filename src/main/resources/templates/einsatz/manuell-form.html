@@ -14,7 +14,7 @@
 
   <div th:replace="~{fragments/flash-messages :: alerts}"></div>
 
-  <form method="post" th:action="@{/einsatz/manuell}" class="form-grid">
+  <form method="post" th:action="@{/einsatz/manuell}" class="form-grid" id="manual-alarm-form">
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
     <input type="hidden" name="unit" th:value="${unitId}"/>
 
@@ -81,6 +81,38 @@
     </div>
 
     <div class="card form-grid--full">
+      <div class="card__header">Route (Alarmdepesche)</div>
+      <div class="card__body form-grid">
+        <div class="form-group form-group--full">
+          <label class="checkbox-inline">
+            <input type="checkbox" id="useGeraetehaus" name="useGeraetehaus" value="true" checked/>
+            Gerätehaus als Startadresse
+          </label>
+          <p class="hint" th:if="${geraetehausAddress != null and !#strings.isEmpty(geraetehausAddress)}"
+             th:text="'Adresse der Einheit: ' + ${geraetehausAddress}">
+            Adresse der Einheit
+          </p>
+          <p class="hint" th:if="${geraetehausAddress == null or #strings.isEmpty(geraetehausAddress)}">
+            Keine Gerätehaus-Adresse hinterlegt — bitte unter Admin → Konfiguration pflegen oder Startadresse manuell eingeben.
+          </p>
+        </div>
+        <div class="form-group form-group--full">
+          <label for="routeStartAddress">Startadresse (anpassbar)</label>
+          <input id="routeStartAddress" name="routeStartAddress" type="text" maxlength="512" class="field"
+                 th:value="${geraetehausAddress}"
+                 th:placeholder="${geraetehausAddress != null and !#strings.isEmpty(geraetehausAddress) ? geraetehausAddress : 'z. B. Hauptstraße 1, 41334 Nettetal'}"/>
+          <p class="hint">Wird bei aktivem Haken „Gerätehaus“ als Start verwendet; Sie können die vorausgefüllte Adresse hier ändern.</p>
+        </div>
+        <div class="form-group form-group--full">
+          <label class="checkbox-inline">
+            <input type="checkbox" id="computeRoute" name="computeRoute" value="true" checked/>
+            Route automatisch berechnen (Start → Einsatzort)
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="card form-grid--full">
       <div class="card__header">Meldung &amp; Kräfte</div>
       <div class="card__body form-grid">
         <div class="form-group">
@@ -104,11 +136,6 @@
           <input id="beteiligteEinsatzmittel" name="beteiligteEinsatzmittel" type="text" maxlength="512" class="field"
                  placeholder="z. B. || Amern Klein"/>
         </div>
-        <div class="form-group form-group--full">
-          <label for="routeInfo">Route (optional)</label>
-          <textarea id="routeInfo" name="routeInfo" rows="4" class="field"
-                    placeholder="Freitext — z. B. Routing aus der Leitstelle einfügen"></textarea>
-        </div>
       </div>
     </div>
 
@@ -118,12 +145,12 @@
         <div class="form-group form-group--full">
           <label for="leitstelleName">Name</label>
           <input id="leitstelleName" name="leitstelleName" type="text" maxlength="255" class="field"
-                 placeholder="z. B. Leitstelle Kreis Viersen"/>
+                 value="Leitstelle Kreis Viersen" placeholder="z. B. Leitstelle Kreis Viersen"/>
         </div>
         <div class="form-group form-group--full">
           <label for="leitstelleAddress">Adresse</label>
           <input id="leitstelleAddress" name="leitstelleAddress" type="text" maxlength="512" class="field"
-                 placeholder="z. B. Gerberstraße 3, 41748 Viersen"/>
+                 value="Gerberstraße 3, 41748 Viersen" placeholder="z. B. Gerberstraße 3, 41748 Viersen"/>
         </div>
         <div class="form-group">
           <label for="leitstellePhone">Telefon</label>
@@ -141,10 +168,10 @@
       <div class="card__body form-grid">
         <div class="form-group form-group--full">
           <label class="checkbox-inline">
-            <input type="checkbox" name="sendPush" value="true"/>
+            <input type="checkbox" name="sendPush" value="true" checked/>
             Push an Einsatz-App senden
           </label>
-          <p class="hint">Erfordert aktivierten Push und registrierte Geräte.</p>
+          <p class="hint">Erfordert aktivierten Push und registrierte Geräte in der Einsatz-App.</p>
         </div>
         <div class="form-group form-group--full">
           <label class="checkbox-inline">
@@ -159,5 +186,26 @@
       </div>
     </div>
   </form>
+
+  <script th:inline="javascript">
+    (function () {
+      var geraetehaus = /*[[${geraetehausAddress}]]*/ '';
+      var useGeraetehaus = document.getElementById('useGeraetehaus');
+      var routeStart = document.getElementById('routeStartAddress');
+      if (!useGeraetehaus || !routeStart) return;
+
+      function syncStartAddress() {
+        if (useGeraetehaus.checked && geraetehaus) {
+          routeStart.value = geraetehaus;
+          routeStart.readOnly = false;
+        } else if (!useGeraetehaus.checked) {
+          routeStart.readOnly = false;
+        }
+      }
+
+      useGeraetehaus.addEventListener('change', syncStartAddress);
+      syncStartAddress();
+    })();
+  </script>
 </main>
 </html>

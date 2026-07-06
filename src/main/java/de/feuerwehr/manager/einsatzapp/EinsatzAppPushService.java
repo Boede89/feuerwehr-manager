@@ -30,6 +30,27 @@ public class EinsatzAppPushService {
     private final UnitRepository unitRepository;
 
     @Transactional
+    public void dispatchManualAlarm(long unitId, DiveraAlarmDetails details) {
+        tryDispatch(unitId, details, true);
+    }
+
+    @Transactional(readOnly = true)
+    public String describeLastPush(long unitId, long alarmId) {
+        return pushLogRepository
+                .findTopByUnitIdAndDiveraAlarmIdOrderByCreatedAtDesc(unitId, alarmId)
+                .map(entry -> {
+                    if (entry.getTokensSent() > 0) {
+                        return "Push gesendet an " + entry.getTokensSent() + " Gerät(e).";
+                    }
+                    if (entry.getErrorMessage() != null && !entry.getErrorMessage().isBlank()) {
+                        return "Push: " + entry.getErrorMessage();
+                    }
+                    return "Push protokolliert.";
+                })
+                .orElse("Push: Kein Protokolleintrag.");
+    }
+
+    @Transactional
     public void tryDispatchFromWebhook(long unitId, DiveraAlarmDetails details) {
         tryDispatch(unitId, details, false);
     }

@@ -23,6 +23,36 @@ public final class UnitAddressSupport {
         return new UnitAddress(postal.city(), postal.postalCode(), streetParts.street(), streetParts.houseNumber());
     }
 
+    /** Vollständige Adresszeile für Routing (Gerätehaus). */
+    public static String fullAddressLine(Unit unit) {
+        if (unit == null) {
+            return "";
+        }
+        UnitAddress address = fromUnit(unit);
+        StringBuilder sb = new StringBuilder();
+        if (!isBlank(address.street())) {
+            sb.append(address.street().trim());
+            if (!isBlank(address.houseNumber())) {
+                sb.append(' ').append(address.houseNumber().trim());
+            }
+        } else if (!isBlank(unit.getStreet())) {
+            sb.append(unit.getStreet().trim());
+        }
+        if (!isBlank(address.postalCode())) {
+            if (sb.length() > 0) {
+                sb.append(", ");
+            }
+            sb.append(address.postalCode().trim());
+        }
+        if (!isBlank(address.location())) {
+            if (sb.length() > 0) {
+                sb.append(' ');
+            }
+            sb.append(address.location().trim());
+        }
+        return sb.toString().trim();
+    }
+
     public static void applyDefaultsToForm(EinsatzberichtForm form, Unit unit) {
         applyDefaultsToFormIfBlank(form, unit);
     }

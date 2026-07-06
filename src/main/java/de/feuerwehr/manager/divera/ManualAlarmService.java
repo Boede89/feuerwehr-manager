@@ -1,9 +1,14 @@
 package de.feuerwehr.manager.divera;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import de.feuerwehr.manager.berichte.UnitAddressSupport;
 import de.feuerwehr.manager.divera.DiveraAlarmDetailsMapper.DiveraAlarmDetails;
 import de.feuerwehr.manager.einsatzapp.EinsatzAppPushService;
 import de.feuerwehr.manager.print.CupsPrintService;
 import de.feuerwehr.manager.print.UnitPrintSettingsService;
+import de.feuerwehr.manager.routing.AlarmRouteService;
+import de.feuerwehr.manager.routing.AlarmRouteService.RoutePlan;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
 import de.feuerwehr.manager.user.User;
@@ -17,11 +22,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ManualAlarmService {
 
     private static final ZoneId ZONE = ZoneId.of("Europe/Berlin");
@@ -35,6 +42,8 @@ public class ManualAlarmService {
     private final EinsatzAppPushService einsatzAppPushService;
     private final AlarmdepechePdfService alarmdepechePdfService;
     private final UnitPrintSettingsService unitPrintSettingsService;
+    private final AlarmRouteService alarmRouteService;
+    private final ObjectMapper objectMapper;
 
     public record ManualAlarmInput(
             String alarmNumber,
@@ -53,17 +62,23 @@ public class ManualAlarmService {
             String callbackPhone,
             String meldeweg,
             String beteiligteEinsatzmittel,
-            String routeInfo,
             String leitstelleName,
             String leitstelleAddress,
             String leitstellePhone,
             String leitstelleEmail) {}
 
-    public record CreateResult(ManualAlarm alarm, String pushMessage, String printMessage) {}
+    public record CreateResult(ManualAlarm alarm, String pushMessage, String printMessage, String routeMessage) {}
 
     @Transactional
     public CreateResult create(
-            long unitId, long userId, ManualAlarmInput input, boolean sendPush, boolean printDepesche) {
+            long unitId,
+            long userId,
+            ManualAlarmInput input,
+            boolean useGeraetehaus,
+            String routeStartAddressOverride,
+            boolean computeRoute,
+            boolean sendPush,
+            boolean printDepesche) {
         if (input == null || input.title() == null || input.title().isBlank()) {
             throw new IllegalArgumentException("Stichwort ist erforderlich.");
         }
@@ -89,7 +104,6 @@ public class ManualAlarmService {
         alarm.setCallbackPhone(blankToNull(input.callbackPhone()));
         alarm.setMeldeweg(blankToNull(input.meldeweg()));
         alarm.setBeteiligteEinsatzmittel(blankToNull(input.beteiligteEinsatzmittel()));
-        alarm.setRouteInfo(blankToNull(input.routeInfo()));
         alarm.setLeitstelleName(blankToNull(input.leitstelleName()));
         alarm.setLeitstelleAddress(blankToNull(input.leitstelleAddress()));
         alarm.setLeitstellePhone(blankToNull(input.leitstellePhone()));
@@ -100,20 +114,69 @@ public class ManualAlarmService {
         alarm.setClosed(false);
         alarm.setCreatedAt(Instant.now());
         alarm.setCreatedBy(user);
+
+        String routeMessage = applyRoute(alarm, unit, useGeraetehaus, routeStartAddressOverride, computeRoute);
         ManualAlarm saved = repository.save(alarm);
 
         String pushMessage = null;
         if (sendPush) {
-            einsatzAppPushService.tryDispatchFromWebhook(unitId, toDetails(saved));
-            pushMessage = "Push-Versuch ausgelöst (siehe Einsatz-App → Push-Protokoll).";
+            einsatzAppPushService.dispatchManualAlarm(unitId, toDetails(saved));
+            pushMessage = einsatzAppPushService.describeLastPush(unitId, saved.getAlarmId());
         }
         String printMessage = null;
         if (printDepesche) {
             CupsPrintService.CupsPrintResult printResult =
                     unitPrintSettingsService.printPdf(unitId, alarmdepechePdfService.renderPdf(saved));
-            printMessage = printResult.success() ? printResult.message() : printResult.message();
+            printMessage = printResult.message();
         }
-        return new CreateResult(saved, pushMessage, printMessage);
+        return new CreateResult(saved, pushMessage, printMessage, routeMessage);
+    }
+
+    private String applyRoute(
+            ManualAlarm alarm, Unit unit, boolean useGeraetehaus, String routeStartOverride, boolean computeRoute) {
+        if (!computeRoute) {
+            return null;
+        }
+        String start = blankToNull(routeStartOverride);
+        if (start == null && useGeraetehaus) {
+            start = blankToNull(UnitAddressSupport.fullAddressLine(unit));
+        }
+        if (start == null) {
+            return "Route: Keine Startadresse (Gerätehaus-Adresse in Einheit-Stammdaten pflegen).";
+        }
+        String destination = buildAddressLine(alarm);
+        if (destination == null) {
+            return "Route: Einsatzort unvollständig — keine Route berechnet.";
+        }
+        alarm.setRouteStartAddress(start);
+        Optional<RoutePlan> plan = alarmRouteService.planRoute(start, destination, resolveRouteTitle(alarm, unit));
+        if (plan.isEmpty()) {
+            return "Route: Automatische Berechnung fehlgeschlagen (Adresse prüfen).";
+        }
+        RoutePlan route = plan.get();
+        alarm.setRouteDistanceM(route.distanceMeters());
+        alarm.setRouteDurationSec(route.durationSeconds());
+        alarm.setRouteAvgSpeedKmh(route.avgSpeedKmh());
+        alarm.setRouteTitle(route.routeTitle());
+        alarm.setRouteInfo(route.plainText());
+        try {
+            alarm.setRouteStepsJson(objectMapper.writeValueAsString(route.steps()));
+        } catch (JsonProcessingException e) {
+            log.warn("Route-JSON konnte nicht gespeichert werden: {}", e.getMessage());
+        }
+        return "Route berechnet: " + route.distanceMeters() + " m, ca. "
+                + Math.max(1, Math.round(route.durationSeconds() / 60.0)) + " Min.";
+    }
+
+    private static String resolveRouteTitle(ManualAlarm alarm, Unit unit) {
+        String beteiligte = alarm.getBeteiligteEinsatzmittel();
+        if (beteiligte != null && !beteiligte.isBlank()) {
+            return beteiligte.replace("|", "").trim();
+        }
+        if (unit.getName() != null && !unit.getName().isBlank()) {
+            return unit.getName().trim();
+        }
+        return "Einsatzstelle";
     }
 
     @Transactional(readOnly = true)
@@ -155,16 +218,16 @@ public class ManualAlarmService {
                 .toList();
     }
 
-    private DiveraAlarmSummary toSummary(ManualAlarm alarm) {
+    private DiveraAlarmSummary toSummary(ManualAlarm a) {
         return DiveraAlarmSummary.fromManualAlarm(
-                alarm.getAlarmId(),
-                alarm.getId(),
-                alarm.getTitle(),
-                alarm.getAlarmText(),
-                alarm.getAddress(),
-                alarm.getDateEpochSeconds(),
-                alarm.getTsCreateSeconds(),
-                alarm.isClosed());
+                a.getAlarmId(),
+                a.getId(),
+                a.getTitle(),
+                a.getAlarmText(),
+                a.getAddress(),
+                a.getDateEpochSeconds(),
+                a.getTsCreateSeconds(),
+                a.isClosed());
     }
 
     private DiveraAlarmDetails toDetails(ManualAlarm alarm) {
@@ -204,7 +267,7 @@ public class ManualAlarmService {
         return MANUAL_ALARM_ID_BASE + (System.currentTimeMillis() % 999_999_999L);
     }
 
-    private static String buildAddressLine(ManualAlarm alarm) {
+    static String buildAddressLine(ManualAlarm alarm) {
         StringBuilder sb = new StringBuilder();
         if (alarm.getStreet() != null && !alarm.getStreet().isBlank()) {
             sb.append(alarm.getStreet().trim());

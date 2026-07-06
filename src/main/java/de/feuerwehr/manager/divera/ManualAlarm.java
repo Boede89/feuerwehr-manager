@@ -88,6 +88,24 @@ public class ManualAlarm {
     @Column(name = "route_info", columnDefinition = "TEXT")
     private String routeInfo;
 
+    @Column(name = "route_start_address", length = 512)
+    private String routeStartAddress;
+
+    @Column(name = "route_distance_m")
+    private Integer routeDistanceM;
+
+    @Column(name = "route_duration_sec")
+    private Integer routeDurationSec;
+
+    @Column(name = "route_avg_speed_kmh")
+    private Double routeAvgSpeedKmh;
+
+    @Column(name = "route_steps_json", columnDefinition = "TEXT")
+    private String routeStepsJson;
+
+    @Column(name = "route_title", length = 255)
+    private String routeTitle;
+
     @Column(name = "leitstelle_name", length = 255)
     private String leitstelleName;
 

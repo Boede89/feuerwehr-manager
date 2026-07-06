@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.web;
 
+import de.feuerwehr.manager.berichte.UnitAddressSupport;
 import de.feuerwehr.manager.divera.ManualAlarmService;
 import de.feuerwehr.manager.divera.ManualAlarmService.CreateResult;
 import de.feuerwehr.manager.divera.ManualAlarmService.ManualAlarmInput;
@@ -37,6 +38,7 @@ public class ManualAlarmController {
         Unit unit = resolveUnit(unitId, actor, model);
         model.addAttribute("pageTitle", "Einsatz manuell anlegen");
         model.addAttribute("pageSubtitle", unit.getName());
+        model.addAttribute("geraetehausAddress", UnitAddressSupport.fullAddressLine(unit));
         return "einsatz/manuell-form";
     }
 
@@ -60,12 +62,14 @@ public class ManualAlarmController {
             @RequestParam(required = false) String callbackPhone,
             @RequestParam(required = false, defaultValue = "Notruf 112") String meldeweg,
             @RequestParam(required = false) String beteiligteEinsatzmittel,
-            @RequestParam(required = false) String routeInfo,
             @RequestParam(required = false) String leitstelleName,
             @RequestParam(required = false) String leitstelleAddress,
             @RequestParam(required = false) String leitstellePhone,
             @RequestParam(required = false) String leitstelleEmail,
-            @RequestParam(required = false, defaultValue = "false") boolean sendPush,
+            @RequestParam(required = false, defaultValue = "true") boolean useGeraetehaus,
+            @RequestParam(required = false) String routeStartAddress,
+            @RequestParam(required = false, defaultValue = "true") boolean computeRoute,
+            @RequestParam(required = false, defaultValue = "true") boolean sendPush,
             @RequestParam(required = false, defaultValue = "false") boolean printDepesche,
             RedirectAttributes redirectAttributes) {
         try {
@@ -87,13 +91,23 @@ public class ManualAlarmController {
                     callbackPhone,
                     meldeweg,
                     beteiligteEinsatzmittel,
-                    routeInfo,
                     leitstelleName,
                     leitstelleAddress,
                     leitstellePhone,
                     leitstelleEmail);
-            CreateResult result = manualAlarmService.create(unit, actor.getUserId(), input, sendPush, printDepesche);
+            CreateResult result = manualAlarmService.create(
+                    unit,
+                    actor.getUserId(),
+                    input,
+                    useGeraetehaus,
+                    routeStartAddress,
+                    computeRoute,
+                    sendPush,
+                    printDepesche);
             StringBuilder msg = new StringBuilder("Einsatz angelegt — sichtbar auf der Startseite.");
+            if (result.routeMessage() != null) {
+                msg.append(' ').append(result.routeMessage());
+            }
             if (result.pushMessage() != null) {
                 msg.append(' ').append(result.pushMessage());
             }
