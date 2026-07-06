@@ -122,31 +122,36 @@ public class AlarmRouteService {
                 startLabel, destLabel, title, distanceMi, durationSi, avgSpeed, steps, plain));
     }
 
-    private Optional<LatLon> geocode(String address) throws Exception {
-        String query = URLEncoder.encode(address + ", Deutschland", StandardCharsets.UTF_8);
-        URI uri = URI.create(NOMINATIM_URL + "?q=" + query + "&format=json&limit=1&countrycodes=de");
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(uri)
-                .timeout(Duration.ofSeconds(15))
-                .header("User-Agent", USER_AGENT)
-                .header("Accept-Language", "de")
-                .GET()
-                .build();
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        if (response.statusCode() != 200 || response.body() == null || response.body().isBlank()) {
+    private Optional<LatLon> geocode(String address) {
+        try {
+            String query = URLEncoder.encode(address + ", Deutschland", StandardCharsets.UTF_8);
+            URI uri = URI.create(NOMINATIM_URL + "?q=" + query + "&format=json&limit=1&countrycodes=de");
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(uri)
+                    .timeout(Duration.ofSeconds(15))
+                    .header("User-Agent", USER_AGENT)
+                    .header("Accept-Language", "de")
+                    .GET()
+                    .build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200 || response.body() == null || response.body().isBlank()) {
+                return Optional.empty();
+            }
+            JsonNode root = objectMapper.readTree(response.body());
+            if (!root.isArray() || root.isEmpty()) {
+                return Optional.empty();
+            }
+            JsonNode first = root.get(0);
+            double lat = first.path("lat").asDouble(0);
+            double lon = first.path("lon").asDouble(0);
+            if (lat == 0 && lon == 0) {
+                return Optional.empty();
+            }
+            return Optional.of(new LatLon(lat, lon));
+        } catch (Exception e) {
+            log.debug("[Routing] Geocoding-Fehler für {}: {}", address, e.getMessage());
             return Optional.empty();
         }
-        JsonNode root = objectMapper.readTree(response.body());
-        if (!root.isArray() || root.isEmpty()) {
-            return Optional.empty();
-        }
-        JsonNode first = root.get(0);
-        double lat = first.path("lat").asDouble(0);
-        double lon = first.path("lon").asDouble(0);
-        if (lat == 0 && lon == 0) {
-            return Optional.empty();
-        }
-        return Optional.of(new LatLon(lat, lon));
     }
 
     private static String buildInstruction(String type, String modifier, String road) {
