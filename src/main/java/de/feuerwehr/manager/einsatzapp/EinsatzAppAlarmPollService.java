@@ -8,7 +8,6 @@ import de.feuerwehr.manager.settings.AppModule;
 import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
-import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
 import de.feuerwehr.manager.unit.UnitRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +24,6 @@ public class EinsatzAppAlarmPollService {
 
     private final UnitRepository unitRepository;
     private final ModuleSettingsService moduleSettingsService;
-    private final UnitDiveraSettingsRepository diveraSettingsRepository;
     private final TestModeService testModeService;
     private final DiveraService diveraService;
     private final EinsatzAppSettingsService einsatzAppSettingsService;
@@ -42,9 +40,6 @@ public class EinsatzAppAlarmPollService {
                 continue;
             }
             if (!einsatzAppSettingsService.isPushEnabled(unitId)) {
-                continue;
-            }
-            if (!hasDiveraApiAccess(unitId)) {
                 continue;
             }
             try {
@@ -68,15 +63,18 @@ public class EinsatzAppAlarmPollService {
             if (summary.id() <= 0 || summary.closed()) {
                 continue;
             }
+            // Geplante manuelle Einsätze (noch nicht gestartet) nicht per Push auslösen
+            if (summary.manualDraft()) {
+                continue;
+            }
             DiveraAlarmDetailsMapper.fromSummary(summary, null)
-                    .ifPresent(details -> einsatzAppPushService.tryDispatchFromWebhook(unitId, details));
+                    .ifPresent(details -> {
+                        if (summary.manualAlarm()) {
+                            einsatzAppPushService.tryDispatchManualAlarm(unitId, details);
+                        } else {
+                            einsatzAppPushService.tryDispatchFromWebhook(unitId, details);
+                        }
+                    });
         }
-    }
-
-    private boolean hasDiveraApiAccess(long unitId) {
-        return diveraSettingsRepository
-                .findByUnitId(unitId)
-                .map(cfg -> cfg.getAccessKey() != null && !cfg.getAccessKey().isBlank())
-                .orElse(false);
     }
 }

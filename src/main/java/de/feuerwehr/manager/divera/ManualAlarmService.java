@@ -39,7 +39,8 @@ public class ManualAlarmService {
     private static final ZoneId ZONE = ZoneId.of("Europe/Berlin");
     private static final DateTimeFormatter PRINT_TS =
             DateTimeFormatter.ofPattern("d.MMMM yyyy H:mm", Locale.GERMANY);
-    private static final long MANUAL_ALARM_ID_BASE = 7_000_000_000L;
+    private static final long MANUAL_ALARM_ID_BASE = 1_000_000_000L;
+    private static final long MANUAL_ALARM_ID_SPAN = 999_000_000L;
 
     private final ManualAlarmRepository repository;
     private final IncidentReportRepository incidentReportRepository;
@@ -382,7 +383,7 @@ public class ManualAlarmService {
     }
 
     private long generateAlarmId() {
-        return MANUAL_ALARM_ID_BASE + (System.currentTimeMillis() % 999_999_999L);
+        return MANUAL_ALARM_ID_BASE + (System.currentTimeMillis() % MANUAL_ALARM_ID_SPAN);
     }
 
     static String buildAddressLine(ManualAlarm alarm) {

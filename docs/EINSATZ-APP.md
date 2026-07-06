@@ -126,7 +126,7 @@ Das `fcmToken` kommt **von der Android-App** (Phase 3), nicht aus der Dienstkont
 
 | Feld | Bedeutung |
 |------|-----------|
-| `type` | `divera_alarm` |
+| `type` | `divera_alarm` oder `manual_alarm` |
 | `alarmId` | DIVERA-Alarm-ID (String) |
 
 ## Modul aktivieren

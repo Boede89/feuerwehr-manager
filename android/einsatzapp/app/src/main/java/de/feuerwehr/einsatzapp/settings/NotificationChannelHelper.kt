@@ -59,9 +59,9 @@ object NotificationChannelHelper {
         prefs: PushPreferencesStore.PushPreferences? = null,
     ) {
         channel.description = if (prefs != null) {
-            "DIVERA-Einsätze — Ton und Lautstärke werden von der App gesteuert"
+            "Einsatz-Alarme — Ton und Lautstärke werden von der App gesteuert"
         } else {
-            "DIVERA-Einsatzbenachrichtigungen (Android-Systemton)"
+            "Einsatzbenachrichtigungen (Android-Systemton)"
         }
         channel.enableVibration(true)
         channel.enableLights(true)

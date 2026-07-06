@@ -33,6 +33,16 @@ public class FcmPushClient {
     }
 
     public FcmSendResult sendAlarmNotification(List<String> registrationTokens, String title, String body, long alarmId) {
+        return sendAlarmNotification(registrationTokens, title, body, alarmId, "divera_alarm");
+    }
+
+    public FcmSendResult sendManualAlarmNotification(
+            List<String> registrationTokens, String title, String body, long alarmId) {
+        return sendAlarmNotification(registrationTokens, title, body, alarmId, "manual_alarm");
+    }
+
+    public FcmSendResult sendAlarmNotification(
+            List<String> registrationTokens, String title, String body, long alarmId, String type) {
         if (!isAvailable() || registrationTokens == null || registrationTokens.isEmpty()) {
             return new FcmSendResult(0, 0, List.of());
         }
@@ -51,7 +61,7 @@ public class FcmPushClient {
             if (deviceToken == null || deviceToken.isBlank()) {
                 continue;
             }
-            SendOutcome outcome = sendToDevice(accessToken, projectId, deviceToken.trim(), title, body, alarmId);
+            SendOutcome outcome = sendToDevice(accessToken, projectId, deviceToken.trim(), title, body, alarmId, type);
             if (outcome == SendOutcome.SUCCESS) {
                 success++;
             } else {
@@ -71,9 +81,9 @@ public class FcmPushClient {
     }
 
     private SendOutcome sendToDevice(
-            String accessToken, String projectId, String deviceToken, String title, String body, long alarmId) {
+            String accessToken, String projectId, String deviceToken, String title, String body, long alarmId, String type) {
         try {
-            String payload = buildMessagePayload(deviceToken, title, body, alarmId);
+            String payload = buildMessagePayload(deviceToken, title, body, alarmId, type);
             RestClient client = restClient();
             String raw = client
                     .post()
@@ -99,15 +109,18 @@ public class FcmPushClient {
         }
     }
 
-    private String buildMessagePayload(String deviceToken, String title, String body, long alarmId) throws Exception {
+    private String buildMessagePayload(String deviceToken, String title, String body, long alarmId, String type)
+            throws Exception {
         // Nur Data-Payload: Android ruft dann immer onMessageReceived auf und die App
         // zeigt die Benachrichtigung mit dem gewählten Alarmton-Kanal an.
         // Mit "notification"-Payload übernimmt das System im Hintergrund den Standardton.
         ObjectNode data = objectMapper.createObjectNode();
-        data.put("type", "divera_alarm");
+        String alarmType = type != null && !type.isBlank() ? type.trim() : "divera_alarm";
+        data.put("type", alarmType);
         data.put("alarmId", String.valueOf(alarmId));
         data.put("title", title != null && !title.isBlank() ? title.trim() : "Einsatz");
-        data.put("body", body != null && !body.isBlank() ? body.trim() : "Neuer DIVERA-Einsatz");
+        String defaultBody = "manual_alarm".equals(alarmType) ? "Neuer Einsatz" : "Neuer DIVERA-Einsatz";
+        data.put("body", body != null && !body.isBlank() ? body.trim() : defaultBody);
 
         ObjectNode android = objectMapper.createObjectNode();
         android.put("priority", "HIGH");

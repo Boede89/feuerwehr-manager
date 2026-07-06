@@ -5,6 +5,7 @@ import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import de.feuerwehr.einsatzapp.data.AlarmRefreshBus
 import de.feuerwehr.einsatzapp.data.CredentialStore
 import de.feuerwehr.einsatzapp.data.DiveraAlarmSummary
 import de.feuerwehr.einsatzapp.data.FeuerwehrApiClient
@@ -30,6 +31,16 @@ class MainViewModel(
     private val sessionStore: SessionStore,
     private val credentialStore: CredentialStore,
 ) : ViewModel() {
+
+    init {
+        viewModelScope.launch {
+            AlarmRefreshBus.alarms.collect { pushed ->
+                if (pushed != null) {
+                    _alarms.value = pushed
+                }
+            }
+        }
+    }
 
     val serverUrl: StateFlow<String> = serverConfigStore.serverBaseUrl.stateIn(
         viewModelScope,

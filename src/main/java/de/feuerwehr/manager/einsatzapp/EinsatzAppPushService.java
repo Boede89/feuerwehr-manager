@@ -31,7 +31,12 @@ public class EinsatzAppPushService {
 
     @Transactional
     public void dispatchManualAlarm(long unitId, DiveraAlarmDetails details) {
-        tryDispatch(unitId, details, true);
+        tryDispatch(unitId, details, true, true);
+    }
+
+    @Transactional
+    public void tryDispatchManualAlarm(long unitId, DiveraAlarmDetails details) {
+        tryDispatch(unitId, details, false, true);
     }
 
     @Transactional(readOnly = true)
@@ -52,15 +57,15 @@ public class EinsatzAppPushService {
 
     @Transactional
     public void tryDispatchFromWebhook(long unitId, DiveraAlarmDetails details) {
-        tryDispatch(unitId, details, false);
+        tryDispatch(unitId, details, false, false);
     }
 
     @Transactional
     public void sendTestPush(long unitId) {
-        tryDispatch(unitId, testPushDetails(), true);
+        tryDispatch(unitId, testPushDetails(), true, false);
     }
 
-    private void tryDispatch(long unitId, DiveraAlarmDetails details, boolean force) {
+    private void tryDispatch(long unitId, DiveraAlarmDetails details, boolean force, boolean manualAlarm) {
         if (details == null || details.alarmId() <= 0) {
             recordSkipped(unitId, null, null, "Übersprungen: Ungültige Alarm-ID");
             return;
@@ -96,8 +101,10 @@ public class EinsatzAppPushService {
             return;
         }
         String title = details.title() != null && !details.title().isBlank() ? details.title().trim() : "Einsatz";
-        String body = buildBody(details);
-        FcmPushClient.FcmSendResult result = fcmPushClient.sendAlarmNotification(tokens, title, body, details.alarmId());
+        String body = buildBody(details, manualAlarm);
+        FcmPushClient.FcmSendResult result = manualAlarm
+                ? fcmPushClient.sendManualAlarmNotification(tokens, title, body, details.alarmId())
+                : fcmPushClient.sendAlarmNotification(tokens, title, body, details.alarmId());
         if (!result.invalidTokens().isEmpty()) {
             deviceTokenRepository.deleteByFcmTokenIn(result.invalidTokens());
         }
@@ -162,7 +169,7 @@ public class EinsatzAppPushService {
         return tokens;
     }
 
-    private static String buildBody(DiveraAlarmDetails details) {
+    private static String buildBody(DiveraAlarmDetails details, boolean manualAlarm) {
         if (details.address() != null && !details.address().isBlank()) {
             return details.address().trim();
         }
@@ -170,7 +177,7 @@ public class EinsatzAppPushService {
             String text = details.text().trim();
             return text.length() > 180 ? text.substring(0, 177) + "…" : text;
         }
-        return "Neuer DIVERA-Einsatz";
+        return manualAlarm ? "Neuer Einsatz" : "Neuer DIVERA-Einsatz";
     }
 
     private void logPush(

@@ -23,6 +23,13 @@ object AlarmNotificationHelper {
   private const val ALARM_MAX_PLAY_MS = 15_000L
   private const val ALARM_FALLBACK_PLAY_MS = 8_000L
 
+  /** Stabile, positive ID für Notification/PendingIntent — auch bei großen Alarm-IDs (manuelle Einsätze). */
+  fun notificationIdFor(alarmId: Long): Int {
+      if (alarmId == TEST_ALARM_ID) return TEST_NOTIFICATION_ID
+      val folded = (alarmId xor (alarmId ushr 32)).toInt()
+      return if (folded == 0) 1 else kotlin.math.abs(folded)
+  }
+
   private val handler = Handler(Looper.getMainLooper())
   private var previewStopRunnable: Runnable? = null
   private var alarmStopRunnable: Runnable? = null
@@ -52,7 +59,7 @@ object AlarmNotificationHelper {
       }
       val pending = PendingIntent.getActivity(
           context,
-          alarmId.toInt(),
+          notificationIdFor(alarmId),
           intent,
           PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
       )
@@ -72,9 +79,13 @@ object AlarmNotificationHelper {
           .setOnlyAlertOnce(false)
           .setDefaults(NotificationCompat.DEFAULT_VIBRATE or NotificationCompat.DEFAULT_LIGHTS)
 
-      val notificationId = if (isTest) TEST_NOTIFICATION_ID else alarmId.toInt()
+      val notificationId = notificationIdFor(alarmId)
       activeNotificationId = notificationId
-      NotificationManagerCompat.from(context).notify(notificationId, builder.build())
+      if (DeviceRegistrar.hasNotificationPermission(context)) {
+          runCatching {
+              NotificationManagerCompat.from(context).notify(notificationId, builder.build())
+          }
+      }
 
       if (prefs.overrideAndroidTones) {
           playAlarmSound(context, prefs.alarmToneUriParsed(), prefs.alarmVolumePercent)
