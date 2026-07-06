@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.Instant;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -97,8 +98,8 @@ public class ManualAlarm {
     @Column(name = "route_duration_sec")
     private Integer routeDurationSec;
 
-    @Column(name = "route_avg_speed_kmh")
-    private Double routeAvgSpeedKmh;
+    @Column(name = "route_avg_speed_kmh", precision = 6, scale = 1)
+    private BigDecimal routeAvgSpeedKmh;
 
     @Column(name = "route_steps_json", columnDefinition = "TEXT")
     private String routeStepsJson;

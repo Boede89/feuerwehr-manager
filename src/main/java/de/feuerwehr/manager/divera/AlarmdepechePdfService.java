@@ -78,7 +78,7 @@ public class AlarmdepechePdfService {
             return null;
         }
         int minutes = Math.max(1, (int) Math.round(alarm.getRouteDurationSec() / 60.0));
-        double speed = alarm.getRouteAvgSpeedKmh() != null ? alarm.getRouteAvgSpeedKmh() : 0;
+        double speed = alarm.getRouteAvgSpeedKmh() != null ? alarm.getRouteAvgSpeedKmh().doubleValue() : 0;
         return alarm.getRouteDistanceM()
                 + " m ("
                 + minutes

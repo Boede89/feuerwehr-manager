@@ -13,6 +13,8 @@ import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -156,7 +158,8 @@ public class ManualAlarmService {
         RoutePlan route = plan.get();
         alarm.setRouteDistanceM(route.distanceMeters());
         alarm.setRouteDurationSec(route.durationSeconds());
-        alarm.setRouteAvgSpeedKmh(route.avgSpeedKmh());
+        alarm.setRouteAvgSpeedKmh(
+                BigDecimal.valueOf(route.avgSpeedKmh()).setScale(1, RoundingMode.HALF_UP));
         alarm.setRouteTitle(route.routeTitle());
         alarm.setRouteInfo(route.plainText());
         try {
