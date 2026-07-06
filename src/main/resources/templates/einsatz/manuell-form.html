@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="de" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{fragments/layout :: layout(${editMode} ? 'Einsatz bearbeiten' : 'Einsatz anlegen', ~{::main})}">
+      th:replace="~{fragments/layout :: layout(${pageTitle}, ~{::main})}">
 <main class="manual-alarm-page">
   <div class="page-header page-header--toolbar">
     <div>
@@ -25,12 +25,12 @@
       <div class="card__body manual-alarm-form__section">
         <label class="radio-inline">
           <input type="radio" name="exercise" value="false"
-                 th:checked="${editMode} ? ${!alarm.exercise} : true"/>
+                 th:checked="${editMode ? !alarm.exercise : true}"/>
           Realer Einsatz
         </label>
         <label class="radio-inline">
           <input type="radio" name="exercise" value="true"
-                 th:checked="${editMode} ? ${alarm.exercise} : false"/>
+                 th:checked="${editMode ? alarm.exercise : false}"/>
           Übung
         </label>
       </div>
@@ -42,7 +42,7 @@
         <div class="form-group">
           <label for="alarmNumber">Einsatznummer</label>
           <input id="alarmNumber" name="alarmNumber" type="text" maxlength="64" class="field"
-                 th:value="${editMode} ? ${alarm.alarmNumber} : ${suggestedAlarmNumber}"
+                 th:value="${editMode ? alarm.alarmNumber : suggestedAlarmNumber}"
                  th:attr="data-unit-id=${unitId}"/>
           <p class="hint" th:if="${!editMode}">Automatisch vorgeschlagen — anpassbar.</p>
         </div>
@@ -51,7 +51,7 @@
           <div class="combo-suggest" data-combo-suggest data-combo-min="1">
             <input id="title" name="title" type="text" maxlength="512" required class="field combo-suggest__input"
                    autocomplete="off" placeholder="Stichwort eingeben …"
-                   th:value="${editMode} ? ${alarm.title} : null"/>
+                   th:value="${editMode ? alarm.title : ''}"/>
             <ul class="combo-suggest__list" role="listbox" hidden>
               <li class="combo-suggest__option" th:each="s : ${knownStichworte}"
                   th:attr="data-value=${s}" th:text="${s}">Stichwort</li>
@@ -62,25 +62,25 @@
           <label for="meldebild">Meldebild</label>
           <textarea id="meldebild" name="meldebild" rows="3" class="field"
                     placeholder="z. B. Brennt Mülltonne / Müllcontainer"
-                    th:text="${editMode} ? ${alarm.alarmText} : null"></textarea>
+                    th:text="${editMode ? alarm.alarmText : ''}"></textarea>
         </div>
         <div class="form-group">
           <label for="bemerkung">Bemerkung</label>
           <input id="bemerkung" name="bemerkung" type="text" maxlength="512" class="field"
                  placeholder="Zusätzliche Hinweise"
-                 th:value="${editMode} ? ${alarm.meldebildZusatz} : null"/>
+                 th:value="${editMode ? alarm.meldebildZusatz : ''}"/>
         </div>
         <div class="form-group">
           <span class="field-label">Sondersignal</span>
           <div class="manual-alarm-form__options">
             <label class="radio-inline">
               <input type="radio" name="sondersignal" value="true"
-                     th:checked="${editMode} ? ${alarm.sondersignal} : true"/>
+                     th:checked="${editMode ? alarm.sondersignal : true}"/>
               Mit Sondersignal
             </label>
             <label class="radio-inline">
               <input type="radio" name="sondersignal" value="false"
-                     th:checked="${editMode} ? ${!alarm.sondersignal} : false"/>
+                     th:checked="${editMode ? !alarm.sondersignal : false}"/>
               ohne Sondersignal
             </label>
           </div>
@@ -95,33 +95,33 @@
           <label for="objectName">Objekt</label>
           <input id="objectName" name="objectName" type="text" maxlength="255" class="field"
                  placeholder="z. B. Kindergarten Anna Polmans"
-                 th:value="${editMode} ? ${alarm.objectName} : null"/>
+                 th:value="${editMode ? alarm.objectName : ''}"/>
         </div>
         <div class="form-group">
           <label for="postalCode">PLZ</label>
           <input id="postalCode" name="postalCode" type="text" maxlength="16" class="field"
-                 th:value="${editMode} ? ${alarm.postalCode} : ${defaults.postalCode}"/>
+                 th:value="${editMode ? alarm.postalCode : defaults.postalCode}"/>
         </div>
         <div class="form-group">
           <label for="city">Ort</label>
           <input id="city" name="city" type="text" maxlength="128" class="field"
-                 th:value="${editMode} ? ${alarm.city} : ${defaults.city}"/>
+                 th:value="${editMode ? alarm.city : defaults.city}"/>
         </div>
         <div class="form-group">
           <label for="district">Ortsteil</label>
           <input id="district" name="district" type="text" maxlength="128" class="field"
-                 th:value="${editMode} ? ${alarm.district} : ${defaults.district}"
+                 th:value="${editMode ? alarm.district : defaults.district}"
                  placeholder="z. B. Amern"/>
         </div>
         <div class="form-group">
           <label for="street">Straße</label>
           <input id="street" name="street" type="text" maxlength="255" class="field"
-                 th:value="${editMode} ? ${alarm.street} : null"/>
+                 th:value="${editMode ? alarm.street : ''}"/>
         </div>
         <div class="form-group">
           <label for="houseNumber">Hausnummer</label>
           <input id="houseNumber" name="houseNumber" type="text" maxlength="64" class="field"
-                 th:value="${editMode} ? ${alarm.houseNumber} : null"/>
+                 th:value="${editMode ? alarm.houseNumber : ''}"/>
         </div>
       </div>
     </div>
@@ -132,22 +132,22 @@
         <div class="form-group">
           <label for="reporterName">Meldender (Name)</label>
           <input id="reporterName" name="reporterName" type="text" maxlength="255" class="field"
-                 th:value="${editMode} ? ${alarm.reporterName} : null"/>
+                 th:value="${editMode ? alarm.reporterName : ''}"/>
         </div>
         <div class="form-group">
           <label for="reporterPhone">Meldender (Telefon)</label>
           <input id="reporterPhone" name="reporterPhone" type="text" maxlength="64" class="field"
-                 th:value="${editMode} ? ${alarm.reporterPhone} : null"/>
+                 th:value="${editMode ? alarm.reporterPhone : ''}"/>
         </div>
         <div class="form-group">
           <label for="meldeweg">Meldeweg</label>
           <input id="meldeweg" name="meldeweg" type="text" maxlength="128" class="field"
-                 th:value="${editMode} ? ${alarm.meldeweg} : 'Notruf 112'"/>
+                 th:value="${editMode ? alarm.meldeweg : 'Notruf 112'}"/>
         </div>
         <div class="form-group">
           <label for="beteiligteEinsatzmittel">Beteiligte Einsatzmittel</label>
           <input id="beteiligteEinsatzmittel" name="beteiligteEinsatzmittel" type="text" maxlength="512" class="field"
-                 th:value="${editMode} ? ${alarm.beteiligteEinsatzmittel} : ${defaults.beteiligteEinsatzmittel}"/>
+                 th:value="${editMode ? alarm.beteiligteEinsatzmittel : defaults.beteiligteEinsatzmittel}"/>
         </div>
       </div>
     </div>
@@ -158,22 +158,22 @@
         <div class="form-group">
           <label for="leitstelleName">Name</label>
           <input id="leitstelleName" name="leitstelleName" type="text" maxlength="255" class="field"
-                 th:value="${editMode} ? ${alarm.leitstelleName} : ${defaults.leitstelleName}"/>
+                 th:value="${editMode ? alarm.leitstelleName : defaults.leitstelleName}"/>
         </div>
         <div class="form-group">
           <label for="leitstelleAddress">Adresse</label>
           <input id="leitstelleAddress" name="leitstelleAddress" type="text" maxlength="512" class="field"
-                 th:value="${editMode} ? ${alarm.leitstelleAddress} : ${defaults.leitstelleAddress}"/>
+                 th:value="${editMode ? alarm.leitstelleAddress : defaults.leitstelleAddress}"/>
         </div>
         <div class="form-group">
           <label for="leitstellePhone">Telefon</label>
           <input id="leitstellePhone" name="leitstellePhone" type="text" maxlength="64" class="field"
-                 th:value="${editMode} ? ${alarm.leitstellePhone} : null"/>
+                 th:value="${editMode ? alarm.leitstellePhone : ''}"/>
         </div>
         <div class="form-group">
           <label for="leitstelleEmail">E-Mail</label>
           <input id="leitstelleEmail" name="leitstelleEmail" type="email" maxlength="255" class="field"
-                 th:value="${editMode} ? ${alarm.leitstelleEmail} : null"/>
+                 th:value="${editMode ? alarm.leitstelleEmail : ''}"/>
         </div>
       </div>
     </div>
