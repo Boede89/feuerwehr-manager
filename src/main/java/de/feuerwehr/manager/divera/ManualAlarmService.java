@@ -76,6 +76,8 @@ public class ManualAlarmService {
 
     public record CreateResult(ManualAlarm alarm) {}
 
+    public record UpdateResult(ManualAlarm alarm) {}
+
     public record StartResult(String pushMessage, String printMessage, String routeMessage) {}
 
     public record ActionResult(String message) {}
@@ -92,41 +94,13 @@ public class ManualAlarmService {
 
     @Transactional
     public CreateResult createDraft(long unitId, long userId, ManualAlarmInput input) {
-        if (input == null || input.title() == null || input.title().isBlank()) {
-            throw new IllegalArgumentException("Stichwort ist erforderlich.");
-        }
         Unit unit = unitRepository.findById(unitId).orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden."));
         User user = userRepository.findById(userId).orElse(null);
         long now = Instant.now().getEpochSecond();
         ManualAlarm alarm = new ManualAlarm();
         alarm.setUnit(unit);
         alarm.setAlarmId(generateAlarmId());
-        String alarmNumber = blankToNull(input.alarmNumber());
-        if (alarmNumber == null) {
-            alarmNumber = suggestAlarmNumber(unitId);
-        }
-        alarm.setAlarmNumber(alarmNumber);
-        alarm.setIncidentCategory(deriveIncidentCategory(input.title(), input.exercise()));
-        alarm.setTitle(input.title().trim());
-        alarm.setAlarmText(blankToNull(input.meldebild()));
-        alarm.setMeldebildZusatz(blankToNull(input.bemerkung()));
-        alarm.setStreet(blankToNull(input.street()));
-        alarm.setHouseNumber(blankToNull(input.houseNumber()));
-        alarm.setPostalCode(blankToNull(input.postalCode()));
-        alarm.setCity(blankToNull(input.city()));
-        alarm.setDistrict(blankToNull(input.district()));
-        alarm.setObjectName(blankToNull(input.objectName()));
-        alarm.setReporterName(blankToNull(input.reporterName()));
-        alarm.setReporterPhone(blankToNull(input.reporterPhone()));
-        alarm.setMeldeweg(blankToNull(input.meldeweg()));
-        alarm.setBeteiligteEinsatzmittel(blankToNull(input.beteiligteEinsatzmittel()));
-        alarm.setLeitstelleName(blankToNull(input.leitstelleName()));
-        alarm.setLeitstelleAddress(blankToNull(input.leitstelleAddress()));
-        alarm.setLeitstellePhone(blankToNull(input.leitstellePhone()));
-        alarm.setLeitstelleEmail(blankToNull(input.leitstelleEmail()));
-        alarm.setExercise(input.exercise());
-        alarm.setSondersignal(input.sondersignal());
-        alarm.setAddress(buildAddressLine(alarm));
+        applyInput(alarm, input, true, unitId);
         alarm.setDateEpochSeconds(now);
         alarm.setTsCreateSeconds(now);
         alarm.setStarted(false);
@@ -134,6 +108,19 @@ public class ManualAlarmService {
         alarm.setCreatedAt(Instant.now());
         alarm.setCreatedBy(user);
         return new CreateResult(repository.save(alarm));
+    }
+
+    @Transactional(readOnly = true)
+    public ManualAlarm getOpenDraft(long unitId, long manualRecordId) {
+        return loadOpenDraft(unitId, manualRecordId);
+    }
+
+    @Transactional
+    public UpdateResult updateDraft(long unitId, long manualRecordId, ManualAlarmInput input) {
+        ManualAlarm alarm = loadOpenDraft(unitId, manualRecordId);
+        applyInput(alarm, input, false, unitId);
+        clearRouteData(alarm);
+        return new UpdateResult(repository.save(alarm));
     }
 
     @Transactional
@@ -219,6 +206,49 @@ public class ManualAlarmService {
             throw new IllegalArgumentException("Einsatz wurde bereits gestartet.");
         }
         return alarm;
+    }
+
+    private void applyInput(ManualAlarm alarm, ManualAlarmInput input, boolean isNew, long unitId) {
+        if (input == null || input.title() == null || input.title().isBlank()) {
+            throw new IllegalArgumentException("Stichwort ist erforderlich.");
+        }
+        String alarmNumber = blankToNull(input.alarmNumber());
+        if (alarmNumber != null) {
+            alarm.setAlarmNumber(alarmNumber);
+        } else if (isNew) {
+            alarm.setAlarmNumber(suggestAlarmNumber(unitId));
+        }
+        alarm.setIncidentCategory(deriveIncidentCategory(input.title(), input.exercise()));
+        alarm.setTitle(input.title().trim());
+        alarm.setAlarmText(blankToNull(input.meldebild()));
+        alarm.setMeldebildZusatz(blankToNull(input.bemerkung()));
+        alarm.setStreet(blankToNull(input.street()));
+        alarm.setHouseNumber(blankToNull(input.houseNumber()));
+        alarm.setPostalCode(blankToNull(input.postalCode()));
+        alarm.setCity(blankToNull(input.city()));
+        alarm.setDistrict(blankToNull(input.district()));
+        alarm.setObjectName(blankToNull(input.objectName()));
+        alarm.setReporterName(blankToNull(input.reporterName()));
+        alarm.setReporterPhone(blankToNull(input.reporterPhone()));
+        alarm.setMeldeweg(blankToNull(input.meldeweg()));
+        alarm.setBeteiligteEinsatzmittel(blankToNull(input.beteiligteEinsatzmittel()));
+        alarm.setLeitstelleName(blankToNull(input.leitstelleName()));
+        alarm.setLeitstelleAddress(blankToNull(input.leitstelleAddress()));
+        alarm.setLeitstellePhone(blankToNull(input.leitstellePhone()));
+        alarm.setLeitstelleEmail(blankToNull(input.leitstelleEmail()));
+        alarm.setExercise(input.exercise());
+        alarm.setSondersignal(input.sondersignal());
+        alarm.setAddress(buildAddressLine(alarm));
+    }
+
+    private static void clearRouteData(ManualAlarm alarm) {
+        alarm.setRouteInfo(null);
+        alarm.setRouteStartAddress(null);
+        alarm.setRouteDistanceM(null);
+        alarm.setRouteDurationSec(null);
+        alarm.setRouteAvgSpeedKmh(null);
+        alarm.setRouteStepsJson(null);
+        alarm.setRouteTitle(null);
     }
 
     private String applyRoute(

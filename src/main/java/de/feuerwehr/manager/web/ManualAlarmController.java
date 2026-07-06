@@ -7,6 +7,7 @@ import de.feuerwehr.manager.divera.ManualAlarmService.ActionResult;
 import de.feuerwehr.manager.divera.ManualAlarmService.CreateResult;
 import de.feuerwehr.manager.divera.ManualAlarmService.ManualAlarmInput;
 import de.feuerwehr.manager.divera.ManualAlarmService.StartResult;
+import de.feuerwehr.manager.divera.ManualAlarmService.UpdateResult;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.unit.Unit;
@@ -49,7 +50,33 @@ public class ManualAlarmController {
         model.addAttribute("geraetehausAddress", defaults.geraetehausAddress());
         model.addAttribute("suggestedAlarmNumber", manualAlarmService.suggestAlarmNumber(unit.getId()));
         model.addAttribute("knownStichworte", einsatzberichtService.listKnownStichworte(unit.getId()));
+        model.addAttribute("editMode", false);
         return "einsatz/manuell-form";
+    }
+
+    @GetMapping("/{id}/bearbeiten")
+    public String editForm(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @PathVariable long id,
+            Model model,
+            RedirectAttributes redirectAttributes) {
+        resolveUnit(unit, actor, model);
+        try {
+            var alarm = manualAlarmService.getOpenDraft(unit, id);
+            model.addAttribute("editMode", true);
+            model.addAttribute("draftId", id);
+            model.addAttribute("alarm", alarm);
+            model.addAttribute("pageTitle", "Einsatz bearbeiten");
+            model.addAttribute("pageSubtitle", alarm.getTitle());
+            model.addAttribute("defaults", ManualAlarmDefaults.forUnit(alarm.getUnit()));
+            model.addAttribute("geraetehausAddress", ManualAlarmDefaults.forUnit(alarm.getUnit()).geraetehausAddress());
+            model.addAttribute("knownStichworte", einsatzberichtService.listKnownStichworte(unit));
+            return "einsatz/manuell-form";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return "redirect:/?unit=" + unit;
+        }
     }
 
     @GetMapping("/suggest-number")
@@ -88,9 +115,9 @@ public class ManualAlarmController {
             RedirectAttributes redirectAttributes) {
         try {
             accessControlService.requireUnitAccess(actor, unit);
-            ManualAlarmInput input = new ManualAlarmInput(
-                    alarmNumber,
+            ManualAlarmInput input = toInput(
                     title,
+                    alarmNumber,
                     meldebild,
                     bemerkung,
                     street,
@@ -120,6 +147,65 @@ public class ManualAlarmController {
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return "redirect:/einsatz/manuell?unit=" + unit;
+        }
+    }
+
+    @PostMapping("/{id}")
+    public String update(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @PathVariable long id,
+            @RequestParam String title,
+            @RequestParam(required = false) String alarmNumber,
+            @RequestParam(required = false) String meldebild,
+            @RequestParam(required = false) String bemerkung,
+            @RequestParam(required = false) String street,
+            @RequestParam(required = false) String houseNumber,
+            @RequestParam(required = false) String postalCode,
+            @RequestParam(required = false) String city,
+            @RequestParam(required = false) String district,
+            @RequestParam(required = false) String objectName,
+            @RequestParam(required = false) String reporterName,
+            @RequestParam(required = false) String reporterPhone,
+            @RequestParam(required = false, defaultValue = "Notruf 112") String meldeweg,
+            @RequestParam(required = false) String beteiligteEinsatzmittel,
+            @RequestParam(required = false) String leitstelleName,
+            @RequestParam(required = false) String leitstelleAddress,
+            @RequestParam(required = false) String leitstellePhone,
+            @RequestParam(required = false) String leitstelleEmail,
+            @RequestParam(required = false, defaultValue = "false") boolean exercise,
+            @RequestParam(required = false, defaultValue = "true") boolean sondersignal,
+            RedirectAttributes redirectAttributes) {
+        try {
+            accessControlService.requireUnitAccess(actor, unit);
+            ManualAlarmInput input = toInput(
+                    title,
+                    alarmNumber,
+                    meldebild,
+                    bemerkung,
+                    street,
+                    houseNumber,
+                    postalCode,
+                    city,
+                    district,
+                    objectName,
+                    reporterName,
+                    reporterPhone,
+                    meldeweg,
+                    beteiligteEinsatzmittel,
+                    leitstelleName,
+                    leitstelleAddress,
+                    leitstellePhone,
+                    leitstelleEmail,
+                    exercise,
+                    sondersignal);
+            UpdateResult result = manualAlarmService.updateDraft(unit, id, input);
+            redirectAttributes.addFlashAttribute(
+                    "success", "Einsatz „" + result.alarm().getTitle() + "“ gespeichert.");
+            return "redirect:/?unit=" + unit;
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return "redirect:/einsatz/manuell/" + id + "/bearbeiten?unit=" + unit;
         }
     }
 
@@ -219,5 +305,49 @@ public class ManualAlarmController {
         model.addAttribute("unitId", unit.getId());
         model.addAttribute("currentUnitName", unit.getName());
         return unit;
+    }
+
+    private static ManualAlarmInput toInput(
+            String title,
+            String alarmNumber,
+            String meldebild,
+            String bemerkung,
+            String street,
+            String houseNumber,
+            String postalCode,
+            String city,
+            String district,
+            String objectName,
+            String reporterName,
+            String reporterPhone,
+            String meldeweg,
+            String beteiligteEinsatzmittel,
+            String leitstelleName,
+            String leitstelleAddress,
+            String leitstellePhone,
+            String leitstelleEmail,
+            boolean exercise,
+            boolean sondersignal) {
+        return new ManualAlarmInput(
+                alarmNumber,
+                title,
+                meldebild,
+                bemerkung,
+                street,
+                houseNumber,
+                postalCode,
+                city,
+                district,
+                objectName,
+                reporterName,
+                reporterPhone,
+                meldeweg,
+                beteiligteEinsatzmittel,
+                leitstelleName,
+                leitstelleAddress,
+                leitstellePhone,
+                leitstelleEmail,
+                exercise,
+                sondersignal);
     }
 }

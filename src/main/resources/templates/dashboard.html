@@ -29,6 +29,8 @@
             <span class="btn-group btn-group--inline">
               <span class="badge badge-muted" th:if="${a.exercise}">Übung</span>
               <span class="badge badge-warning">Geplant</span>
+              <a class="btn btn--outline btn--sm"
+                 th:href="@{/einsatz/manuell/{id}/bearbeiten(id=${a.manualRecordId}, unit=${unitId})}">Bearbeiten</a>
               <button type="button" class="btn btn--primary btn--sm manual-alarm-start-btn"
                       th:attr="data-alarm-id=${a.manualRecordId},data-alarm-title=${a.title}">Einsatz starten</button>
               <form method="post" th:action="@{/einsatz/manuell/{id}/depesche(id=${a.manualRecordId})}" class="table-inline-form">

@@ -2,8 +2,12 @@
   'use strict';
 
   document.addEventListener('DOMContentLoaded', function () {
+    var form = document.getElementById('manual-alarm-form');
     var numberInput = document.getElementById('alarmNumber');
     if (!numberInput || !numberInput.dataset.unitId) {
+      return;
+    }
+    if (form && form.dataset.editMode === 'true') {
       return;
     }
     fetch('/einsatz/manuell/suggest-number?unit=' + encodeURIComponent(numberInput.dataset.unitId), {
