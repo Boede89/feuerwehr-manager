@@ -59,6 +59,7 @@ public class DashboardController {
             log.warn("DIVERA-Widget konnte nicht geladen werden: {}", e.getMessage(), e);
             model.addAttribute("divera", DiveraAlarmsResponse.fail("DIVERA-Abgleich fehlgeschlagen"));
         }
+        model.addAttribute("canManageManualAlarms", currentUser != null && currentUser.getRole().isAdminLevel());
         try {
             addTermineWidgetModel(currentUser, resolved.getId(), model);
         } catch (Exception e) {

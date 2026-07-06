@@ -16,6 +16,8 @@
       <div class="widget-card widget-card--einsatz">
         <div class="widget-card__header">
           <h3>Divera – aktuelle Einsätze</h3>
+          <a th:if="${canManageManualAlarms}" class="btn btn--primary btn--sm"
+             th:href="@{/einsatz/manuell(unit=${unitId})}">+ Einsatz anlegen</a>
         </div>
         <div class="widget-card__body">
           <div class="list-row" th:if="${!divera.success}">
@@ -34,8 +36,19 @@
                 <span th:text="${a.address}">Adresse</span>
                 <span class="hint hint--inline" th:if="${a.closed}"> (geschlossen)</span>
               </span>
-              <span class="badge active" th:if="${!a.testAlarm}" th:text="${a.id}">ID</span>
-              <span class="badge badge-warning" th:if="${a.testAlarm}">Test</span>
+              <span class="btn-group btn-group--inline">
+                <span class="badge active" th:if="${!a.testAlarm and !a.manualAlarm}" th:text="${a.id}">ID</span>
+                <span class="badge badge-warning" th:if="${a.testAlarm}">Test</span>
+                <span class="badge badge-warning" th:if="${a.manualAlarm}">Manuell</span>
+                <form th:if="${canManageManualAlarms and a.manualAlarm and a.manualRecordId != null}"
+                      method="post" th:action="@{/einsatz/manuell/{id}/close(id=${a.manualRecordId})}"
+                      class="table-inline-form"
+                      onsubmit="return confirm('Manuellen Einsatz beenden?');">
+                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                  <input type="hidden" name="unit" th:value="${unitId}"/>
+                  <button type="submit" class="btn btn--outline btn--sm">Beenden</button>
+                </form>
+              </span>
             </div>
           </th:block>
         </div>

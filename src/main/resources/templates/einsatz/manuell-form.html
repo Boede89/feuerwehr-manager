@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('Einsatz manuell', ~{::main})}">
+<main>
+  <div class="page-header page-header--toolbar">
+    <div>
+      <h2 th:text="${pageTitle}">Einsatz manuell anlegen</h2>
+      <p th:text="${pageSubtitle}">Einheit</p>
+    </div>
+    <div class="toolbar-actions">
+      <a class="btn btn--outline btn--sm" th:href="@{/(unit=${unitId})}">← Startseite</a>
+    </div>
+  </div>
+
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
+
+  <form method="post" th:action="@{/einsatz/manuell}" class="form-grid">
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+    <input type="hidden" name="unit" th:value="${unitId}"/>
+
+    <div class="card form-grid--full">
+      <div class="card__header">Einsatz</div>
+      <div class="card__body form-grid">
+        <div class="form-group">
+          <label for="title">Stichwort *</label>
+          <input id="title" name="title" type="text" maxlength="512" required class="field"
+                 placeholder="z. B. F1 02 Brennt Mülltonne / Müllcontainer"/>
+        </div>
+        <div class="form-group">
+          <label for="incidentCategory">Kategorie</label>
+          <input id="incidentCategory" name="incidentCategory" type="text" maxlength="128" class="field"
+                 placeholder="z. B. Feuer 1"/>
+        </div>
+        <div class="form-group">
+          <label for="alarmNumber">Einsatznummer</label>
+          <input id="alarmNumber" name="alarmNumber" type="text" maxlength="64" class="field"
+                 placeholder="z. B. 1260032893"/>
+        </div>
+        <div class="form-group form-group--full">
+          <label for="alarmText">Meldebild</label>
+          <textarea id="alarmText" name="alarmText" rows="3" class="field"
+                    placeholder="z. B. Brennt Mülltonne / Müllcontainer"></textarea>
+        </div>
+        <div class="form-group form-group--full">
+          <label for="meldebildZusatz">Meldebild Zusatz</label>
+          <input id="meldebildZusatz" name="meldebildZusatz" type="text" maxlength="512" class="field"
+                 placeholder="z. B. Mit Sondersignal · || Amern Klein"/>
+        </div>
+      </div>
+    </div>
+
+    <div class="card form-grid--full">
+      <div class="card__header">Einsatzort</div>
+      <div class="card__body form-grid">
+        <div class="form-group form-group--full">
+          <label for="objectName">Objekt</label>
+          <input id="objectName" name="objectName" type="text" maxlength="255" class="field"
+                 placeholder="z. B. Kindergarten Anna Polmans"/>
+        </div>
+        <div class="form-group">
+          <label for="street">Straße</label>
+          <input id="street" name="street" type="text" maxlength="255" class="field"/>
+        </div>
+        <div class="form-group">
+          <label for="houseNumber">Hausnummer</label>
+          <input id="houseNumber" name="houseNumber" type="text" maxlength="64" class="field"/>
+        </div>
+        <div class="form-group">
+          <label for="postalCode">PLZ</label>
+          <input id="postalCode" name="postalCode" type="text" maxlength="16" class="field"/>
+        </div>
+        <div class="form-group">
+          <label for="city">Ort</label>
+          <input id="city" name="city" type="text" maxlength="128" class="field"/>
+        </div>
+        <div class="form-group">
+          <label for="district">Ortsteil</label>
+          <input id="district" name="district" type="text" maxlength="128" class="field"/>
+        </div>
+      </div>
+    </div>
+
+    <div class="card form-grid--full">
+      <div class="card__header">Meldung &amp; Kräfte</div>
+      <div class="card__body form-grid">
+        <div class="form-group">
+          <label for="reporterName">Meldender (Name)</label>
+          <input id="reporterName" name="reporterName" type="text" maxlength="255" class="field"/>
+        </div>
+        <div class="form-group">
+          <label for="reporterPhone">Meldender (Telefon)</label>
+          <input id="reporterPhone" name="reporterPhone" type="text" maxlength="64" class="field"/>
+        </div>
+        <div class="form-group">
+          <label for="callbackPhone">Rückruf</label>
+          <input id="callbackPhone" name="callbackPhone" type="text" maxlength="64" class="field" placeholder="/"/>
+        </div>
+        <div class="form-group">
+          <label for="meldeweg">Meldeweg</label>
+          <input id="meldeweg" name="meldeweg" type="text" maxlength="128" class="field" value="Notruf 112"/>
+        </div>
+        <div class="form-group form-group--full">
+          <label for="beteiligteEinsatzmittel">Beteiligte Einsatzmittel</label>
+          <input id="beteiligteEinsatzmittel" name="beteiligteEinsatzmittel" type="text" maxlength="512" class="field"
+                 placeholder="z. B. || Amern Klein"/>
+        </div>
+        <div class="form-group form-group--full">
+          <label for="routeInfo">Route (optional)</label>
+          <textarea id="routeInfo" name="routeInfo" rows="4" class="field"
+                    placeholder="Freitext — z. B. Routing aus der Leitstelle einfügen"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="card form-grid--full">
+      <div class="card__header">Leitstelle (Alarmdepesche)</div>
+      <div class="card__body form-grid">
+        <div class="form-group form-group--full">
+          <label for="leitstelleName">Name</label>
+          <input id="leitstelleName" name="leitstelleName" type="text" maxlength="255" class="field"
+                 placeholder="z. B. Leitstelle Kreis Viersen"/>
+        </div>
+        <div class="form-group form-group--full">
+          <label for="leitstelleAddress">Adresse</label>
+          <input id="leitstelleAddress" name="leitstelleAddress" type="text" maxlength="512" class="field"
+                 placeholder="z. B. Gerberstraße 3, 41748 Viersen"/>
+        </div>
+        <div class="form-group">
+          <label for="leitstellePhone">Telefon</label>
+          <input id="leitstellePhone" name="leitstellePhone" type="text" maxlength="64" class="field"/>
+        </div>
+        <div class="form-group">
+          <label for="leitstelleEmail">E-Mail</label>
+          <input id="leitstelleEmail" name="leitstelleEmail" type="email" maxlength="255" class="field"/>
+        </div>
+      </div>
+    </div>
+
+    <div class="card form-grid--full">
+      <div class="card__header">Aktionen</div>
+      <div class="card__body form-grid">
+        <div class="form-group form-group--full">
+          <label class="checkbox-inline">
+            <input type="checkbox" name="sendPush" value="true"/>
+            Push an Einsatz-App senden
+          </label>
+          <p class="hint">Erfordert aktivierten Push und registrierte Geräte.</p>
+        </div>
+        <div class="form-group form-group--full">
+          <label class="checkbox-inline">
+            <input type="checkbox" name="printDepesche" value="true"/>
+            Alarmdepesche drucken
+          </label>
+          <p class="hint">Erfordert CUPS-Druck unter Admin → Schnittstellen → Druckerverwaltung.</p>
+        </div>
+        <div class="form-group form-group--full">
+          <button type="submit" class="btn btn--primary">Einsatz anlegen</button>
+        </div>
+      </div>
+    </div>
+  </form>
+</main>
+</html>

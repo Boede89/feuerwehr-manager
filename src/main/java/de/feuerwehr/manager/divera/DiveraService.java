@@ -29,12 +29,15 @@ public class DiveraService {
     private final DiveraAlarmRawJson diveraAlarmRawJson;
     private final ObjectMapper objectMapper;
     private final TestModeService testModeService;
+    private final ManualAlarmService manualAlarmService;
+    private final ManualAlarmRepository manualAlarmRepository;
 
     @Transactional(readOnly = true)
     public DiveraAlarmsResponse getAlarmsForUnit(long unitId) {
+        List<DiveraAlarmSummary> manualAlarms = manualAlarmService.listOpenSummariesForUnit(unitId);
         if (testModeService.isEnabled()) {
             List<DiveraAlarmSummary> running = testDiveraAlarmService.listOpenSummariesForUnit(unitId);
-            return DiveraAlarmsResponse.ok(running);
+            return DiveraAlarmsResponse.ok(manualAlarmService.mergeInto(running, manualAlarms));
         }
 
         DiveraAlarmsResponse apiResponse = diveraSettingsRepository
@@ -42,7 +45,14 @@ public class DiveraService {
                 .map(cfg -> diveraApiClient.fetchAlarms(cfg.getApiBaseUrl(), cfg.getAccessKey()))
                 .orElse(DiveraAlarmsResponse.fail("Keine Divera-Einstellungen für diese Einheit"));
 
-        return withoutClosedAlarms(apiResponse);
+        DiveraAlarmsResponse openApi = withoutClosedAlarms(apiResponse);
+        if (!openApi.success()) {
+            if (manualAlarms.isEmpty()) {
+                return openApi;
+            }
+            return DiveraAlarmsResponse.ok(manualAlarms);
+        }
+        return DiveraAlarmsResponse.ok(manualAlarmService.mergeInto(openApi.alarms(), manualAlarms));
     }
 
     private static DiveraAlarmsResponse withoutClosedAlarms(DiveraAlarmsResponse response) {
@@ -107,6 +117,18 @@ public class DiveraService {
                     alarm.isClosed()));
             rawJsonByAlarmId.put(alarm.getAlarmId(), buildTestAlarmPayload(alarm));
         }
+        for (ManualAlarm alarm : manualAlarmRepository.findByUnitIdAndClosedFalseOrderByCreatedAtDesc(unitId)) {
+            alarms.add(DiveraAlarmSummary.fromManualAlarm(
+                    alarm.getAlarmId(),
+                    alarm.getId(),
+                    alarm.getTitle(),
+                    alarm.getAlarmText(),
+                    alarm.getAddress(),
+                    alarm.getDateEpochSeconds(),
+                    alarm.getTsCreateSeconds(),
+                    alarm.isClosed()));
+            rawJsonByAlarmId.put(alarm.getAlarmId(), buildManualAlarmPayload(alarm));
+        }
         return DiveraAlarmsResponse.ok(alarms, rawJsonByAlarmId);
     }
 
@@ -115,6 +137,10 @@ public class DiveraService {
     public Optional<DiveraAlarmDetails> findAlarmDetailsById(long unitId, long alarmId) {
         if (alarmId <= 0) {
             return Optional.empty();
+        }
+        Optional<DiveraAlarmDetails> manual = manualAlarmService.findDetails(unitId, alarmId);
+        if (manual.isPresent()) {
+            return manual;
         }
         DiveraAlarmsResponse response = fetchAllAlarmsForBerichteSync(unitId);
         if (!response.success()) {
@@ -199,6 +225,53 @@ public class DiveraService {
             }
             if (alarm.getAddress() != null) {
                 data.put("address", alarm.getAddress());
+            }
+            data.put("ts_create", alarm.getTsCreateSeconds());
+            data.put("closed", alarm.isClosed());
+            return diveraAlarmRawJson.serializeWebhookBody(root.toString());
+        } catch (Exception e) {
+            return "{}";
+        }
+    }
+
+    private String buildManualAlarmPayload(ManualAlarm alarm) {
+        try {
+            ObjectNode root = objectMapper.createObjectNode();
+            ObjectNode data = root.putObject("data");
+            data.put("id", alarm.getAlarmId());
+            if (alarm.getAlarmNumber() != null) {
+                data.put("foreign_id", alarm.getAlarmNumber());
+            }
+            data.put("title", alarm.getTitle() != null ? alarm.getTitle() : "");
+            if (alarm.getAlarmText() != null) {
+                data.put("text", alarm.getAlarmText());
+            }
+            if (alarm.getAddress() != null) {
+                data.put("address", alarm.getAddress());
+            }
+            if (alarm.getStreet() != null) {
+                data.put("street", alarm.getStreet());
+            }
+            if (alarm.getHouseNumber() != null) {
+                data.put("house_number", alarm.getHouseNumber());
+            }
+            if (alarm.getPostalCode() != null) {
+                data.put("zip", alarm.getPostalCode());
+            }
+            if (alarm.getCity() != null) {
+                data.put("city", alarm.getCity());
+            }
+            if (alarm.getDistrict() != null) {
+                data.put("ortsteil", alarm.getDistrict());
+            }
+            if (alarm.getObjectName() != null) {
+                data.put("object", alarm.getObjectName());
+            }
+            if (alarm.getReporterName() != null) {
+                data.put("caller", alarm.getReporterName());
+            }
+            if (alarm.getReporterPhone() != null) {
+                data.put("caller_phone", alarm.getReporterPhone());
             }
             data.put("ts_create", alarm.getTsCreateSeconds());
             data.put("closed", alarm.isClosed());

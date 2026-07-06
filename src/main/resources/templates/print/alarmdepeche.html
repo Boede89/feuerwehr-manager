@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Alarmdepesche</title>
+  <style>
+    @page { size: A4; margin: 10mm 12mm 14mm 12mm; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 9pt;
+      line-height: 1.35;
+      color: #111;
+      margin: 0;
+      padding: 0;
+    }
+    .title {
+      text-align: center;
+      font-size: 14pt;
+      font-weight: bold;
+      margin: 0 0 10px 0;
+    }
+    .leitstelle {
+      text-align: center;
+      margin-bottom: 14px;
+      font-size: 9pt;
+    }
+    .leitstelle strong { display: block; font-size: 10pt; }
+    .section-title {
+      font-weight: bold;
+      font-size: 10pt;
+      margin: 12px 0 4px 0;
+    }
+    .block { margin-bottom: 8px; white-space: pre-wrap; }
+    .label-line { margin: 2px 0; }
+    .label-line strong { display: inline-block; min-width: 95px; }
+    .route {
+      margin-top: 8px;
+      font-size: 8.5pt;
+      white-space: pre-wrap;
+      border-top: 1px solid #ccc;
+      padding-top: 6px;
+    }
+    .footer {
+      margin-top: 18px;
+      font-size: 8pt;
+      color: #444;
+      text-align: left;
+    }
+    .page-no {
+      text-align: center;
+      font-size: 8pt;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1 class="title" th:text="${headerTitle}">Alarmdruck</h1>
+
+  <div class="leitstelle">
+    <strong th:text="${leitstelleName}">Leitstelle</strong>
+    <div th:text="${leitstelleAddress}">Adresse</div>
+    <div>
+      <span th:text="${leitstellePhone}">Tel</span>
+      <span th:if="${leitstelleEmail != null and leitstelleEmail != '—'}"> · </span>
+      <span th:text="${leitstelleEmail}">E-Mail</span>
+    </div>
+  </div>
+
+  <div class="section-title">Einsatzanlass</div>
+  <div class="block" th:text="${meldebild}">Meldebild</div>
+  <div class="block" th:if="${meldebildZusatz != null and !#strings.isEmpty(meldebildZusatz)}"
+       th:text="${meldebildZusatz}">Zusatz</div>
+  <div class="block"><strong>Stichwort:</strong> <span th:text="${stichwort}">—</span></div>
+
+  <div class="label-line"><strong>Meldender:</strong> <span th:text="${reporterLine}">—</span></div>
+  <div class="label-line"><strong>Rückruf:</strong> <span th:text="${callbackPhone}">/</span></div>
+  <div class="label-line"><strong>Meldeweg:</strong> <span th:text="${meldeweg}">—</span></div>
+
+  <div class="section-title">Einsatzort</div>
+  <div class="label-line"><strong>Objekt:</strong> <span th:text="${objectName}">—</span></div>
+  <div class="label-line"><strong>Ort:</strong> <span th:text="${cityLine}">—</span></div>
+  <div class="label-line"><strong>Ortsteil:</strong> <span th:text="${district}">—</span></div>
+  <div class="label-line"><strong>Straße:</strong> <span th:text="${streetLine}">—</span></div>
+
+  <div class="section-title">Beteiligte Einsatzmittel</div>
+  <div class="block" th:text="${beteiligteEinsatzmittel}">—</div>
+
+  <div th:if="${hasRoute}">
+    <div class="section-title">Route</div>
+    <div class="route" th:text="${routeInfo}">—</div>
+  </div>
+
+  <div class="footer" th:text="'gedruckt am ' + ${printedAt}">gedruckt am</div>
+  <div class="page-no">1</div>
+</body>
+</html>
