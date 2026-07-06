@@ -47,4 +47,21 @@ object DeviceRegistrar {
         return ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
     }
+
+    suspend fun unregisterIfPossible(
+        sessionStore: SessionStore,
+        serverConfigStore: ServerConfigStore,
+    ): Result<Unit> {
+        val session = sessionStore.session.first() ?: return Result.success(Unit)
+        val fcmToken = sessionStore.fcmToken()
+        if (fcmToken.isNullOrBlank()) {
+            return Result.success(Unit)
+        }
+        val baseUrl = serverConfigStore.currentServerBaseUrl()
+        return FeuerwehrApiClient.instance.unregisterDevice(
+            baseUrl = baseUrl,
+            sessionCookie = session.sessionCookie,
+            fcmToken = fcmToken,
+        )
+    }
 }

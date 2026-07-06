@@ -77,6 +77,28 @@ class FeuerwehrApiClient {
         http.newCall(request).execute().use { /* ignore */ }
     }
 
+    suspend fun unregisterDevice(
+        baseUrl: String,
+        sessionCookie: String,
+        fcmToken: String,
+    ): Result<Unit> = runCatching {
+        val payload = moshi.adapter(UnregisterDeviceRequest::class.java)
+            .toJson(UnregisterDeviceRequest(fcmToken))
+            .toRequestBody(jsonMedia)
+        val request = Request.Builder()
+            .url("${normalize(baseUrl)}/api/v1/einsatzapp/devices")
+            .header("Cookie", sessionCookie)
+            .header("Accept", "application/json")
+            .delete(payload)
+            .build()
+        http.newCall(request).execute().use { response ->
+            val parsed = parseJson(response, ApiMessageResponse::class.java)
+            if (!response.isSuccessful || !parsed.success) {
+                throw IllegalStateException(parsed.message ?: "Gerät konnte nicht abgemeldet werden")
+            }
+        }
+    }
+
     suspend fun registerDevice(
         baseUrl: String,
         sessionCookie: String,

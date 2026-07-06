@@ -31,6 +31,10 @@ data class RegisterDeviceRequest(
     val platform: String = "android",
 )
 
+data class UnregisterDeviceRequest(
+    @Json(name = "fcmToken") val fcmToken: String,
+)
+
 data class ApiMessageResponse(
     val success: Boolean,
     val message: String? = null,

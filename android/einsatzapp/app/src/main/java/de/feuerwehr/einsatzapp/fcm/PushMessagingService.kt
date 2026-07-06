@@ -9,12 +9,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 class PushMessagingService : FirebaseMessagingService() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onMessageReceived(message: RemoteMessage) {
+        val sessionActive = runBlocking {
+            SessionStore(this@PushMessagingService).session.first() != null
+        }
+        if (!sessionActive) {
+            return
+        }
         val type = message.data["type"] ?: "divera_alarm"
         if (type != "divera_alarm" && type != "manual_alarm") {
             return
@@ -39,7 +46,11 @@ class PushMessagingService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         serviceScope.launch {
-            SessionStore(this@PushMessagingService).saveFcmToken(token)
+            val sessionStore = SessionStore(this@PushMessagingService)
+            if (sessionStore.session.first() == null) {
+                return@launch
+            }
+            sessionStore.saveFcmToken(token)
             DeviceRegistrationHelper.ensureRegistered(this@PushMessagingService)
         }
     }

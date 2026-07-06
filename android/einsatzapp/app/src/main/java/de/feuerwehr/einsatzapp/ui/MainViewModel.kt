@@ -13,6 +13,7 @@ import de.feuerwehr.einsatzapp.data.ServerConfigStore
 import de.feuerwehr.einsatzapp.data.SessionExpiredException
 import de.feuerwehr.einsatzapp.data.SessionRefreshHelper
 import de.feuerwehr.einsatzapp.data.SessionStore
+import de.feuerwehr.einsatzapp.fcm.AlarmNotificationHelper
 import de.feuerwehr.einsatzapp.fcm.DeviceRegistrar
 import de.feuerwehr.einsatzapp.fcm.TokenRefreshWorker
 import kotlinx.coroutines.Dispatchers
@@ -134,11 +135,13 @@ class MainViewModel(
         viewModelScope.launch {
             val current = session.value
             val baseUrl = serverConfigStore.currentServerBaseUrl()
-            if (current != null) {
-                withContext(Dispatchers.IO) {
+            withContext(Dispatchers.IO) {
+                DeviceRegistrar.unregisterIfPossible(sessionStore, serverConfigStore)
+                if (current != null) {
                     FeuerwehrApiClient.instance.logout(baseUrl, current.sessionCookie)
                 }
             }
+            AlarmNotificationHelper.dismissActiveAlarm(appContext)
             sessionStore.clear()
             credentialStore.clear()
             TokenRefreshWorker.cancel(appContext)
