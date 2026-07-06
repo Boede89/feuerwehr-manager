@@ -128,6 +128,18 @@ public class ManualAlarm {
     @Column(nullable = false)
     private boolean closed;
 
+    @Column(nullable = false)
+    private boolean started;
+
+    @Column(name = "started_at")
+    private Instant startedAt;
+
+    @Column(nullable = false)
+    private boolean exercise;
+
+    @Column(nullable = false)
+    private boolean sondersignal = true;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 

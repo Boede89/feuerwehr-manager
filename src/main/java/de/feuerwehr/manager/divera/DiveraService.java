@@ -34,7 +34,7 @@ public class DiveraService {
 
     @Transactional(readOnly = true)
     public DiveraAlarmsResponse getAlarmsForUnit(long unitId) {
-        List<DiveraAlarmSummary> manualAlarms = manualAlarmService.listOpenSummariesForUnit(unitId);
+        List<DiveraAlarmSummary> manualAlarms = manualAlarmService.listActiveSummariesForUnit(unitId);
         if (testModeService.isEnabled()) {
             List<DiveraAlarmSummary> running = testDiveraAlarmService.listOpenSummariesForUnit(unitId);
             return DiveraAlarmsResponse.ok(manualAlarmService.mergeInto(running, manualAlarms));
@@ -126,7 +126,9 @@ public class DiveraService {
                     alarm.getAddress(),
                     alarm.getDateEpochSeconds(),
                     alarm.getTsCreateSeconds(),
-                    alarm.isClosed()));
+                    alarm.isClosed(),
+                    alarm.isStarted(),
+                    alarm.isExercise()));
             rawJsonByAlarmId.put(alarm.getAlarmId(), buildManualAlarmPayload(alarm));
         }
         return DiveraAlarmsResponse.ok(alarms, rawJsonByAlarmId);

@@ -44,6 +44,8 @@
       padding-bottom: 1px;
     }
     .block { margin: 2px 0 6px 0; white-space: pre-wrap; }
+    .label-line { margin: 2px 0; }
+    .label-line strong { display: inline-block; min-width: 88px; }
     .data-table {
       width: 100%;
       border-collapse: collapse;
@@ -103,73 +105,74 @@
   </style>
 </head>
 <body>
-  <div class="meta-row">
-    <span th:text="${metaLeft}">Leitstelle</span>
-    <span class="meta-right" th:text="${metaRight}">06.07.2026 17:13 · 1/1</span>
+  <div class="meta-row" th:if="${metaLeft != null or metaRight != null}">
+    <span th:if="${metaLeft != null}" th:text="${metaLeft}">Leitstelle</span>
+    <span class="meta-right" th:if="${metaRight != null}" th:text="${metaRight}">06.07.2026 17:13 · 1/1</span>
   </div>
 
   <h1 class="title" th:text="${headerTitle}">Alarmdruck</h1>
 
-  <div class="leitstelle">
-    <strong th:text="${leitstelleName}">Leitstelle</strong>
-    <div th:text="${leitstelleAddress}">Adresse</div>
-    <div>
-      <span th:text="${leitstellePhone}">Tel</span>
-      <span th:if="${leitstelleEmail != null and leitstelleEmail != '—'}"> · </span>
-      <span th:text="${leitstelleEmail}">E-Mail</span>
+  <div class="leitstelle" th:if="${hasLeitstelle}">
+    <strong th:if="${leitstelleName != null}" th:text="${leitstelleName}">Leitstelle</strong>
+    <div th:if="${leitstelleAddress != null}" th:text="${leitstelleAddress}">Adresse</div>
+    <div th:if="${leitstellePhone != null or leitstelleEmail != null}">
+      <span th:if="${leitstellePhone != null}" th:text="${leitstellePhone}">Tel</span>
+      <span th:if="${leitstellePhone != null and leitstelleEmail != null}"> · </span>
+      <span th:if="${leitstelleEmail != null}" th:text="${leitstelleEmail}">E-Mail</span>
     </div>
   </div>
 
   <div class="section-title">Einsatzanlass</div>
-  <div class="block" th:text="${meldebild}">Meldebild</div>
-  <div class="block" th:if="${meldebildZusatz != null and !#strings.isEmpty(meldebildZusatz)}"
-       th:text="${meldebildZusatz}">Zusatz</div>
-  <table class="data-table">
-    <tr>
+  <div class="label-line" th:if="${meldebild != null}"><strong>Meldebild:</strong> <span th:text="${meldebild}">—</span></div>
+  <div class="label-line" th:if="${bemerkung != null}"><strong>Bemerkung:</strong> <span th:text="${bemerkung}">—</span></div>
+  <div class="label-line" th:if="${sondersignalText != null}"><span th:text="${sondersignalText}">Mit Sondersignal</span></div>
+
+  <table class="data-table" th:if="${stichwort != null or reporterLine != null or meldeweg != null}">
+    <tr th:if="${stichwort != null}">
       <td class="label">Stichwort:</td>
       <td th:text="${stichwort}">—</td>
     </tr>
-    <tr>
+    <tr th:if="${reporterLine != null}">
       <td class="label">Meldender:</td>
       <td th:text="${reporterLine}">—</td>
     </tr>
-    <tr>
-      <td class="label">Rückruf:</td>
-      <td th:text="${callbackPhone}">/</td>
-    </tr>
-    <tr>
+    <tr th:if="${meldeweg != null}">
       <td class="label">Meldeweg:</td>
       <td th:text="${meldeweg}">—</td>
     </tr>
   </table>
 
-  <div class="section-title">Einsatzort</div>
-  <table class="data-table">
-    <tr>
-      <td class="label">Objekt:</td>
-      <td th:text="${objectName}">—</td>
-    </tr>
-    <tr>
-      <td class="label">Ort:</td>
-      <td th:text="${cityLine}">—</td>
-    </tr>
-    <tr>
-      <td class="label">Ortsteil:</td>
-      <td th:text="${district}">—</td>
-    </tr>
-    <tr>
-      <td class="label">Straße:</td>
-      <td th:text="${streetLine}">—</td>
-    </tr>
-  </table>
+  <div th:if="${objectName != null or cityLine != null or district != null or streetLine != null}">
+    <div class="section-title">Einsatzort</div>
+    <table class="data-table">
+      <tr th:if="${objectName != null}">
+        <td class="label">Objekt:</td>
+        <td th:text="${objectName}">—</td>
+      </tr>
+      <tr th:if="${cityLine != null}">
+        <td class="label">Ort:</td>
+        <td th:text="${cityLine}">—</td>
+      </tr>
+      <tr th:if="${district != null}">
+        <td class="label">Ortsteil:</td>
+        <td th:text="${district}">—</td>
+      </tr>
+      <tr th:if="${streetLine != null}">
+        <td class="label">Straße:</td>
+        <td th:text="${streetLine}">—</td>
+      </tr>
+    </table>
+  </div>
 
-  <div class="section-title">Beteiligte Einsatzmittel</div>
-  <div class="block" th:text="${beteiligteEinsatzmittel}">—</div>
+  <div th:if="${beteiligteEinsatzmittel != null}">
+    <div class="section-title">Beteiligte Einsatzmittel</div>
+    <div class="block" th:text="${beteiligteEinsatzmittel}">—</div>
+  </div>
 
   <div th:if="${hasRoute}">
     <div class="section-title">Route</div>
     <div class="route-header">
-      <div th:text="'Route für ' + ${routeTitle}">Route für Einsatzstelle</div>
+      <div th:if="${routeTitle != null}" th:text="'Route für ' + ${routeTitle}">Route für Einsatzstelle</div>
       <div>Routingkriterium: Zeit</div>
       <div th:if="${routeSummary != null}" th:text="'Fahrtlänge: ' + ${routeSummary}">Fahrtlänge</div>
     </div>
@@ -182,7 +185,7 @@
       </tr>
       </tbody>
     </table>
-    <div class="route-fallback" th:if="${routeSteps == null or routeSteps.isEmpty()}"
+    <div class="route-fallback" th:if="${(routeSteps == null or routeSteps.isEmpty()) and routeInfo != null}"
          th:text="${routeInfo}">Route</div>
   </div>
 

@@ -9,10 +9,39 @@
     </div>
   </div>
 
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
   <div th:replace="~{fragments/testmode-banner :: banner}"></div>
 
   <div class="home-grid">
     <div class="home-grid__main">
+      <div class="widget-card widget-card--einsatz" th:if="${canManageManualAlarms and manualDraftAlarms != null and !#lists.isEmpty(manualDraftAlarms)}">
+        <div class="widget-card__header">
+          <h3>Geplante Einsätze</h3>
+          <a class="btn btn--primary btn--sm" th:href="@{/einsatz/manuell(unit=${unitId})}">+ Einsatz anlegen</a>
+        </div>
+        <div class="widget-card__body">
+          <div class="list-row" th:each="a : ${manualDraftAlarms}">
+            <span>
+              <strong th:text="${a.title}">Titel</strong>
+              <span th:if="${a.address != null and !#strings.isEmpty(a.address)}"> · </span>
+              <span th:text="${a.address}">Adresse</span>
+            </span>
+            <span class="btn-group btn-group--inline">
+              <span class="badge badge-muted" th:if="${a.exercise}">Übung</span>
+              <span class="badge badge-warning">Geplant</span>
+              <button type="button" class="btn btn--primary btn--sm manual-alarm-start-btn"
+                      th:attr="data-alarm-id=${a.manualRecordId},data-alarm-title=${a.title}">Einsatz starten</button>
+              <form method="post" th:action="@{/einsatz/manuell/{id}/depesche(id=${a.manualRecordId})}" class="table-inline-form">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <input type="hidden" name="unit" th:value="${unitId}"/>
+                <input type="hidden" name="computeRoute" value="true"/>
+                <button type="submit" class="btn btn--outline btn--sm">Depesche</button>
+              </form>
+            </span>
+          </div>
+        </div>
+      </div>
+
       <div class="widget-card widget-card--einsatz">
         <div class="widget-card__header">
           <h3>Divera – aktuelle Einsätze</h3>
@@ -26,7 +55,7 @@
           </div>
           <th:block th:if="${divera.success}">
             <div class="list-row" th:if="${#lists.isEmpty(divera.alarms)}">
-              <span>Keine Alarme geliefert (oder Liste leer).</span>
+              <span>Keine laufenden Einsätze.</span>
               <span class="badge active">OK</span>
             </div>
             <div class="list-row" th:each="a : ${divera.alarms}">
@@ -39,11 +68,12 @@
               <span class="btn-group btn-group--inline">
                 <span class="badge active" th:if="${!a.testAlarm and !a.manualAlarm}" th:text="${a.id}">ID</span>
                 <span class="badge badge-warning" th:if="${a.testAlarm}">Test</span>
+                <span class="badge badge-muted" th:if="${a.manualAlarm and a.exercise}">Übung</span>
                 <span class="badge badge-warning" th:if="${a.manualAlarm}">Manuell</span>
                 <form th:if="${canManageManualAlarms and a.manualAlarm and a.manualRecordId != null}"
                       method="post" th:action="@{/einsatz/manuell/{id}/close(id=${a.manualRecordId})}"
                       class="table-inline-form"
-                      onsubmit="return confirm('Manuellen Einsatz beenden?');">
+                      onsubmit="return confirm('Einsatz beenden?');">
                   <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
                   <input type="hidden" name="unit" th:value="${unitId}"/>
                   <button type="submit" class="btn btn--outline btn--sm">Beenden</button>
@@ -88,5 +118,58 @@
       </div>
     </div>
   </div>
+
+  <div id="modal-manual-alarm-start" class="modal-overlay" th:if="${canManageManualAlarms}"
+       th:attr="data-geraetehaus=${geraetehausAddress}">
+    <div class="modal" role="dialog" aria-labelledby="modal-manual-alarm-start-title">
+      <form method="post" id="manual-alarm-start-form" class="modal-form">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <div class="modal__header">
+          <h3 id="modal-manual-alarm-start-title">Einsatz starten</h3>
+          <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
+        </div>
+        <div class="modal__body form-grid">
+          <p class="form-group--full" id="manual-alarm-start-subtitle">—</p>
+          <div class="form-group form-group--full">
+            <label class="checkbox-inline">
+              <input type="checkbox" name="useGeraetehaus" value="true" checked/>
+              Gerätehaus als Startadresse
+            </label>
+          </div>
+          <div class="form-group form-group--full">
+            <label for="startRouteStartAddress">Startadresse</label>
+            <input id="startRouteStartAddress" name="routeStartAddress" type="text" maxlength="512" class="field"
+                   th:value="${geraetehausAddress}"/>
+          </div>
+          <div class="form-group form-group--full">
+            <label class="checkbox-inline">
+              <input type="checkbox" name="computeRoute" value="true" checked/>
+              Route automatisch berechnen
+            </label>
+          </div>
+          <div class="form-group form-group--full">
+            <label class="checkbox-inline">
+              <input type="checkbox" name="sendPush" value="true" checked/>
+              Push an Einsatz-App senden
+            </label>
+          </div>
+          <div class="form-group form-group--full">
+            <label class="checkbox-inline">
+              <input type="checkbox" name="printDepesche" value="true"/>
+              Alarmdepesche drucken
+            </label>
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button type="submit" class="btn btn--primary">Einsatz starten</button>
+          <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script th:src="@{/js/combo-suggest.js}" defer></script>
+  <script th:src="@{/js/dashboard-manual-alarms.js}" defer></script>
 </main>
 </html>

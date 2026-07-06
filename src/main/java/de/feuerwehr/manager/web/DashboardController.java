@@ -1,7 +1,9 @@
 package de.feuerwehr.manager.web;
 
+import de.feuerwehr.manager.berichte.UnitAddressSupport;
 import de.feuerwehr.manager.divera.DiveraAlarmsResponse;
 import de.feuerwehr.manager.divera.DiveraService;
+import de.feuerwehr.manager.divera.ManualAlarmService;
 import de.feuerwehr.manager.personal.PersonRepository;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.UserPermissionService;
@@ -31,6 +33,7 @@ public class DashboardController {
 
     private final UnitService unitService;
     private final DiveraService diveraService;
+    private final ManualAlarmService manualAlarmService;
     private final ModuleSettingsService moduleSettingsService;
     private final UserPermissionService userPermissionService;
     private final TermineService termineService;
@@ -60,6 +63,13 @@ public class DashboardController {
             model.addAttribute("divera", DiveraAlarmsResponse.fail("DIVERA-Abgleich fehlgeschlagen"));
         }
         model.addAttribute("canManageManualAlarms", currentUser != null && currentUser.getRole().isAdminLevel());
+        try {
+            model.addAttribute("manualDraftAlarms", manualAlarmService.listDraftSummariesForUnit(resolved.getId()));
+            model.addAttribute("geraetehausAddress", UnitAddressSupport.fullAddressLine(resolved));
+        } catch (Exception e) {
+            log.warn("Geplante Einsätze konnten nicht geladen werden: {}", e.getMessage());
+            model.addAttribute("manualDraftAlarms", List.of());
+        }
         try {
             addTermineWidgetModel(currentUser, resolved.getId(), model);
         } catch (Exception e) {

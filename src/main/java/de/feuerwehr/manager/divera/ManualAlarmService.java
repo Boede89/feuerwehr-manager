@@ -2,6 +2,8 @@ package de.feuerwehr.manager.divera;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import de.feuerwehr.manager.berichte.IncidentNumberSupport;
+import de.feuerwehr.manager.berichte.IncidentReportRepository;
 import de.feuerwehr.manager.berichte.UnitAddressSupport;
 import de.feuerwehr.manager.divera.DiveraAlarmDetailsMapper.DiveraAlarmDetails;
 import de.feuerwehr.manager.einsatzapp.EinsatzAppPushService;
@@ -16,6 +18,7 @@ import de.feuerwehr.manager.user.UserRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -39,6 +42,7 @@ public class ManualAlarmService {
     private static final long MANUAL_ALARM_ID_BASE = 7_000_000_000L;
 
     private final ManualAlarmRepository repository;
+    private final IncidentReportRepository incidentReportRepository;
     private final UnitRepository unitRepository;
     private final UserRepository userRepository;
     private final EinsatzAppPushService einsatzAppPushService;
@@ -49,10 +53,9 @@ public class ManualAlarmService {
 
     public record ManualAlarmInput(
             String alarmNumber,
-            String incidentCategory,
             String title,
-            String alarmText,
-            String meldebildZusatz,
+            String meldebild,
+            String bemerkung,
             String street,
             String houseNumber,
             String postalCode,
@@ -61,26 +64,33 @@ public class ManualAlarmService {
             String objectName,
             String reporterName,
             String reporterPhone,
-            String callbackPhone,
             String meldeweg,
             String beteiligteEinsatzmittel,
             String leitstelleName,
             String leitstelleAddress,
             String leitstellePhone,
-            String leitstelleEmail) {}
+            String leitstelleEmail,
+            boolean exercise,
+            boolean sondersignal) {}
 
-    public record CreateResult(ManualAlarm alarm, String pushMessage, String printMessage, String routeMessage) {}
+    public record CreateResult(ManualAlarm alarm) {}
+
+    public record StartResult(String pushMessage, String printMessage, String routeMessage) {}
+
+    public record ActionResult(String message) {}
+
+    @Transactional(readOnly = true)
+    public String suggestAlarmNumber(long unitId) {
+        LocalDate today = LocalDate.now(ZONE);
+        String yearPrefix = today.getYear() + "-";
+        List<String> existing = new ArrayList<>();
+        existing.addAll(incidentReportRepository.findIncidentNumbersForYear(unitId, yearPrefix, false));
+        existing.addAll(repository.findAlarmNumbersForYear(unitId, yearPrefix));
+        return IncidentNumberSupport.suggestForDate(today, existing);
+    }
 
     @Transactional
-    public CreateResult create(
-            long unitId,
-            long userId,
-            ManualAlarmInput input,
-            boolean useGeraetehaus,
-            String routeStartAddressOverride,
-            boolean computeRoute,
-            boolean sendPush,
-            boolean printDepesche) {
+    public CreateResult createDraft(long unitId, long userId, ManualAlarmInput input) {
         if (input == null || input.title() == null || input.title().isBlank()) {
             throw new IllegalArgumentException("Stichwort ist erforderlich.");
         }
@@ -90,11 +100,15 @@ public class ManualAlarmService {
         ManualAlarm alarm = new ManualAlarm();
         alarm.setUnit(unit);
         alarm.setAlarmId(generateAlarmId());
-        alarm.setAlarmNumber(blankToNull(input.alarmNumber()));
-        alarm.setIncidentCategory(blankToNull(input.incidentCategory()));
+        String alarmNumber = blankToNull(input.alarmNumber());
+        if (alarmNumber == null) {
+            alarmNumber = suggestAlarmNumber(unitId);
+        }
+        alarm.setAlarmNumber(alarmNumber);
+        alarm.setIncidentCategory(deriveIncidentCategory(input.title(), input.exercise()));
         alarm.setTitle(input.title().trim());
-        alarm.setAlarmText(blankToNull(input.alarmText()));
-        alarm.setMeldebildZusatz(blankToNull(input.meldebildZusatz()));
+        alarm.setAlarmText(blankToNull(input.meldebild()));
+        alarm.setMeldebildZusatz(blankToNull(input.bemerkung()));
         alarm.setStreet(blankToNull(input.street()));
         alarm.setHouseNumber(blankToNull(input.houseNumber()));
         alarm.setPostalCode(blankToNull(input.postalCode()));
@@ -103,21 +117,45 @@ public class ManualAlarmService {
         alarm.setObjectName(blankToNull(input.objectName()));
         alarm.setReporterName(blankToNull(input.reporterName()));
         alarm.setReporterPhone(blankToNull(input.reporterPhone()));
-        alarm.setCallbackPhone(blankToNull(input.callbackPhone()));
         alarm.setMeldeweg(blankToNull(input.meldeweg()));
         alarm.setBeteiligteEinsatzmittel(blankToNull(input.beteiligteEinsatzmittel()));
         alarm.setLeitstelleName(blankToNull(input.leitstelleName()));
         alarm.setLeitstelleAddress(blankToNull(input.leitstelleAddress()));
         alarm.setLeitstellePhone(blankToNull(input.leitstellePhone()));
         alarm.setLeitstelleEmail(blankToNull(input.leitstelleEmail()));
+        alarm.setExercise(input.exercise());
+        alarm.setSondersignal(input.sondersignal());
         alarm.setAddress(buildAddressLine(alarm));
         alarm.setDateEpochSeconds(now);
         alarm.setTsCreateSeconds(now);
+        alarm.setStarted(false);
         alarm.setClosed(false);
         alarm.setCreatedAt(Instant.now());
         alarm.setCreatedBy(user);
+        return new CreateResult(repository.save(alarm));
+    }
 
-        String routeMessage = applyRoute(alarm, unit, useGeraetehaus, routeStartAddressOverride, computeRoute);
+    @Transactional
+    public StartResult startAlarm(
+            long unitId,
+            long manualRecordId,
+            boolean useGeraetehaus,
+            String routeStartAddressOverride,
+            boolean computeRoute,
+            boolean sendPush,
+            boolean printDepesche) {
+        ManualAlarm alarm = loadOpenDraft(unitId, manualRecordId);
+        Unit unit = alarm.getUnit();
+        long now = Instant.now().getEpochSecond();
+        alarm.setStarted(true);
+        alarm.setStartedAt(Instant.now());
+        alarm.setDateEpochSeconds(now);
+        alarm.setTsCreateSeconds(now);
+
+        String routeMessage = null;
+        if (computeRoute) {
+            routeMessage = applyRoute(alarm, unit, useGeraetehaus, routeStartAddressOverride, true);
+        }
         ManualAlarm saved = repository.save(alarm);
 
         String pushMessage = null;
@@ -127,11 +165,46 @@ public class ManualAlarmService {
         }
         String printMessage = null;
         if (printDepesche) {
-            CupsPrintService.CupsPrintResult printResult =
-                    unitPrintSettingsService.printPdf(unitId, alarmdepechePdfService.renderPdf(saved));
-            printMessage = printResult.message();
+            printMessage = printDepescheInternal(unitId, saved).message();
         }
-        return new CreateResult(saved, pushMessage, printMessage, routeMessage);
+        return new StartResult(pushMessage, printMessage, routeMessage);
+    }
+
+    @Transactional
+    public ActionResult printDepesche(
+            long unitId,
+            long manualRecordId,
+            boolean useGeraetehaus,
+            String routeStartAddressOverride,
+            boolean computeRoute) {
+        ManualAlarm alarm = repository
+                .findByIdAndUnitId(manualRecordId, unitId)
+                .orElseThrow(() -> new IllegalArgumentException("Einsatz nicht gefunden."));
+        if (alarm.isClosed()) {
+            throw new IllegalArgumentException("Beendete Einsätze können nicht gedruckt werden.");
+        }
+        if (computeRoute && (alarm.getRouteStepsJson() == null || alarm.getRouteStepsJson().isBlank())) {
+            applyRoute(alarm, alarm.getUnit(), useGeraetehaus, routeStartAddressOverride, true);
+            alarm = repository.save(alarm);
+        }
+        return new ActionResult(printDepescheInternal(unitId, alarm).message());
+    }
+
+    private CupsPrintService.CupsPrintResult printDepescheInternal(long unitId, ManualAlarm alarm) {
+        return unitPrintSettingsService.printPdf(unitId, alarmdepechePdfService.renderPdf(alarm));
+    }
+
+    private ManualAlarm loadOpenDraft(long unitId, long manualRecordId) {
+        ManualAlarm alarm = repository
+                .findByIdAndUnitId(manualRecordId, unitId)
+                .orElseThrow(() -> new IllegalArgumentException("Einsatz nicht gefunden."));
+        if (alarm.isClosed()) {
+            throw new IllegalArgumentException("Einsatz ist bereits beendet.");
+        }
+        if (alarm.isStarted()) {
+            throw new IllegalArgumentException("Einsatz wurde bereits gestartet.");
+        }
+        return alarm;
     }
 
     private String applyRoute(
@@ -171,6 +244,24 @@ public class ManualAlarmService {
                 + Math.max(1, Math.round(route.durationSeconds() / 60.0)) + " Min.";
     }
 
+    private static String deriveIncidentCategory(String title, boolean exercise) {
+        if (exercise) {
+            return "Übung";
+        }
+        if (title == null || title.isBlank()) {
+            return "Einsatz";
+        }
+        String trimmed = title.trim();
+        if (trimmed.length() >= 2 && trimmed.charAt(0) == 'F' && Character.isDigit(trimmed.charAt(1))) {
+            int space = trimmed.indexOf(' ');
+            String prefix = space > 0 ? trimmed.substring(0, space) : trimmed;
+            if (prefix.matches("F\\d+")) {
+                return "Feuer " + prefix.substring(1);
+            }
+        }
+        return "Einsatz";
+    }
+
     private static String resolveRouteTitle(ManualAlarm alarm, Unit unit) {
         String beteiligte = alarm.getBeteiligteEinsatzmittel();
         if (beteiligte != null && !beteiligte.isBlank()) {
@@ -183,8 +274,15 @@ public class ManualAlarmService {
     }
 
     @Transactional(readOnly = true)
-    public List<DiveraAlarmSummary> listOpenSummariesForUnit(long unitId) {
-        return repository.findByUnitIdAndClosedFalseOrderByCreatedAtDesc(unitId).stream()
+    public List<DiveraAlarmSummary> listDraftSummariesForUnit(long unitId) {
+        return repository.findByUnitIdAndStartedFalseAndClosedFalseOrderByCreatedAtDesc(unitId).stream()
+                .map(this::toSummary)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<DiveraAlarmSummary> listActiveSummariesForUnit(long unitId) {
+        return repository.findByUnitIdAndStartedTrueAndClosedFalseOrderByStartedAtDesc(unitId).stream()
                 .map(this::toSummary)
                 .toList();
     }
@@ -222,15 +320,20 @@ public class ManualAlarmService {
     }
 
     private DiveraAlarmSummary toSummary(ManualAlarm a) {
+        long displayEpoch = a.isStarted() && a.getStartedAt() != null
+                ? a.getStartedAt().getEpochSecond()
+                : a.getDateEpochSeconds();
         return DiveraAlarmSummary.fromManualAlarm(
                 a.getAlarmId(),
                 a.getId(),
                 a.getTitle(),
                 a.getAlarmText(),
                 a.getAddress(),
-                a.getDateEpochSeconds(),
+                displayEpoch,
                 a.getTsCreateSeconds(),
-                a.isClosed());
+                a.isClosed(),
+                a.isStarted(),
+                a.isExercise());
     }
 
     private DiveraAlarmDetails toDetails(ManualAlarm alarm) {
