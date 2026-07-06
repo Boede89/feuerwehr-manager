@@ -152,17 +152,18 @@ public class ManualAlarmService {
         alarm.setStartedAt(Instant.now());
         alarm.setDateEpochSeconds(now);
         alarm.setTsCreateSeconds(now);
-
-        String routeMessage = null;
-        if (computeRoute) {
-            routeMessage = applyRoute(alarm, unit, useGeraetehaus, routeStartAddressOverride, true);
-        }
         ManualAlarm saved = repository.save(alarm);
 
         String pushMessage = null;
         if (sendPush) {
             einsatzAppPushService.dispatchManualAlarm(unitId, toDetails(saved));
             pushMessage = einsatzAppPushService.describeLastPush(unitId, saved.getAlarmId());
+        }
+
+        String routeMessage = null;
+        if (computeRoute) {
+            routeMessage = applyRoute(saved, unit, useGeraetehaus, routeStartAddressOverride, true);
+            saved = repository.save(saved);
         }
         String printMessage = null;
         if (printDepesche) {

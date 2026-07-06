@@ -3,11 +3,14 @@ package de.feuerwehr.manager.einsatzapp;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatusCode;
@@ -21,6 +24,13 @@ import org.springframework.web.client.RestClientResponseException;
 @RequiredArgsConstructor
 @Slf4j
 public class FcmPushClient {
+
+    private static final ExecutorService FCM_SEND_EXECUTOR =
+            Executors.newFixedThreadPool(4, r -> {
+                Thread t = new Thread(r, "fcm-send");
+                t.setDaemon(true);
+                return t;
+            });
 
     private final FcmAccessTokenProvider accessTokenProvider;
     private final FcmConfigService fcmConfigService;
@@ -54,24 +64,33 @@ public class FcmPushClient {
         String accessToken = tokenOpt.get();
         String projectId = projectOpt.get();
         Set<String> unique = new LinkedHashSet<>(registrationTokens);
+        List<String> targets = unique.stream()
+                .filter(token -> token != null && !token.isBlank())
+                .map(String::trim)
+                .toList();
+        if (targets.isEmpty()) {
+            return new FcmSendResult(0, 0, List.of());
+        }
+        ConcurrentLinkedQueue<String> invalid = new ConcurrentLinkedQueue<>();
+        List<CompletableFuture<SendOutcome>> futures = targets.stream()
+                .map(deviceToken -> CompletableFuture.supplyAsync(
+                        () -> sendToDevice(accessToken, projectId, deviceToken, title, body, alarmId, type),
+                        FCM_SEND_EXECUTOR))
+                .toList();
         int success = 0;
         int failure = 0;
-        List<String> invalid = new ArrayList<>();
-        for (String deviceToken : unique) {
-            if (deviceToken == null || deviceToken.isBlank()) {
-                continue;
-            }
-            SendOutcome outcome = sendToDevice(accessToken, projectId, deviceToken.trim(), title, body, alarmId, type);
+        for (int i = 0; i < futures.size(); i++) {
+            SendOutcome outcome = futures.get(i).join();
             if (outcome == SendOutcome.SUCCESS) {
                 success++;
             } else {
                 failure++;
                 if (outcome == SendOutcome.INVALID_TOKEN) {
-                    invalid.add(deviceToken.trim());
+                    invalid.add(targets.get(i));
                 }
             }
         }
-        return new FcmSendResult(success, failure, invalid);
+        return new FcmSendResult(success, failure, List.copyOf(invalid));
     }
 
     private enum SendOutcome {
@@ -124,6 +143,7 @@ public class FcmPushClient {
 
         ObjectNode android = objectMapper.createObjectNode();
         android.put("priority", "HIGH");
+        android.put("ttl", "0s");
 
         ObjectNode message = objectMapper.createObjectNode();
         message.put("token", deviceToken);

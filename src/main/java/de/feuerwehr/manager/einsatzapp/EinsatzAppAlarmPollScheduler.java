@@ -19,8 +19,8 @@ public class EinsatzAppAlarmPollScheduler {
     private final EinsatzAppAlarmPollService alarmPollService;
 
     @Scheduled(
-            fixedDelayString = "${feuerwehr.einsatzapp.alarm-poll-interval-ms:30000}",
-            initialDelayString = "${feuerwehr.einsatzapp.alarm-poll-initial-delay-ms:60000}")
+            fixedDelayString = "${feuerwehr.einsatzapp.alarm-poll-interval-ms:15000}",
+            initialDelayString = "${feuerwehr.einsatzapp.alarm-poll-initial-delay-ms:15000}")
     public void pollForNewAlarms() {
         try {
             alarmPollService.pollAllUnits();

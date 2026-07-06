@@ -112,8 +112,8 @@ public class DiveraWebhookService {
             if (testModeService.isEnabled()) {
                 sampleSaved = diveraAlarmSampleService.captureFromWebhook(unitId, rawBody);
             }
-            boolean draftCreated = einsatzberichtSyncService.syncFromWebhook(unitId, rawBody);
             dispatchEinsatzAppPush(unitId, rawBody);
+            boolean draftCreated = einsatzberichtSyncService.syncFromWebhook(unitId, rawBody);
             String externalId = extractExternalId(root);
             String message = sampleSaved
                     ? (draftCreated

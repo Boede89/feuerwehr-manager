@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -52,13 +53,19 @@ public class AlarmRouteService {
             return Optional.empty();
         }
         try {
-            Optional<LatLon> from = geocode(startAddress.trim());
-            Optional<LatLon> to = geocode(destinationAddress.trim());
+            String start = startAddress.trim();
+            String dest = destinationAddress.trim();
+            CompletableFuture<Optional<LatLon>> fromFuture =
+                    CompletableFuture.supplyAsync(() -> geocode(start));
+            CompletableFuture<Optional<LatLon>> toFuture =
+                    CompletableFuture.supplyAsync(() -> geocode(dest));
+            Optional<LatLon> from = fromFuture.join();
+            Optional<LatLon> to = toFuture.join();
             if (from.isEmpty() || to.isEmpty()) {
                 log.warn("[Routing] Geocoding fehlgeschlagen: {} -> {}", startAddress, destinationAddress);
                 return Optional.empty();
             }
-            return routeOsrm(from.get(), to.get(), startAddress.trim(), destinationAddress.trim(), routeTitle);
+            return routeOsrm(from.get(), to.get(), start, dest, routeTitle);
         } catch (Exception e) {
             log.warn("[Routing] Fehler: {}", e.getMessage());
             return Optional.empty();
