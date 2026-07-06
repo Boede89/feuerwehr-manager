@@ -4,16 +4,29 @@ import android.content.Context
 import android.media.RingtoneManager
 import android.net.Uri
 
-/** Verfügbare Alarmtöne (System-Klingeltöne — gleiches Prinzip wie DIVERA 24/7). */
+/** Verfügbare Alarmtöne: eingebaute App-MP3s und System-Klingeltöne. */
 object AlarmToneCatalog {
 
     data class AlarmTone(
         val id: String,
         val title: String,
         val uri: Uri,
+        val bundled: Boolean = false,
     )
 
-    fun load(context: Context): List<AlarmTone> {
+    data class Catalog(
+        val bundled: List<AlarmTone>,
+        val system: List<AlarmTone>,
+    ) {
+        val all: List<AlarmTone> get() = bundled + system
+    }
+
+    fun load(context: Context): Catalog = Catalog(
+        bundled = BundledAlarmTones.load(context),
+        system = loadSystemTones(context),
+    )
+
+    private fun loadSystemTones(context: Context): List<AlarmTone> {
         val tones = linkedMapOf<String, AlarmTone>()
         val defaultUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
         if (defaultUri != null) {
@@ -38,6 +51,15 @@ object AlarmToneCatalog {
     }
 
     fun titleForUri(context: Context, uriString: String): String {
+        if (uriString.startsWith("android.resource://")) {
+            val resourceName = runCatching {
+                val resId = Uri.parse(uriString).lastPathSegment?.toIntOrNull() ?: return@runCatching null
+                context.resources.getResourceEntryName(resId)
+            }.getOrNull()
+            if (resourceName != null && resourceName.startsWith("tone_")) {
+                return BundledAlarmTones.titleForResourceName(resourceName)
+            }
+        }
         val uri = runCatching { Uri.parse(uriString) }.getOrNull() ?: return "Standard-Alarm"
         val ringtone = RingtoneManager.getRingtone(context, uri)
         return ringtone?.getTitle(context)?.toString()?.trim().orEmpty().ifBlank { "Alarmton" }

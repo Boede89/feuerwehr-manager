@@ -15,6 +15,10 @@ Die **Server-URL wird in der App eingetragen** — nicht fest im Code (außer op
 
 Optionaler Standard beim ersten Öffnen: `local.properties` → `default.server.url=…` (siehe `local.properties.example`).
 
+## Eigene Alarm-MP3s
+
+MP3-Dateien in `alarm-tones-source/` ablegen, dann `scripts/install-alarm-tones.ps1` (Windows) oder `scripts/install-alarm-tones.sh` ausführen und die App neu bauen. Details: `alarm-tones-source/README.md`.
+
 ## Android Studio einrichten
 
 1. **Firebase** → Android-App mit Package `de.feuerwehr.einsatzapp` anlegen
@@ -31,7 +35,7 @@ Optionaler Standard beim ersten Öffnen: `local.properties` → `default.server.
 5. **Einsätze**-Tab: Liste offener Einsätze, Aktualisieren oben rechts
 6. **Einstellungen**-Tab (Struktur ähnlich DIVERA 24/7, Farben Feuerwehr-Manager):
    - **Allgemein:** Konto, Server, Abmelden
-   - **Push:** Android-Töne überschreiben, System-Alarmton wählen, Wiederholungen, Probe-Alarm
+   - **Push:** Android-Töne überschreiben, Alarmton wählen (eingebaute App-MP3s + Systemtöne), Wiederholungen, Probe-Alarm
    - **Gerät:** Checkliste Benachrichtigungen & Akku
 
 **Dauerhafte Anmeldung:** Zugangsdaten werden verschlüsselt auf dem Gerät gespeichert; bei abgelaufener Session meldet die App sich automatisch wieder an (kein 2FA). Server-Session: 30 Tage Inaktivität.

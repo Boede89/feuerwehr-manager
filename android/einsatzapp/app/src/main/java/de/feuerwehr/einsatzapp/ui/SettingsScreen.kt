@@ -54,10 +54,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import de.feuerwehr.einsatzapp.R
 import de.feuerwehr.einsatzapp.data.PushPreferencesStore
 import de.feuerwehr.einsatzapp.data.SessionStore
 import de.feuerwehr.einsatzapp.fcm.AlarmNotificationHelper
@@ -224,7 +226,7 @@ private fun PushSettingsTab() {
             alarmVolumePercent = PushPreferencesStore.DEFAULT_ALARM_VOLUME_PERCENT,
         ),
     )
-    val tones = remember { AlarmToneCatalog.load(context) }
+    val toneCatalog = remember { AlarmToneCatalog.load(context) }
     val repeatOptions = listOf(0, 1, 3, 5, 10)
     var volumeDraft by remember(prefs.alarmVolumePercent) {
         mutableFloatStateOf(prefs.alarmVolumePercent.toFloat())
@@ -294,27 +296,18 @@ private fun PushSettingsTab() {
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         style = MaterialTheme.typography.titleMedium,
                     )
-                    tones.forEach { tone ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    scope.launch {
-                                        pushStore.setAlarmToneUri(tone.id)
-                                        NotificationChannelHelper.syncChannels(context, pushStore.current())
-                                        AlarmNotificationHelper.playPreviewSound(
-                                            context,
-                                            tone.uri,
-                                            prefs.alarmVolumePercent,
-                                        )
-                                    }
-                                }
-                                .padding(horizontal = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            RadioButton(
+                    if (toneCatalog.bundled.isNotEmpty()) {
+                        Text(
+                            stringResource(R.string.alarm_tones_bundled_header),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        toneCatalog.bundled.forEach { tone ->
+                            AlarmToneOptionRow(
+                                tone = tone,
                                 selected = prefs.alarmToneUri == tone.id,
-                                onClick = {
+                                onSelect = {
                                     scope.launch {
                                         pushStore.setAlarmToneUri(tone.id)
                                         NotificationChannelHelper.syncChannels(context, pushStore.current())
@@ -326,8 +319,30 @@ private fun PushSettingsTab() {
                                     }
                                 },
                             )
-                            Text(tone.title, style = MaterialTheme.typography.bodyLarge)
                         }
+                        Text(
+                            stringResource(R.string.alarm_tones_system_header),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    toneCatalog.system.forEach { tone ->
+                        AlarmToneOptionRow(
+                            tone = tone,
+                            selected = prefs.alarmToneUri == tone.id,
+                            onSelect = {
+                                scope.launch {
+                                    pushStore.setAlarmToneUri(tone.id)
+                                    NotificationChannelHelper.syncChannels(context, pushStore.current())
+                                    AlarmNotificationHelper.playPreviewSound(
+                                        context,
+                                        tone.uri,
+                                        prefs.alarmVolumePercent,
+                                    )
+                                }
+                            },
+                        )
                     }
                 }
             }
@@ -638,5 +653,23 @@ private fun DeviceSettingsItem(
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+    }
+}
+
+@Composable
+private fun AlarmToneOptionRow(
+    tone: AlarmToneCatalog.AlarmTone,
+    selected: Boolean,
+    onSelect: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onSelect)
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = onSelect)
+        Text(tone.title, style = MaterialTheme.typography.bodyLarge)
     }
 }
