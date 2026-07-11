@@ -155,13 +155,13 @@
     <div class="card">
       <div class="card__header">Route (Startpunkt)</div>
       <div class="card__body manual-alarm-form__section" id="route-plan-section">
-        <input type="hidden" name="routePlanUseGeraetehaus" value="false"/>
         <div class="form-group">
           <label class="checkbox-inline">
             <input type="checkbox" id="routePlanUseGeraetehaus" name="routePlanUseGeraetehaus" value="true"
                    th:checked="${editMode ? alarm.routePlanUseGeraetehaus : true}"/>
             Gerätehaus als Startadresse
           </label>
+          <input type="hidden" name="routePlanUseGeraetehaus" value="false"/>
           <p class="hint" th:if="${geraetehausAddress != null and !#strings.isEmpty(geraetehausAddress)}"
              th:text="${'Standard: ' + geraetehausAddress}">Standard: Gerätehaus-Adresse</p>
           <p class="hint" th:if="${geraetehausAddress == null or #strings.isEmpty(geraetehausAddress)}">
