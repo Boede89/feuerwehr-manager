@@ -40,6 +40,95 @@
     return !!page;
   }
 
+  function focusReleaseField(anchorId, tabIndex) {
+    if (tabIndex != null) {
+      switchTab(tabIndex);
+      if (window.BerichteKraefte && (tabIndex === 1 || tabIndex === 2)) {
+        window.BerichteKraefte.onTabShow(tabIndex);
+      }
+    }
+    if (!anchorId) {
+      return;
+    }
+    window.setTimeout(function () {
+      var el = document.getElementById(anchorId);
+      if (!el) {
+        return;
+      }
+      el.classList.add('release-field-highlight');
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      var input = el.matches('input, textarea, select')
+        ? el
+        : el.querySelector('input:not([type="hidden"]), textarea, select');
+      if (input && !input.readOnly && !input.disabled) {
+        input.focus();
+      }
+    }, 120);
+  }
+
+  function initReleaseIssueHints() {
+    if (document.querySelector('.einsatzbericht-view-page')) {
+      return;
+    }
+    var issues = null;
+    var storageKey = window.BerichteEinsatzRelease && window.BerichteEinsatzRelease.STORAGE_KEY;
+    if (storageKey) {
+      try {
+        var raw = sessionStorage.getItem(storageKey);
+        if (raw) {
+          issues = JSON.parse(raw);
+          sessionStorage.removeItem(storageKey);
+        }
+      } catch (e) {
+        issues = null;
+      }
+    }
+    var params = new URLSearchParams(window.location.search);
+    var focus = params.get('focus');
+    var tab = params.get('tab');
+    if (!issues || !issues.length) {
+      if (focus || tab) {
+        focusReleaseField(focus, tab != null ? Number(tab) : null);
+      }
+      return;
+    }
+    var form = document.getElementById('einsatzbericht-form');
+    if (!form) {
+      return;
+    }
+    var banner = document.createElement('div');
+    banner.className = 'release-validation-banner';
+    banner.setAttribute('role', 'alert');
+    var title = document.createElement('strong');
+    title.textContent = 'Freigabe noch nicht möglich: ';
+    banner.appendChild(title);
+    banner.appendChild(document.createTextNode('Bitte folgende Pflichtfelder ausfüllen: '));
+    issues.forEach(function (issue, index) {
+      if (index > 0) {
+        banner.appendChild(document.createTextNode(', '));
+      }
+      var link = document.createElement('button');
+      link.type = 'button';
+      link.className = 'release-validation-banner__link';
+      link.textContent = issue.label;
+      link.addEventListener('click', function () {
+        focusReleaseField(issue.anchorId, issue.tabIndex);
+      });
+      banner.appendChild(link);
+    });
+    form.parentNode.insertBefore(banner, form);
+    issues.forEach(function (issue) {
+      if (issue.anchorId) {
+        var target = document.getElementById(issue.anchorId);
+        if (target) {
+          target.classList.add('release-field-highlight');
+        }
+      }
+    });
+    var first = issues[0];
+    focusReleaseField(first.anchorId, first.tabIndex);
+  }
+
   function init(root) {
     var scope = root || document;
     var anwesenheit = isAnwesenheitForm(scope);
@@ -119,9 +208,12 @@
     }
 
     switchTab(0);
+    if (!anwesenheit) {
+      initReleaseIssueHints();
+    }
   }
 
-  window.BerichteEinsatzForm = { init: init };
+  window.BerichteEinsatzForm = { init: init, switchTab: switchTab, focusReleaseField: focusReleaseField };
 
   document.addEventListener('DOMContentLoaded', function () {
     if (document.querySelector('.einsatzbericht-form-page')) {

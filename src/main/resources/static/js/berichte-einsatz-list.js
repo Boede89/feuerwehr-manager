@@ -125,29 +125,40 @@
   }
 
   function releaseFromTable(reportId) {
-    var ask = window.FwConfirm && window.FwConfirm.releaseEinsatzbericht
-      ? window.FwConfirm.releaseEinsatzbericht(releaseDefaults())
-      : Promise.resolve(window.confirm('Einsatzbericht wirklich freigeben?'));
-    ask.then(function (result) {
-      var ok = result === true || (result && result.ok);
-      if (!ok) {
-        return;
-      }
-      var extras = {};
-      if (result && result.createGeraetewart) {
-        extras.createGeraetewart = true;
-      }
-      if (result && result.printReport) {
-        extras.printReport = true;
-      }
-      if (result && result.printGeraetewart) {
-        extras.printGeraetewart = true;
-      }
-      if (result && result.printMaengel) {
-        extras.printMaengel = true;
-      }
-      postAction('/berichte/einsatzberichte/' + reportId + '/freigeben', listReturnPath(), extras);
-    });
+    function proceedRelease() {
+      var ask = window.FwConfirm && window.FwConfirm.releaseEinsatzbericht
+        ? window.FwConfirm.releaseEinsatzbericht(releaseDefaults())
+        : Promise.resolve(window.confirm('Einsatzbericht wirklich freigeben?'));
+      ask.then(function (result) {
+        var ok = result === true || (result && result.ok);
+        if (!ok) {
+          return;
+        }
+        var extras = {};
+        if (result && result.createGeraetewart) {
+          extras.createGeraetewart = true;
+        }
+        if (result && result.printReport) {
+          extras.printReport = true;
+        }
+        if (result && result.printGeraetewart) {
+          extras.printGeraetewart = true;
+        }
+        if (result && result.printMaengel) {
+          extras.printMaengel = true;
+        }
+        postAction('/berichte/einsatzberichte/' + reportId + '/freigeben', listReturnPath(), extras);
+      });
+    }
+    if (window.BerichteEinsatzRelease) {
+      window.BerichteEinsatzRelease.ensureValidBeforeRelease(reportId, unitId).then(function (check) {
+        if (check && check.ok) {
+          proceedRelease();
+        }
+      });
+      return;
+    }
+    proceedRelease();
   }
 
   function tablePdfPrintActions(reportId) {
@@ -315,29 +326,40 @@
       postAction('/berichte/einsatzberichte/' + meta.reportId + '/drucken', returnPath);
     });
     document.getElementById('btn-modal-release')?.addEventListener('click', function () {
-      var ask = window.FwConfirm && window.FwConfirm.releaseEinsatzbericht
-        ? window.FwConfirm.releaseEinsatzbericht(releaseDefaults(meta))
-        : Promise.resolve(window.confirm('Einsatzbericht wirklich freigeben?'));
-      ask.then(function (result) {
-        var ok = result === true || (result && result.ok);
-        if (!ok) {
-          return;
-        }
-        var extras = {};
-        if (result && result.createGeraetewart) {
-          extras.createGeraetewart = true;
-        }
-        if (result && result.printReport) {
-          extras.printReport = true;
-        }
-        if (result && result.printGeraetewart) {
-          extras.printGeraetewart = true;
-        }
-        if (result && result.printMaengel) {
-          extras.printMaengel = true;
-        }
-        postAction('/berichte/einsatzberichte/' + meta.reportId + '/freigeben', returnPath, extras);
-      });
+      function proceedRelease() {
+        var ask = window.FwConfirm && window.FwConfirm.releaseEinsatzbericht
+          ? window.FwConfirm.releaseEinsatzbericht(releaseDefaults(meta))
+          : Promise.resolve(window.confirm('Einsatzbericht wirklich freigeben?'));
+        ask.then(function (result) {
+          var ok = result === true || (result && result.ok);
+          if (!ok) {
+            return;
+          }
+          var extras = {};
+          if (result && result.createGeraetewart) {
+            extras.createGeraetewart = true;
+          }
+          if (result && result.printReport) {
+            extras.printReport = true;
+          }
+          if (result && result.printGeraetewart) {
+            extras.printGeraetewart = true;
+          }
+          if (result && result.printMaengel) {
+            extras.printMaengel = true;
+          }
+          postAction('/berichte/einsatzberichte/' + meta.reportId + '/freigeben', returnPath, extras);
+        });
+      }
+      if (window.BerichteEinsatzRelease) {
+        window.BerichteEinsatzRelease.ensureValidBeforeRelease(meta.reportId, unitId).then(function (check) {
+          if (check && check.ok) {
+            proceedRelease();
+          }
+        });
+        return;
+      }
+      proceedRelease();
     });
     document.getElementById('btn-modal-archive')?.addEventListener('click', function () {
       var ask = window.FwConfirm && window.FwConfirm.archiveReport

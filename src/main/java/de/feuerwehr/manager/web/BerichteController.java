@@ -15,6 +15,7 @@ import de.feuerwehr.manager.berichte.EinsatzberichtAccess;
 import de.feuerwehr.manager.berichte.EinsatzberichtForm;
 import de.feuerwehr.manager.berichte.EinsatzberichtService;
 import de.feuerwehr.manager.berichte.EinsatzberichtListResponse;
+import de.feuerwehr.manager.berichte.EinsatzberichtReleaseValidationResult;
 import de.feuerwehr.manager.berichte.AnwesenheitslistePdfService;
 import de.feuerwehr.manager.berichte.EinsatzberichtPdfService;
 import de.feuerwehr.manager.berichte.ForeignPersonOption;
@@ -168,6 +169,18 @@ public class BerichteController {
         requireBerichteRead(actor, unit.getId());
         int filterYear = year != null ? year : LocalDate.now().getYear();
         return einsatzberichtService.listForYear(unit.getId(), filterYear);
+    }
+
+    @GetMapping("/einsatzberichte/{id}/release-validation")
+    @ResponseBody
+    public EinsatzberichtReleaseValidationResult validateEinsatzberichtRelease(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @PathVariable long id) {
+        Unit unit = resolveUnit(unitId, actor);
+        requireModuleEnabled(unit.getId());
+        requireBerichteRead(actor, unit.getId());
+        return einsatzberichtService.validateForRelease(unit.getId(), id);
     }
 
     @GetMapping("/einsatzberichte/{id}/modal")

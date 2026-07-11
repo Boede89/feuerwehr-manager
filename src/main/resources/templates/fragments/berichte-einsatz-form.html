@@ -31,12 +31,12 @@
                th:readonly="${formMode == 'view'}" th:value="${form.incidentDate}"/>
       </div>
       <div class="form-group">
-        <label for="alarmTime">Alarmzeit</label>
+        <label for="alarmTime">Alarmzeit <span class="required">*</span></label>
         <input id="alarmTime" name="alarmTime" type="time" th:readonly="${formMode == 'view'}"
                th:value="${form.alarmTime != null ? #temporals.format(form.alarmTime, 'HH:mm') : ''}"/>
       </div>
       <div class="form-group">
-        <label for="endTime">Einsatzende</label>
+        <label for="endTime">Einsatzende <span class="required">*</span></label>
         <input id="endTime" name="endTime" type="time" th:readonly="${formMode == 'view'}"
                th:value="${form.endTime != null ? #temporals.format(form.endTime, 'HH:mm') : ''}"/>
       </div>
@@ -55,7 +55,7 @@
         <p class="hint text-sm" style="margin:0;" th:if="${formMode != 'view'}">Tippen zum Filtern bekannter Stichworte; auch manuell oder aus DIVERA.</p>
       </div>
       <div class="form-group">
-        <label for="alarmierungDurch">Alarmierung durch</label>
+        <label for="alarmierungDurch">Alarmierung durch <span class="required">*</span></label>
         <input id="alarmierungDurch" name="alarmierungDurch" type="text" maxlength="512"
                th:readonly="${formMode == 'view'}"
                placeholder="z. B. Leitstelle, Verband …" th:value="${form.alarmierungDurch}"/>
@@ -75,7 +75,7 @@
                placeholder="Ortsname / Gemeinde" th:value="${form.location}"/>
       </div>
       <div class="form-group">
-        <label for="postalCode">PLZ</label>
+        <label for="postalCode">PLZ <span class="required">*</span></label>
         <input id="postalCode" name="postalCode" type="text" maxlength="10" th:readonly="${formMode == 'view'}"
                th:value="${form.postalCode}"/>
       </div>
@@ -105,7 +105,7 @@
                th:value="${form.eigentuemer}"/>
       </div>
       <div class="form-group form-group--full">
-        <label for="incidentCommander">Einsatzleiter</label>
+        <label for="incidentCommander">Einsatzleiter <span class="required">*</span></label>
         <div class="combo-suggest" data-combo-suggest data-combo-min="1">
           <input id="incidentCommander" name="incidentCommander" type="text" maxlength="255"
                  th:readonly="${formMode == 'view'}"

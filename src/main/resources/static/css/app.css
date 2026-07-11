@@ -2734,6 +2734,57 @@ body.modal-open {
   display: none !important;
 }
 
+.release-validation-issue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.release-validation-issue-link {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color, #dee2e6);
+  border-radius: 6px;
+  background: var(--surface-muted, #f8f9fa);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+.release-validation-issue-link:hover {
+  border-color: var(--primary, #0d6efd);
+  background: var(--surface, #fff);
+}
+
+.release-validation-banner {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid #f0ad4e;
+  border-radius: 8px;
+  background: #fff8e8;
+  color: #664d03;
+  line-height: 1.5;
+}
+
+.release-validation-banner__link {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: #0d6efd;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+
+.release-field-highlight {
+  outline: 2px solid #f0ad4e;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
 .text-nowrap {
   white-space: nowrap;
 }

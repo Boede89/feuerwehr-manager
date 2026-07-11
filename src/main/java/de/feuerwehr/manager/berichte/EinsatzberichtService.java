@@ -197,6 +197,12 @@ public class EinsatzberichtService {
         return buildKraefteFahrzeugeState(unitId, reportId, null, null, null);
     }
 
+    public EinsatzberichtReleaseValidationResult validateForRelease(long unitId, long reportId) {
+        IncidentReport report = requireReport(unitId, reportId);
+        KraefteFahrzeugeState state = buildKraefteFahrzeugeState(unitId, reportId);
+        return EinsatzberichtReleaseValidator.validate(report, state);
+    }
+
     /**
      * Kräfte-Board für Anwesenheitslisten: Termin-Zielgruppe im Reserve-Pool links,
      * explizit gespeicherte Anwesenheit im Slot „Anwesend“.
@@ -1444,6 +1450,13 @@ public class EinsatzberichtService {
         IncidentReport report = requireReport(unitId, reportId);
         report = writableReport(report);
         validateStatusTransition(report.getStatus(), newStatus);
+        if (newStatus == IncidentReportStatus.FREIGEGEBEN) {
+            EinsatzberichtReleaseValidationResult validation = validateForRelease(unitId, reportId);
+            if (!validation.valid()) {
+                throw new IllegalArgumentException(
+                        EinsatzberichtReleaseValidator.formatErrorMessage(validation.issues()));
+            }
+        }
         report.setStatus(newStatus);
         if (newStatus == IncidentReportStatus.FREIGEGEBEN) {
             userRepository.findById(actor.getUserId()).ifPresent(report::setReleasedByUser);

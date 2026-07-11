@@ -298,6 +298,65 @@
     });
   }
 
+  function releaseValidationIssues(issues, options) {
+    return new Promise(function (resolve) {
+      var list = issues || [];
+      var opts = options || {};
+      ensureModal();
+      titleEl.textContent = 'Freigabe nicht möglich';
+      checkboxesEl.hidden = true;
+      checkboxesEl.innerHTML = '';
+      activeCheckboxes = [];
+
+      var intro = document.createElement('p');
+      intro.className = 'confirm-dialog__message';
+      intro.textContent = 'Bitte folgende Pflichtfelder ausfüllen:';
+      messageEl.innerHTML = '';
+      messageEl.appendChild(intro);
+
+      var listEl = document.createElement('div');
+      listEl.className = 'release-validation-issue-list';
+      list.forEach(function (issue) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'release-validation-issue-link';
+        btn.textContent = issue.label;
+        btn.addEventListener('click', function () {
+          modalEl.hidden = true;
+          modalEl.classList.remove('active');
+          document.body.classList.remove('modal-open');
+          resolveFn = null;
+          if (window.BerichteEinsatzRelease && opts.reportId && opts.unitId) {
+            window.BerichteEinsatzRelease.storeIssuesAndNavigate(list, opts.reportId, opts.unitId, issue);
+          }
+          resolve(false);
+        });
+        listEl.appendChild(btn);
+      });
+      messageEl.appendChild(listEl);
+
+      confirmBtn.textContent = 'Zum Bearbeiten';
+      cancelBtn.textContent = 'Abbrechen';
+      applyVariant('primary');
+      resolveFn = function (confirmed) {
+        if (confirmed && window.BerichteEinsatzRelease && opts.reportId && opts.unitId) {
+          window.BerichteEinsatzRelease.storeIssuesAndNavigate(list, opts.reportId, opts.unitId);
+          resolve('edit');
+        } else {
+          resolve(false);
+        }
+        resolveFn = null;
+      };
+
+      modalEl.hidden = false;
+      modalEl.classList.add('active');
+      document.body.classList.add('modal-open');
+      window.setTimeout(function () {
+        confirmBtn.focus();
+      }, 0);
+    });
+  }
+
   function bindFormConfirms() {
     document.addEventListener(
       'submit',
@@ -306,17 +365,33 @@
         if (form && form.dataset.confirmSubmitting !== 'true') {
           e.preventDefault();
           e.stopImmediatePropagation();
-          window.FwConfirm.releaseEinsatzbericht(releaseDefaultsFromElement(form)).then(function (result) {
-            if (result && result.ok) {
-              appendReleaseOptions(form, result, EINSATZ_RELEASE_FIELD_NAMES);
-              form.dataset.confirmSubmitting = 'true';
-              if (typeof form.requestSubmit === 'function') {
-                form.requestSubmit();
-              } else {
-                form.submit();
+          var unitInput = form.querySelector('input[name="unit"]');
+          var unitId = unitInput ? unitInput.value : '';
+          var reportId = window.BerichteEinsatzRelease
+            ? window.BerichteEinsatzRelease.parseReportIdFromAction(form.getAttribute('action'))
+            : null;
+          function proceedRelease() {
+            window.FwConfirm.releaseEinsatzbericht(releaseDefaultsFromElement(form)).then(function (result) {
+              if (result && result.ok) {
+                appendReleaseOptions(form, result, EINSATZ_RELEASE_FIELD_NAMES);
+                form.dataset.confirmSubmitting = 'true';
+                if (typeof form.requestSubmit === 'function') {
+                  form.requestSubmit();
+                } else {
+                  form.submit();
+                }
               }
-            }
-          });
+            });
+          }
+          if (window.BerichteEinsatzRelease && reportId && unitId) {
+            window.BerichteEinsatzRelease.ensureValidBeforeRelease(reportId, unitId).then(function (check) {
+              if (check && check.ok) {
+                proceedRelease();
+              }
+            });
+          } else {
+            proceedRelease();
+          }
           return;
         }
 
@@ -374,6 +449,7 @@
         variant: 'success'
       });
     },
+    releaseValidationIssues: releaseValidationIssues,
     releaseEinsatzbericht: function (defaults) {
       return new Promise(function (resolve) {
         ensureModal();
