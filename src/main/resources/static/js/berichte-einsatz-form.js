@@ -51,9 +51,20 @@
     'incidentCommander'
   ];
 
+  function isReleaseFieldEmpty(field) {
+    return !field || String(field.value || '').trim() === '';
+  }
+
+  function updateReleaseFieldEmptyState(field) {
+    if (!field || field.readOnly || field.disabled) {
+      field.classList.remove('release-field-empty');
+      return;
+    }
+    field.classList.toggle('release-field-empty', isReleaseFieldEmpty(field));
+  }
+
   function initReleaseRequiredMarkers(scope) {
-    var root = (scope || document).querySelector('.einsatzbericht-form--release-hints');
-    if (!root) {
+    if ((scope || document).querySelector('.einsatzbericht-view-page')) {
       return;
     }
     RELEASE_REQUIRED_FIELD_IDS.forEach(function (fieldId) {
@@ -61,15 +72,18 @@
       if (!field) {
         return;
       }
-      var group = field.closest('.form-group');
-      if (group) {
-        group.classList.add('form-group--release-required');
+      updateReleaseFieldEmptyState(field);
+      if (field.dataset.releaseEmptyBound === 'true') {
+        return;
       }
-    });
-    root.querySelectorAll('.incident-tab[data-tab="0"], .incident-tab[data-tab="1"], .incident-tab[data-tab="2"]')
-      .forEach(function (btn) {
-        btn.classList.add('incident-tab--release-required');
+      field.dataset.releaseEmptyBound = 'true';
+      field.addEventListener('input', function () {
+        updateReleaseFieldEmptyState(field);
       });
+      field.addEventListener('change', function () {
+        updateReleaseFieldEmptyState(field);
+      });
+    });
   }
 
   function focusReleaseField(anchorId, tabIndex) {

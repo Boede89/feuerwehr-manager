@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de" xmlns:th="http://www.thymeleaf.org">
 <th:block th:fragment="form">
-  <div th:classappend="${formMode == 'view' ? ' einsatzbericht-form--view' : ' einsatzbericht-form--release-hints'}">
+  <div th:classappend="${formMode == 'view' ? ' einsatzbericht-form--view' : ''}">
   <nav class="tab-bar incident-form-tabs" aria-label="Einsatzbericht-Bereiche">
     <button type="button" class="tab-btn incident-tab tab-btn--active" data-tab="0">Basisdaten</button>
     <button type="button" class="tab-btn incident-tab" data-tab="1">Personal</button>
@@ -11,10 +11,6 @@
     <button type="button" class="tab-btn incident-tab" data-tab="5">Bericht</button>
     <button type="button" class="tab-btn incident-tab" data-tab="6" th:if="${report != null}">Anhänge</button>
   </nav>
-  <p class="release-required-legend" th:if="${formMode != 'view'}">
-    <span class="release-required-legend__swatch" aria-hidden="true"></span>
-    Farbig markiert: Pflichtfelder für die Freigabe
-  </p>
 
   <!-- Tab 0: Basisdaten -->
   <div class="incident-tab-panel" data-panel="0">
@@ -258,16 +254,12 @@
                    th:with="displayVehicles=${formMode == 'view' ? kraefteState.involvedVehicles() : kraefteState.vehicles()}">
             <header class="incident-kraefte-section__head">
               <div>
-                <div class="release-required-title-row">
-                  <h3 class="incident-kraefte-section__title">Fahrzeugbesetzung</h3>
-                  <span class="release-required-badge" th:if="${formMode != 'view'}">Pflicht</span>
-                </div>
+                <h3 class="incident-kraefte-section__title">Fahrzeugbesetzung</h3>
                 <p class="hint text-sm" th:if="${formMode != 'view'}">ZF / GF / M / Gesamt — Fahrzeug anklicken für „Am Einsatz beteiligt“, Person für EF/Ma/PA</p>
                 <p class="hint text-sm" th:if="${formMode == 'view'}">ZF / GF / M / Gesamt — EF = Einheitsführer, Ma = Maschinist, PA = Atemschutz</p>
               </div>
             </header>
-            <div class="incident-vehicle-stack release-required-section" id="incident-vehicle-stack"
-                 th:attr="data-release-required=${formMode != 'view' ? 'vehicles' : null}">
+            <div class="incident-vehicle-stack" id="incident-vehicle-stack">
               <article class="incident-vehicle-card"
                        th:each="v : ${displayVehicles}"
                        th:classappend="${(v.vehicleType() != null ? 'incident-vehicle-card--type-' + v.vehicleType() : '') + (v.involvedInIncident() ? ' incident-vehicle-card--einsatz-beteiligt' : '')}"
@@ -384,14 +376,10 @@
       </div>
     </div>
 
-    <article id="involved-card" class="incident-vehicle-card incident-vehicle-card--involved release-required-section"
-             th:attr="data-vehicle-id=${beteiligt.vehicleId()},
-                      data-release-required=${formMode != 'view' ? 'personnel' : null}">
+    <article id="involved-card" class="incident-vehicle-card incident-vehicle-card--involved"
+             th:attr="data-vehicle-id=${beteiligt.vehicleId()}">
       <header class="incident-vehicle-card__head">
-        <div class="release-required-title-row">
-          <h3 class="incident-kraefte-section__title" th:text="${beteiligt.name()}">Am Einsatz beteiligt</h3>
-          <span class="release-required-badge" th:if="${formMode != 'view'}">Pflicht</span>
-        </div>
+        <h3 class="incident-kraefte-section__title" th:text="${beteiligt.name()}">Am Einsatz beteiligt</h3>
         <span class="incident-vehicle-card__staerke" th:attr="data-staerke-badge=${beteiligt.vehicleId()}"
               th:text="${beteiligt.besatzungsstaerke()}">0/0/0/0</span>
       </header>
