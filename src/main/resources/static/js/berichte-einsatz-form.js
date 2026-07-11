@@ -40,6 +40,38 @@
     return !!page;
   }
 
+  var RELEASE_REQUIRED_FIELD_IDS = [
+    'incidentDate',
+    'alarmTime',
+    'endTime',
+    'stichwort',
+    'alarmierungDurch',
+    'location',
+    'postalCode',
+    'incidentCommander'
+  ];
+
+  function initReleaseRequiredMarkers(scope) {
+    var root = (scope || document).querySelector('.einsatzbericht-form--release-hints');
+    if (!root) {
+      return;
+    }
+    RELEASE_REQUIRED_FIELD_IDS.forEach(function (fieldId) {
+      var field = document.getElementById(fieldId);
+      if (!field) {
+        return;
+      }
+      var group = field.closest('.form-group');
+      if (group) {
+        group.classList.add('form-group--release-required');
+      }
+    });
+    root.querySelectorAll('.incident-tab[data-tab="0"], .incident-tab[data-tab="1"], .incident-tab[data-tab="2"]')
+      .forEach(function (btn) {
+        btn.classList.add('incident-tab--release-required');
+      });
+  }
+
   function focusReleaseField(anchorId, tabIndex) {
     if (tabIndex != null) {
       switchTab(tabIndex);
@@ -209,6 +241,7 @@
 
     switchTab(0);
     if (!anwesenheit) {
+      initReleaseRequiredMarkers(scope);
       initReleaseIssueHints();
     }
   }
