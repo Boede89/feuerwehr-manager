@@ -25,6 +25,7 @@
     .label-cell { width: 100px; background: #f8f9fa; font-weight: bold; }
     .stamm-inline .label-cell { width: 90px; }
     .col-staerke { width: 28px; }
+    .gesamtstaerke-value { white-space: nowrap; }
     .personnel-table { table-layout: fixed; width: 100%; }
     .personnel-table .col-name { width: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 2px 4px; }
     .personnel-table .col-fahrzeug { width: 26px; max-width: 26px; padding: 2px 3px; }
@@ -200,8 +201,7 @@
             <tr th:if="${#lists.isEmpty(vehicles)}"><td colspan="5">Keine Fahrzeuge zugeordnet</td></tr>
             <tr th:if="${!#lists.isEmpty(vehicles)}">
               <td colspan="3" class="label-cell"><strong>Gesamtstärke</strong></td>
-              <td class="col-staerke"><strong th:text="${totalStrength}">0/0/0/0</strong></td>
-              <td></td>
+              <td colspan="2" class="gesamtstaerke-value"><strong th:text="${totalStrength}">0/0/0/0</strong></td>
             </tr>
             </tbody>
           </table>
