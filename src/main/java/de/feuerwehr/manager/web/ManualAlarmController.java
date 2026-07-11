@@ -8,10 +8,12 @@ import de.feuerwehr.manager.divera.ManualAlarmService.CreateResult;
 import de.feuerwehr.manager.divera.ManualAlarmService.ManualAlarmInput;
 import de.feuerwehr.manager.divera.ManualAlarmService.StartResult;
 import de.feuerwehr.manager.divera.ManualAlarmService.UpdateResult;
+import de.feuerwehr.manager.divera.AlarmdepechePdfService;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
+import de.feuerwehr.manager.pdf.PdfDownloadResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -35,6 +37,7 @@ public class ManualAlarmController {
     private final UnitService unitService;
     private final AccessControlService accessControlService;
     private final ManualAlarmService manualAlarmService;
+    private final AlarmdepechePdfService alarmdepechePdfService;
     private final EinsatzberichtService einsatzberichtService;
 
     @GetMapping
@@ -242,6 +245,24 @@ public class ManualAlarmController {
             }
             redirectAttributes.addFlashAttribute("success", msg.toString());
             return "redirect:/?unit=" + unit;
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return "redirect:/?unit=" + unit;
+        }
+    }
+
+    @GetMapping("/{id}/depesche.pdf")
+    public Object downloadDepeschePdf(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @PathVariable long id,
+            @RequestParam(required = false, defaultValue = "true") boolean computeRoute,
+            RedirectAttributes redirectAttributes) {
+        try {
+            accessControlService.requireUnitAccess(actor, unit);
+            var result = manualAlarmService.buildDepeschePdf(unit, id, computeRoute);
+            return PdfDownloadResponse.attachment(
+                    alarmdepechePdfService.suggestedFilename(result.alarm()), result.pdf());
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return "redirect:/?unit=" + unit;

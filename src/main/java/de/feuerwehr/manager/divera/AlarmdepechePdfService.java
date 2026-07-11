@@ -70,6 +70,15 @@ public class AlarmdepechePdfService {
         return htmlPdfService.renderPdf("print/alarmdepeche", model);
     }
 
+    public String suggestedFilename(ManualAlarm alarm) {
+        if (alarm == null) {
+            return "Alarmdepesche.pdf";
+        }
+        String number = hasText(alarm.getAlarmNumber()) ? alarm.getAlarmNumber().trim() : String.valueOf(alarm.getAlarmId());
+        String safe = number.replaceAll("[^a-zA-Z0-9._-]", "_");
+        return "Alarmdepesche-" + safe + ".pdf";
+    }
+
     private List<RouteStep> parseSteps(String json) {
         if (!hasText(json)) {
             return List.of();

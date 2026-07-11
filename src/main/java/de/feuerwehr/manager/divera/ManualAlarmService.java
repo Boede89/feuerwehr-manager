@@ -156,26 +156,34 @@ public class ManualAlarmService {
         return new StartResult(pushMessage, printMessage, routeMessage);
     }
 
+    public record DepeschePdfResult(ManualAlarm alarm, byte[] pdf) {}
+
+    @Transactional
+    public DepeschePdfResult buildDepeschePdf(long unitId, long manualRecordId, boolean computeRoute) {
+        ManualAlarm alarm = prepareAlarmForDepesche(unitId, manualRecordId, computeRoute);
+        return new DepeschePdfResult(alarm, alarmdepechePdfService.renderPdf(alarm));
+    }
+
     @Transactional
     public ActionResult printDepesche(long unitId, long manualRecordId, boolean computeRoute) {
+        ManualAlarm alarm = prepareAlarmForDepesche(unitId, manualRecordId, computeRoute);
+        CupsPrintService.CupsPrintResult printResult = printDepescheInternal(unitId, alarm);
+        return new ActionResult(printResult.message());
+    }
+
+    private ManualAlarm prepareAlarmForDepesche(long unitId, long manualRecordId, boolean computeRoute) {
         ManualAlarm alarm = repository
                 .findByIdAndUnitIdWithUnit(manualRecordId, unitId)
                 .orElseThrow(() -> new IllegalArgumentException("Einsatz nicht gefunden."));
         if (alarm.isClosed()) {
-            throw new IllegalArgumentException("Beendete Einsätze können nicht gedruckt werden.");
+            throw new IllegalArgumentException("Beendete Einsätze können nicht mehr als Depesche ausgegeben werden.");
         }
-        String routeMessage = null;
         if (computeRoute) {
             RouteStartPlan plan = resolveRouteStartPlan(alarm, alarm.getUnit());
-            routeMessage = applyRoute(alarm, alarm.getUnit(), plan.useGeraetehaus(), plan.startAddressOverride(), true);
+            applyRoute(alarm, alarm.getUnit(), plan.useGeraetehaus(), plan.startAddressOverride(), true);
             alarm = repository.save(alarm);
         }
-        CupsPrintService.CupsPrintResult printResult = printDepescheInternal(unitId, alarm);
-        StringBuilder msg = new StringBuilder(printResult.message());
-        if (routeMessage != null) {
-            msg.append(' ').append(routeMessage);
-        }
-        return new ActionResult(msg.toString());
+        return alarm;
     }
 
     @Transactional
