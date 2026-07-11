@@ -2688,11 +2688,65 @@ body.modal-open {
   max-width: 480px;
 }
 
+.confirm-dialog--release-validation .confirm-dialog__box {
+  max-width: 520px;
+}
+
 .confirm-dialog__message {
   margin: 0;
   color: var(--text);
   line-height: 1.55;
   white-space: pre-wrap;
+}
+
+.confirm-dialog__message--issues {
+  white-space: normal;
+}
+
+.release-validation-intro {
+  margin: 0 0 12px;
+  color: var(--text);
+  font-size: var(--fs-md);
+  line-height: 1.5;
+}
+
+.release-validation-issue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.release-validation-issue-item {
+  margin: 0;
+  padding: 0;
+}
+
+.release-validation-issue-link {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--gelb);
+  border-radius: var(--radius-md);
+  background: var(--bg-card-hover);
+  color: var(--text);
+  cursor: pointer;
+  font-size: var(--fs-md);
+  font-weight: 500;
+  line-height: 1.45;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.release-validation-issue-link:hover,
+.release-validation-issue-link:focus-visible {
+  background: var(--orange-hell);
+  border-color: var(--gelb);
+  color: var(--text);
+  outline: none;
 }
 
 .confirm-dialog__footer {
@@ -2732,31 +2786,6 @@ body.modal-open {
 
 .confirm-dialog__checkbox-dependent[hidden] {
   display: none !important;
-}
-
-.release-validation-issue-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.release-validation-issue-link {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: 8px 12px;
-  border: 1px solid var(--border-color, #dee2e6);
-  border-radius: 6px;
-  background: var(--surface-muted, #f8f9fa);
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-}
-
-.release-validation-issue-link:hover {
-  border-color: var(--primary, #0d6efd);
-  background: var(--surface, #fff);
 }
 
 .release-validation-banner {

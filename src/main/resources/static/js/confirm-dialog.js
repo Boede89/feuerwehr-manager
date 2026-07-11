@@ -28,7 +28,7 @@
       '    <h3 id="fw-confirm-dialog-title"></h3>' +
       '  </div>' +
       '  <div class="modal__body">' +
-      '    <p id="fw-confirm-dialog-message" class="confirm-dialog__message"></p>' +
+      '    <div id="fw-confirm-dialog-message" class="confirm-dialog__message"></div>' +
       '    <div id="fw-confirm-dialog-checkboxes" class="confirm-dialog__checkboxes" hidden></div>' +
       '  </div>' +
       '  <div class="modal__footer confirm-dialog__footer">' +
@@ -103,7 +103,7 @@
       return;
     }
     modalEl.hidden = true;
-    modalEl.classList.remove('active');
+    modalEl.classList.remove('active', 'confirm-dialog--release-validation');
     document.body.classList.remove('modal-open');
     if (resolveFn) {
       if (result && activeCheckboxes.length) {
@@ -134,6 +134,7 @@
       var opts = options || {};
       ensureModal();
       titleEl.textContent = opts.title || 'Bitte bestätigen';
+      messageEl.className = 'confirm-dialog__message';
       messageEl.textContent = opts.message || '';
       confirmBtn.textContent = opts.confirmLabel || 'Bestätigen';
       cancelBtn.textContent = opts.cancelLabel || 'Abbrechen';
@@ -307,23 +308,23 @@
       checkboxesEl.hidden = true;
       checkboxesEl.innerHTML = '';
       activeCheckboxes = [];
+      messageEl.className = 'confirm-dialog__message confirm-dialog__message--issues';
+      messageEl.innerHTML =
+        '<p class="release-validation-intro">Bitte folgende Pflichtfelder ausfüllen:</p>';
 
-      var intro = document.createElement('p');
-      intro.className = 'confirm-dialog__message';
-      intro.textContent = 'Bitte folgende Pflichtfelder ausfüllen:';
-      messageEl.innerHTML = '';
-      messageEl.appendChild(intro);
-
-      var listEl = document.createElement('div');
+      var listEl = document.createElement('ul');
       listEl.className = 'release-validation-issue-list';
+      listEl.setAttribute('role', 'list');
       list.forEach(function (issue) {
+        var item = document.createElement('li');
+        item.className = 'release-validation-issue-item';
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'release-validation-issue-link';
         btn.textContent = issue.label;
         btn.addEventListener('click', function () {
           modalEl.hidden = true;
-          modalEl.classList.remove('active');
+          modalEl.classList.remove('active', 'confirm-dialog--release-validation');
           document.body.classList.remove('modal-open');
           resolveFn = null;
           if (window.BerichteEinsatzRelease && opts.reportId && opts.unitId) {
@@ -331,9 +332,12 @@
           }
           resolve(false);
         });
-        listEl.appendChild(btn);
+        item.appendChild(btn);
+        listEl.appendChild(item);
       });
       messageEl.appendChild(listEl);
+
+      modalEl.classList.add('confirm-dialog--release-validation');
 
       confirmBtn.textContent = 'Zum Bearbeiten';
       cancelBtn.textContent = 'Abbrechen';
@@ -454,6 +458,8 @@
       return new Promise(function (resolve) {
         ensureModal();
         titleEl.textContent = 'Einsatzbericht freigeben?';
+        messageEl.className = 'confirm-dialog__message';
+        modalEl.classList.remove('confirm-dialog--release-validation');
         messageEl.textContent =
           'Nach der Freigabe ist der Bericht für die normale Bearbeitung gesperrt. ' +
           'Administratoren können weiterhin Änderungen vornehmen.';
