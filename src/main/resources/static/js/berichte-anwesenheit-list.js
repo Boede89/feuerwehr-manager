@@ -112,6 +112,42 @@
     return path;
   }
 
+  function canReleaseItem(item) {
+    return item.statusKey === 'entwurf' && (canApprove || isAdmin);
+  }
+
+  function isFinalizedStatus(item) {
+    return item.statusKey === 'freigegeben' || item.statusKey === 'archiviert';
+  }
+
+  function tableDocumentActions(item) {
+    if (isFinalizedStatus(item)) {
+      return tablePdfPrintActions(item.id);
+    }
+    if (canReleaseItem(item)) {
+      return '<button type="button" class="btn btn--primary btn--success btn--sm" data-action="release" data-id="' +
+        item.id + '">Freigeben</button>';
+    }
+    return '';
+  }
+
+  function releaseFromTable(reportId) {
+    var ask = window.FwConfirm && window.FwConfirm.releaseAnwesenheitsliste
+      ? window.FwConfirm.releaseAnwesenheitsliste(releaseDefaults())
+      : Promise.resolve(window.confirm('Anwesenheitsliste wirklich freigeben?'));
+    ask.then(function (result) {
+      var ok = result === true || (result && result.ok);
+      if (!ok) {
+        return;
+      }
+      var extras = {};
+      if (result && result.printReport) {
+        extras.printReport = true;
+      }
+      postAction('/berichte/anwesenheitslisten/' + reportId + '/freigeben', listReturnPath(), extras);
+    });
+  }
+
   function tablePdfPrintActions(reportId) {
     var base = '/berichte/anwesenheitslisten/' + reportId;
     return '<a class="btn btn--outline btn--sm" href="' + base +
@@ -298,7 +334,7 @@
           '<td><span class="text-muted text-sm">' + (r.terminSource ? 'Termin' : 'Manuell') + '</span></td>' +
           '<td><div class="btn-group">' +
           '<button type="button" class="btn btn--outline btn--sm" data-action="view" data-id="' + r.id + '">Anzeigen</button>' +
-          tablePdfPrintActions(r.id) +
+          tableDocumentActions(r) +
           (canEditItem(r) ? '<a class="btn btn--outline btn--sm" href="/berichte/anwesenheitslisten/' + r.id +
             '/bearbeiten?unit=' + encodeURIComponent(unitId) + '">Bearbeiten</a>' : '') +
           (canDeleteItem(r) ?
@@ -318,6 +354,11 @@
     wrap.querySelectorAll('[data-action="view"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         openModal(btn.dataset.id);
+      });
+    });
+    wrap.querySelectorAll('[data-action="release"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        releaseFromTable(btn.dataset.id);
       });
     });
   }
