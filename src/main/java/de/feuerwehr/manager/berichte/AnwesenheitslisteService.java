@@ -28,7 +28,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,7 +48,7 @@ public class AnwesenheitslisteService {
     private final EinsatzberichtService einsatzberichtService;
     private final UnitTerminRepository unitTerminRepository;
     private final ObjectMapper objectMapper;
-    private final @Lazy BerichteEmailNotificationService berichteEmailNotificationService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
     public AnwesenheitslisteListResponse listForYear(long unitId, int year) {
@@ -314,7 +314,8 @@ public class AnwesenheitslisteService {
         applyCreator(report, actor);
         AttendanceReport saved = attendanceReportRepository.save(report);
         savePersonnel(saved, form.personnel(), unitId);
-        berichteEmailNotificationService.trySendOnCreate(unitId, BerichteEmailReportType.ANWESENHEIT, saved.getId());
+        eventPublisher.publishEvent(
+                BerichteEmailEvent.onCreate(unitId, BerichteEmailReportType.ANWESENHEIT, saved.getId()));
         return saved;
     }
 
@@ -371,8 +372,8 @@ public class AnwesenheitslisteService {
             report.setReleasedAt(Instant.now());
         }
         attendanceReportRepository.save(report);
-        berichteEmailNotificationService.trySendOnStatusChange(
-                unitId, BerichteEmailReportType.ANWESENHEIT, reportId, newStatus);
+        eventPublisher.publishEvent(
+                BerichteEmailEvent.onStatusChange(unitId, BerichteEmailReportType.ANWESENHEIT, reportId, newStatus));
     }
 
     @Transactional

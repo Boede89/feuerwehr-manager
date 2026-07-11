@@ -6,27 +6,45 @@ import de.feuerwehr.manager.technik.VehicleChecklistService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 @Service
-@Lazy
 @RequiredArgsConstructor
 @Slf4j
 public class BerichteEmailNotificationService {
 
     private final BerichteEmailSettingsService emailSettingsService;
     private final UnitMailService unitMailService;
-    private final @Lazy EinsatzberichtPdfService einsatzberichtPdfService;
-    private final @Lazy AnwesenheitslistePdfService anwesenheitslistePdfService;
-    private final @Lazy GeraetewartmitteilungPdfService geraetewartmitteilungPdfService;
-    private final @Lazy MaengelberichtPdfService maengelberichtPdfService;
-    private final @Lazy VehicleChecklistPdfService vehicleChecklistPdfService;
-    private final @Lazy VehicleChecklistService vehicleChecklistService;
-    private final @Lazy EinsatzberichtService einsatzberichtService;
-    private final @Lazy AnwesenheitslisteService anwesenheitslisteService;
-    private final @Lazy GeraetewartmitteilungService geraetewartmitteilungService;
-    private final @Lazy MaengelberichtService maengelberichtService;
+    private final EinsatzberichtPdfService einsatzberichtPdfService;
+    private final AnwesenheitslistePdfService anwesenheitslistePdfService;
+    private final GeraetewartmitteilungPdfService geraetewartmitteilungPdfService;
+    private final MaengelberichtPdfService maengelberichtPdfService;
+    private final VehicleChecklistPdfService vehicleChecklistPdfService;
+    private final VehicleChecklistService vehicleChecklistService;
+    private final EinsatzberichtService einsatzberichtService;
+    private final AnwesenheitslisteService anwesenheitslisteService;
+    private final GeraetewartmitteilungService geraetewartmitteilungService;
+    private final MaengelberichtService maengelberichtService;
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onBerichteEmail(BerichteEmailEvent event) {
+        if (event == null) {
+            return;
+        }
+        switch (event.trigger()) {
+            case CREATE -> {
+                if (event.reportType() == BerichteEmailReportType.CHECKLISTEN && event.vehicleId() != null) {
+                    trySendChecklistCreated(event.unitId(), event.vehicleId(), event.reportId());
+                } else {
+                    trySendOnCreate(event.unitId(), event.reportType(), event.reportId());
+                }
+            }
+            case STATUS_CHANGE -> trySendOnStatusChange(
+                    event.unitId(), event.reportType(), event.reportId(), event.status());
+        }
+    }
 
     public void trySendOnCreate(long unitId, BerichteEmailReportType reportType, long reportId) {
         UnitBerichteEmailSettings settings = emailSettingsService.ensureSettings(unitId, reportType);

@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,7 +28,7 @@ public class MaengelberichtService {
     private final PersonRepository personRepository;
     private final EinsatzberichtService einsatzberichtService;
     private final TestModeService testModeService;
-    private final @Lazy BerichteEmailNotificationService berichteEmailNotificationService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
     public MaengelberichtListResponse listForYear(long unitId, int year) {
@@ -135,7 +135,7 @@ public class MaengelberichtService {
         report.setTestData(testModeService.isEnabled());
         applyCreator(report, actor);
         DefectReport saved = reportRepository.save(report);
-        berichteEmailNotificationService.trySendOnCreate(unitId, BerichteEmailReportType.MAENGEL, saved.getId());
+        eventPublisher.publishEvent(BerichteEmailEvent.onCreate(unitId, BerichteEmailReportType.MAENGEL, saved.getId()));
         return saved;
     }
 
