@@ -45,6 +45,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -79,6 +80,7 @@ public class EinsatzberichtService {
     private final UnitDiveraSettingsRepository diveraSettingsRepository;
     private final IncidentReportChangeRepository incidentReportChangeRepository;
     private final ObjectMapper objectMapper;
+    private final @Lazy BerichteEmailNotificationService berichteEmailNotificationService;
 
     public List<IncidentReport> listByUnit(long unitId) {
         return incidentReportRepository.findByUnitIdOrderByDateDesc(unitId, includeTestReports());
@@ -699,6 +701,7 @@ public class EinsatzberichtService {
         saveCrewAssignments(saved, form, unitId);
         saveDeployedEquipment(saved, form, unitId);
         syncPaAtemschutzRecords(saved, form, actor);
+        berichteEmailNotificationService.trySendOnCreate(unitId, BerichteEmailReportType.EINSATZ, saved.getId());
         return saved;
     }
 
@@ -1446,7 +1449,10 @@ public class EinsatzberichtService {
             userRepository.findById(actor.getUserId()).ifPresent(report::setReleasedByUser);
             report.setReleasedAt(Instant.now());
         }
-        return incidentReportRepository.save(report);
+        IncidentReport saved = incidentReportRepository.save(report);
+        berichteEmailNotificationService.trySendOnStatusChange(
+                unitId, BerichteEmailReportType.EINSATZ, saved.getId(), newStatus);
+        return saved;
     }
 
     private static void validateStatusTransition(IncidentReportStatus from, IncidentReportStatus to) {

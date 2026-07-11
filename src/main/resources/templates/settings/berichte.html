@@ -138,6 +138,8 @@
           </div>
         </div>
 
+        <div th:replace="~{fragments/berichte-email-settings :: section('einsatz', ${emailSettings}, ${unitPersons}, ${emailRecipientCount})}"></div>
+
         <div class="berichte-settings-form__actions">
           <button type="submit" class="btn btn--primary">Speichern</button>
         </div>
@@ -165,16 +167,62 @@
             </span>
           </label>
         </div>
+
+        <div th:replace="~{fragments/berichte-email-settings :: section('anwesenheit', ${emailSettings}, ${unitPersons}, ${emailRecipientCount})}"></div>
+
         <div class="berichte-settings-form__actions">
           <button type="submit" class="btn btn--primary">Speichern</button>
         </div>
       </form>
+      <script th:src="@{/js/berichte-settings.js}" defer></script>
     </div>
   </div>
 
-  <div class="card mt-md" th:if="${berichteTab != 'einsatz' and berichteTab != 'anwesenheit'}">
+  <div class="card mt-md" th:if="${berichteTab == 'geraetewart'}">
+    <div class="card__header">Gerätewartmitteilungen — E-Mail</div>
     <div class="card__body">
-      <p class="hint" style="margin:0;">Einstellungen für diesen Berichtstyp folgen in einer späteren Version.</p>
+      <form method="post" th:action="@{/settings/berichte/geraetewart}" class="berichte-settings-form">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <p class="hint" style="margin-top:0;">E-Mail wird automatisch versendet, wenn eine Gerätewartmitteilung erstellt wird.</p>
+        <div th:replace="~{fragments/berichte-email-settings :: section('geraetewart', ${emailSettings}, ${unitPersons}, ${emailRecipientCount})}"></div>
+        <div class="berichte-settings-form__actions">
+          <button type="submit" class="btn btn--primary">Speichern</button>
+        </div>
+      </form>
+      <script th:src="@{/js/berichte-settings.js}" defer></script>
+    </div>
+  </div>
+
+  <div class="card mt-md" th:if="${berichteTab == 'maengel'}">
+    <div class="card__header">Mängelberichte — E-Mail</div>
+    <div class="card__body">
+      <form method="post" th:action="@{/settings/berichte/maengel}" class="berichte-settings-form">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <p class="hint" style="margin-top:0;">E-Mail wird automatisch versendet, wenn ein Mängelbericht erstellt wird.</p>
+        <div th:replace="~{fragments/berichte-email-settings :: section('maengel', ${emailSettings}, ${unitPersons}, ${emailRecipientCount})}"></div>
+        <div class="berichte-settings-form__actions">
+          <button type="submit" class="btn btn--primary">Speichern</button>
+        </div>
+      </form>
+      <script th:src="@{/js/berichte-settings.js}" defer></script>
+    </div>
+  </div>
+
+  <div class="card mt-md" th:if="${berichteTab == 'checklisten'}">
+    <div class="card__header">Checklisten — E-Mail</div>
+    <div class="card__body">
+      <form method="post" th:action="@{/settings/berichte/checklisten}" class="berichte-settings-form">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <p class="hint" style="margin-top:0;">E-Mail wird automatisch versendet, wenn eine Fahrzeug-Checkliste ausgefüllt und gespeichert wird.</p>
+        <div th:replace="~{fragments/berichte-email-settings :: section('checklisten', ${emailSettings}, ${unitPersons}, ${emailRecipientCount})}"></div>
+        <div class="berichte-settings-form__actions">
+          <button type="submit" class="btn btn--primary">Speichern</button>
+        </div>
+      </form>
+      <script th:src="@{/js/berichte-settings.js}" defer></script>
     </div>
   </div>
 </main>

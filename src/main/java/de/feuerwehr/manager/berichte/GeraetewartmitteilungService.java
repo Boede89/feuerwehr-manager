@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +37,7 @@ public class GeraetewartmitteilungService {
     private final TestModeService testModeService;
     private final EinsatzberichtService einsatzberichtService;
     private final ObjectMapper objectMapper;
+    private final @Lazy BerichteEmailNotificationService berichteEmailNotificationService;
 
     @Transactional(readOnly = true)
     public GeraetewartmitteilungListResponse listForYear(long unitId, int year) {
@@ -112,7 +114,9 @@ public class GeraetewartmitteilungService {
         applyForm(report, form, unitId);
         report.setTestData(testModeService.isEnabled());
         applyCreator(report, actor);
-        return reportRepository.save(report);
+        EquipmentMaintenanceReport saved = reportRepository.save(report);
+        berichteEmailNotificationService.trySendOnCreate(unitId, BerichteEmailReportType.GERAETEWART, saved.getId());
+        return saved;
     }
 
     @Transactional

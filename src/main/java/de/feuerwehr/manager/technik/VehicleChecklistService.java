@@ -2,12 +2,14 @@ package de.feuerwehr.manager.technik;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import de.feuerwehr.manager.berichte.BerichteEmailNotificationService;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -23,6 +25,7 @@ public class VehicleChecklistService {
     private final VehicleChecklistEntryRepository entryRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+    private final @Lazy BerichteEmailNotificationService berichteEmailNotificationService;
 
     @Transactional(readOnly = true)
     public List<ChecklistTemplateRow> listTemplates(long unitId, long vehicleId) {
@@ -154,6 +157,7 @@ public class VehicleChecklistService {
             entry.setNote(note);
             entryRepository.save(entry);
         }
+        berichteEmailNotificationService.trySendChecklistCreated(unitId, vehicleId, checklist.getId());
     }
 
     @Transactional

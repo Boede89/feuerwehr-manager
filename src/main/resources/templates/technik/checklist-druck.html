@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Checkliste</title>
+  <style>
+    @page { size: A4; margin: 12mm; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 10pt; color: #111; }
+    h1 { font-size: 16pt; margin: 0 0 8px 0; }
+    .meta { margin-bottom: 16px; color: #444; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; vertical-align: top; }
+    th { background: #f3f4f6; }
+    .notes { margin-top: 16px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1 th:text="${templateName}">Checkliste</h1>
+  <div class="meta">
+    <div th:if="${filledAt != null}">Ausgefüllt am: <span th:text="${filledAt}">—</span></div>
+    <div th:if="${filledName != null}">Ausgefüllt von: <span th:text="${filledName}">—</span></div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Prüfpunkt</th>
+        <th>Ergebnis</th>
+        <th>Bemerkung</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr th:each="row : ${entries}">
+        <td th:text="${row.itemLabel}">Punkt</td>
+        <td th:text="${row.resultLabel}">OK</td>
+        <td th:text="${row.note != null ? row.note : ''}"></td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="notes" th:if="${notes != null and !#strings.isEmpty(notes)}">
+    <strong>Allgemeine Bemerkung:</strong><br/>
+    <span th:text="${notes}">—</span>
+  </div>
+</body>
+</html>

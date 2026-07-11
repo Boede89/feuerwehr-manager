@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<th:block th:fragment="section(tabKey, emailSettings, unitPersons, recipientCount)">
+  <div class="form-group form-group--full berichte-email-settings-block" style="margin-top:1.75rem;">
+    <label class="field-label">E-Mail Versand</label>
+    <p class="hint">Automatischer Versand des Berichts als PDF-Anhang an die konfigurierten Empfänger.
+      SMTP muss unter Admin → Einheit → Schnittstellen eingerichtet sein.</p>
+    <div class="berichte-settings-toggles">
+      <label class="toggle-row">
+        <span class="toggle-row__label">E-Mail Versand aktivieren</span>
+        <span class="toggle-switch">
+          <input type="checkbox" th:name="${tabKey + 'EmailEnabled'}" value="true"
+                 th:checked="${emailSettings.emailEnabled}"/>
+          <span class="toggle-switch__track"></span>
+        </span>
+      </label>
+    </div>
+
+    <div class="form-group" th:if="${tabKey == 'einsatz' or tabKey == 'anwesenheit'}" style="margin-top:1rem;">
+      <label th:attr="for=${'sendOnStatus-' + tabKey}">E-Mail senden bei Status</label>
+      <select th:id="${'sendOnStatus-' + tabKey}" th:name="${tabKey + 'SendOnStatus'}" class="field">
+        <option value="ENTWURF"
+                th:selected="${emailSettings.sendOnStatus != null and emailSettings.sendOnStatus.name() == 'ENTWURF'}">
+          Entwurf (bei Erstellung)
+        </option>
+        <option value="FREIGEGEBEN"
+                th:selected="${emailSettings.sendOnStatus == null or emailSettings.sendOnStatus.name() == 'FREIGEGEBEN'}">
+          Freigegeben
+        </option>
+        <option value="ARCHIVIERT"
+                th:selected="${emailSettings.sendOnStatus != null and emailSettings.sendOnStatus.name() == 'ARCHIVIERT'}">
+          Archiviert
+        </option>
+      </select>
+    </div>
+
+    <div style="margin-top:1rem;">
+      <button type="button" class="btn btn--outline btn--sm berichte-open-recipients"
+              th:attr="data-modal=${'modal-berichte-email-' + tabKey}">
+        Empfänger auswählen (<span class="berichte-recipient-count" th:text="${recipientCount}">0</span>)
+      </button>
+    </div>
+  </div>
+
+  <div class="modal-overlay berichte-email-modal" th:id="${'modal-berichte-email-' + tabKey}" aria-hidden="true">
+    <div class="modal" role="dialog">
+      <div class="modal__header">
+        <h3>Empfänger — E-Mail Versand</h3>
+        <button type="button" class="modal__close berichte-close-recipients" aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal__body">
+        <p class="hint">Personen aus dem Personal und/oder zusätzliche E-Mail-Adressen (kommagetrennt oder je Zeile).</p>
+        <div class="form-group">
+          <label class="field-label">Personal</label>
+          <div class="atemschutz-person-search-wrap" th:if="${!#lists.isEmpty(unitPersons)}">
+            <input type="search" class="field atemschutz-person-search" placeholder="Name oder E-Mail suchen …" autocomplete="off"/>
+          </div>
+          <div class="user-picker user-picker--scroll" th:if="${!#lists.isEmpty(unitPersons)}">
+            <label class="user-picker__item" th:each="p : ${unitPersons}"
+                   th:attr="data-search=${#strings.toLowerCase(p.displayName() + ' ' + (p.email != null ? p.email : '') + ' ' + (p.emailPrivate != null ? p.emailPrivate : ''))}">
+              <input type="checkbox" th:name="${tabKey + 'PersonIds'}" th:value="${p.id}"
+                     th:checked="${#lists.contains(emailSettingsPersonIds, p.id)}"/>
+              <span class="user-picker__text">
+                <span class="user-picker__name" th:text="${p.displayName()}">Name</span>
+                <span class="user-picker__meta"
+                      th:text="${(p.email != null and !#strings.isEmpty(p.email)) ? p.email : ((p.emailPrivate != null and !#strings.isEmpty(p.emailPrivate)) ? p.emailPrivate : 'keine E-Mail')}">
+                  keine E-Mail
+                </span>
+              </span>
+            </label>
+          </div>
+          <p class="hint atemschutz-person-search-empty" hidden style="margin:0;">Keine Treffer.</p>
+          <p class="hint" th:if="${#lists.isEmpty(unitPersons)}" style="margin:0;">Keine Personen in dieser Einheit.</p>
+        </div>
+        <div class="form-group">
+          <label th:attr="for=${'manualEmails-' + tabKey}">Zusätzliche E-Mail-Adressen</label>
+          <textarea th:id="${'manualEmails-' + tabKey}" th:name="${tabKey + 'ManualEmails'}" rows="4" class="field"
+                    placeholder="z. B. leitstelle@example.org&#10;verwaltung@example.org"
+                    th:text="${emailSettingsManualEmailsText}"></textarea>
+        </div>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--primary berichte-close-recipients">Übernehmen</button>
+      </div>
+    </div>
+  </div>
+</th:block>
+</html>

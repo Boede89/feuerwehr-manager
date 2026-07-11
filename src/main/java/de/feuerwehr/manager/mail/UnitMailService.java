@@ -7,6 +7,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,18 @@ public class UnitMailService {
     /** @return leer bei Erfolg, sonst Fehlermeldung */
     public Optional<String> sendHtmlMail(
             long unitId, String toEmail, List<String> ccEmails, String subject, String htmlBody) {
+        return sendHtmlMail(unitId, toEmail, ccEmails, subject, htmlBody, null, null);
+    }
+
+    /** @return leer bei Erfolg, sonst Fehlermeldung */
+    public Optional<String> sendHtmlMail(
+            long unitId,
+            String toEmail,
+            List<String> ccEmails,
+            String subject,
+            String htmlBody,
+            String attachmentFilename,
+            byte[] attachmentData) {
         if (toEmail == null || toEmail.isBlank()) {
             return Optional.of("Keine E-Mail-Adresse hinterlegt.");
         }
@@ -45,7 +58,8 @@ public class UnitMailService {
                     account.getSmtpPassword(),
                     account.getSmtpEncryption());
             var message = sender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, false, StandardCharsets.UTF_8.name());
+            boolean multipart = attachmentFilename != null && attachmentData != null && attachmentData.length > 0;
+            MimeMessageHelper helper = new MimeMessageHelper(message, multipart, StandardCharsets.UTF_8.name());
             String fromName = account.getSmtpFromName() != null && !account.getSmtpFromName().isBlank()
                     ? account.getSmtpFromName()
                     : "Feuerwehr-Manager";
@@ -57,6 +71,9 @@ public class UnitMailService {
             }
             helper.setSubject(subject);
             helper.setText(htmlBody, true);
+            if (multipart) {
+                helper.addAttachment(attachmentFilename, new ByteArrayResource(attachmentData), "application/pdf");
+            }
             sender.send(message);
             return Optional.empty();
         } catch (Exception e) {
