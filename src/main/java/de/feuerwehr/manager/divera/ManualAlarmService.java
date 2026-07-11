@@ -72,7 +72,9 @@ public class ManualAlarmService {
             String leitstellePhone,
             String leitstelleEmail,
             boolean exercise,
-            boolean sondersignal) {}
+            boolean sondersignal,
+            boolean routePlanUseGeraetehaus,
+            String routePlanStartAddress) {}
 
     public record CreateResult(ManualAlarm alarm) {}
 
@@ -112,7 +114,7 @@ public class ManualAlarmService {
 
     @Transactional(readOnly = true)
     public ManualAlarm getOpenDraft(long unitId, long manualRecordId) {
-        return loadOpenDraft(unitId, manualRecordId);
+        return loadOpenDraft(unitId, manualRecordId, true);
     }
 
     @Transactional
@@ -125,14 +127,8 @@ public class ManualAlarmService {
 
     @Transactional
     public StartResult startAlarm(
-            long unitId,
-            long manualRecordId,
-            boolean useGeraetehaus,
-            String routeStartAddressOverride,
-            boolean computeRoute,
-            boolean sendPush,
-            boolean printDepesche) {
-        ManualAlarm alarm = loadOpenDraft(unitId, manualRecordId);
+            long unitId, long manualRecordId, boolean computeRoute, boolean sendPush, boolean printDepesche) {
+        ManualAlarm alarm = loadOpenDraft(unitId, manualRecordId, true);
         Unit unit = alarm.getUnit();
         long now = Instant.now().getEpochSecond();
         alarm.setStarted(true);
@@ -149,7 +145,8 @@ public class ManualAlarmService {
 
         String routeMessage = null;
         if (computeRoute) {
-            routeMessage = applyRoute(saved, unit, useGeraetehaus, routeStartAddressOverride, true);
+            RouteStartPlan plan = resolveRouteStartPlan(saved, unit);
+            routeMessage = applyRoute(saved, unit, plan.useGeraetehaus(), plan.startAddressOverride(), true);
             saved = repository.save(saved);
         }
         String printMessage = null;
@@ -160,21 +157,17 @@ public class ManualAlarmService {
     }
 
     @Transactional
-    public ActionResult printDepesche(
-            long unitId,
-            long manualRecordId,
-            boolean useGeraetehaus,
-            String routeStartAddressOverride,
-            boolean computeRoute) {
+    public ActionResult printDepesche(long unitId, long manualRecordId, boolean computeRoute) {
         ManualAlarm alarm = repository
-                .findByIdAndUnitId(manualRecordId, unitId)
+                .findByIdAndUnitIdWithUnit(manualRecordId, unitId)
                 .orElseThrow(() -> new IllegalArgumentException("Einsatz nicht gefunden."));
         if (alarm.isClosed()) {
             throw new IllegalArgumentException("Beendete Einsätze können nicht gedruckt werden.");
         }
         String routeMessage = null;
         if (computeRoute) {
-            routeMessage = applyRoute(alarm, alarm.getUnit(), useGeraetehaus, routeStartAddressOverride, true);
+            RouteStartPlan plan = resolveRouteStartPlan(alarm, alarm.getUnit());
+            routeMessage = applyRoute(alarm, alarm.getUnit(), plan.useGeraetehaus(), plan.startAddressOverride(), true);
             alarm = repository.save(alarm);
         }
         CupsPrintService.CupsPrintResult printResult = printDepescheInternal(unitId, alarm);
@@ -196,8 +189,13 @@ public class ManualAlarmService {
     }
 
     private ManualAlarm loadOpenDraft(long unitId, long manualRecordId) {
-        ManualAlarm alarm = repository
-                .findByIdAndUnitId(manualRecordId, unitId)
+        return loadOpenDraft(unitId, manualRecordId, false);
+    }
+
+    private ManualAlarm loadOpenDraft(long unitId, long manualRecordId, boolean fetchUnit) {
+        ManualAlarm alarm = (fetchUnit
+                        ? repository.findByIdAndUnitIdWithUnit(manualRecordId, unitId)
+                        : repository.findByIdAndUnitId(manualRecordId, unitId))
                 .orElseThrow(() -> new IllegalArgumentException("Einsatz nicht gefunden."));
         if (alarm.isClosed()) {
             throw new IllegalArgumentException("Einsatz ist bereits beendet.");
@@ -238,7 +236,27 @@ public class ManualAlarmService {
         alarm.setLeitstelleEmail(blankToNull(input.leitstelleEmail()));
         alarm.setExercise(input.exercise());
         alarm.setSondersignal(input.sondersignal());
+        alarm.setRoutePlanUseGeraetehaus(input.routePlanUseGeraetehaus());
+        if (input.routePlanUseGeraetehaus()) {
+            alarm.setRoutePlanStartAddress(null);
+        } else {
+            String planStart = blankToNull(input.routePlanStartAddress());
+            if (planStart == null) {
+                throw new IllegalArgumentException(
+                        "Startadresse erforderlich, wenn Gerätehaus nicht als Routenstart verwendet wird.");
+            }
+            alarm.setRoutePlanStartAddress(planStart);
+        }
         alarm.setAddress(buildAddressLine(alarm));
+    }
+
+    private record RouteStartPlan(boolean useGeraetehaus, String startAddressOverride) {}
+
+    private static RouteStartPlan resolveRouteStartPlan(ManualAlarm alarm, Unit unit) {
+        if (alarm.isRoutePlanUseGeraetehaus()) {
+            return new RouteStartPlan(true, null);
+        }
+        return new RouteStartPlan(false, alarm.getRoutePlanStartAddress());
     }
 
     private static void clearRouteData(ManualAlarm alarm) {

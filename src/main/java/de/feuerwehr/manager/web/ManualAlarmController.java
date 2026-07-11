@@ -61,7 +61,8 @@ public class ManualAlarmController {
             @PathVariable long id,
             Model model,
             RedirectAttributes redirectAttributes) {
-        resolveUnit(unit, actor, model);
+        Unit resolvedUnit = resolveUnit(unit, actor, model);
+        ManualAlarmDefaults.FormDefaults defaults = ManualAlarmDefaults.forUnit(resolvedUnit);
         try {
             var alarm = manualAlarmService.getOpenDraft(unit, id);
             model.addAttribute("editMode", true);
@@ -69,8 +70,8 @@ public class ManualAlarmController {
             model.addAttribute("alarm", alarm);
             model.addAttribute("pageTitle", "Einsatz bearbeiten");
             model.addAttribute("pageSubtitle", alarm.getTitle());
-            model.addAttribute("defaults", ManualAlarmDefaults.forUnit(alarm.getUnit()));
-            model.addAttribute("geraetehausAddress", ManualAlarmDefaults.forUnit(alarm.getUnit()).geraetehausAddress());
+            model.addAttribute("defaults", defaults);
+            model.addAttribute("geraetehausAddress", defaults.geraetehausAddress());
             model.addAttribute("knownStichworte", einsatzberichtService.listKnownStichworte(unit));
             return "einsatz/manuell-form";
         } catch (IllegalArgumentException e) {
@@ -111,6 +112,8 @@ public class ManualAlarmController {
             @RequestParam(required = false) String leitstelleEmail,
             @RequestParam(required = false, defaultValue = "false") boolean exercise,
             @RequestParam(required = false, defaultValue = "true") boolean sondersignal,
+            @RequestParam(required = false, defaultValue = "true") boolean routePlanUseGeraetehaus,
+            @RequestParam(required = false) String routePlanStartAddress,
             @RequestParam(required = false, defaultValue = "false") boolean another,
             RedirectAttributes redirectAttributes) {
         try {
@@ -135,7 +138,9 @@ public class ManualAlarmController {
                     leitstellePhone,
                     leitstelleEmail,
                     exercise,
-                    sondersignal);
+                    sondersignal,
+                    routePlanUseGeraetehaus,
+                    routePlanStartAddress);
             CreateResult result = manualAlarmService.createDraft(unit, actor.getUserId(), input);
             redirectAttributes.addFlashAttribute(
                     "success",
@@ -175,6 +180,8 @@ public class ManualAlarmController {
             @RequestParam(required = false) String leitstelleEmail,
             @RequestParam(required = false, defaultValue = "false") boolean exercise,
             @RequestParam(required = false, defaultValue = "true") boolean sondersignal,
+            @RequestParam(required = false, defaultValue = "true") boolean routePlanUseGeraetehaus,
+            @RequestParam(required = false) String routePlanStartAddress,
             RedirectAttributes redirectAttributes) {
         try {
             accessControlService.requireUnitAccess(actor, unit);
@@ -198,7 +205,9 @@ public class ManualAlarmController {
                     leitstellePhone,
                     leitstelleEmail,
                     exercise,
-                    sondersignal);
+                    sondersignal,
+                    routePlanUseGeraetehaus,
+                    routePlanStartAddress);
             UpdateResult result = manualAlarmService.updateDraft(unit, id, input);
             redirectAttributes.addFlashAttribute(
                     "success", "Einsatz „" + result.alarm().getTitle() + "“ gespeichert.");
@@ -214,16 +223,13 @@ public class ManualAlarmController {
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam long unit,
             @PathVariable long id,
-            @RequestParam(required = false, defaultValue = "true") boolean useGeraetehaus,
-            @RequestParam(required = false) String routeStartAddress,
             @RequestParam(required = false, defaultValue = "true") boolean computeRoute,
             @RequestParam(required = false, defaultValue = "true") boolean sendPush,
             @RequestParam(required = false, defaultValue = "false") boolean printDepesche,
             RedirectAttributes redirectAttributes) {
         try {
             accessControlService.requireUnitAccess(actor, unit);
-            StartResult result = manualAlarmService.startAlarm(
-                    unit, id, useGeraetehaus, routeStartAddress, computeRoute, sendPush, printDepesche);
+            StartResult result = manualAlarmService.startAlarm(unit, id, computeRoute, sendPush, printDepesche);
             StringBuilder msg = new StringBuilder("Einsatz gestartet.");
             if (result.routeMessage() != null) {
                 msg.append(' ').append(result.routeMessage());
@@ -247,14 +253,11 @@ public class ManualAlarmController {
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam long unit,
             @PathVariable long id,
-            @RequestParam(required = false, defaultValue = "true") boolean useGeraetehaus,
-            @RequestParam(required = false) String routeStartAddress,
             @RequestParam(required = false, defaultValue = "true") boolean computeRoute,
             RedirectAttributes redirectAttributes) {
         try {
             accessControlService.requireUnitAccess(actor, unit);
-            ActionResult result =
-                    manualAlarmService.printDepesche(unit, id, useGeraetehaus, routeStartAddress, computeRoute);
+            ActionResult result = manualAlarmService.printDepesche(unit, id, computeRoute);
             redirectAttributes.addFlashAttribute("success", result.message());
             return "redirect:/?unit=" + unit;
         } catch (IllegalArgumentException e) {
@@ -327,7 +330,9 @@ public class ManualAlarmController {
             String leitstellePhone,
             String leitstelleEmail,
             boolean exercise,
-            boolean sondersignal) {
+            boolean sondersignal,
+            boolean routePlanUseGeraetehaus,
+            String routePlanStartAddress) {
         return new ManualAlarmInput(
                 alarmNumber,
                 title,
@@ -348,6 +353,8 @@ public class ManualAlarmController {
                 leitstellePhone,
                 leitstelleEmail,
                 exercise,
-                sondersignal);
+                sondersignal,
+                routePlanUseGeraetehaus,
+                routePlanStartAddress);
     }
 }

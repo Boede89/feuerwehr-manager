@@ -23,9 +23,6 @@
 
     var form = document.getElementById('manual-alarm-start-form');
     var subtitle = document.getElementById('manual-alarm-start-subtitle');
-    var routeStart = document.getElementById('startRouteStartAddress');
-    var geraetehaus = modal.getAttribute('data-geraetehaus') || '';
-    var useGeraetehaus = form ? form.querySelector('input[name="useGeraetehaus"]') : null;
 
     document.querySelectorAll('.manual-alarm-start-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -34,18 +31,9 @@
         if (!form || !id) return;
         form.action = '/einsatz/manuell/' + encodeURIComponent(id) + '/start';
         if (subtitle) subtitle.textContent = title;
-        if (routeStart && geraetehaus) routeStart.value = geraetehaus;
         openModal(modal);
       });
     });
-
-    if (useGeraetehaus && routeStart) {
-      useGeraetehaus.addEventListener('change', function () {
-        if (useGeraetehaus.checked && geraetehaus) {
-          routeStart.value = geraetehaus;
-        }
-      });
-    }
 
     modal.querySelectorAll('[data-close-modal]').forEach(function (btn) {
       btn.addEventListener('click', function () { closeModal(modal); });

@@ -1,9 +1,33 @@
 (function () {
   'use strict';
 
+  function syncRoutePlanVisibility() {
+    var checkbox = document.getElementById('routePlanUseGeraetehaus');
+    var group = document.getElementById('route-plan-start-group');
+    var addressInput = document.getElementById('routePlanStartAddress');
+    if (!checkbox || !group) {
+      return;
+    }
+    var useGeraetehaus = checkbox.checked;
+    group.hidden = useGeraetehaus;
+    if (addressInput) {
+      addressInput.required = !useGeraetehaus;
+      if (useGeraetehaus) {
+        addressInput.value = '';
+      }
+    }
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     var form = document.getElementById('manual-alarm-form');
     var numberInput = document.getElementById('alarmNumber');
+    var routeCheckbox = document.getElementById('routePlanUseGeraetehaus');
+
+    if (routeCheckbox) {
+      routeCheckbox.addEventListener('change', syncRoutePlanVisibility);
+      syncRoutePlanVisibility();
+    }
+
     if (!numberInput || !numberInput.dataset.unitId) {
       return;
     }

@@ -92,6 +92,12 @@ public class ManualAlarm {
     @Column(name = "route_start_address", length = 512)
     private String routeStartAddress;
 
+    @Column(name = "route_plan_use_geraetehaus", nullable = false)
+    private boolean routePlanUseGeraetehaus = true;
+
+    @Column(name = "route_plan_start_address", length = 512)
+    private String routePlanStartAddress;
+
     @Column(name = "route_distance_m")
     private Integer routeDistanceM;
 

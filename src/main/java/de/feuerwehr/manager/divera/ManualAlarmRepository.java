@@ -18,6 +18,9 @@ public interface ManualAlarmRepository extends JpaRepository<ManualAlarm, Long> 
 
     Optional<ManualAlarm> findByIdAndUnitId(long id, long unitId);
 
+    @Query("SELECT m FROM ManualAlarm m JOIN FETCH m.unit WHERE m.id = :id AND m.unit.id = :unitId")
+    Optional<ManualAlarm> findByIdAndUnitIdWithUnit(@Param("id") long id, @Param("unitId") long unitId);
+
     @Query("""
             SELECT m.alarmNumber FROM ManualAlarm m
             WHERE m.unit.id = :unitId
