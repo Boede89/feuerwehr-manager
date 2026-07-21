@@ -1,13 +1,27 @@
 (function () {
   'use strict';
 
-  function switchTab(idx) {
-    document.querySelectorAll('.incident-tab').forEach(function (btn) {
+  function parseIncidentTabIndex(value) {
+    if (value == null || value === '') {
+      return null;
+    }
+    if (!/^\d+$/.test(String(value))) {
+      return null;
+    }
+    var idx = Number(value);
+    return Number.isFinite(idx) && idx >= 0 && idx <= 6 ? idx : null;
+  }
+
+  function switchTab(idx, scope) {
+    if (!Number.isFinite(idx)) {
+      return;
+    }
+    var root = scope || document;
+    root.querySelectorAll('.incident-tab').forEach(function (btn) {
       btn.classList.toggle('tab-btn--active', Number(btn.dataset.tab) === idx);
     });
-    document.querySelectorAll('.incident-tab-panel').forEach(function (panel) {
-      var active = Number(panel.dataset.panel) === idx;
-      panel.hidden = !active;
+    root.querySelectorAll('.incident-tab-panel').forEach(function (panel) {
+      panel.hidden = Number(panel.dataset.panel) !== idx;
     });
   }
 
@@ -86,11 +100,12 @@
     });
   }
 
-  function focusReleaseField(anchorId, tabIndex) {
-    if (tabIndex != null) {
-      switchTab(tabIndex);
-      if (window.BerichteKraefte && (tabIndex === 1 || tabIndex === 2)) {
-        window.BerichteKraefte.onTabShow(tabIndex);
+  function focusReleaseField(anchorId, tabIndex, scope) {
+    var parsedTabIndex = parseIncidentTabIndex(tabIndex);
+    if (parsedTabIndex != null) {
+      switchTab(parsedTabIndex, scope);
+      if (window.BerichteKraefte && (parsedTabIndex === 1 || parsedTabIndex === 2)) {
+        window.BerichteKraefte.onTabShow(parsedTabIndex);
       }
     }
     if (!anchorId) {
@@ -131,10 +146,10 @@
     }
     var params = new URLSearchParams(window.location.search);
     var focus = params.get('focus');
-    var tab = params.get('tab');
+    var tabIndex = parseIncidentTabIndex(params.get('tab'));
     if (!issues || !issues.length) {
-      if (focus || tab) {
-        focusReleaseField(focus, tab != null ? Number(tab) : null);
+      if (focus || tabIndex != null) {
+        focusReleaseField(focus, tabIndex);
       }
       return;
     }
@@ -185,7 +200,7 @@
       btn.dataset.bound = 'true';
       btn.addEventListener('click', function () {
         var idx = Number(btn.dataset.tab);
-        switchTab(idx);
+        switchTab(idx, scope);
         if (window.BerichteKraefte && (idx === 1 || idx === 2)) {
           window.BerichteKraefte.onTabShow(idx);
         }
@@ -253,10 +268,12 @@
       window.BerichteAnwesenheitAddress.init(scope);
     }
 
-    switchTab(0);
+    switchTab(0, scope);
     if (!anwesenheit) {
       initReleaseRequiredMarkers(scope);
-      initReleaseIssueHints();
+      if (scope.querySelector('#einsatzbericht-form')) {
+        initReleaseIssueHints();
+      }
     }
   }
 
