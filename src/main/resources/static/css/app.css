@@ -4174,6 +4174,45 @@ span.required { color: var(--error); }
   font-size: var(--fs-xs);
 }
 
+.einsatzbericht-form-page .incident-material-damage-section {
+  margin-top: 8px;
+  padding: 18px 20px;
+  border: 1px solid var(--rot-border);
+  border-left: 4px solid var(--accent, var(--rot));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--accent, var(--rot)) 5%, var(--bg-card));
+}
+
+.einsatzbericht-form-page .incident-material-damage-section__head {
+  margin-bottom: 12px;
+}
+
+.einsatzbericht-form-page .incident-material-damage-section__title {
+  margin: 0;
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.einsatzbericht-form-page .incident-material-damage-section__subtitle {
+  margin: 4px 0 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.einsatzbericht-form-page .incident-material-damage-section__intro {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
 .incident-material-damages {
   display: grid;
   gap: 12px;
@@ -4181,6 +4220,13 @@ span.required { color: var(--error); }
 
 .material-damage-details-hint {
   margin: 0;
+  padding: 14px 16px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
 }
 
 .material-damage-list {
@@ -4189,10 +4235,11 @@ span.required { color: var(--error); }
 }
 
 .material-damage-entry {
-  border: 1px solid var(--border);
+  border: 1px solid var(--rot-border);
   border-radius: var(--radius-md, 8px);
-  padding: 12px 14px;
-  background: var(--bg-card-hover, rgba(0, 0, 0, 0.02));
+  padding: 14px 16px;
+  background: var(--bg-card);
+  box-shadow: var(--schatten-sm);
 }
 
 .material-damage-entry__header {
@@ -4200,14 +4247,16 @@ span.required { color: var(--error); }
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
 }
 
 .material-damage-entry__title {
   margin: 0;
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  color: var(--text);
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--accent, var(--rot));
 }
 
 .material-damage-entry__fields .form-group label {
@@ -4237,7 +4286,12 @@ span.required { color: var(--error); }
 }
 
 .material-damage-actions {
-  margin-top: 4px;
+  margin-top: 6px;
+}
+
+.material-damage-actions__add {
+  width: 100%;
+  justify-content: center;
 }
 
 .einsatzbericht-form-page .incident-form-stack {

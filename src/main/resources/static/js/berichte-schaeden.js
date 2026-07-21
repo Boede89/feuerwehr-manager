@@ -507,7 +507,8 @@
       var actions = document.createElement('div');
       actions.className = 'material-damage-actions';
       actions.innerHTML =
-        '<button type="button" class="btn btn--outline btn--sm" data-action="add-material-damage">+ Sachschaden hinzufügen</button>';
+        '<button type="button" class="btn btn--primary btn--sm material-damage-actions__add" ' +
+          'data-action="add-material-damage">+ Sachschaden hinzufügen</button>';
       actions.querySelector('[data-action="add-material-damage"]')?.addEventListener('click', function () {
         if (wrapEl.querySelector('[data-material-damage-index]')) {
           materialDamageState = collectMaterialState();
