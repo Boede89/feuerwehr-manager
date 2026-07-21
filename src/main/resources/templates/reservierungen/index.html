@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('Reservierungen', ~{::main})}">
+<main class="reservierungen-page" th:attr="data-unit-id=${unitId},data-can-write=${canWrite}">
+  <div class="page-header">
+    <div>
+      <h2>Reservierungen</h2>
+      <p>Fahrzeuge und Räume buchen · <strong th:text="${currentUnitName}">—</strong></p>
+    </div>
+    <a class="btn btn--outline" th:if="${isAdmin}" th:href="@{/settings/reservierungen(unit=${unitId})}">Einstellungen</a>
+  </div>
+
+  <div th:replace="~{fragments/testmode-banner :: banner}"></div>
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
+
+  <nav class="tab-bar reservierungen-module-tabs" aria-label="Reservierungsbereiche">
+    <a class="tab-btn" th:each="t : ${reservierungenTabs}"
+       th:if="${t.key() != 'verwaltung' or canManage}"
+       th:classappend="${reservierungenTab == t.key()} ? ' tab-btn--active' : ''"
+       th:href="@{/reservierungen(unit=${unitId}, tab=${t.key()})}"
+       th:text="${t.label()}">Reiter</a>
+  </nav>
+
+  <!-- Übersicht -->
+  <div th:if="${reservierungenTab == 'uebersicht'}" class="reservierungen-module-panel">
+    <div class="reservierungen-choice-grid">
+      <a class="card reservierungen-choice-card" th:href="@{/reservierungen(unit=${unitId}, tab='fahrzeuge')}">
+        <div class="reservierungen-choice-card__icon">🚒</div>
+        <h3>Fahrzeug reservieren</h3>
+        <p class="hint">Fahrzeuge aus der Technik-Verwaltung für einen Zeitraum anfragen.</p>
+      </a>
+      <a class="card reservierungen-choice-card" th:href="@{/reservierungen(unit=${unitId}, tab='raeume')}">
+        <div class="reservierungen-choice-card__icon">🏠</div>
+        <h3>Raum reservieren</h3>
+        <p class="hint">Schulungs- und Besprechungsräume für einen Zeitraum anfragen.</p>
+      </a>
+    </div>
+  </div>
+
+  <!-- Fahrzeuge -->
+  <div th:if="${reservierungenTab == 'fahrzeuge'}" class="reservierungen-module-panel">
+    <div class="card" th:if="${#lists.isEmpty(vehicles)}">
+      <div class="card__body"><p class="hint">Keine aktiven Fahrzeuge hinterlegt. Bitte unter Admin → Technik anlegen.</p></div>
+    </div>
+    <div class="reservierungen-resource-grid" th:if="${!#lists.isEmpty(vehicles)}">
+      <article class="card reservierungen-resource-card" th:each="v : ${vehicles}">
+        <div class="card__body">
+          <h3 th:text="${v.name}">TLF</h3>
+          <p class="hint" th:if="${v.description != null and !#strings.isEmpty(v.description)}" th:text="${v.description}"></p>
+          <button type="button" class="btn btn--primary btn--sm reservierung-open-btn"
+                  th:attr="data-kind='vehicle',data-id=${v.id},data-name=${v.name}">Reservieren</button>
+        </div>
+      </article>
+    </div>
+  </div>
+
+  <!-- Räume -->
+  <div th:if="${reservierungenTab == 'raeume'}" class="reservierungen-module-panel">
+    <div class="card" th:if="${#lists.isEmpty(rooms)}">
+      <div class="card__body"><p class="hint">Keine aktiven Räume hinterlegt. Bitte unter Admin → Technik anlegen.</p></div>
+    </div>
+    <div class="reservierungen-resource-grid" th:if="${!#lists.isEmpty(rooms)}">
+      <article class="card reservierungen-resource-card" th:each="r : ${rooms}">
+        <div class="card__body">
+          <h3 th:text="${r.name}">Schulungsraum</h3>
+          <p class="hint" th:if="${r.description != null and !#strings.isEmpty(r.description)}" th:text="${r.description}"></p>
+          <button type="button" class="btn btn--primary btn--sm reservierung-open-btn"
+                  th:attr="data-kind='room',data-id=${r.id},data-name=${r.name}">Reservieren</button>
+        </div>
+      </article>
+    </div>
+  </div>
+
+  <!-- Meine Anträge -->
+  <div th:if="${reservierungenTab == 'meine'}" class="reservierungen-module-panel">
+    <div class="card" th:if="${#lists.isEmpty(myReservations)}">
+      <div class="card__body"><p class="hint">Sie haben noch keine Reservierungsanträge gestellt.</p></div>
+    </div>
+    <div class="card" th:if="${!#lists.isEmpty(myReservations)}">
+      <div class="card__body card__body--flush">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+            <tr>
+              <th>Art</th><th>Ressource</th><th>Zeitraum</th><th>Status</th><th>Grund</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="r : ${myReservations}">
+              <td th:text="${r.kind() == T(de.feuerwehr.manager.reservierungen.ReservationKind).VEHICLE ? 'Fahrzeug' : 'Raum'}">Fahrzeug</td>
+              <td th:text="${r.resourceName()}">TLF</td>
+              <td>
+                <span th:text="${#temporals.format(r.startAt().atZone(T(java.time.ZoneId).of('Europe/Berlin')), 'dd.MM.yyyy HH:mm')}">—</span>
+                –
+                <span th:text="${#temporals.format(r.endAt().atZone(T(java.time.ZoneId).of('Europe/Berlin')), 'dd.MM.yyyy HH:mm')}">—</span>
+              </td>
+              <td><span class="badge" th:text="${r.status()}">PENDING</span></td>
+              <td th:text="${r.reason()}">Übung</td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Verwaltung -->
+  <div th:if="${reservierungenTab == 'verwaltung' and canManage}" class="reservierungen-module-panel">
+    <div class="card">
+      <div class="card__header">Offene Anträge</div>
+      <div class="card__body card__body--flush">
+        <p class="hint" th:if="${#lists.isEmpty(pendingReservations)}" style="padding:16px 20px;margin:0;">Keine offenen Anträge.</p>
+        <div class="table-wrap" th:if="${!#lists.isEmpty(pendingReservations)}">
+          <table class="data-table" id="pending-reservations-table">
+            <thead>
+            <tr>
+              <th>Art</th><th>Ressource</th><th>Antragsteller</th><th>Zeitraum</th><th>Grund</th><th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="r : ${pendingReservations}"
+                th:attr="data-kind=${r.kind().name()},data-id=${r.id()}">
+              <td th:text="${r.kind() == T(de.feuerwehr.manager.reservierungen.ReservationKind).VEHICLE ? 'Fahrzeug' : 'Raum'}">Fahrzeug</td>
+              <td th:text="${r.resourceName()}">TLF</td>
+              <td>
+                <span th:text="${r.requesterName()}">Name</span><br/>
+                <span class="text-muted text-sm" th:text="${r.requesterEmail()}">mail</span>
+              </td>
+              <td>
+                <span th:text="${#temporals.format(r.startAt().atZone(T(java.time.ZoneId).of('Europe/Berlin')), 'dd.MM.yyyy HH:mm')}">—</span>
+                –
+                <span th:text="${#temporals.format(r.endAt().atZone(T(java.time.ZoneId).of('Europe/Berlin')), 'dd.MM.yyyy HH:mm')}">—</span>
+              </td>
+              <td th:text="${r.reason()}">Übung</td>
+              <td class="table-actions">
+                <button type="button" class="btn btn--primary btn--sm" data-action="approve">Genehmigen</button>
+                <button type="button" class="btn btn--outline btn--sm" data-action="reject">Ablehnen</button>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="card__header">Historie</div>
+      <div class="card__body card__body--flush">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+            <tr>
+              <th>Art</th><th>Ressource</th><th>Antragsteller</th><th>Zeitraum</th><th>Status</th><th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="r : ${allReservations}"
+                th:if="${r.status().name() != 'PENDING'}"
+                th:attr="data-kind=${r.kind().name()},data-id=${r.id()}">
+              <td th:text="${r.kind() == T(de.feuerwehr.manager.reservierungen.ReservationKind).VEHICLE ? 'Fahrzeug' : 'Raum'}">Fahrzeug</td>
+              <td th:text="${r.resourceName()}">TLF</td>
+              <td th:text="${r.requesterName()}">Name</td>
+              <td>
+                <span th:text="${#temporals.format(r.startAt().atZone(T(java.time.ZoneId).of('Europe/Berlin')), 'dd.MM.yyyy HH:mm')}">—</span>
+                –
+                <span th:text="${#temporals.format(r.endAt().atZone(T(java.time.ZoneId).of('Europe/Berlin')), 'dd.MM.yyyy HH:mm')}">—</span>
+              </td>
+              <td><span class="badge" th:text="${r.status()}">APPROVED</span></td>
+              <td class="table-actions">
+                <button type="button" class="btn btn--danger btn--sm" data-action="delete">Löschen</button>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="reservierung-modal" class="incident-modal" hidden aria-hidden="true">
+    <div class="modal__backdrop"></div>
+    <div class="modal__box">
+      <div class="modal__header">
+        <h3 id="reservierung-modal-title">Reservierung</h3>
+        <button type="button" class="modal__close" id="reservierung-modal-close" aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal__body">
+        <form id="reservierung-form" class="incident-form-stack">
+          <input type="hidden" id="reservierung-kind"/>
+          <input type="hidden" id="reservierung-resource-id"/>
+          <div class="form-group">
+            <label for="reservierung-name">Antragsteller</label>
+            <input id="reservierung-name" class="field" required maxlength="255"
+                   th:value="${requesterName}"/>
+          </div>
+          <div class="form-group">
+            <label for="reservierung-email">E-Mail</label>
+            <input id="reservierung-email" type="email" class="field" required maxlength="255"
+                   th:value="${requesterEmail}"/>
+          </div>
+          <div class="form-group">
+            <label for="reservierung-reason">Grund</label>
+            <textarea id="reservierung-reason" class="field" rows="3" required maxlength="2000"></textarea>
+          </div>
+          <div class="form-group">
+            <label for="reservierung-location">Ort / Standort</label>
+            <input id="reservierung-location" class="field" maxlength="255"/>
+          </div>
+          <div class="incident-form-grid-2">
+            <div class="form-group">
+              <label for="reservierung-start">Beginn</label>
+              <input id="reservierung-start" type="datetime-local" class="field" required/>
+            </div>
+            <div class="form-group">
+              <label for="reservierung-end">Ende</label>
+              <input id="reservierung-end" type="datetime-local" class="field" required/>
+            </div>
+          </div>
+          <p class="hint text-sm">Der Antrag wird zur Genehmigung eingereicht. Sie erhalten eine E-Mail, sobald er bearbeitet wurde.</p>
+        </form>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--outline" id="reservierung-modal-cancel">Abbrechen</button>
+        <button type="submit" class="btn btn--primary" form="reservierung-form">Antrag einreichen</button>
+      </div>
+    </div>
+  </div>
+  <script th:src="@{/js/reservierungen.js}" defer></script>
+</main>
+</html>

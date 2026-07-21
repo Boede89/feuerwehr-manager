@@ -6039,3 +6039,58 @@ span.required { color: var(--error); }
   margin-bottom: 0.35rem;
 }
 
+/* ── Reservierungen ─────────────────────────────────────────────────────────── */
+.reservierungen-page .reservierungen-module-panel {
+  margin-top: 16px;
+}
+
+.reservierungen-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.reservierungen-choice-card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.reservierungen-choice-card:hover {
+  box-shadow: var(--schatten-md);
+  transform: translateY(-1px);
+  text-decoration: none;
+}
+
+.reservierungen-choice-card__icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.reservierungen-choice-card h3 {
+  margin: 0 0 8px;
+}
+
+.reservierungen-resource-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.reservierungen-resource-card h3 {
+  margin: 0 0 8px;
+}
+
+.reservierungen-user-checkboxes {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.reservierungen-user-checkboxes .checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+

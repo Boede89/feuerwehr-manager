@@ -3,7 +3,7 @@ package de.feuerwehr.manager.settings;
 /** Aktivierbare Navigations-Module (Top-Leiste). */
 public enum AppModule {
     PERSONAL("personal", "Personal", "Mitgliederverwaltung", "👥", true),
-    RESERVIERUNGEN("reservierungen", "Reservierungen", "Fahrzeug- und Gerätereservierungen", "🚒", false),
+    RESERVIERUNGEN("reservierungen", "Reservierungen", "Fahrzeug- und Raumreservierungen", "🚒", true),
     ATEMSCHUTZ("atemschutz", "Atemschutz", "Tauglichkeiten und Nachweise", "🛡️", true),
     BERICHTE("berichte", "Berichte", "Einsatz- und Dienstberichte", "📋", true),
     TERMINE("termine", "Termine", "Kalender und Terminplanung", "📅", true),

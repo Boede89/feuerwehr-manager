@@ -324,4 +324,75 @@ public class DiveraApiClient {
         }
         return t;
     }
+
+    public record DiveraMutationResult(boolean success, String message, String body, int httpStatus) {}
+
+    /** Termin in DIVERA anlegen ({@code POST /api/v2/events}). */
+    public DiveraMutationResult createEvent(String apiBaseUrl, String accessKey, JsonNode body) {
+        String key = normalizeAccessKey(accessKey);
+        if (key.isEmpty()) {
+            return new DiveraMutationResult(false, "Divera Access Key fehlt", null, 0);
+        }
+        String base = normalizeApiBase(apiBaseUrl);
+        URI uri = UriComponentsBuilder.fromUriString(base + "/api/v2/events")
+                .queryParam("accesskey", key)
+                .encode(StandardCharsets.UTF_8)
+                .build()
+                .toUri();
+        return postJson(uri, body, base + "/api/v2/events?accesskey=…");
+    }
+
+    /** Termin in DIVERA löschen ({@code DELETE /api/v2/events/{id}}). */
+    public DiveraMutationResult deleteEvent(String apiBaseUrl, String accessKey, long eventId) {
+        if (eventId <= 0) {
+            return new DiveraMutationResult(false, "Ungültige Event-ID", null, 0);
+        }
+        String key = normalizeAccessKey(accessKey);
+        if (key.isEmpty()) {
+            return new DiveraMutationResult(false, "Divera Access Key fehlt", null, 0);
+        }
+        String base = normalizeApiBase(apiBaseUrl);
+        URI uri = UriComponentsBuilder.fromUriString(base + "/api/v2/events/" + eventId)
+                .queryParam("accesskey", key)
+                .encode(StandardCharsets.UTF_8)
+                .build()
+                .toUri();
+        try {
+            restClient.delete().uri(uri).retrieve().toBodilessEntity();
+            return new DiveraMutationResult(true, "OK", null, 204);
+        } catch (RestClientResponseException e) {
+            String responseBody = e.getResponseBodyAsString();
+            return new DiveraMutationResult(
+                    false,
+                    "DIVERA-HTTP " + e.getStatusCode().value(),
+                    responseBody != null && !responseBody.isBlank() ? responseBody : null,
+                    e.getStatusCode().value());
+        } catch (Exception e) {
+            return new DiveraMutationResult(false, "DIVERA-API: " + e.getMessage(), null, 0);
+        }
+    }
+
+    private DiveraMutationResult postJson(URI uri, JsonNode body, String endpointLabel) {
+        try {
+            String jsonBody = objectMapper.writeValueAsString(body);
+            String raw = restClient
+                    .post()
+                    .uri(uri)
+                    .header("Content-Type", "application/json")
+                    .header("Accept", "application/json")
+                    .body(jsonBody)
+                    .retrieve()
+                    .body(String.class);
+            return new DiveraMutationResult(true, "OK", raw, 200);
+        } catch (RestClientResponseException e) {
+            String responseBody = e.getResponseBodyAsString();
+            return new DiveraMutationResult(
+                    false,
+                    "DIVERA-HTTP " + e.getStatusCode().value(),
+                    responseBody != null && !responseBody.isBlank() ? responseBody : null,
+                    e.getStatusCode().value());
+        } catch (Exception e) {
+            return new DiveraMutationResult(false, "DIVERA-API: " + e.getMessage(), null, 0);
+        }
+    }
 }

@@ -29,6 +29,9 @@
 
     <div class="topnav__sep" aria-hidden="true"></div>
 
+    <a class="topnav__item" th:if="${navReservierungen == 'link'}"
+       th:classappend="${activeNav == 'reservierungen'} ? ' active' : ''"
+       th:href="@{/reservierungen(unit=${unitId})}">Reservierungen</a>
     <span class="topnav__item topnav__item--soon" th:if="${navReservierungen == 'soon'}" title="Modul folgt später">Reservierungen</span>
     <a class="topnav__item" th:if="${navPersonal == 'link'}"
        th:classappend="${activeNav == 'personal'} ? ' active' : ''"
