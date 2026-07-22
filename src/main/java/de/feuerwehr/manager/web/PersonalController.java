@@ -15,6 +15,7 @@ import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.personal.PersonGroup;
 import de.feuerwehr.manager.personal.PersonalService.CourseCompletionInput;
 import de.feuerwehr.manager.berichte.AnwesenheitslisteService;
+import de.feuerwehr.manager.mail.AccountMailService;
 import de.feuerwehr.manager.termine.TermineCategory;
 import de.feuerwehr.manager.personal.PersonalService.PersonCreateResult;
 import de.feuerwehr.manager.personal.PersonalService.PersonDetailView;
