@@ -48,13 +48,18 @@
       </div>
       <div class="form-group form-group--full">
         <label for="stichwort">Thema/Bezeichnung <span class="required">*</span></label>
-        <div class="combo-suggest" data-combo-suggest data-combo-min="1">
+        <div class="combo-suggest" data-combo-suggest data-combo-min="1"
+             data-combo-category-select="terminCategoryKey">
           <input id="stichwort" name="stichwort" type="text" maxlength="255" required
                  th:readonly="${formMode == 'view'}"
                  class="combo-suggest__input" autocomplete="off"
                  placeholder="Thema oder Bezeichnung eingeben …" th:value="${form.stichwort}"/>
           <ul class="combo-suggest__list" role="listbox" hidden>
-            <li class="combo-suggest__option" th:each="s : ${knownStichworte}"
+            <li class="combo-suggest__option" th:each="s : ${knownStichworteDienstplan}"
+                data-category="dienstplan"
+                th:attr="data-value=${s}" th:text="${s}">Thema</li>
+            <li class="combo-suggest__option" th:each="s : ${knownStichworteSonstiges}"
+                data-category="sonstiges"
                 th:attr="data-value=${s}" th:text="${s}">Thema</li>
           </ul>
         </div>

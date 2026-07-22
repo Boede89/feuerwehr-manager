@@ -114,7 +114,32 @@ public class AnwesenheitslisteService {
 
     @Transactional(readOnly = true)
     public List<String> listKnownStichworte(long unitId) {
-        return attendanceReportRepository.findDistinctTitlesByUnit(unitId, includeTestReports());
+        return listKnownStichworte(unitId, TermineCategory.DIENSTPLAN);
+    }
+
+    @Transactional(readOnly = true)
+    public List<String> listKnownStichworte(long unitId, TermineCategory category) {
+        TermineCategory resolved = category != null ? category : TermineCategory.DIENSTPLAN;
+        LinkedHashSet<String> titles = new LinkedHashSet<>();
+        attendanceReportRepository
+                .findDistinctTitlesByUnitAndCategory(
+                        unitId,
+                        resolved,
+                        resolved == TermineCategory.DIENSTPLAN,
+                        includeTestReports())
+                .stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(title -> !title.isEmpty())
+                .forEach(titles::add);
+        unitTerminRepository.findDistinctTitlesByUnitAndCategory(unitId, resolved).stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(title -> !title.isEmpty())
+                .forEach(titles::add);
+        return titles.stream()
+                .sorted(Comparator.comparing(String::toLowerCase))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -215,7 +240,8 @@ public class AnwesenheitslisteService {
                 kraefteState,
                 einsatzberichtService.serializeKraefteFahrzeugeState(kraefteState),
                 einsatzberichtService.listPersonsForForm(unitId),
-                listKnownStichworte(unitId),
+                listKnownStichworte(unitId, TermineCategory.DIENSTPLAN),
+                listKnownStichworte(unitId, TermineCategory.SONSTIGES),
                 einsatzberichtService.isForeignUnitPersonnelAllowed(unitId));
     }
 

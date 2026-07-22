@@ -9,5 +9,6 @@ public record AnwesenheitFormBundle(
         KraefteFahrzeugeState kraefteState,
         String kraefteInitialJson,
         List<Person> unitPersons,
-        List<String> knownStichworte,
+        List<String> knownStichworteDienstplan,
+        List<String> knownStichworteSonstiges,
         boolean allowForeignUnitPersonnel) {}

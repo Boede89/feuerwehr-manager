@@ -13,11 +13,31 @@
         value: el.getAttribute('data-value') || el.textContent.trim(),
         element: el,
         search: (el.getAttribute('data-value') || el.textContent || '').trim().toLocaleLowerCase('de'),
+        category: (el.getAttribute('data-category') || '').trim().toLocaleLowerCase('de')
       };
     });
 
     var minChars = Number(root.getAttribute('data-combo-min') || '1');
+    var categorySelectId = root.getAttribute('data-combo-category-select');
+    var categorySelect = categorySelectId ? document.getElementById(categorySelectId) : null;
     var activeIndex = -1;
+
+    function currentCategory() {
+      if (!categorySelect) {
+        return '';
+      }
+      return (categorySelect.value || '').trim().toLocaleLowerCase('de');
+    }
+
+    function optionMatchesCategory(opt) {
+      if (!categorySelect) {
+        return true;
+      }
+      if (!opt.category) {
+        return true;
+      }
+      return opt.category === currentCategory();
+    }
 
     function closeList() {
       list.hidden = true;
@@ -52,7 +72,9 @@
       var visibleCount = 0;
       options.forEach(function (opt) {
         var show;
-        if (showAllOnFocus && q.length === 0) {
+        if (!optionMatchesCategory(opt)) {
+          show = false;
+        } else if (showAllOnFocus && q.length === 0) {
           show = true;
         } else {
           show = q.length >= minChars && opt.search.indexOf(q) !== -1;
@@ -77,7 +99,8 @@
         return;
       }
       var match = options.find(function (opt) {
-        return opt.value.localeCompare(value, 'de', { sensitivity: 'accent' }) === 0;
+        return optionMatchesCategory(opt)
+          && opt.value.localeCompare(value, 'de', { sensitivity: 'accent' }) === 0;
       });
       if (match && match.element.getAttribute('data-person-id')) {
         input.dataset.personId = match.element.getAttribute('data-person-id');
@@ -153,6 +176,17 @@
         closeList();
       }
     });
+
+    if (categorySelect) {
+      categorySelect.addEventListener('change', function () {
+        syncPersonIdFromValue();
+        if (document.activeElement === input) {
+          filterOptions(input.value, true);
+        } else {
+          closeList();
+        }
+      });
+    }
   }
 
   document.addEventListener('DOMContentLoaded', function () {

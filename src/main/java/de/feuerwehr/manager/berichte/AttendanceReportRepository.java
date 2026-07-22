@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.berichte;
 
+import de.feuerwehr.manager.termine.TermineCategory;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -68,4 +69,21 @@ public interface AttendanceReportRepository extends JpaRepository<AttendanceRepo
             """)
     List<String> findDistinctTitlesByUnit(
             @Param("unitId") long unitId, @Param("includeTestReports") boolean includeTestReports);
+
+    @Query("""
+            SELECT DISTINCT r.title FROM AttendanceReport r
+            WHERE r.unit.id = :unitId
+              AND r.title IS NOT NULL AND TRIM(r.title) <> ''
+              AND (r.testData = FALSE OR :includeTestReports = TRUE)
+              AND (
+                    r.terminCategory = :category
+                    OR (r.terminCategory IS NULL AND :includeNullCategory = TRUE)
+              )
+            ORDER BY r.title ASC
+            """)
+    List<String> findDistinctTitlesByUnitAndCategory(
+            @Param("unitId") long unitId,
+            @Param("category") TermineCategory category,
+            @Param("includeNullCategory") boolean includeNullCategory,
+            @Param("includeTestReports") boolean includeTestReports);
 }
