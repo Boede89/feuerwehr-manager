@@ -259,6 +259,9 @@
       toggle.setAttribute('aria-pressed', involved ? 'true' : 'false');
       toggle.classList.toggle('incident-vehicle-involved-toggle--active', involved);
     }
+    if (window.BerichteGeraete && typeof window.BerichteGeraete.syncInvolvementHighlight === 'function') {
+      window.BerichteGeraete.syncInvolvementHighlight();
+    }
   }
 
   function applyCrewInvolvementAfterChange(card) {

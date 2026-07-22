@@ -34,12 +34,19 @@
     });
   }
 
-  function shouldShowAllVehicles() {
-    var wrap = document.getElementById('incident-deployed-equipment');
-    if (wrap && wrap.dataset.showAllVehicles === 'true') {
-      return true;
-    }
-    return !!document.querySelector('[data-berichte-form="anwesenheit"]');
+  function isVehicleInvolvedInEinsatz(vehicleId) {
+    var id = String(vehicleId);
+    var card = document.querySelector(
+      '#incident-vehicle-stack .incident-vehicle-card[data-vehicle-id="' + id + '"]'
+    );
+    return !!(card && card.dataset.involvedInIncident === 'true');
+  }
+
+  function syncInvolvementHighlight() {
+    document.querySelectorAll('#incident-deployed-equipment .incident-deployed-vehicle-card').forEach(function (card) {
+      var involved = isVehicleInvolvedInEinsatz(card.dataset.vehicleId);
+      card.classList.toggle('incident-deployed-vehicle-card--einsatz-beteiligt', involved);
+    });
   }
 
   function ensureVehicleMaps(vehicleId) {
@@ -650,6 +657,9 @@
       hasAnyContent = true;
       var card = document.createElement('article');
       card.className = 'incident-deployed-vehicle-card';
+      if (isVehicleInvolvedInEinsatz(vehicle.vehicleId)) {
+        card.classList.add('incident-deployed-vehicle-card--einsatz-beteiligt');
+      }
       card.dataset.vehicleId = String(vehicle.vehicleId);
       card.dataset.equipmentCount = String((vehicle.equipment || []).length);
       setVehicleCollapsed(vehicle.vehicleId, isVehicleCollapsed(vehicle.vehicleId), card);
@@ -811,7 +821,8 @@
     },
     sync: function () {
       syncHiddenJson();
-    }
+    },
+    syncInvolvementHighlight: syncInvolvementHighlight
   };
 
   document.addEventListener('DOMContentLoaded', function () {

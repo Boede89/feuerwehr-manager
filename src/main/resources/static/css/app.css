@@ -5140,6 +5140,12 @@ span.required { color: var(--error); }
   overflow: hidden;
 }
 
+.einsatzbericht-form-page .incident-deployed-vehicle-card--einsatz-beteiligt {
+  background: color-mix(in srgb, var(--einsatz-c, var(--rot)) 14%, var(--bg-card));
+  border-color: color-mix(in srgb, var(--einsatz-c, var(--rot)) 42%, var(--border));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--einsatz-c, var(--rot)) 12%, transparent);
+}
+
 .einsatzbericht-form-page .incident-deployed-vehicle-card__head {
   display: flex;
   align-items: center;
@@ -5148,6 +5154,15 @@ span.required { color: var(--error); }
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
   background: color-mix(in srgb, var(--einsatz-c, var(--rot)) 8%, var(--bg-card));
+}
+
+.einsatzbericht-form-page .incident-deployed-vehicle-card--einsatz-beteiligt .incident-deployed-vehicle-card__head {
+  background: color-mix(in srgb, var(--einsatz-c, var(--rot)) 22%, var(--bg-card));
+  border-bottom-color: color-mix(in srgb, var(--einsatz-c, var(--rot)) 28%, var(--border));
+}
+
+.einsatzbericht-form-page .incident-deployed-vehicle-card--einsatz-beteiligt .incident-deployed-vehicle-card__body {
+  background: color-mix(in srgb, var(--einsatz-c, var(--rot)) 6%, transparent);
 }
 
 .einsatzbericht-form-page .incident-deployed-vehicle-card--collapsed .incident-deployed-vehicle-card__head {
