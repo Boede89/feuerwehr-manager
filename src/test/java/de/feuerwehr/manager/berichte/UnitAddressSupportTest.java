@@ -36,6 +36,7 @@ class UnitAddressSupportTest {
         assertThat(form.getLocation()).isEqualTo("Beispielstadt");
         assertThat(form.getStreet()).isEqualTo("Feuerwehrstraße");
         assertThat(form.getHouseNumber()).isEqualTo("7");
+        assertThat(form.getObjekt()).isEqualTo("Gerätehaus");
     }
 
     @Test

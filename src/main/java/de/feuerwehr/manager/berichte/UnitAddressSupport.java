@@ -5,6 +5,8 @@ import java.util.regex.Pattern;
 
 public final class UnitAddressSupport {
 
+    public static final String DEFAULT_OBJEKT_GERAETEHAUS = "Gerätehaus";
+
     private static final Pattern STREET_WITH_NUMBER = Pattern.compile(
             "^(.*?)(?:\\s+(\\d+(?:\\s+[a-zA-Z]|[a-zA-Z])?(?:\\s*-\\s*\\d+(?:\\s+[a-zA-Z]|[a-zA-Z])?)?))$");
 
@@ -76,6 +78,9 @@ public final class UnitAddressSupport {
         if (isBlank(form.getHouseNumber()) && !isBlank(address.houseNumber())) {
             form.setHouseNumber(address.houseNumber());
         }
+        if (isBlank(form.getObjekt())) {
+            form.setObjekt(DEFAULT_OBJEKT_GERAETEHAUS);
+        }
     }
 
     public static void applyDefaultsToReportIfBlank(AttendanceReport report, Unit unit) {
@@ -96,6 +101,9 @@ public final class UnitAddressSupport {
         }
         if (isBlank(report.getHouseNumber()) && !isBlank(address.houseNumber())) {
             report.setHouseNumber(address.houseNumber());
+        }
+        if (isBlank(report.getObjekt())) {
+            report.setObjekt(DEFAULT_OBJEKT_GERAETEHAUS);
         }
     }
 

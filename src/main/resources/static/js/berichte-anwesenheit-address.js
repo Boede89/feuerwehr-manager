@@ -45,6 +45,7 @@
       setField('postalCode', address.postalCode);
       setField('street', address.street);
       setField('houseNumber', address.houseNumber);
+      setField('objekt', 'Gerätehaus');
     });
   }
 
