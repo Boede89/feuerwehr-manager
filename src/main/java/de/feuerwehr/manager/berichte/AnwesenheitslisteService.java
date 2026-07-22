@@ -351,6 +351,23 @@ public class AnwesenheitslisteService {
                 .isEmpty();
     }
 
+    @Transactional(readOnly = true)
+    public boolean hasDeployedEquipment(AttendanceReport report) {
+        if (report == null) {
+            return false;
+        }
+        for (DeployedEquipmentAssignment assignment :
+                einsatzberichtService.parseDeployedEquipment(report.getDeployedEquipmentJson())) {
+            if (assignment.equipmentIds() != null && !assignment.equipmentIds().isEmpty()) {
+                return true;
+            }
+            if (assignment.customEquipment() != null && !assignment.customEquipment().isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Transactional
     public void assignRemainingPersonnelToWache(AttendanceReport report) {
         if (report == null) {

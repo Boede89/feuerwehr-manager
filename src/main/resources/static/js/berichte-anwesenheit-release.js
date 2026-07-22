@@ -24,7 +24,8 @@
     if (!reportId || !unitId) {
       return Promise.resolve({
         unassignedCount: countUnassignedFromBoard(),
-        hasMaterialDamages: false
+        hasMaterialDamages: false,
+        hasDeployedEquipment: hasDeployedEquipmentFromForm()
       });
     }
     var boardCount = countUnassignedFromBoard();
@@ -32,18 +33,49 @@
       + encodeURIComponent(unitId), { credentials: 'same-origin' })
       .then(function (res) {
         if (!res.ok) {
-          return { unassignedCount: boardCount, hasMaterialDamages: false };
+          return {
+            unassignedCount: boardCount,
+            hasMaterialDamages: false,
+            hasDeployedEquipment: hasDeployedEquipmentFromForm()
+          };
         }
         return res.json().then(function (data) {
           return {
             unassignedCount: boardCount > 0 ? boardCount : (Number(data.unassignedCount) || 0),
-            hasMaterialDamages: !!data.hasMaterialDamages
+            hasMaterialDamages: !!data.hasMaterialDamages,
+            hasDeployedEquipment: data.hasDeployedEquipment != null
+              ? !!data.hasDeployedEquipment
+              : hasDeployedEquipmentFromForm()
           };
         });
       })
       .catch(function () {
-        return { unassignedCount: boardCount, hasMaterialDamages: false };
+        return {
+          unassignedCount: boardCount,
+          hasMaterialDamages: false,
+          hasDeployedEquipment: hasDeployedEquipmentFromForm()
+        };
       });
+  }
+
+  function hasDeployedEquipmentFromForm() {
+    var field = document.getElementById('deployedEquipmentJson');
+    if (!field || !field.value) {
+      return false;
+    }
+    try {
+      var data = JSON.parse(field.value);
+      if (!Array.isArray(data)) {
+        return false;
+      }
+      return data.some(function (row) {
+        var ids = row && row.equipmentIds ? row.equipmentIds : [];
+        var custom = row && row.customEquipment ? row.customEquipment : [];
+        return (ids && ids.length > 0) || (custom && custom.length > 0);
+      });
+    } catch (e) {
+      return false;
+    }
   }
 
   function promptWacheAssignment(count) {
@@ -59,7 +91,12 @@
     return fetchUnassignedCount(reportId, unitId).then(function (data) {
       var count = Number(data && data.unassignedCount) || 0;
       var hasMaterialDamages = !!(data && data.hasMaterialDamages);
-      var base = { assignRemainingToWache: false, hasMaterialDamages: hasMaterialDamages };
+      var hasDeployedEquipment = !!(data && data.hasDeployedEquipment);
+      var base = {
+        assignRemainingToWache: false,
+        hasMaterialDamages: hasMaterialDamages,
+        hasDeployedEquipment: hasDeployedEquipment
+      };
       if (count <= 0) {
         return base;
       }
@@ -69,7 +106,8 @@
         }
         return {
           assignRemainingToWache: yes === true,
-          hasMaterialDamages: hasMaterialDamages
+          hasMaterialDamages: hasMaterialDamages,
+          hasDeployedEquipment: hasDeployedEquipment
         };
       });
     });

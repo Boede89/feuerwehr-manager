@@ -135,7 +135,10 @@
     function proceed(prep) {
       var ask = window.FwConfirm && window.FwConfirm.releaseAnwesenheitsliste
         ? window.FwConfirm.releaseAnwesenheitsliste(releaseDefaults({
-          hasMaterialDamages: !!(prep && prep.hasMaterialDamages)
+          hasMaterialDamages: !!(prep && prep.hasMaterialDamages),
+          hasDeployedEquipment: !!(prep && prep.hasDeployedEquipment),
+          createGeraetewart: !!(prep && prep.hasDeployedEquipment) && root.dataset.releaseCreateGeraetewart === 'true',
+          printGeraetewart: !!(prep && prep.hasDeployedEquipment) && root.dataset.releasePrintGeraetewart === 'true'
         }))
         : Promise.resolve(window.confirm('Anwesenheitsliste wirklich freigeben?'));
       ask.then(function (result) {
@@ -207,7 +210,8 @@
       createGeraetewart: root.dataset.releaseCreateGeraetewart === 'true',
       printGeraetewart: root.dataset.releasePrintGeraetewart === 'true',
       printMaengel: root.dataset.releasePrintMaengel === 'true',
-      hasMaterialDamages: false
+      hasMaterialDamages: false,
+      hasDeployedEquipment: false
     }, extra || {});
   }
 
@@ -255,7 +259,10 @@
       function proceed(prep) {
         var ask = window.FwConfirm && window.FwConfirm.releaseAnwesenheitsliste
           ? window.FwConfirm.releaseAnwesenheitsliste(releaseDefaults({
-            hasMaterialDamages: !!(prep && prep.hasMaterialDamages)
+            hasMaterialDamages: !!(prep && prep.hasMaterialDamages),
+            hasDeployedEquipment: !!(prep && prep.hasDeployedEquipment),
+            createGeraetewart: !!(prep && prep.hasDeployedEquipment) && root.dataset.releaseCreateGeraetewart === 'true',
+            printGeraetewart: !!(prep && prep.hasDeployedEquipment) && root.dataset.releasePrintGeraetewart === 'true'
           }))
           : Promise.resolve(window.confirm('Anwesenheitsliste wirklich freigeben?'));
         ask.then(function (result) {

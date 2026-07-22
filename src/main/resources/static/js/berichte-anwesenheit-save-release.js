@@ -41,7 +41,9 @@
       printGeraetewart: btn.dataset.releasePrintGeraetewart === 'true',
       printMaengel: btn.dataset.releasePrintMaengel === 'true',
       hasMaterialDamages: btn.dataset.releaseHasMaterialDamages === 'true'
-        || hasMaterialDamagesInForm()
+        || hasMaterialDamagesInForm(),
+      hasDeployedEquipment: btn.dataset.releaseHasDeployedEquipment === 'true'
+        || hasDeployedEquipmentInForm()
     };
   }
 
@@ -53,6 +55,26 @@
     try {
       var data = JSON.parse(field.value);
       return Array.isArray(data) && data.length > 0;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function hasDeployedEquipmentInForm() {
+    var field = document.getElementById('deployedEquipmentJson');
+    if (!field || !field.value) {
+      return false;
+    }
+    try {
+      var data = JSON.parse(field.value);
+      if (!Array.isArray(data)) {
+        return false;
+      }
+      return data.some(function (row) {
+        var ids = row && row.equipmentIds ? row.equipmentIds : [];
+        var custom = row && row.customEquipment ? row.customEquipment : [];
+        return (ids && ids.length > 0) || (custom && custom.length > 0);
+      });
     } catch (e) {
       return false;
     }
@@ -88,6 +110,13 @@
           var defaults = defaultsFromButton(btn);
           if (prep && prep.hasMaterialDamages) {
             defaults.hasMaterialDamages = true;
+          }
+          if (prep && prep.hasDeployedEquipment != null) {
+            defaults.hasDeployedEquipment = !!prep.hasDeployedEquipment;
+          }
+          if (!defaults.hasDeployedEquipment) {
+            defaults.createGeraetewart = false;
+            defaults.printGeraetewart = false;
           }
           return window.FwConfirm.releaseAnwesenheitsliste(defaults).then(function (result) {
             if (!result || !result.ok) {

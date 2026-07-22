@@ -1129,7 +1129,8 @@ public class BerichteController {
         AttendanceReport report = anwesenheitslisteService.requireReport(unitId, id);
         return Map.of(
                 "unassignedCount", anwesenheitslisteService.countUnassignedPersonnel(unitId, id),
-                "hasMaterialDamages", anwesenheitslisteService.hasMaterialDamageEntries(report));
+                "hasMaterialDamages", anwesenheitslisteService.hasMaterialDamageEntries(report),
+                "hasDeployedEquipment", anwesenheitslisteService.hasDeployedEquipment(report));
     }
 
     @GetMapping("/anwesenheitslisten/vehicle-equipment")
@@ -1164,6 +1165,9 @@ public class BerichteController {
         model.addAttribute(
                 "anwesenheitReleaseHasMaterialDamages",
                 report != null && anwesenheitslisteService.hasMaterialDamageEntries(report));
+        model.addAttribute(
+                "anwesenheitReleaseHasDeployedEquipment",
+                report != null && anwesenheitslisteService.hasDeployedEquipment(report));
     }
 
     private void addAnwesenheitReleaseDefaults(Model model, long unitId) {

@@ -171,7 +171,8 @@
       printReport: el.dataset.releasePrintReport === 'true',
       printGeraetewart: el.dataset.releasePrintGeraetewart === 'true',
       printMaengel: el.dataset.releasePrintMaengel === 'true',
-      hasMaterialDamages: el.dataset.releaseHasMaterialDamages === 'true'
+      hasMaterialDamages: el.dataset.releaseHasMaterialDamages === 'true',
+      hasDeployedEquipment: el.dataset.releaseHasDeployedEquipment === 'true'
     };
   }
 
@@ -287,26 +288,31 @@
     }
     var d = defaults || {};
     var hasMaengel = !!d.hasMaterialDamages;
+    var hasGeraete = !!d.hasDeployedEquipment;
     activeCheckboxes = [
       {
         id: 'fw-confirm-print-report',
         name: 'printReport',
         label: 'Anwesenheitsliste drucken',
         checked: !!d.printReport
-      },
-      {
-        id: 'fw-confirm-create-geraetewart',
-        name: 'createGeraetewart',
-        label: 'Gerätewartmitteilung erstellen',
-        checked: !!d.createGeraetewart
-      },
-      {
-        id: 'fw-confirm-print-geraetewart',
-        name: 'printGeraetewart',
-        label: 'Gerätewartmitteilung drucken',
-        checked: !!d.printGeraetewart
       }
     ];
+    if (hasGeraete) {
+      activeCheckboxes.push(
+        {
+          id: 'fw-confirm-create-geraetewart',
+          name: 'createGeraetewart',
+          label: 'Gerätewartmitteilung erstellen',
+          checked: !!d.createGeraetewart
+        },
+        {
+          id: 'fw-confirm-print-geraetewart',
+          name: 'printGeraetewart',
+          label: 'Gerätewartmitteilung drucken',
+          checked: !!d.printGeraetewart
+        }
+      );
+    }
     if (hasMaengel) {
       activeCheckboxes.push({
         id: 'fw-confirm-print-maengel',
@@ -322,22 +328,24 @@
       'Anwesenheitsliste drucken',
       d.printReport
     );
-    html +=
-      '<div class="confirm-dialog__checkbox-row">' +
-      checkboxMarkup(
-        'fw-confirm-create-geraetewart',
-        'createGeraetewart',
-        'Gerätewartmitteilung erstellen',
-        d.createGeraetewart
-      ) +
-      '<div class="confirm-dialog__checkbox-dependent" id="fw-confirm-print-geraetewart-wrap" hidden>' +
-      checkboxMarkup(
-        'fw-confirm-print-geraetewart',
-        'printGeraetewart',
-        'Gerätewartmitteilung drucken',
-        d.printGeraetewart
-      ) +
-      '</div></div>';
+    if (hasGeraete) {
+      html +=
+        '<div class="confirm-dialog__checkbox-row">' +
+        checkboxMarkup(
+          'fw-confirm-create-geraetewart',
+          'createGeraetewart',
+          'Gerätewartmitteilung erstellen',
+          d.createGeraetewart
+        ) +
+        '<div class="confirm-dialog__checkbox-dependent" id="fw-confirm-print-geraetewart-wrap" hidden>' +
+        checkboxMarkup(
+          'fw-confirm-print-geraetewart',
+          'printGeraetewart',
+          'Gerätewartmitteilung drucken',
+          d.printGeraetewart
+        ) +
+        '</div></div>';
+    }
     if (hasMaengel) {
       html += checkboxMarkup(
         'fw-confirm-print-maengel',
@@ -349,7 +357,9 @@
 
     checkboxesEl.innerHTML = html;
     checkboxesEl.hidden = false;
-    bindEinsatzReleaseCheckboxInteractions(d);
+    if (hasGeraete) {
+      bindEinsatzReleaseCheckboxInteractions(d);
+    }
   }
 
   function appendReleaseOptions(form, result, fieldNames) {
@@ -483,6 +493,13 @@
             var defaults = releaseDefaultsFromElement(form);
             if (prep && prep.hasMaterialDamages) {
               defaults.hasMaterialDamages = true;
+            }
+            if (prep && prep.hasDeployedEquipment) {
+              defaults.hasDeployedEquipment = true;
+            } else if (prep && prep.hasDeployedEquipment === false) {
+              defaults.hasDeployedEquipment = false;
+              defaults.createGeraetewart = false;
+              defaults.printGeraetewart = false;
             }
             window.FwConfirm.releaseAnwesenheitsliste(defaults).then(function (result) {
               if (result && result.ok) {
