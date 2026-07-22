@@ -161,6 +161,7 @@ public class AnwesenheitslisteService {
         if (storedCrewJson != null && !storedCrewJson.isBlank()) {
             List<CrewAssignment> assignments = einsatzberichtService.parseCrewAssignments(storedCrewJson);
             if (!assignments.isEmpty()) {
+                manualPoolPersonIds = expandPoolWithAssignedPersons(manualPoolPersonIds, assignments);
                 return einsatzberichtService.buildKraefteFahrzeugeStateForAnwesenheitWithAssignments(
                         unitId, assignments, manualPoolPersonIds, frozenDisplayNames);
             }
@@ -171,8 +172,42 @@ public class AnwesenheitslisteService {
                 .map(Person::getId)
                 .distinct()
                 .toList();
+        manualPoolPersonIds = expandPoolWithPersonIds(manualPoolPersonIds, anwesendPersonIds);
         return einsatzberichtService.buildKraefteFahrzeugeStateForAnwesenheit(
                 unitId, anwesendPersonIds, manualPoolPersonIds, frozenDisplayNames);
+    }
+
+    /** Zusätzlich hinzugefügte Personen bleiben im Pool sichtbar (auch außerhalb der Termin-Zielgruppe). */
+    private static Set<Long> expandPoolWithAssignedPersons(
+            Set<Long> manualPoolPersonIds, List<CrewAssignment> assignments) {
+        if (manualPoolPersonIds == null || assignments == null || assignments.isEmpty()) {
+            return manualPoolPersonIds;
+        }
+        LinkedHashSet<Long> expanded = new LinkedHashSet<>(manualPoolPersonIds);
+        for (CrewAssignment assignment : assignments) {
+            if (assignment.personIds() == null) {
+                continue;
+            }
+            for (Long personId : assignment.personIds()) {
+                if (personId != null && personId > 0) {
+                    expanded.add(personId);
+                }
+            }
+        }
+        return expanded;
+    }
+
+    private static Set<Long> expandPoolWithPersonIds(Set<Long> manualPoolPersonIds, List<Long> personIds) {
+        if (manualPoolPersonIds == null || personIds == null || personIds.isEmpty()) {
+            return manualPoolPersonIds;
+        }
+        LinkedHashSet<Long> expanded = new LinkedHashSet<>(manualPoolPersonIds);
+        for (Long personId : personIds) {
+            if (personId != null && personId > 0) {
+                expanded.add(personId);
+            }
+        }
+        return expanded;
     }
 
     private Map<Long, String> frozenDisplayNamesFromPersonnel(long attendanceReportId) {

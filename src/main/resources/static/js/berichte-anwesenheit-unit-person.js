@@ -143,7 +143,6 @@
     }
     document.getElementById('unit-person-open-btn')?.addEventListener('click', openModal);
     document.getElementById('unit-person-modal-close')?.addEventListener('click', closeModal);
-    modalEl()?.querySelector('.modal__backdrop')?.addEventListener('click', closeModal);
     document.getElementById('unit-person-search')?.addEventListener('input', onSearchInput);
     document.getElementById('unit-person-results')?.addEventListener('click', onResultClick);
   }

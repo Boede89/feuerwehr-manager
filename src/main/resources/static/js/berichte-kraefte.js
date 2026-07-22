@@ -119,7 +119,8 @@
     if (!btn) {
       return;
     }
-    var show = activeReserveTab() === 'divera';
+    // Bei Anwesenheit immer anbieten (z. B. Personen außerhalb der Termin-Zielgruppe).
+    var show = !!document.querySelector('[data-berichte-form="anwesenheit"]');
     btn.hidden = !show;
     btn.setAttribute('aria-hidden', show ? 'false' : 'true');
   }

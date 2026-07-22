@@ -192,7 +192,7 @@
             <p class="hint incident-person-pool-empty" id="manual-pool-empty" hidden
                th:hidden="${!#lists.isEmpty(kraefteState.manualPersons())}">Alle zugewiesen.</p>
             <div class="incident-foreign-person-actions" th:if="${formMode != 'view'}">
-              <button type="button" class="btn btn--outline btn--sm" id="unit-person-open-btn" hidden>
+              <button type="button" class="btn btn--outline btn--sm" id="unit-person-open-btn">
                 Weitere Personen hinzufügen
               </button>
               <button type="button" class="btn btn--outline btn--sm" id="foreign-person-open-btn"
