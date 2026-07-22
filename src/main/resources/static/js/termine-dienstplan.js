@@ -509,7 +509,6 @@
   function bindAusbilderPicker() {
     var openBtn = document.getElementById('dienstplan-ausbilder-open-btn');
     var applyBtn = document.getElementById('dienstplan-ausbilder-apply');
-    var overlay = document.getElementById('modal-dienstplan-ausbilder');
     var search = document.getElementById('dienstplan-ausbilder-search');
     var picker = document.getElementById('dienstplan-ausbilder-picker');
     var emptyHint = document.getElementById('dienstplan-ausbilder-search-empty');
@@ -523,13 +522,6 @@
     document.querySelectorAll('[data-close-ausbilder-modal]').forEach(function (btn) {
       btn.addEventListener('click', cancelAusbilderPicker);
     });
-    if (overlay) {
-      overlay.addEventListener('click', function (e) {
-        if (e.target === overlay) {
-          cancelAusbilderPicker();
-        }
-      });
-    }
     if (search && picker) {
       search.addEventListener('input', function () {
         var query = search.value.trim().toLowerCase();

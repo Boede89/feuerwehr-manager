@@ -287,7 +287,6 @@
       }
 
       ['groups', 'persons'].forEach(function (kind) {
-        var overlay = document.getElementById('modal-' + prefix + '-' + kind);
         var applyBtn = document.getElementById(prefix + '-' + kind + '-apply');
         if (applyBtn) {
           applyBtn.addEventListener('click', function () {
@@ -299,13 +298,7 @@
             cancelPicker(kind);
           });
         });
-        if (overlay) {
-          overlay.addEventListener('click', function (e) {
-            if (e.target === overlay) {
-              cancelPicker(kind);
-            }
-          });
-        }
+        // Schließen nur über Buttons / ✕, nicht per Hintergrundklick.
         bindSearch(kind);
       });
       syncAllSummaries();

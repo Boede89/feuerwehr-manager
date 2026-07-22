@@ -434,7 +434,6 @@
   function bindAusbilderPicker() {
     var openBtn = document.getElementById('sonderdienst-ausbilder-open-btn');
     var applyBtn = document.getElementById('sonderdienst-ausbilder-apply');
-    var overlay = document.getElementById('modal-sonderdienst-ausbilder');
     var search = document.getElementById('sonderdienst-ausbilder-search');
     var picker = document.getElementById('sonderdienst-ausbilder-picker');
     var emptyHint = document.getElementById('sonderdienst-ausbilder-search-empty');
@@ -448,13 +447,6 @@
     document.querySelectorAll('[data-close-sonderdienst-ausbilder-modal]').forEach(function (btn) {
       btn.addEventListener('click', cancelAusbilderPicker);
     });
-    if (overlay) {
-      overlay.addEventListener('click', function (e) {
-        if (e.target === overlay) {
-          cancelAusbilderPicker();
-        }
-      });
-    }
     if (search && picker) {
       search.addEventListener('input', function () {
         var query = search.value.trim().toLowerCase();

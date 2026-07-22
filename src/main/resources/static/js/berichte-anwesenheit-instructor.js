@@ -230,23 +230,7 @@
         closeModal(true);
       });
     });
-    var overlay = root.querySelector('#modal-anwesenheit-ausbilder');
-    if (overlay) {
-      var modalBox = overlay.querySelector('.modal');
-      if (modalBox) {
-        modalBox.addEventListener('click', function (e) {
-          e.stopPropagation();
-        });
-        modalBox.addEventListener('mousedown', function (e) {
-          e.stopPropagation();
-        });
-      }
-      overlay.addEventListener('click', function (e) {
-        if (e.target === overlay) {
-          closeModal(true);
-        }
-      });
-    }
+    // Schließen nur über Übernehmen, Abbrechen oder ✕ — nicht per Hintergrundklick.
     var form = root.querySelector('#anwesenheitsliste-form');
     if (form) {
       form.addEventListener('submit', syncHiddenFields, true);

@@ -434,7 +434,6 @@
   function bindAusbilderPicker() {
     var openBtn = document.getElementById('sonstiges-ausbilder-open-btn');
     var applyBtn = document.getElementById('sonstiges-ausbilder-apply');
-    var overlay = document.getElementById('modal-sonstiges-ausbilder');
     var search = document.getElementById('sonstiges-ausbilder-search');
     var picker = document.getElementById('sonstiges-ausbilder-picker');
     var emptyHint = document.getElementById('sonstiges-ausbilder-search-empty');
@@ -448,13 +447,6 @@
     document.querySelectorAll('[data-close-sonstiges-ausbilder-modal]').forEach(function (btn) {
       btn.addEventListener('click', cancelAusbilderPicker);
     });
-    if (overlay) {
-      overlay.addEventListener('click', function (e) {
-        if (e.target === overlay) {
-          cancelAusbilderPicker();
-        }
-      });
-    }
     if (search && picker) {
       search.addEventListener('input', function () {
         var query = search.value.trim().toLowerCase();
