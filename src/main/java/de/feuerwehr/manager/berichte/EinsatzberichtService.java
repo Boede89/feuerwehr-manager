@@ -915,7 +915,18 @@ public class EinsatzberichtService {
                 List<Long> equipmentIds = payload.equipmentIds() != null
                         ? payload.equipmentIds().stream().filter(Objects::nonNull).toList()
                         : List.of();
-                result.add(new DeployedEquipmentAssignment(payload.vehicleId(), equipmentIds));
+                List<CustomDeployedEquipment> customEquipment = payload.customEquipment() != null
+                        ? payload.customEquipment().stream()
+                                .filter(Objects::nonNull)
+                                .filter(item -> item.name() != null && !item.name().isBlank())
+                                .map(item -> new CustomDeployedEquipment(
+                                        item.name().trim(),
+                                        item.categoryName() != null && !item.categoryName().isBlank()
+                                                ? item.categoryName().trim()
+                                                : null))
+                                .toList()
+                        : List.of();
+                result.add(new DeployedEquipmentAssignment(payload.vehicleId(), equipmentIds, customEquipment));
             }
             return result;
         } catch (Exception e) {
@@ -925,16 +936,30 @@ public class EinsatzberichtService {
 
     public String buildDeployedEquipmentJson(long reportId) {
         Map<Long, List<Long>> equipmentByVehicleId = new LinkedHashMap<>();
+        Map<Long, List<CustomDeployedEquipment>> customByVehicleId = new LinkedHashMap<>();
         for (IncidentReportEquipment row : incidentReportEquipmentRepository.findByIncidentReportId(reportId)) {
-            if (row.getVehicleEquipment() == null) {
+            if (row.getVehicle() == null) {
                 continue;
             }
-            equipmentByVehicleId
-                    .computeIfAbsent(row.getVehicle().getId(), ignored -> new ArrayList<>())
-                    .add(row.getVehicleEquipment().getId());
+            long vehicleId = row.getVehicle().getId();
+            if (row.getVehicleEquipment() != null) {
+                equipmentByVehicleId
+                        .computeIfAbsent(vehicleId, ignored -> new ArrayList<>())
+                        .add(row.getVehicleEquipment().getId());
+            } else if (row.getEquipmentName() != null && !row.getEquipmentName().isBlank()) {
+                customByVehicleId
+                        .computeIfAbsent(vehicleId, ignored -> new ArrayList<>())
+                        .add(new CustomDeployedEquipment(row.getEquipmentName(), row.getCategoryName()));
+            }
         }
-        List<DeployedEquipmentAssignment> assignments = equipmentByVehicleId.entrySet().stream()
-                .map(entry -> new DeployedEquipmentAssignment(entry.getKey(), entry.getValue()))
+        LinkedHashSet<Long> vehicleIds = new LinkedHashSet<>();
+        vehicleIds.addAll(equipmentByVehicleId.keySet());
+        vehicleIds.addAll(customByVehicleId.keySet());
+        List<DeployedEquipmentAssignment> assignments = vehicleIds.stream()
+                .map(vehicleId -> new DeployedEquipmentAssignment(
+                        vehicleId,
+                        equipmentByVehicleId.getOrDefault(vehicleId, List.of()),
+                        customByVehicleId.getOrDefault(vehicleId, List.of())))
                 .toList();
         try {
             return objectMapper.writeValueAsString(assignments);
@@ -2131,6 +2156,19 @@ public class EinsatzberichtService {
                         equipment.getCategory() != null ? equipment.getCategory().getName() : null);
                 incidentReportEquipmentRepository.save(row);
             }
+            List<CustomDeployedEquipment> customEquipment =
+                    assignment.customEquipment() != null ? assignment.customEquipment() : List.of();
+            for (CustomDeployedEquipment custom : customEquipment) {
+                if (custom == null || custom.name() == null || custom.name().isBlank()) {
+                    continue;
+                }
+                IncidentReportEquipment row = new IncidentReportEquipment();
+                row.setIncidentReport(report);
+                row.setVehicle(vehicle);
+                row.setEquipmentName(custom.name().trim());
+                row.setCategoryName(custom.categoryName());
+                incidentReportEquipmentRepository.save(row);
+            }
         }
     }
 
@@ -2143,5 +2181,8 @@ public class EinsatzberichtService {
             Boolean involvedInIncident,
             Boolean manuallyInvolvedInIncident) {}
 
-    private record DeployedEquipmentPayload(Long vehicleId, List<Long> equipmentIds) {}
+    private record DeployedEquipmentPayload(
+            Long vehicleId, List<Long> equipmentIds, List<CustomDeployedEquipmentPayload> customEquipment) {}
+
+    private record CustomDeployedEquipmentPayload(String name, String categoryName) {}
 }

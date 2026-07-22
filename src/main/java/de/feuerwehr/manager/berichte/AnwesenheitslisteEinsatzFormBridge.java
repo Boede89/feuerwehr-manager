@@ -24,6 +24,7 @@ public final class AnwesenheitslisteEinsatzFormBridge {
         form.setCrewAssignmentsJson(report.getCrewAssignmentsJson());
         form.setDeployedEquipmentJson(report.getDeployedEquipmentJson());
         form.setIncidentCommander(report.getInstructorResponsible());
+        form.setInstructorPersonIdsJson(report.getInstructorPersonIdsJson());
         form.setEinsatzkurzbericht(report.getNotes());
         form.setPersonDamageDetailsJson(PersonDamageDetailsSupport.emptyJson());
         form.setDamagePerpetratorJson(DamagePerpetratorSupport.emptyJson());
@@ -50,6 +51,7 @@ public final class AnwesenheitslisteEinsatzFormBridge {
         report.setObjekt(trimOrNull(form.getObjekt()));
         report.setCrewAssignmentsJson(normalizeJson(form.getCrewAssignmentsJson()));
         report.setDeployedEquipmentJson(normalizeJson(form.getDeployedEquipmentJson()));
+        report.setInstructorPersonIdsJson(normalizeJson(form.getInstructorPersonIdsJson()));
         String instructor = form.getIncidentCommander();
         report.setInstructorResponsible(instructor != null && !instructor.isBlank() ? instructor.trim() : null);
         report.setNotes(form.getEinsatzkurzbericht());

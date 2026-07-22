@@ -79,19 +79,22 @@
         <input id="objekt" name="objekt" type="text" maxlength="255" th:readonly="${formMode == 'view'}"
                th:value="${form.objekt}"/>
       </div>
-      <div class="form-group form-group--full">
-        <label for="incidentCommander">Ausbilder/Verantwortlicher</label>
-        <div class="combo-suggest" data-combo-suggest data-combo-min="1">
-          <input id="incidentCommander" name="incidentCommander" type="text" maxlength="255"
-                 th:readonly="${formMode == 'view'}"
-                 class="combo-suggest__input" autocomplete="off"
-                 placeholder="Name eingeben …" th:value="${form.incidentCommander}"/>
-          <ul class="combo-suggest__list" role="listbox" hidden>
-            <li class="combo-suggest__option" th:each="p : ${unitPersons}"
-                th:attr="data-value=${p.anwesenheitDisplayName()}, data-person-id=${p.id}"
-                th:text="${p.anwesenheitDisplayName()}">Name</li>
-          </ul>
-        </div>
+      <div class="form-group form-group--full termine-ausbilder-field"
+           th:if="${formMode != 'view' and !#lists.isEmpty(unitPersons)}">
+        <label>Ausbilder/Verantwortlicher</label>
+        <button type="button" class="btn btn--outline btn--sm" id="anwesenheit-ausbilder-open-btn">
+          Auswählen (<span id="anwesenheit-ausbilder-count">0</span>)
+        </button>
+        <div id="anwesenheit-ausbilder-summary" class="termine-ausbilder-summary" hidden aria-live="polite"></div>
+        <p id="anwesenheit-ausbilder-empty" class="hint text-sm termine-ausbilder-empty">Keine Ausbilder ausgewählt.</p>
+        <input type="hidden" name="instructorPersonIdsJson" id="instructorPersonIdsJson"
+               th:value="${form.instructorPersonIdsJson}"/>
+        <input type="hidden" name="incidentCommander" id="incidentCommander"
+               th:value="${form.incidentCommander}"/>
+      </div>
+      <div class="form-group form-group--full" th:if="${formMode == 'view'}">
+        <label>Ausbilder/Verantwortlicher</label>
+        <p th:text="${form.incidentCommander != null and !form.incidentCommander.isBlank() ? form.incidentCommander : '—'}">—</p>
       </div>
     </div>
   </div>
@@ -308,7 +311,14 @@
     <article id="involved-card" class="incident-vehicle-card incident-vehicle-card--involved"
              th:attr="data-vehicle-id=${beteiligt.vehicleId()}">
       <header class="incident-vehicle-card__head">
-        <h3 class="incident-kraefte-section__title">Anwesend</h3>
+        <div class="incident-involved-card__title-row">
+          <h3 class="incident-kraefte-section__title">Anwesend</h3>
+          <div class="incident-bulk-assign-toolbar" id="incident-bulk-assign-toolbar" hidden
+               th:if="${formMode != 'view'}">
+            <button type="button" class="btn btn--outline btn--sm" id="btn-bulk-select-all-involved">Alle auswählen</button>
+            <button type="button" class="btn btn--outline btn--sm" id="btn-bulk-assign-vehicle" disabled>Zu Fahrzeug zuweisen</button>
+          </div>
+        </div>
         <span class="incident-vehicle-card__staerke" th:attr="data-staerke-badge=${beteiligt.vehicleId()}"
               th:text="${beteiligt.besatzungsstaerke()}">0/0/0/0</span>
       </header>
@@ -423,6 +433,34 @@
           <p class="hint">Bitte zuerst eine Einheit wählen.</p>
         </div>
       </div>
+    </div>
+  </div>
+
+  <div id="modal-anwesenheit-ausbilder" class="modal-overlay modal-overlay--stack"
+       th:if="${formMode != 'view' and !#lists.isEmpty(unitPersons)}" hidden>
+    <div class="modal modal--lg" role="dialog" aria-labelledby="anwesenheit-ausbilder-modal-title">
+      <header class="modal__header">
+        <h3 id="anwesenheit-ausbilder-modal-title">Ausbilder/Verantwortlicher wählen</h3>
+        <button type="button" class="modal__close" data-close-anwesenheit-ausbilder-modal aria-label="Schließen">✕</button>
+      </header>
+      <div class="modal__body">
+        <div class="form-group">
+          <input type="search" id="anwesenheit-ausbilder-search" class="field atemschutz-person-search"
+                 placeholder="Suchen …" autocomplete="off" aria-label="Ausbilder suchen"/>
+        </div>
+        <div id="anwesenheit-ausbilder-picker" class="user-picker user-picker--scroll">
+          <label class="user-picker__item" th:each="p : ${unitPersons}">
+            <input type="checkbox" class="anwesenheit-ausbilder-cb" th:value="${p.id}"
+                   th:attr="data-display-name=${p.anwesenheitDisplayName()}"/>
+            <span class="user-picker__name" th:text="${p.anwesenheitDisplayName()}">Name</span>
+          </label>
+        </div>
+        <p class="hint atemschutz-person-search-empty" id="anwesenheit-ausbilder-search-empty" hidden>Keine Treffer.</p>
+      </div>
+      <footer class="modal__footer">
+        <button type="button" class="btn btn--primary" id="anwesenheit-ausbilder-apply">Übernehmen</button>
+        <button type="button" class="btn btn--outline" data-close-anwesenheit-ausbilder-modal>Abbrechen</button>
+      </footer>
     </div>
   </div>
 </th:block>

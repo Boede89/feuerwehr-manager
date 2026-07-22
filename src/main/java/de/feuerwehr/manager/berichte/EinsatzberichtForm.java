@@ -46,6 +46,7 @@ public class EinsatzberichtForm {
     private boolean violenceAgainstCrew;
     private int violenceCount;
     private String incidentCommander;
+    private String instructorPersonIdsJson;
     private String reporterName;
     private String reporterPhone;
     private String crewAssignmentsJson;

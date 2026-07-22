@@ -832,6 +832,7 @@ public class BerichteController {
             @RequestParam(name = "unit", required = false) Long unitId,
             @RequestParam(name = "returnUrl", required = false) String returnUrl,
             @RequestParam(name = "printReport", defaultValue = "false") boolean printReport,
+            @RequestParam(name = "assignRemainingToWache", defaultValue = "false") boolean assignRemainingToWache,
             @PathVariable long id,
             RedirectAttributes redirectAttributes) {
         try {
@@ -840,7 +841,7 @@ public class BerichteController {
             requireBerichteRead(actor, unit.getId());
             boolean canApprove = canApprove(actor, unit.getId());
             anwesenheitslisteService.transitionStatus(
-                    unit.getId(), id, IncidentReportStatus.FREIGEGEBEN, actor, canApprove);
+                    unit.getId(), id, IncidentReportStatus.FREIGEGEBEN, actor, canApprove, assignRemainingToWache);
 
             List<String> followUpMessages = new ArrayList<>();
             if (printReport) {
@@ -964,6 +965,18 @@ public class BerichteController {
         requireModuleEnabled(unitId);
         requireBerichteRead(actor, unitId);
         return einsatzberichtService.listForeignPersonnel(unitId, sourceUnitId, query);
+    }
+
+    @GetMapping("/anwesenheitslisten/{id}/freigabe-check")
+    @ResponseBody
+    public Map<String, Integer> anwesenheitFreigabeCheck(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @PathVariable long id) {
+        accessControlService.requireUnitAccess(actor, unitId);
+        requireModuleEnabled(unitId);
+        requireBerichteRead(actor, unitId);
+        return Map.of("unassignedCount", anwesenheitslisteService.countUnassignedPersonnel(unitId, id));
     }
 
     @GetMapping("/anwesenheitslisten/vehicle-equipment")

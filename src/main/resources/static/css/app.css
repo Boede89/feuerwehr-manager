@@ -5296,6 +5296,49 @@ span.required { color: var(--error); }
   overflow-wrap: anywhere;
 }
 
+.einsatzbericht-form-page .incident-deployed-equipment-custom-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.einsatzbericht-form-page .incident-deployed-equipment-custom-add__input {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.einsatzbericht-form-page .incident-deployed-equipment-item--custom {
+  cursor: default;
+}
+
+.einsatzbericht-form-page .incident-deployed-equipment-item__remove {
+  flex-shrink: 0;
+}
+
+.einsatzbericht-form-page .incident-involved-card__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.einsatzbericht-form-page .incident-bulk-assign-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.einsatzbericht-form-page .incident-crew-chip--bulk-selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-card));
+}
+
 .einsatzbericht-form-page .incident-bericht-equipment {
   margin-bottom: 20px;
 }

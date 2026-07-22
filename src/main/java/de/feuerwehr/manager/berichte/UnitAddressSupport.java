@@ -70,6 +70,12 @@ public final class UnitAddressSupport {
                 form.setLocation(address.location());
             }
         }
+        if (isBlank(form.getStreet()) && !isBlank(address.street())) {
+            form.setStreet(address.street());
+        }
+        if (isBlank(form.getHouseNumber()) && !isBlank(address.houseNumber())) {
+            form.setHouseNumber(address.houseNumber());
+        }
     }
 
     public static void applyDefaultsToReportIfBlank(AttendanceReport report, Unit unit) {
@@ -84,6 +90,12 @@ public final class UnitAddressSupport {
             if (!isBlank(address.location())) {
                 report.setLocation(address.location());
             }
+        }
+        if (isBlank(report.getStreet()) && !isBlank(address.street())) {
+            report.setStreet(address.street());
+        }
+        if (isBlank(report.getHouseNumber()) && !isBlank(address.houseNumber())) {
+            report.setHouseNumber(address.houseNumber());
         }
     }
 

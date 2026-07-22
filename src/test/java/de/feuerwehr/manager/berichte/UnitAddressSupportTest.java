@@ -26,6 +26,7 @@ class UnitAddressSupportTest {
     void applyDefaultsToForm_fillsMissingPostalCodeAndLocation() {
         Unit unit = new Unit();
         unit.setPostalCity("54321 Beispielstadt");
+        unit.setStreet("Feuerwehrstraße 7");
         EinsatzberichtForm form = new EinsatzberichtForm();
         form.setLocation("—");
 
@@ -33,6 +34,8 @@ class UnitAddressSupportTest {
 
         assertThat(form.getPostalCode()).isEqualTo("54321");
         assertThat(form.getLocation()).isEqualTo("Beispielstadt");
+        assertThat(form.getStreet()).isEqualTo("Feuerwehrstraße");
+        assertThat(form.getHouseNumber()).isEqualTo("7");
     }
 
     @Test

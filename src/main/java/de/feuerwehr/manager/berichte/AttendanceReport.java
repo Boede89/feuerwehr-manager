@@ -87,6 +87,9 @@ public class AttendanceReport {
     @Column(name = "instructor_responsible", length = 255)
     private String instructorResponsible;
 
+    @Column(name = "instructor_person_ids_json", columnDefinition = "TEXT")
+    private String instructorPersonIdsJson;
+
     @Column(columnDefinition = "TEXT")
     private String notes;
 

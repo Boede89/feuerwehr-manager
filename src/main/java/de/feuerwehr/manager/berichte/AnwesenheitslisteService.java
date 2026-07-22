@@ -216,6 +216,16 @@ public class AnwesenheitslisteService {
         if (report == null || form == null || report.getUnitTermin() == null) {
             return;
         }
+        if (form.getInstructorPersonIdsJson() != null && !form.getInstructorPersonIdsJson().isBlank()) {
+            return;
+        }
+        if (report.getInstructorPersonIdsJson() != null && !report.getInstructorPersonIdsJson().isBlank()) {
+            form.setInstructorPersonIdsJson(report.getInstructorPersonIdsJson());
+            if (report.getInstructorResponsible() != null && !report.getInstructorResponsible().isBlank()) {
+                form.setIncidentCommander(report.getInstructorResponsible());
+            }
+            return;
+        }
         if (form.getIncidentCommander() != null && !form.getIncidentCommander().isBlank()) {
             return;
         }
@@ -225,6 +235,17 @@ public class AnwesenheitslisteService {
         }
         UnitTermin termin = report.getUnitTermin();
         termin.getInstructorPersons().size();
+        List<Long> instructorIds = termin.getInstructorPersons().stream()
+                .map(Person::getId)
+                .filter(Objects::nonNull)
+                .toList();
+        if (!instructorIds.isEmpty()) {
+            try {
+                form.setInstructorPersonIdsJson(objectMapper.writeValueAsString(instructorIds));
+            } catch (Exception ignored) {
+                // Fallback: nur Anzeigenamen
+            }
+        }
         String instructors = formatInstructorNames(termin);
         if (instructors != null && !instructors.isBlank()) {
             form.setIncidentCommander(instructors);
@@ -269,6 +290,7 @@ public class AnwesenheitslisteService {
         validateEinsatzForm(form);
         AttendanceReport report = newDraft(unitId);
         AnwesenheitslisteEinsatzFormBridge.applyEinsatzForm(report, form);
+        syncInstructorFields(report, form, unitId);
         report.setStatus(IncidentReportStatus.ENTWURF);
         report.setReportNumber(resolveReportNumberForCreate(unitId, report.getEventDate(), form.getIncidentNumber()));
         applyCreator(report, actor);
@@ -298,10 +320,40 @@ public class AnwesenheitslisteService {
                     "Freigegebene oder archivierte Listen können nur von Administratoren geändert werden.");
         }
         AnwesenheitslisteEinsatzFormBridge.applyEinsatzForm(report, form);
+        syncInstructorFields(report, form, unitId);
         AttendanceReport saved = attendanceReportRepository.save(report);
         saveCrewAsPersonnel(saved, crewAssignments, unitId);
         syncLinkedTerminFromReport(saved);
         return saved;
+    }
+
+    @Transactional(readOnly = true)
+    public int countUnassignedPersonnel(long unitId, long reportId) {
+        AttendanceReport report = requireReport(unitId, reportId);
+        return personIdsForVehicle(report, IncidentCrewSupport.BETEILIGT_VEHICLE_ID).size();
+    }
+
+    @Transactional
+    public void assignRemainingPersonnelToWache(AttendanceReport report) {
+        if (report == null) {
+            return;
+        }
+        List<CrewAssignment> assignments =
+                einsatzberichtService.parseCrewAssignments(report.getCrewAssignmentsJson());
+        List<Long> unassigned = personIdsForVehicle(assignments, IncidentCrewSupport.BETEILIGT_VEHICLE_ID);
+        if (unassigned.isEmpty()) {
+            return;
+        }
+        LinkedHashSet<Long> wacheIds =
+                new LinkedHashSet<>(personIdsForVehicle(assignments, IncidentCrewSupport.WACHE_VEHICLE_ID));
+        wacheIds.addAll(unassigned);
+        assignments = replaceVehiclePersonIds(assignments, IncidentCrewSupport.BETEILIGT_VEHICLE_ID, List.of());
+        assignments = replaceVehiclePersonIds(assignments, IncidentCrewSupport.WACHE_VEHICLE_ID, List.copyOf(wacheIds));
+        try {
+            report.setCrewAssignmentsJson(objectMapper.writeValueAsString(assignments));
+        } catch (Exception e) {
+            throw new IllegalStateException("Personalzuordnung konnte nicht gespeichert werden.", e);
+        }
     }
 
     @Transactional
@@ -357,6 +409,17 @@ public class AnwesenheitslisteService {
     @Transactional
     public void transitionStatus(
             long unitId, long reportId, IncidentReportStatus newStatus, AppUserDetails actor, boolean canApprove) {
+        transitionStatus(unitId, reportId, newStatus, actor, canApprove, false);
+    }
+
+    @Transactional
+    public void transitionStatus(
+            long unitId,
+            long reportId,
+            IncidentReportStatus newStatus,
+            AppUserDetails actor,
+            boolean canApprove,
+            boolean assignRemainingToWache) {
         if (actor == null) {
             throw new IllegalArgumentException("Keine Berechtigung für diese Aktion.");
         }
@@ -366,6 +429,13 @@ public class AnwesenheitslisteService {
         AttendanceReport report = requireReport(unitId, reportId);
         ensureWritableInTestMode(report);
         validateStatusTransition(report.getStatus(), newStatus);
+        if (newStatus == IncidentReportStatus.FREIGEGEBEN && assignRemainingToWache) {
+            assignRemainingPersonnelToWache(report);
+            saveCrewAsPersonnel(
+                    report,
+                    einsatzberichtService.parseCrewAssignments(report.getCrewAssignmentsJson()),
+                    unitId);
+        }
         report.setStatus(newStatus);
         if (newStatus == IncidentReportStatus.FREIGEGEBEN) {
             userRepository.findById(actor.getUserId()).ifPresent(report::setReleasedByUser);
@@ -509,7 +579,19 @@ public class AnwesenheitslisteService {
         } else {
             report.setLocation(location);
         }
+        UnitAddressSupport.applyDefaultsToReportIfBlank(report, report.getUnit());
         termin.getInstructorPersons().size();
+        List<Long> instructorIds = termin.getInstructorPersons().stream()
+                .map(Person::getId)
+                .filter(Objects::nonNull)
+                .toList();
+        if (!instructorIds.isEmpty()) {
+            try {
+                report.setInstructorPersonIdsJson(objectMapper.writeValueAsString(instructorIds));
+            } catch (Exception ignored) {
+                // Fallback nur Anzeigenamen
+            }
+        }
         String instructors = formatInstructorNames(termin);
         if (instructors != null && !instructors.isBlank()) {
             report.setInstructorResponsible(instructors);
@@ -699,6 +781,99 @@ public class AnwesenheitslisteService {
 
     private static String yearPrefix(int year) {
         return year + "-";
+    }
+
+    private void syncInstructorFields(AttendanceReport report, EinsatzberichtForm form, long unitId) {
+        List<Long> ids = parseInstructorPersonIds(form.getInstructorPersonIdsJson());
+        if (!ids.isEmpty()) {
+            Map<Long, Person> byId = new LinkedHashMap<>();
+            personRepository.findAllById(ids).forEach(person -> {
+                if (person.getUnit() != null && person.getUnit().getId().equals(unitId)) {
+                    byId.put(person.getId(), person);
+                }
+            });
+            List<String> names = new ArrayList<>();
+            for (Long id : ids) {
+                Person person = byId.get(id);
+                if (person != null) {
+                    names.add(person.anwesenheitDisplayName());
+                }
+            }
+            if (!names.isEmpty()) {
+                report.setInstructorResponsible(String.join(", ", names));
+            }
+            try {
+                report.setInstructorPersonIdsJson(objectMapper.writeValueAsString(ids));
+            } catch (Exception e) {
+                report.setInstructorPersonIdsJson(form.getInstructorPersonIdsJson());
+            }
+            return;
+        }
+        if (form.getIncidentCommander() != null && !form.getIncidentCommander().isBlank()) {
+            report.setInstructorResponsible(form.getIncidentCommander().trim());
+            report.setInstructorPersonIdsJson(null);
+            return;
+        }
+        report.setInstructorResponsible(null);
+        report.setInstructorPersonIdsJson(null);
+    }
+
+    private List<Long> parseInstructorPersonIds(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            List<Long> ids = objectMapper.readValue(json, new TypeReference<>() {});
+            return ids != null
+                    ? ids.stream().filter(Objects::nonNull).distinct().toList()
+                    : List.of();
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    private List<Long> personIdsForVehicle(AttendanceReport report, long vehicleId) {
+        return personIdsForVehicle(
+                einsatzberichtService.parseCrewAssignments(report.getCrewAssignmentsJson()), vehicleId);
+    }
+
+    private static List<Long> personIdsForVehicle(List<CrewAssignment> assignments, long vehicleId) {
+        if (assignments == null) {
+            return List.of();
+        }
+        for (CrewAssignment assignment : assignments) {
+            if (assignment.vehicleId() == vehicleId && assignment.personIds() != null) {
+                return assignment.personIds().stream().filter(Objects::nonNull).distinct().toList();
+            }
+        }
+        return List.of();
+    }
+
+    private static List<CrewAssignment> replaceVehiclePersonIds(
+            List<CrewAssignment> assignments, long vehicleId, List<Long> personIds) {
+        List<CrewAssignment> result = new ArrayList<>();
+        boolean replaced = false;
+        if (assignments != null) {
+            for (CrewAssignment assignment : assignments) {
+                if (assignment.vehicleId() == vehicleId) {
+                    result.add(new CrewAssignment(
+                            vehicleId,
+                            personIds,
+                            assignment.einheitsfuehrerPersonId(),
+                            assignment.maschinistPersonId(),
+                            assignment.paPersonIds(),
+                            assignment.involvedInIncident(),
+                            assignment.manuallyInvolvedInIncident()));
+                    replaced = true;
+                } else {
+                    result.add(assignment);
+                }
+            }
+        }
+        if (!replaced) {
+            result.add(new CrewAssignment(vehicleId, personIds, null, null, null, null, null));
+        }
+        return result;
     }
 
     private AnwesenheitslisteListItemView toListItem(AttendanceReport report) {

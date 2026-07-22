@@ -132,20 +132,30 @@
   }
 
   function releaseFromTable(reportId) {
-    var ask = window.FwConfirm && window.FwConfirm.releaseAnwesenheitsliste
-      ? window.FwConfirm.releaseAnwesenheitsliste(releaseDefaults())
-      : Promise.resolve(window.confirm('Anwesenheitsliste wirklich freigeben?'));
-    ask.then(function (result) {
-      var ok = result === true || (result && result.ok);
-      if (!ok) {
-        return;
-      }
-      var extras = {};
-      if (result && result.printReport) {
-        extras.printReport = true;
-      }
-      postAction('/berichte/anwesenheitslisten/' + reportId + '/freigeben', listReturnPath(), extras);
-    });
+    function proceed(prep) {
+      var ask = window.FwConfirm && window.FwConfirm.releaseAnwesenheitsliste
+        ? window.FwConfirm.releaseAnwesenheitsliste(releaseDefaults())
+        : Promise.resolve(window.confirm('Anwesenheitsliste wirklich freigeben?'));
+      ask.then(function (result) {
+        var ok = result === true || (result && result.ok);
+        if (!ok) {
+          return;
+        }
+        var extras = {};
+        if (result && result.printReport) {
+          extras.printReport = true;
+        }
+        if (prep && prep.assignRemainingToWache) {
+          extras.assignRemainingToWache = true;
+        }
+        postAction('/berichte/anwesenheitslisten/' + reportId + '/freigeben', listReturnPath(), extras);
+      });
+    }
+    if (window.BerichteAnwesenheitRelease) {
+      window.BerichteAnwesenheitRelease.prepareRelease(reportId, unitId).then(proceed);
+    } else {
+      proceed({ assignRemainingToWache: false });
+    }
   }
 
   function tablePdfPrintActions(reportId) {
@@ -226,20 +236,30 @@
       postAction('/berichte/anwesenheitslisten/' + meta.reportId + '/drucken', returnPath);
     });
     document.getElementById('btn-attendance-modal-release')?.addEventListener('click', function () {
-      var ask = window.FwConfirm && window.FwConfirm.releaseAnwesenheitsliste
-        ? window.FwConfirm.releaseAnwesenheitsliste(releaseDefaults())
-        : Promise.resolve(window.confirm('Anwesenheitsliste wirklich freigeben?'));
-      ask.then(function (result) {
-        var ok = result === true || (result && result.ok);
-        if (!ok) {
-          return;
-        }
-        var extras = {};
-        if (result && result.printReport) {
-          extras.printReport = true;
-        }
-        postAction('/berichte/anwesenheitslisten/' + meta.reportId + '/freigeben', returnPath, extras);
-      });
+      function proceed(prep) {
+        var ask = window.FwConfirm && window.FwConfirm.releaseAnwesenheitsliste
+          ? window.FwConfirm.releaseAnwesenheitsliste(releaseDefaults())
+          : Promise.resolve(window.confirm('Anwesenheitsliste wirklich freigeben?'));
+        ask.then(function (result) {
+          var ok = result === true || (result && result.ok);
+          if (!ok) {
+            return;
+          }
+          var extras = {};
+          if (result && result.printReport) {
+            extras.printReport = true;
+          }
+          if (prep && prep.assignRemainingToWache) {
+            extras.assignRemainingToWache = true;
+          }
+          postAction('/berichte/anwesenheitslisten/' + meta.reportId + '/freigeben', returnPath, extras);
+        });
+      }
+      if (window.BerichteAnwesenheitRelease) {
+        window.BerichteAnwesenheitRelease.prepareRelease(meta.reportId, unitId).then(proceed);
+      } else {
+        proceed({ assignRemainingToWache: false });
+      }
     });
     document.getElementById('btn-attendance-modal-archive')?.addEventListener('click', function () {
       var ask = window.FwConfirm && window.FwConfirm.archiveReport

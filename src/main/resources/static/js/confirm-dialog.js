@@ -403,17 +403,30 @@
         if (form && form.dataset.confirmSubmitting !== 'true') {
           e.preventDefault();
           e.stopImmediatePropagation();
-          window.FwConfirm.releaseAnwesenheitsliste(releaseDefaultsFromElement(form)).then(function (result) {
-            if (result && result.ok) {
-              appendReleaseOptions(form, result, ['printReport']);
-              form.dataset.confirmSubmitting = 'true';
-              if (typeof form.requestSubmit === 'function') {
-                form.requestSubmit();
-              } else {
-                form.submit();
+          var unitInputAnw = form.querySelector('input[name="unit"]');
+          var unitIdAnw = unitInputAnw ? unitInputAnw.value : '';
+          var reportIdAnw = window.BerichteAnwesenheitRelease
+            ? window.BerichteAnwesenheitRelease.parseReportIdFromAction(form.getAttribute('action'))
+            : null;
+          function proceedAnwesenheitRelease(prep) {
+            window.FwConfirm.releaseAnwesenheitsliste(releaseDefaultsFromElement(form)).then(function (result) {
+              if (result && result.ok) {
+                var merged = Object.assign({}, result, prep || {});
+                appendReleaseOptions(form, merged, ['printReport', 'assignRemainingToWache']);
+                form.dataset.confirmSubmitting = 'true';
+                if (typeof form.requestSubmit === 'function') {
+                  form.requestSubmit();
+                } else {
+                  form.submit();
+                }
               }
-            }
-          });
+            });
+          }
+          if (window.BerichteAnwesenheitRelease && reportIdAnw && unitIdAnw) {
+            window.BerichteAnwesenheitRelease.prepareRelease(reportIdAnw, unitIdAnw).then(proceedAnwesenheitRelease);
+          } else {
+            proceedAnwesenheitRelease({ assignRemainingToWache: false });
+          }
           return;
         }
 
