@@ -20,10 +20,25 @@ class UnitAddressSupportTest {
         assertThat(address.postalCode()).isEqualTo("12345");
         assertThat(address.street()).isEqualTo("Hauptstraße");
         assertThat(address.houseNumber()).isEqualTo("12");
+        assertThat(address.district()).isEqualTo("Musterstadt");
     }
 
     @Test
-    void applyDefaultsToForm_fillsMissingPostalCodeAndLocation() {
+    void fromUnit_derivesDistrictFromPostalCityWithOrtsteil() {
+        Unit unit = new Unit();
+        unit.setName("Löschzug Amern");
+        unit.setPostalCity("41366 Schwalmtal Amern");
+        unit.setStreet("Kirchplatz 1");
+
+        UnitAddressSupport.UnitAddress address = UnitAddressSupport.fromUnit(unit);
+
+        assertThat(address.location()).isEqualTo("Schwalmtal Amern");
+        assertThat(address.postalCode()).isEqualTo("41366");
+        assertThat(address.district()).isEqualTo("Amern");
+    }
+
+    @Test
+    void applyDefaultsToForm_fillsOnlyPostalCode() {
         Unit unit = new Unit();
         unit.setPostalCity("54321 Beispielstadt");
         unit.setStreet("Feuerwehrstraße 7");
@@ -33,10 +48,32 @@ class UnitAddressSupportTest {
         UnitAddressSupport.applyDefaultsToForm(form, unit);
 
         assertThat(form.getPostalCode()).isEqualTo("54321");
-        assertThat(form.getLocation()).isEqualTo("Beispielstadt");
-        assertThat(form.getStreet()).isEqualTo("Feuerwehrstraße");
-        assertThat(form.getHouseNumber()).isEqualTo("7");
-        assertThat(form.getObjekt()).isEqualTo("Gerätehaus");
+        assertThat(form.getLocation()).isEqualTo("—");
+        assertThat(form.getStreet()).isNull();
+        assertThat(form.getHouseNumber()).isNull();
+        assertThat(form.getObjekt()).isNull();
+        assertThat(form.getDistrict()).isNull();
+    }
+
+    @Test
+    void applyDefaultsToForm_doesNotOverwriteClearedAddressFields() {
+        Unit unit = new Unit();
+        unit.setPostalCity("54321 Beispielstadt");
+        unit.setStreet("Feuerwehrstraße 7");
+        EinsatzberichtForm form = new EinsatzberichtForm();
+        form.setPostalCode("54321");
+        form.setLocation("");
+        form.setStreet("");
+        form.setHouseNumber("");
+        form.setObjekt("");
+
+        UnitAddressSupport.applyDefaultsToFormIfBlank(form, unit);
+
+        assertThat(form.getPostalCode()).isEqualTo("54321");
+        assertThat(form.getLocation()).isEmpty();
+        assertThat(form.getStreet()).isEmpty();
+        assertThat(form.getHouseNumber()).isEmpty();
+        assertThat(form.getObjekt()).isEmpty();
     }
 
     @Test

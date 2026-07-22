@@ -10,19 +10,52 @@ public final class UnitAddressSupport {
     private static final Pattern STREET_WITH_NUMBER = Pattern.compile(
             "^(.*?)(?:\\s+(\\d+(?:\\s+[a-zA-Z]|[a-zA-Z])?(?:\\s*-\\s*\\d+(?:\\s+[a-zA-Z]|[a-zA-Z])?)?))$");
 
+    private static final Pattern UNIT_PREFIX =
+            Pattern.compile("^(?i)(löschzug|loeschzug|swt|ff|feuerwehr|wehr)\\s+");
+
     private UnitAddressSupport() {}
 
-    public record UnitAddress(String location, String postalCode, String street, String houseNumber) {}
+    public record UnitAddress(
+            String location, String postalCode, String street, String houseNumber, String district) {}
 
     public record StreetParts(String street, String houseNumber) {}
 
     public static UnitAddress fromUnit(Unit unit) {
         if (unit == null) {
-            return new UnitAddress(null, null, null, null);
+            return new UnitAddress(null, null, null, null, null);
         }
         UnitPostalCity.Parts postal = UnitPostalCity.fromUnit(unit);
         StreetParts streetParts = parseStreet(unit.getStreet());
-        return new UnitAddress(postal.city(), postal.postalCode(), streetParts.street(), streetParts.houseNumber());
+        return new UnitAddress(
+                postal.city(),
+                postal.postalCode(),
+                streetParts.street(),
+                streetParts.houseNumber(),
+                deriveDistrict(unit, postal));
+    }
+
+    /** Ortsteil z. B. „Amern“ aus „Schwalmtal Amern“ bzw. Einheitsname „Löschzug Amern“. */
+    public static String deriveDistrict(Unit unit) {
+        return deriveDistrict(unit, UnitPostalCity.fromUnit(unit));
+    }
+
+    public static String deriveDistrict(Unit unit, UnitPostalCity.Parts postal) {
+        if (postal != null && postal.city() != null && !postal.city().isBlank()) {
+            String[] tokens = postal.city().trim().split("\\s+");
+            if (tokens.length >= 2) {
+                return tokens[tokens.length - 1];
+            }
+        }
+        String unitName = unit != null && unit.getName() != null ? unit.getName().trim() : "";
+        if (unitName.isBlank()) {
+            return null;
+        }
+        String stripped = UNIT_PREFIX.matcher(unitName).replaceFirst("").trim();
+        if (!stripped.isBlank()) {
+            String[] parts = stripped.split("\\s+");
+            return parts[parts.length - 1];
+        }
+        return unitName;
     }
 
     /** Vollständige Adresszeile für Routing (Gerätehaus). */
@@ -59,6 +92,10 @@ public final class UnitAddressSupport {
         applyDefaultsToFormIfBlank(form, unit);
     }
 
+    /**
+     * Anwesenheitsliste: nur PLZ vorbelegen. Ort/Straße/Objekt/Ortsteil kommen über den
+     * Gerätehaus-Button oder manuelle Eingabe — leere Felder werden nicht erneut befüllt.
+     */
     public static void applyDefaultsToFormIfBlank(EinsatzberichtForm form, Unit unit) {
         if (form == null || unit == null) {
             return;
@@ -67,22 +104,9 @@ public final class UnitAddressSupport {
         if (isBlank(form.getPostalCode()) && !isBlank(address.postalCode())) {
             form.setPostalCode(address.postalCode());
         }
-        if (isBlank(form.getLocation()) || "—".equals(form.getLocation().trim())) {
-            if (!isBlank(address.location())) {
-                form.setLocation(address.location());
-            }
-        }
-        if (isBlank(form.getStreet()) && !isBlank(address.street())) {
-            form.setStreet(address.street());
-        }
-        if (isBlank(form.getHouseNumber()) && !isBlank(address.houseNumber())) {
-            form.setHouseNumber(address.houseNumber());
-        }
-        if (isBlank(form.getObjekt())) {
-            form.setObjekt(DEFAULT_OBJEKT_GERAETEHAUS);
-        }
     }
 
+    /** @see #applyDefaultsToFormIfBlank(EinsatzberichtForm, Unit) */
     public static void applyDefaultsToReportIfBlank(AttendanceReport report, Unit unit) {
         if (report == null || unit == null) {
             return;
@@ -90,20 +114,6 @@ public final class UnitAddressSupport {
         UnitAddress address = fromUnit(unit);
         if (isBlank(report.getPostalCode()) && !isBlank(address.postalCode())) {
             report.setPostalCode(address.postalCode());
-        }
-        if (isBlank(report.getLocation()) || "—".equals(report.getLocation().trim())) {
-            if (!isBlank(address.location())) {
-                report.setLocation(address.location());
-            }
-        }
-        if (isBlank(report.getStreet()) && !isBlank(address.street())) {
-            report.setStreet(address.street());
-        }
-        if (isBlank(report.getHouseNumber()) && !isBlank(address.houseNumber())) {
-            report.setHouseNumber(address.houseNumber());
-        }
-        if (isBlank(report.getObjekt())) {
-            report.setObjekt(DEFAULT_OBJEKT_GERAETEHAUS);
         }
     }
 

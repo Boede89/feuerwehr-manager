@@ -36,13 +36,15 @@
       if (!address) {
         return;
       }
-      var hasData = address.location || address.postalCode || address.street || address.houseNumber;
+      var hasData = address.location || address.postalCode || address.street
+        || address.houseNumber || address.district;
       if (!hasData) {
         window.alert('Für diese Einheit sind noch keine Adress-Stammdaten hinterlegt (Administration → Einheit).');
         return;
       }
       setField('location', address.location);
       setField('postalCode', address.postalCode);
+      setField('district', address.district);
       setField('street', address.street);
       setField('houseNumber', address.houseNumber);
       setField('objekt', 'Gerätehaus');

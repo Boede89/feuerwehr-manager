@@ -692,11 +692,7 @@ public class AnwesenheitslisteService {
         report.setTitle(termin.getTitle());
         report.setTerminCategory(termin.getCategory());
         String location = termin.getLocation() != null ? termin.getLocation().trim() : "";
-        if (location.isBlank()) {
-            UnitAddressSupport.UnitAddress unitAddress = UnitAddressSupport.fromUnit(report.getUnit());
-            String unitCity = unitAddress.location();
-            report.setLocation(unitCity != null && !unitCity.isBlank() ? unitCity : "—");
-        } else {
+        if (!location.isBlank()) {
             report.setLocation(location);
         }
         UnitAddressSupport.applyDefaultsToReportIfBlank(report, report.getUnit());
