@@ -197,80 +197,13 @@
     });
   }
 
-  function ensureCategoryModal() {
-    if (categoryModal) {
-      return categoryModal;
-    }
-    var overlay = document.createElement('div');
-    overlay.id = 'modal-deployed-equipment-category';
-    overlay.className = 'modal-overlay modal-overlay--stack';
-    overlay.hidden = true;
-    overlay.innerHTML =
-      '<div class="modal modal--sm" role="dialog" aria-labelledby="deployed-equipment-category-title">' +
-      '  <header class="modal__header">' +
-      '    <h3 id="deployed-equipment-category-title">Kategorie wählen</h3>' +
-      '    <button type="button" class="modal__close" data-close-category-modal aria-label="Schließen">✕</button>' +
-      '  </header>' +
-      '  <div class="modal__body">' +
-      '    <div class="form-group">' +
-      '      <label for="deployed-equipment-category-select">Kategorie</label>' +
-      '      <select id="deployed-equipment-category-select" class="field"></select>' +
-      '    </div>' +
-      '    <div class="form-group" id="deployed-equipment-category-custom-wrap" hidden>' +
-      '      <label for="deployed-equipment-category-custom">Neue Kategorie</label>' +
-      '      <input type="text" id="deployed-equipment-category-custom" class="field" maxlength="120" placeholder="Kategoriename …"/>' +
-      '    </div>' +
-      '  </div>' +
-      '  <footer class="modal__footer">' +
-      '    <button type="button" class="btn btn--primary" id="deployed-equipment-category-apply">Hinzufügen</button>' +
-      '    <button type="button" class="btn btn--outline" data-close-category-modal>Abbrechen</button>' +
-      '  </footer>' +
-      '</div>';
-    document.body.appendChild(overlay);
-    categoryModal = overlay;
-    overlay.querySelector('[data-close-category-modal]').addEventListener('click', closeCategoryModal);
-    overlay.querySelectorAll('[data-close-category-modal]').forEach(function (btn) {
-      btn.addEventListener('click', closeCategoryModal);
-    });
-    overlay.addEventListener('click', function (e) {
-      if (e.target === overlay) {
-        closeCategoryModal();
-      }
-    });
-    var select = overlay.querySelector('#deployed-equipment-category-select');
-    select.addEventListener('change', function () {
-      var customWrap = overlay.querySelector('#deployed-equipment-category-custom-wrap');
-      if (customWrap) {
-        customWrap.hidden = select.value !== '__custom__';
-      }
-    });
-    return overlay;
-  }
-
-  function closeCategoryModal() {
-    if (!categoryModal) {
-      return;
-    }
-    categoryModal.hidden = true;
-    categoryModal.classList.remove('active');
-    if (!document.querySelector('.modal-overlay.active:not([hidden])')) {
-      document.body.classList.remove('modal-open');
-    }
-    categoryModal._resolve = null;
-  }
-
-  function promptCategory(vehicle) {
-    var modal = ensureCategoryModal();
-    var select = modal.querySelector('#deployed-equipment-category-select');
-    var customInput = modal.querySelector('#deployed-equipment-category-custom');
-    var customWrap = modal.querySelector('#deployed-equipment-category-custom-wrap');
+  function fillCategorySelect(select, categories, selectedValue) {
     select.textContent = '';
-    var categories = categoryNamesForVehicle(vehicle);
     var optNone = document.createElement('option');
     optNone.value = '';
     optNone.textContent = 'Ohne Kategorie';
     select.appendChild(optNone);
-    categories.forEach(function (name) {
+    (categories || []).forEach(function (name) {
       var opt = document.createElement('option');
       opt.value = name;
       opt.textContent = name;
@@ -280,35 +213,249 @@
     optCustom.value = '__custom__';
     optCustom.textContent = 'Neue Kategorie …';
     select.appendChild(optCustom);
-    select.value = categories.length > 0 ? categories[0] : '';
-    if (customInput) {
-      customInput.value = '';
+    if (selectedValue === '__custom__' || (selectedValue != null && selectedValue !== '')) {
+      select.value = selectedValue;
+    } else if (categories && categories.length > 0) {
+      select.value = categories[0];
+    } else {
+      select.value = '';
     }
-    if (customWrap) {
+  }
+
+  function syncCategoryCustomVisibility(select, customWrap) {
+    if (!select || !customWrap) {
+      return;
+    }
+    customWrap.hidden = select.value !== '__custom__';
+  }
+
+  function resolveCategoryFromControls(select, customInput) {
+    if (!select) {
+      return { ok: true, categoryName: null };
+    }
+    if (select.value === '__custom__') {
+      var custom = customInput ? customInput.value.trim() : '';
+      if (!custom) {
+        return { ok: false, categoryName: null };
+      }
+      return { ok: true, categoryName: custom.length > 120 ? custom.slice(0, 120) : custom };
+    }
+    if (select.value) {
+      return { ok: true, categoryName: select.value };
+    }
+    return { ok: true, categoryName: null };
+  }
+
+  function ensureCategoryModal() {
+    if (categoryModal) {
+      return categoryModal;
+    }
+    var overlay = document.createElement('div');
+    overlay.id = 'modal-deployed-equipment-category';
+    overlay.className = 'modal-overlay modal-overlay--stack';
+    overlay.hidden = true;
+    overlay.innerHTML =
+      '<div class="modal modal--md" role="dialog" aria-labelledby="deployed-equipment-category-title">' +
+      '  <header class="modal__header">' +
+      '    <h3 id="deployed-equipment-category-title">Kategorien zuordnen</h3>' +
+      '    <button type="button" class="modal__close" data-close-category-modal aria-label="Schließen">✕</button>' +
+      '  </header>' +
+      '  <div class="modal__body">' +
+      '    <p class="hint text-sm" id="deployed-equipment-category-hint">' +
+      '      Ordnen Sie jedem Gerät eine Kategorie zu.' +
+      '    </p>' +
+      '    <div class="form-group" id="deployed-equipment-category-bulk-wrap">' +
+      '      <label for="deployed-equipment-category-bulk">Für alle setzen</label>' +
+      '      <select id="deployed-equipment-category-bulk" class="field"></select>' +
+      '      <div class="form-group" id="deployed-equipment-category-bulk-custom-wrap" hidden>' +
+      '        <label for="deployed-equipment-category-bulk-custom">Neue Kategorie</label>' +
+      '        <input type="text" id="deployed-equipment-category-bulk-custom" class="field" maxlength="120"' +
+      '               placeholder="Kategoriename …"/>' +
+      '      </div>' +
+      '    </div>' +
+      '    <div id="deployed-equipment-category-rows" class="deployed-equipment-category-rows"></div>' +
+      '  </div>' +
+      '  <footer class="modal__footer">' +
+      '    <button type="button" class="btn btn--primary" id="deployed-equipment-category-apply">Hinzufügen</button>' +
+      '    <button type="button" class="btn btn--outline" data-close-category-modal>Abbrechen</button>' +
+      '  </footer>' +
+      '</div>';
+    document.body.appendChild(overlay);
+    categoryModal = overlay;
+    overlay.querySelectorAll('[data-close-category-modal]').forEach(function (btn) {
+      btn.addEventListener('click', closeCategoryModal);
+    });
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) {
+        closeCategoryModal();
+      }
+    });
+    var bulkSelect = overlay.querySelector('#deployed-equipment-category-bulk');
+    var bulkCustomWrap = overlay.querySelector('#deployed-equipment-category-bulk-custom-wrap');
+    var bulkCustomInput = overlay.querySelector('#deployed-equipment-category-bulk-custom');
+    bulkSelect.addEventListener('change', function () {
+      syncCategoryCustomVisibility(bulkSelect, bulkCustomWrap);
+      applyBulkCategoryToRows();
+    });
+    if (bulkCustomInput) {
+      bulkCustomInput.addEventListener('input', function () {
+        if (bulkSelect.value === '__custom__') {
+          applyBulkCategoryToRows();
+        }
+      });
+    }
+    return overlay;
+  }
+
+  function applyBulkCategoryToRows() {
+    if (!categoryModal) {
+      return;
+    }
+    var bulkSelect = categoryModal.querySelector('#deployed-equipment-category-bulk');
+    var bulkCustomInput = categoryModal.querySelector('#deployed-equipment-category-bulk-custom');
+    var rows = categoryModal.querySelectorAll('.deployed-equipment-category-row');
+    rows.forEach(function (row) {
+      var select = row.querySelector('.deployed-equipment-category-row__select');
+      var customWrap = row.querySelector('.deployed-equipment-category-row__custom-wrap');
+      var customInput = row.querySelector('.deployed-equipment-category-row__custom');
+      if (!select) {
+        return;
+      }
+      select.value = bulkSelect.value;
+      syncCategoryCustomVisibility(select, customWrap);
+      if (bulkSelect.value === '__custom__' && customInput && bulkCustomInput) {
+        customInput.value = bulkCustomInput.value;
+      }
+    });
+  }
+
+  function closeCategoryModal() {
+    if (!categoryModal) {
+      return;
+    }
+    var resolve = categoryModal._resolve;
+    categoryModal.hidden = true;
+    categoryModal.classList.remove('active');
+    if (!document.querySelector('.modal-overlay.active:not([hidden])')) {
+      document.body.classList.remove('modal-open');
+    }
+    categoryModal._resolve = null;
+    if (typeof resolve === 'function') {
+      resolve(undefined);
+    }
+  }
+
+  function promptCategoriesForNames(vehicle, names) {
+    var modal = ensureCategoryModal();
+    var categories = categoryNamesForVehicle(vehicle);
+    var title = modal.querySelector('#deployed-equipment-category-title');
+    var hint = modal.querySelector('#deployed-equipment-category-hint');
+    var bulkWrap = modal.querySelector('#deployed-equipment-category-bulk-wrap');
+    var bulkSelect = modal.querySelector('#deployed-equipment-category-bulk');
+    var bulkCustomWrap = modal.querySelector('#deployed-equipment-category-bulk-custom-wrap');
+    var bulkCustomInput = modal.querySelector('#deployed-equipment-category-bulk-custom');
+    var rowsWrap = modal.querySelector('#deployed-equipment-category-rows');
+    var multi = names.length > 1;
+
+    if (title) {
+      title.textContent = multi ? 'Kategorien zuordnen' : 'Kategorie wählen';
+    }
+    if (hint) {
+      hint.textContent = multi
+        ? 'Jedem Gerät eine eigene Kategorie zuweisen — oder oben eine für alle setzen.'
+        : 'Kategorie für das manuell hinzugefügte Gerät wählen.';
+    }
+    if (bulkWrap) {
+      bulkWrap.hidden = !multi;
+    }
+    fillCategorySelect(bulkSelect, categories, categories.length > 0 ? categories[0] : '');
+    if (bulkCustomInput) {
+      bulkCustomInput.value = '';
+    }
+    syncCategoryCustomVisibility(bulkSelect, bulkCustomWrap);
+
+    rowsWrap.textContent = '';
+    names.forEach(function (name, index) {
+      var row = document.createElement('div');
+      row.className = 'deployed-equipment-category-row';
+      row.dataset.name = name;
+
+      var nameEl = document.createElement('div');
+      nameEl.className = 'deployed-equipment-category-row__name';
+      nameEl.textContent = name;
+
+      var selectId = 'deployed-equipment-category-row-' + index;
+      var selectLabel = document.createElement('label');
+      selectLabel.className = 'deployed-equipment-category-row__label';
+      selectLabel.setAttribute('for', selectId);
+      selectLabel.textContent = 'Kategorie';
+
+      var select = document.createElement('select');
+      select.id = selectId;
+      select.className = 'field deployed-equipment-category-row__select';
+      fillCategorySelect(select, categories, bulkSelect.value);
+
+      var customWrap = document.createElement('div');
+      customWrap.className = 'form-group deployed-equipment-category-row__custom-wrap';
       customWrap.hidden = true;
-    }
+      var customLabel = document.createElement('label');
+      customLabel.setAttribute('for', selectId + '-custom');
+      customLabel.textContent = 'Neue Kategorie';
+      var customInput = document.createElement('input');
+      customInput.type = 'text';
+      customInput.id = selectId + '-custom';
+      customInput.className = 'field deployed-equipment-category-row__custom';
+      customInput.maxLength = 120;
+      customInput.placeholder = 'Kategoriename …';
+      customWrap.appendChild(customLabel);
+      customWrap.appendChild(customInput);
+
+      select.addEventListener('change', function () {
+        syncCategoryCustomVisibility(select, customWrap);
+      });
+
+      row.appendChild(nameEl);
+      row.appendChild(selectLabel);
+      row.appendChild(select);
+      row.appendChild(customWrap);
+      rowsWrap.appendChild(row);
+    });
+
     modal.hidden = false;
     modal.classList.add('active');
     document.body.classList.add('modal-open');
+
     return new Promise(function (resolve) {
       modal._resolve = resolve;
       var applyBtn = modal.querySelector('#deployed-equipment-category-apply');
-      function onApply() {
-        var categoryName = null;
-        if (select.value === '__custom__') {
-          var custom = customInput ? customInput.value.trim() : '';
-          if (!custom) {
-            window.alert('Bitte eine Kategorie eingeben.');
+      applyBtn.onclick = function () {
+        var assignments = [];
+        var rows = modal.querySelectorAll('.deployed-equipment-category-row');
+        for (var i = 0; i < rows.length; i++) {
+          var row = rows[i];
+          var select = row.querySelector('.deployed-equipment-category-row__select');
+          var customInput = row.querySelector('.deployed-equipment-category-row__custom');
+          var resolved = resolveCategoryFromControls(select, customInput);
+          if (!resolved.ok) {
+            window.alert('Bitte für „' + (row.dataset.name || 'Gerät') + '“ eine Kategorie eingeben.');
             return;
           }
-          categoryName = custom;
-        } else if (select.value) {
-          categoryName = select.value;
+          assignments.push({
+            name: row.dataset.name,
+            categoryName: resolved.categoryName
+          });
         }
-        closeCategoryModal();
-        resolve(categoryName);
-      }
-      applyBtn.onclick = onApply;
+        var done = modal._resolve;
+        modal._resolve = null;
+        modal.hidden = true;
+        modal.classList.remove('active');
+        if (!document.querySelector('.modal-overlay.active:not([hidden])')) {
+          document.body.classList.remove('modal-open');
+        }
+        if (typeof done === 'function') {
+          done(assignments);
+        }
+      };
     });
   }
 
@@ -317,7 +464,7 @@
     label.className = 'incident-deployed-equipment-item incident-deployed-equipment-item--custom';
     var name = document.createElement('span');
     name.className = 'incident-deployed-equipment-item__name';
-    name.textContent = item.name + (item.categoryName ? ' (' + item.categoryName + ')' : '');
+    name.textContent = item.name;
     label.appendChild(name);
     if (!isReadonly()) {
       var removeBtn = document.createElement('button');
@@ -334,6 +481,47 @@
       label.appendChild(removeBtn);
     }
     return label;
+  }
+
+  function renderCustomEquipmentGroups(customItems, vehicleId, card) {
+    var fragment = document.createDocumentFragment();
+    var byCategory = {};
+    var uncategorized = [];
+    customItems.forEach(function (item) {
+      if (item.categoryName) {
+        if (!byCategory[item.categoryName]) {
+          byCategory[item.categoryName] = [];
+        }
+        byCategory[item.categoryName].push(item);
+      } else {
+        uncategorized.push(item);
+      }
+    });
+    var catNames = Object.keys(byCategory).sort(function (a, b) {
+      return a.localeCompare(b, 'de');
+    });
+    function appendGroup(titleText, items) {
+      var section = document.createElement('section');
+      section.className = 'incident-deployed-equipment-group incident-deployed-equipment-group--custom';
+      var title = document.createElement('h5');
+      title.className = 'incident-deployed-equipment-group__title';
+      title.textContent = titleText;
+      section.appendChild(title);
+      var list = document.createElement('div');
+      list.className = 'incident-deployed-equipment-group__list';
+      items.forEach(function (item) {
+        list.appendChild(renderCustomEquipmentItem(item, vehicleId, card));
+      });
+      section.appendChild(list);
+      fragment.appendChild(section);
+    }
+    catNames.forEach(function (catName) {
+      appendGroup(catName + ' (manuell)', byCategory[catName]);
+    });
+    if (uncategorized.length > 0) {
+      appendGroup('Manuell ohne Kategorie', uncategorized);
+    }
+    return fragment;
   }
 
   function renderCategoryGroup(catName, items, vehicleId, card) {
@@ -413,15 +601,15 @@
         window.alert('Bitte mindestens einen Gerätenamen eingeben.');
         return;
       }
-      promptCategory(vehicle).then(function (categoryName) {
-        if (categoryName === undefined) {
+      promptCategoriesForNames(vehicle, names).then(function (assignments) {
+        if (!assignments || !assignments.length) {
           return;
         }
         ensureVehicleMaps(vehicle.vehicleId);
-        names.forEach(function (name) {
+        assignments.forEach(function (item) {
           customByVehicle[vehicle.vehicleId].push({
-            name: name,
-            categoryName: categoryName
+            name: item.name,
+            categoryName: item.categoryName
           });
         });
         input.value = '';
@@ -517,19 +705,7 @@
 
       var customItems = customByVehicle[vehicle.vehicleId] || [];
       if (customItems.length > 0) {
-        var customSection = document.createElement('section');
-        customSection.className = 'incident-deployed-equipment-group incident-deployed-equipment-group--custom';
-        var customTitle = document.createElement('h5');
-        customTitle.className = 'incident-deployed-equipment-group__title';
-        customTitle.textContent = 'Manuell hinzugefügt';
-        customSection.appendChild(customTitle);
-        var customList = document.createElement('div');
-        customList.className = 'incident-deployed-equipment-group__list';
-        customItems.forEach(function (item) {
-          customList.appendChild(renderCustomEquipmentItem(item, vehicle.vehicleId, card));
-        });
-        customSection.appendChild(customList);
-        body.appendChild(customSection);
+        body.appendChild(renderCustomEquipmentGroups(customItems, vehicle.vehicleId, card));
       }
 
       if (!isReadonly()) {

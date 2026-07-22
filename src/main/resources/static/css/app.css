@@ -5324,8 +5324,37 @@ span.required { color: var(--error); }
 }
 
 /* .form-group setzt display:flex und würde sonst [hidden] überschreiben */
-#deployed-equipment-category-custom-wrap[hidden] {
+#deployed-equipment-category-bulk-wrap[hidden],
+#deployed-equipment-category-bulk-custom-wrap[hidden],
+.deployed-equipment-category-row__custom-wrap[hidden] {
   display: none !important;
+}
+
+.deployed-equipment-category-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.deployed-equipment-category-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2, var(--bg-elevated, #f8f9fa));
+}
+
+.deployed-equipment-category-row__name {
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.deployed-equipment-category-row__label {
+  font-size: 0.85rem;
+  color: var(--muted, #666);
 }
 
 .einsatzbericht-form-page .incident-deployed-equipment-item--custom {
