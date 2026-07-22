@@ -496,8 +496,8 @@
             }
             if (prep && prep.hasDeployedEquipment) {
               defaults.hasDeployedEquipment = true;
-            } else if (prep && prep.hasDeployedEquipment === false) {
-              defaults.hasDeployedEquipment = false;
+            }
+            if (!defaults.hasDeployedEquipment) {
               defaults.createGeraetewart = false;
               defaults.printGeraetewart = false;
             }

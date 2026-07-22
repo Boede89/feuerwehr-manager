@@ -21,11 +21,12 @@
   }
 
   function fetchUnassignedCount(reportId, unitId) {
+    var fromForm = hasDeployedEquipmentFromForm();
     if (!reportId || !unitId) {
       return Promise.resolve({
         unassignedCount: countUnassignedFromBoard(),
         hasMaterialDamages: false,
-        hasDeployedEquipment: hasDeployedEquipmentFromForm()
+        hasDeployedEquipment: fromForm
       });
     }
     var boardCount = countUnassignedFromBoard();
@@ -36,16 +37,15 @@
           return {
             unassignedCount: boardCount,
             hasMaterialDamages: false,
-            hasDeployedEquipment: hasDeployedEquipmentFromForm()
+            hasDeployedEquipment: fromForm
           };
         }
         return res.json().then(function (data) {
           return {
             unassignedCount: boardCount > 0 ? boardCount : (Number(data.unassignedCount) || 0),
             hasMaterialDamages: !!data.hasMaterialDamages,
-            hasDeployedEquipment: data.hasDeployedEquipment != null
-              ? !!data.hasDeployedEquipment
-              : hasDeployedEquipmentFromForm()
+            // Formular hat Vorrang: Auswahl oft noch nicht gespeichert
+            hasDeployedEquipment: fromForm || !!data.hasDeployedEquipment
           };
         });
       })
@@ -53,7 +53,7 @@
         return {
           unassignedCount: boardCount,
           hasMaterialDamages: false,
-          hasDeployedEquipment: hasDeployedEquipmentFromForm()
+          hasDeployedEquipment: fromForm
         };
       });
   }
@@ -88,6 +88,9 @@
   }
 
   function prepareRelease(reportId, unitId) {
+    if (window.BerichteGeraete && typeof window.BerichteGeraete.sync === 'function') {
+      window.BerichteGeraete.sync();
+    }
     return fetchUnassignedCount(reportId, unitId).then(function (data) {
       var count = Number(data && data.unassignedCount) || 0;
       var hasMaterialDamages = !!(data && data.hasMaterialDamages);

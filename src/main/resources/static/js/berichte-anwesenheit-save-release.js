@@ -111,8 +111,12 @@
           if (prep && prep.hasMaterialDamages) {
             defaults.hasMaterialDamages = true;
           }
-          if (prep && prep.hasDeployedEquipment != null) {
-            defaults.hasDeployedEquipment = !!prep.hasDeployedEquipment;
+          // Nur auf true heben — nie Formularauswahl durch veralteten DB-Stand überschreiben
+          if (prep && prep.hasDeployedEquipment) {
+            defaults.hasDeployedEquipment = true;
+          }
+          if (!defaults.hasDeployedEquipment) {
+            defaults.hasDeployedEquipment = hasDeployedEquipmentInForm();
           }
           if (!defaults.hasDeployedEquipment) {
             defaults.createGeraetewart = false;
