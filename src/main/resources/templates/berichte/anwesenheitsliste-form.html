@@ -11,6 +11,18 @@
     </div>
     <div class="einsatzbericht-form-actions">
       <a class="btn btn--outline" th:href="@{/berichte(unit=${unitId}, tab='anwesenheit')}">Abbrechen</a>
+      <form th:if="${formMode == 'edit' and canArchive}" method="post"
+            th:action="@{/berichte/anwesenheitslisten/{id}/archivieren(id=${report.id})}"
+            class="bar-form"
+            data-confirm
+            data-confirm-title="Anwesenheitsliste ins Archiv verschieben?"
+            data-confirm-message="Die Liste wird ins Archiv verschoben und erscheint standardmäßig nicht mehr in der aktiven Liste."
+            data-confirm-label="Ins Archiv verschieben">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <input type="hidden" name="returnUrl" th:value="@{/berichte(unit=${unitId}, tab='anwesenheit')}"/>
+        <button type="submit" class="btn btn--outline">Ins Archiv verschieben</button>
+      </form>
       <form th:if="${formMode == 'edit' and canDeleteReport}" method="post"
             th:action="@{/berichte/anwesenheitslisten/{id}/delete(id=${report.id})}"
             class="bar-form"

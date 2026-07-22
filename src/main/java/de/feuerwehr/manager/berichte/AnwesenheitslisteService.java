@@ -484,11 +484,19 @@ public class AnwesenheitslisteService {
         if (actor == null) {
             throw new IllegalArgumentException("Keine Berechtigung für diese Aktion.");
         }
-        if (!canApprove && !actor.getRole().isAdminLevel()) {
-            throw new IllegalArgumentException("Keine Berechtigung zum Ändern des Status.");
-        }
         AttendanceReport report = requireReport(unitId, reportId);
         ensureWritableInTestMode(report);
+        if (newStatus == IncidentReportStatus.ARCHIVIERT) {
+            if (!AnwesenheitslisteAccess.canArchive(report, canApprove, actor)) {
+                throw new IllegalArgumentException("Keine Berechtigung zum Archivieren.");
+            }
+        } else if (newStatus == IncidentReportStatus.FREIGEGEBEN) {
+            if (!AnwesenheitslisteAccess.canRelease(report, canApprove, actor)) {
+                throw new IllegalArgumentException("Keine Berechtigung zum Freigeben.");
+            }
+        } else if (!canApprove && !actor.getRole().isAdminLevel()) {
+            throw new IllegalArgumentException("Keine Berechtigung zum Ändern des Status.");
+        }
         validateStatusTransition(report.getStatus(), newStatus);
         if (newStatus == IncidentReportStatus.FREIGEGEBEN && assignRemainingToWache) {
             assignRemainingPersonnelToWache(report);
@@ -830,6 +838,7 @@ public class AnwesenheitslisteService {
 
     private static void validateStatusTransition(IncidentReportStatus from, IncidentReportStatus to) {
         boolean valid = (from == IncidentReportStatus.ENTWURF && to == IncidentReportStatus.FREIGEGEBEN)
+                || (from == IncidentReportStatus.ENTWURF && to == IncidentReportStatus.ARCHIVIERT)
                 || (from == IncidentReportStatus.FREIGEGEBEN && to == IncidentReportStatus.ARCHIVIERT);
         if (!valid) {
             throw new IllegalArgumentException(

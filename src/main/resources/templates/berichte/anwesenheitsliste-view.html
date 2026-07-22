@@ -45,14 +45,28 @@
             th:action="@{/berichte/anwesenheitslisten/{id}/archivieren(id=${report.id})}"
             class="bar-form"
             data-confirm
-            data-confirm-title="Anwesenheitsliste archivieren?"
+            data-confirm-title="Anwesenheitsliste ins Archiv verschieben?"
             data-confirm-message="Die Liste wird ins Archiv verschoben und erscheint standardmäßig nicht mehr in der aktiven Liste."
-            data-confirm-label="Archivieren">
+            data-confirm-label="Ins Archiv verschieben">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="unit" th:value="${unitId}"/>
         <input type="hidden" name="returnUrl"
                th:value="${anwesenheitListPath != null ? anwesenheitListPath : '/berichte?tab=anwesenheit'}"/>
-        <button type="submit" class="btn btn--outline">Archivieren</button>
+        <button type="submit" class="btn btn--outline">Ins Archiv verschieben</button>
+      </form>
+      <form th:if="${canDeleteReport}" method="post"
+            th:action="@{/berichte/anwesenheitslisten/{id}/delete(id=${report.id})}"
+            class="bar-form"
+            data-confirm
+            data-confirm-title="Anwesenheitsliste löschen?"
+            data-confirm-message="Diese Aktion kann nicht rückgängig gemacht werden."
+            data-confirm-label="Löschen"
+            data-confirm-variant="danger">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <input type="hidden" name="returnUrl"
+               th:value="${anwesenheitListPath != null ? anwesenheitListPath : '/berichte?tab=anwesenheit'}"/>
+        <button type="submit" class="btn btn--danger">Löschen</button>
       </form>
     </div>
   </div>

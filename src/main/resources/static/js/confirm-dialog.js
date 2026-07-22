@@ -605,9 +605,9 @@
     },
     archiveReport: function (reportLabel) {
       return show({
-        title: (reportLabel || 'Bericht') + ' archivieren?',
+        title: (reportLabel || 'Bericht') + ' ins Archiv verschieben?',
         message: 'Der Eintrag wird ins Archiv verschoben und erscheint standardmäßig nicht mehr in der aktiven Liste.',
-        confirmLabel: 'Archivieren',
+        confirmLabel: 'Ins Archiv verschieben',
         variant: 'primary'
       });
     },

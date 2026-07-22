@@ -203,6 +203,7 @@ public class BerichteController {
             model.addAttribute("canEditReport", EinsatzberichtAccess.canEdit(report, actor, canApprove));
             model.addAttribute("canRelease", EinsatzberichtAccess.canRelease(report, canApprove, actor));
             model.addAttribute("canArchive", EinsatzberichtAccess.canArchive(report, canApprove, actor));
+            model.addAttribute("canDeleteReport", EinsatzberichtAccess.canDelete(report, actor, canApprove));
             String stichwort = report.getStichwort() != null && !report.getStichwort().isBlank()
                     ? report.getStichwort()
                     : report.getIncidentTypeLabel();
@@ -272,6 +273,7 @@ public class BerichteController {
             model.addAttribute("canEditReport", EinsatzberichtAccess.canEdit(report, actor, canApprove));
             model.addAttribute("canRelease", EinsatzberichtAccess.canRelease(report, canApprove, actor));
             model.addAttribute("canArchive", EinsatzberichtAccess.canArchive(report, canApprove, actor));
+            model.addAttribute("canDeleteReport", EinsatzberichtAccess.canDelete(report, actor, canApprove));
             String safeReturn = sanitizeReturnUrl(returnUrl);
             model.addAttribute("einsatzListPath", safeReturn);
             model.addAttribute("backUrl", buildBackUrl(safeReturn, unit.getId()));
@@ -311,6 +313,7 @@ public class BerichteController {
             populateEinsatzFormModel(model, unit.getId(), report, form, true);
             model.addAttribute("formMode", "edit");
             model.addAttribute("canDeleteReport", EinsatzberichtAccess.canDelete(report, actor, canApprove));
+            model.addAttribute("canArchive", EinsatzberichtAccess.canArchive(report, canApprove, actor));
             model.addAttribute("pageTitle", "Einsatzbericht bearbeiten");
             model.addAttribute(
                     "pageSubtitle",
@@ -568,7 +571,7 @@ public class BerichteController {
             @PathVariable long id,
             RedirectAttributes redirectAttributes) {
         return changeEinsatzberichtStatus(
-                actor, unitId, id, IncidentReportStatus.ARCHIVIERT, returnUrl, redirectAttributes, "archivieren");
+                actor, unitId, id, IncidentReportStatus.ARCHIVIERT, returnUrl, redirectAttributes, "ins Archiv verschoben");
     }
 
     private String changeEinsatzberichtStatus(
@@ -672,6 +675,7 @@ public class BerichteController {
             model.addAttribute("canEditReport", AnwesenheitslisteAccess.canEdit(report, actor, canApprove));
             model.addAttribute("canRelease", AnwesenheitslisteAccess.canRelease(report, canApprove, actor));
             model.addAttribute("canArchive", AnwesenheitslisteAccess.canArchive(report, canApprove, actor));
+            model.addAttribute("canDeleteReport", AnwesenheitslisteAccess.canDelete(report, actor, canApprove));
             String title = report.getTitle() != null && !report.getTitle().isBlank() ? report.getTitle() : "Anwesenheitsliste";
             String dateLabel = report.getEventDate() != null
                     ? report.getEventDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
@@ -708,6 +712,7 @@ public class BerichteController {
             model.addAttribute("canEditReport", AnwesenheitslisteAccess.canEdit(report, actor, canApprove));
             model.addAttribute("canRelease", AnwesenheitslisteAccess.canRelease(report, canApprove, actor));
             model.addAttribute("canArchive", AnwesenheitslisteAccess.canArchive(report, canApprove, actor));
+            model.addAttribute("canDeleteReport", AnwesenheitslisteAccess.canDelete(report, actor, canApprove));
             String safeReturn = sanitizeReturnUrl(returnUrl);
             model.addAttribute("anwesenheitListPath", safeReturn);
             model.addAttribute("backUrl", buildBackUrl(safeReturn, unit.getId()));
@@ -747,6 +752,7 @@ public class BerichteController {
             model.addAttribute("formMode", "edit");
             model.addAttribute("canApprove", canApprove);
             model.addAttribute("canDeleteReport", AnwesenheitslisteAccess.canDelete(report, actor, canApprove));
+            model.addAttribute("canArchive", AnwesenheitslisteAccess.canArchive(report, canApprove, actor));
             model.addAttribute("pageTitle", "Anwesenheitsliste bearbeiten");
             model.addAttribute(
                     "pageSubtitle",
@@ -1043,7 +1049,7 @@ public class BerichteController {
             @PathVariable long id,
             RedirectAttributes redirectAttributes) {
         return changeAnwesenheitslisteStatus(
-                actor, unitId, id, IncidentReportStatus.ARCHIVIERT, returnUrl, redirectAttributes, "archiviert");
+                actor, unitId, id, IncidentReportStatus.ARCHIVIERT, returnUrl, redirectAttributes, "ins Archiv verschoben");
     }
 
     private String changeAnwesenheitslisteStatus(

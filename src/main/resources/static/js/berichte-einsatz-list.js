@@ -53,19 +53,23 @@
   }
 
   function canDeleteItem(item) {
+    return isAdmin && item.statusKey === 'archiviert';
+  }
+
+  function canArchiveItem(item) {
+    if (item.statusKey === 'archiviert') {
+      return false;
+    }
     if (isAdmin) {
       return true;
     }
-    if (canApprove && (item.statusKey === 'freigegeben' || item.statusKey === 'archiviert')) {
-      return true;
+    if (item.statusKey === 'freigegeben') {
+      return canApprove;
     }
-    if (item.statusKey !== 'entwurf') {
-      return false;
+    if (item.statusKey === 'entwurf') {
+      return canApprove || (item.createdByUserId != null && item.createdByUserId === currentUserId);
     }
-    if (canApprove) {
-      return true;
-    }
-    return item.createdByUserId != null && item.createdByUserId === currentUserId;
+    return false;
   }
 
   function filteredItems() {
@@ -202,6 +206,15 @@
           tableDocumentActions(r) +
           (canEditItem(r) ? '<a class="btn btn--outline btn--sm" href="/berichte/einsatzberichte/' + r.id +
             '/bearbeiten?unit=' + encodeURIComponent(unitId) + '">Bearbeiten</a>' : '') +
+          (canArchiveItem(r) ?
+            '<form method="post" action="/berichte/einsatzberichte/' + r.id + '/archivieren" class="table-inline-form" ' +
+            'data-confirm data-confirm-title="Einsatzbericht ins Archiv verschieben?" ' +
+            'data-confirm-message="Der Bericht wird ins Archiv verschoben und erscheint standardmäßig nicht mehr in der aktiven Liste." ' +
+            'data-confirm-label="Ins Archiv verschieben">' +
+            '<input type="hidden" name="' + esc(root.dataset.csrfParam || '_csrf') + '" value="' + esc(csrfToken) + '"/>' +
+            '<input type="hidden" name="unit" value="' + esc(unitId) + '"/>' +
+            '<input type="hidden" name="returnUrl" value="' + esc(listReturnPath()) + '"/>' +
+            '<button type="submit" class="btn btn--outline btn--sm">Ins Archiv verschieben</button></form>' : '') +
           (canDeleteItem(r) ?
             '<form method="post" action="/berichte/einsatzberichte/' + r.id + '/delete" class="table-inline-form" ' +
             'data-confirm data-confirm-title="Einsatzbericht löschen?" ' +
@@ -316,7 +329,10 @@
       html += '<button type="button" class="btn btn--primary btn--success" id="btn-modal-release">Freigeben</button>';
     }
     if (meta.canArchive === 'true') {
-      html += '<button type="button" class="btn btn--outline" id="btn-modal-archive">Archivieren</button>';
+      html += '<button type="button" class="btn btn--outline" id="btn-modal-archive">Ins Archiv verschieben</button>';
+    }
+    if (meta.canDelete === 'true') {
+      html += '<button type="button" class="btn btn--danger" id="btn-modal-delete">Löschen</button>';
     }
     html += '<button type="button" class="btn btn--outline" id="btn-modal-close-footer">Schließen</button>';
     footer.innerHTML = html;
@@ -364,10 +380,20 @@
     document.getElementById('btn-modal-archive')?.addEventListener('click', function () {
       var ask = window.FwConfirm && window.FwConfirm.archiveReport
         ? window.FwConfirm.archiveReport('Einsatzbericht')
-        : Promise.resolve(window.confirm('Einsatzbericht wirklich archivieren?'));
+        : Promise.resolve(window.confirm('Einsatzbericht wirklich ins Archiv verschieben?'));
       ask.then(function (ok) {
         if (ok) {
           postAction('/berichte/einsatzberichte/' + meta.reportId + '/archivieren', returnPath);
+        }
+      });
+    });
+    document.getElementById('btn-modal-delete')?.addEventListener('click', function () {
+      var ask = window.FwConfirm && window.FwConfirm.deleteReport
+        ? window.FwConfirm.deleteReport('Einsatzbericht')
+        : Promise.resolve(window.confirm('Einsatzbericht wirklich löschen?'));
+      ask.then(function (ok) {
+        if (ok) {
+          postAction('/berichte/einsatzberichte/' + meta.reportId + '/delete', returnPath);
         }
       });
     });

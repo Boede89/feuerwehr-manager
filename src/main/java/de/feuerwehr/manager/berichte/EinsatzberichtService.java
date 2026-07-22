@@ -1469,11 +1469,19 @@ public class EinsatzberichtService {
         if (actor == null) {
             throw new IllegalArgumentException("Keine Berechtigung für diese Aktion.");
         }
-        if (!canApprove && !actor.getRole().isAdminLevel()) {
-            throw new IllegalArgumentException("Keine Berechtigung zum Ändern des Status.");
-        }
         IncidentReport report = requireReport(unitId, reportId);
         report = writableReport(report);
+        if (newStatus == IncidentReportStatus.ARCHIVIERT) {
+            if (!EinsatzberichtAccess.canArchive(report, canApprove, actor)) {
+                throw new IllegalArgumentException("Keine Berechtigung zum Archivieren.");
+            }
+        } else if (newStatus == IncidentReportStatus.FREIGEGEBEN) {
+            if (!EinsatzberichtAccess.canRelease(report, canApprove, actor)) {
+                throw new IllegalArgumentException("Keine Berechtigung zum Freigeben.");
+            }
+        } else if (!canApprove && !actor.getRole().isAdminLevel()) {
+            throw new IllegalArgumentException("Keine Berechtigung zum Ändern des Status.");
+        }
         validateStatusTransition(report.getStatus(), newStatus);
         if (newStatus == IncidentReportStatus.FREIGEGEBEN) {
             EinsatzberichtReleaseValidationResult validation = validateForRelease(unitId, reportId);
@@ -1495,6 +1503,7 @@ public class EinsatzberichtService {
 
     private static void validateStatusTransition(IncidentReportStatus from, IncidentReportStatus to) {
         boolean valid = (from == IncidentReportStatus.ENTWURF && to == IncidentReportStatus.FREIGEGEBEN)
+                || (from == IncidentReportStatus.ENTWURF && to == IncidentReportStatus.ARCHIVIERT)
                 || (from == IncidentReportStatus.FREIGEGEBEN && to == IncidentReportStatus.ARCHIVIERT);
         if (!valid) {
             throw new IllegalArgumentException(

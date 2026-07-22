@@ -25,40 +25,19 @@ public final class EinsatzberichtAccess {
         if (canApprove) {
             return true;
         }
-        if (userId == null) {
-            return false;
-        }
-        User creator = report.getCreatedByUser();
-        return creator != null && creator.getId().equals(userId);
+        return isCreator(report, userId);
     }
 
+    /** Endgültiges Löschen nur für Superadmin/Einheitsadmin und nur im Archiv. */
     public static boolean canDelete(IncidentReport report, AppUserDetails actor, boolean canApprove) {
         if (actor == null) {
-            return canDelete(report, null, false, canApprove);
+            return false;
         }
-        return canDelete(report, actor.getUserId(), actor.getRole().isAdminLevel(), canApprove);
+        return canDelete(report, actor.getRole().isAdminLevel());
     }
 
-    public static boolean canDelete(IncidentReport report, Long userId, boolean adminLevel, boolean canApprove) {
-        if (adminLevel) {
-            return true;
-        }
-        if (canApprove
-                && (report.getStatus() == IncidentReportStatus.FREIGEGEBEN
-                        || report.getStatus() == IncidentReportStatus.ARCHIVIERT)) {
-            return true;
-        }
-        if (report.getStatus() != IncidentReportStatus.ENTWURF) {
-            return false;
-        }
-        if (canApprove) {
-            return true;
-        }
-        if (userId == null) {
-            return false;
-        }
-        User creator = report.getCreatedByUser();
-        return creator != null && creator.getId().equals(userId);
+    public static boolean canDelete(IncidentReport report, boolean adminLevel) {
+        return adminLevel && report.getStatus() == IncidentReportStatus.ARCHIVIERT;
     }
 
     public static boolean canRelease(IncidentReport report, boolean canApprove, AppUserDetails actor) {
@@ -66,9 +45,24 @@ public final class EinsatzberichtAccess {
                 && (canApprove || (actor != null && actor.getRole().isAdminLevel()));
     }
 
+    /**
+     * Ins Archiv verschieben: Entwürfe (Ersteller/Freigeber/Admin) und freigegebene Berichte
+     * (Freigeber/Admin).
+     */
     public static boolean canArchive(IncidentReport report, boolean canApprove, AppUserDetails actor) {
-        return report.getStatus() == IncidentReportStatus.FREIGEGEBEN
-                && (canApprove || (actor != null && actor.getRole().isAdminLevel()));
+        if (report.getStatus() == IncidentReportStatus.ARCHIVIERT) {
+            return false;
+        }
+        if (actor != null && actor.getRole().isAdminLevel()) {
+            return true;
+        }
+        if (report.getStatus() == IncidentReportStatus.FREIGEGEBEN) {
+            return canApprove;
+        }
+        if (report.getStatus() == IncidentReportStatus.ENTWURF) {
+            return canApprove || isCreator(report, actor != null ? actor.getUserId() : null);
+        }
+        return false;
     }
 
     /** Änderungshistorie nur nach Freigabe (inkl. archivierter Berichte). */
@@ -78,5 +72,13 @@ public final class EinsatzberichtAccess {
         }
         return report.getStatus() == IncidentReportStatus.FREIGEGEBEN
                 || report.getStatus() == IncidentReportStatus.ARCHIVIERT;
+    }
+
+    private static boolean isCreator(IncidentReport report, Long userId) {
+        if (userId == null) {
+            return false;
+        }
+        User creator = report.getCreatedByUser();
+        return creator != null && creator.getId().equals(userId);
     }
 }
