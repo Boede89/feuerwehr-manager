@@ -119,7 +119,9 @@
     if (!btn) {
       return;
     }
-    btn.hidden = activeReserveTab() !== 'divera';
+    var show = activeReserveTab() === 'divera';
+    btn.hidden = !show;
+    btn.setAttribute('aria-hidden', show ? 'false' : 'true');
   }
 
   function countUnassignedInvolved() {

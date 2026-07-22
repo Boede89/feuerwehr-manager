@@ -506,6 +506,10 @@ button, input, select, textarea {
   color: #fff;
 }
 
+.btn[hidden] {
+  display: none !important;
+}
+
 .btn:hover:not(:disabled) {
   background: var(--rot-dunkel);
   transform: translateY(-1px);
