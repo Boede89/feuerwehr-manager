@@ -281,6 +281,77 @@
     bindEinsatzReleaseCheckboxInteractions(d);
   }
 
+  function renderAnwesenheitReleaseCheckboxes(defaults) {
+    if (!checkboxesEl) {
+      return;
+    }
+    var d = defaults || {};
+    var hasMaengel = !!d.hasMaterialDamages;
+    activeCheckboxes = [
+      {
+        id: 'fw-confirm-print-report',
+        name: 'printReport',
+        label: 'Anwesenheitsliste drucken',
+        checked: !!d.printReport
+      },
+      {
+        id: 'fw-confirm-create-geraetewart',
+        name: 'createGeraetewart',
+        label: 'Gerätewartmitteilung erstellen',
+        checked: !!d.createGeraetewart
+      },
+      {
+        id: 'fw-confirm-print-geraetewart',
+        name: 'printGeraetewart',
+        label: 'Gerätewartmitteilung drucken',
+        checked: !!d.printGeraetewart
+      }
+    ];
+    if (hasMaengel) {
+      activeCheckboxes.push({
+        id: 'fw-confirm-print-maengel',
+        name: 'printMaengel',
+        label: 'Mängelbericht drucken',
+        checked: !!d.printMaengel
+      });
+    }
+
+    var html = checkboxMarkup(
+      'fw-confirm-print-report',
+      'printReport',
+      'Anwesenheitsliste drucken',
+      d.printReport
+    );
+    html +=
+      '<div class="confirm-dialog__checkbox-row">' +
+      checkboxMarkup(
+        'fw-confirm-create-geraetewart',
+        'createGeraetewart',
+        'Gerätewartmitteilung erstellen',
+        d.createGeraetewart
+      ) +
+      '<div class="confirm-dialog__checkbox-dependent" id="fw-confirm-print-geraetewart-wrap" hidden>' +
+      checkboxMarkup(
+        'fw-confirm-print-geraetewart',
+        'printGeraetewart',
+        'Gerätewartmitteilung drucken',
+        d.printGeraetewart
+      ) +
+      '</div></div>';
+    if (hasMaengel) {
+      html += checkboxMarkup(
+        'fw-confirm-print-maengel',
+        'printMaengel',
+        'Mängelbericht drucken',
+        d.printMaengel
+      );
+    }
+
+    checkboxesEl.innerHTML = html;
+    checkboxesEl.hidden = false;
+    bindEinsatzReleaseCheckboxInteractions(d);
+  }
+
   function appendReleaseOptions(form, result, fieldNames) {
     if (!result || !result.ok) {
       return;
@@ -409,10 +480,14 @@
             ? window.BerichteAnwesenheitRelease.parseReportIdFromAction(form.getAttribute('action'))
             : null;
           function proceedAnwesenheitRelease(prep) {
-            window.FwConfirm.releaseAnwesenheitsliste(releaseDefaultsFromElement(form)).then(function (result) {
+            var defaults = releaseDefaultsFromElement(form);
+            if (prep && prep.hasMaterialDamages) {
+              defaults.hasMaterialDamages = true;
+            }
+            window.FwConfirm.releaseAnwesenheitsliste(defaults).then(function (result) {
               if (result && result.ok) {
                 var merged = Object.assign({}, result, prep || {});
-                appendReleaseOptions(form, merged, ['printReport', 'assignRemainingToWache']);
+                appendReleaseOptions(form, merged, EINSATZ_RELEASE_FIELD_NAMES.concat(['assignRemainingToWache']));
                 form.dataset.confirmSubmitting = 'true';
                 if (typeof form.requestSubmit === 'function') {
                   form.requestSubmit();
@@ -490,22 +565,25 @@
       });
     },
     releaseAnwesenheitsliste: function (defaults) {
-      var d = defaults || {};
-      return show({
-        title: 'Anwesenheitsliste freigeben?',
-        message:
+      return new Promise(function (resolve) {
+        ensureModal();
+        titleEl.textContent = 'Anwesenheitsliste freigeben?';
+        messageEl.className = 'confirm-dialog__message';
+        modalEl.classList.remove('confirm-dialog--release-validation');
+        messageEl.textContent =
           'Nach der Freigabe ist die Liste für die normale Bearbeitung gesperrt. ' +
-          'Administratoren können weiterhin Änderungen vornehmen.',
-        confirmLabel: 'Freigeben',
-        variant: 'success',
-        checkboxes: [
-          {
-            id: 'fw-confirm-print-report',
-            name: 'printReport',
-            label: 'Anwesenheitsliste drucken',
-            checked: !!d.printReport
-          }
-        ]
+          'Administratoren können weiterhin Änderungen vornehmen.';
+        confirmBtn.textContent = 'Freigeben';
+        cancelBtn.textContent = 'Abbrechen';
+        applyVariant('success');
+        renderAnwesenheitReleaseCheckboxes(defaults);
+        resolveFn = resolve;
+        modalEl.hidden = false;
+        modalEl.classList.add('active');
+        document.body.classList.add('modal-open');
+        window.setTimeout(function () {
+          confirmBtn.focus();
+        }, 0);
       });
     },
     archiveReport: function (reportLabel) {

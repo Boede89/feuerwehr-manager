@@ -23,6 +23,14 @@ public final class AnwesenheitslisteEinsatzFormBridge {
         form.setObjekt(report.getObjekt());
         form.setCrewAssignmentsJson(report.getCrewAssignmentsJson());
         form.setDeployedEquipmentJson(report.getDeployedEquipmentJson());
+        form.setMaterialDamageEntriesJson(
+                report.getMaterialDamageEntriesJson() != null
+                        ? report.getMaterialDamageEntriesJson()
+                        : MaterialDamageEntriesSupport.emptyJson());
+        form.setCrewInjuryEntriesJson(
+                report.getCrewInjuryEntriesJson() != null
+                        ? report.getCrewInjuryEntriesJson()
+                        : CrewInjuryEntriesSupport.emptyJson());
         form.setIncidentCommander(report.getInstructorResponsible());
         form.setInstructorPersonIdsJson(report.getInstructorPersonIdsJson());
         form.setEinsatzkurzbericht(report.getNotes());
@@ -51,6 +59,8 @@ public final class AnwesenheitslisteEinsatzFormBridge {
         report.setObjekt(trimOrNull(form.getObjekt()));
         report.setCrewAssignmentsJson(normalizeJson(form.getCrewAssignmentsJson()));
         report.setDeployedEquipmentJson(normalizeJson(form.getDeployedEquipmentJson()));
+        report.setMaterialDamageEntriesJson(normalizeJson(form.getMaterialDamageEntriesJson()));
+        report.setCrewInjuryEntriesJson(normalizeJson(form.getCrewInjuryEntriesJson()));
         report.setInstructorPersonIdsJson(normalizeJson(form.getInstructorPersonIdsJson()));
         String instructor = form.getIncidentCommander();
         report.setInstructorResponsible(instructor != null && !instructor.isBlank() ? instructor.trim() : null);

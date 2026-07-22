@@ -643,6 +643,7 @@ public class BerichteController {
             requireBerichteWrite(actor, unit.getId());
             applyAnwesenheitFormBundle(model, unit.getId(), anwesenheitslisteService.buildFormBundle(unit.getId(), null));
             model.addAttribute("formMode", "create");
+            model.addAttribute("canApprove", canApprove(actor, unit.getId()));
             model.addAttribute("pageTitle", "Neue Anwesenheitsliste");
             model.addAttribute("pageSubtitle", "Entwurf — wird nach dem Speichern zur Freigabe vorgelegt");
             return "berichte/anwesenheitsliste-form";
@@ -744,6 +745,7 @@ public class BerichteController {
             }
             applyAnwesenheitFormBundle(model, unit.getId(), anwesenheitslisteService.buildFormBundle(unit.getId(), id));
             model.addAttribute("formMode", "edit");
+            model.addAttribute("canApprove", canApprove);
             model.addAttribute("canDeleteReport", AnwesenheitslisteAccess.canDelete(report, actor, canApprove));
             model.addAttribute("pageTitle", "Anwesenheitsliste bearbeiten");
             model.addAttribute(
@@ -762,6 +764,12 @@ public class BerichteController {
     public String createAnwesenheitsliste(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "releaseAfterSave", defaultValue = "false") boolean releaseAfterSave,
+            @RequestParam(name = "createGeraetewart", defaultValue = "false") boolean createGeraetewart,
+            @RequestParam(name = "printReport", defaultValue = "false") boolean printReport,
+            @RequestParam(name = "printGeraetewart", defaultValue = "false") boolean printGeraetewart,
+            @RequestParam(name = "printMaengel", defaultValue = "false") boolean printMaengel,
+            @RequestParam(name = "assignRemainingToWache", defaultValue = "false") boolean assignRemainingToWache,
             @ModelAttribute EinsatzberichtForm form,
             RedirectAttributes redirectAttributes) {
         try {
@@ -770,9 +778,34 @@ public class BerichteController {
             requireBerichteWrite(actor, unit.getId());
             List<CrewAssignment> crewAssignments =
                     einsatzberichtService.parseCrewAssignments(form.getCrewAssignmentsJson());
-            anwesenheitslisteService.createFromEinsatzForm(unit.getId(), form, crewAssignments, actor);
-            redirectAttributes.addFlashAttribute("saved", true);
-            redirectAttributes.addFlashAttribute("message", "Anwesenheitsliste wurde gespeichert.");
+            AttendanceReport saved =
+                    anwesenheitslisteService.createFromEinsatzForm(unit.getId(), form, crewAssignments, actor);
+            if (releaseAfterSave) {
+                boolean canApprove = canApprove(actor, unit.getId());
+                anwesenheitslisteService.transitionStatus(
+                        unit.getId(),
+                        saved.getId(),
+                        IncidentReportStatus.FREIGEGEBEN,
+                        actor,
+                        canApprove,
+                        assignRemainingToWache);
+                List<String> followUps = applyAnwesenheitReleaseFollowUps(
+                        unit.getId(),
+                        saved.getId(),
+                        actor,
+                        createGeraetewart,
+                        printReport,
+                        printGeraetewart,
+                        printMaengel);
+                String message = "Anwesenheitsliste wurde gespeichert und freigegeben.";
+                if (!followUps.isEmpty()) {
+                    message += " " + String.join(" ", followUps);
+                }
+                redirectAttributes.addFlashAttribute("message", message);
+            } else {
+                redirectAttributes.addFlashAttribute("saved", true);
+                redirectAttributes.addFlashAttribute("message", "Anwesenheitsliste wurde gespeichert.");
+            }
             return redirectBerichte(unit.getId(), "anwesenheit");
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
@@ -784,6 +817,12 @@ public class BerichteController {
     public String updateAnwesenheitsliste(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "releaseAfterSave", defaultValue = "false") boolean releaseAfterSave,
+            @RequestParam(name = "createGeraetewart", defaultValue = "false") boolean createGeraetewart,
+            @RequestParam(name = "printReport", defaultValue = "false") boolean printReport,
+            @RequestParam(name = "printGeraetewart", defaultValue = "false") boolean printGeraetewart,
+            @RequestParam(name = "printMaengel", defaultValue = "false") boolean printMaengel,
+            @RequestParam(name = "assignRemainingToWache", defaultValue = "false") boolean assignRemainingToWache,
             @PathVariable long id,
             @ModelAttribute EinsatzberichtForm form,
             RedirectAttributes redirectAttributes) {
@@ -796,8 +835,25 @@ public class BerichteController {
                     einsatzberichtService.parseCrewAssignments(form.getCrewAssignmentsJson());
             anwesenheitslisteService.updateFromEinsatzForm(
                     unit.getId(), id, form, crewAssignments, actor, canApprove);
-            redirectAttributes.addFlashAttribute("saved", true);
-            redirectAttributes.addFlashAttribute("message", "Anwesenheitsliste wurde aktualisiert.");
+            if (releaseAfterSave) {
+                anwesenheitslisteService.transitionStatus(
+                        unit.getId(),
+                        id,
+                        IncidentReportStatus.FREIGEGEBEN,
+                        actor,
+                        canApprove,
+                        assignRemainingToWache);
+                List<String> followUps = applyAnwesenheitReleaseFollowUps(
+                        unit.getId(), id, actor, createGeraetewart, printReport, printGeraetewart, printMaengel);
+                String message = "Anwesenheitsliste wurde gespeichert und freigegeben.";
+                if (!followUps.isEmpty()) {
+                    message += " " + String.join(" ", followUps);
+                }
+                redirectAttributes.addFlashAttribute("message", message);
+            } else {
+                redirectAttributes.addFlashAttribute("saved", true);
+                redirectAttributes.addFlashAttribute("message", "Anwesenheitsliste wurde aktualisiert.");
+            }
             return redirectBerichte(unit.getId(), "anwesenheit");
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
@@ -832,7 +888,10 @@ public class BerichteController {
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
             @RequestParam(name = "returnUrl", required = false) String returnUrl,
+            @RequestParam(name = "createGeraetewart", defaultValue = "false") boolean createGeraetewart,
             @RequestParam(name = "printReport", defaultValue = "false") boolean printReport,
+            @RequestParam(name = "printGeraetewart", defaultValue = "false") boolean printGeraetewart,
+            @RequestParam(name = "printMaengel", defaultValue = "false") boolean printMaengel,
             @RequestParam(name = "assignRemainingToWache", defaultValue = "false") boolean assignRemainingToWache,
             @PathVariable long id,
             RedirectAttributes redirectAttributes) {
@@ -844,27 +903,14 @@ public class BerichteController {
             anwesenheitslisteService.transitionStatus(
                     unit.getId(), id, IncidentReportStatus.FREIGEGEBEN, actor, canApprove, assignRemainingToWache);
 
-            List<String> followUpMessages = new ArrayList<>();
-            if (printReport) {
-                try {
-                    AttendanceReport report = anwesenheitslisteService.requireReport(unit.getId(), id);
-                    byte[] pdf = anwesenheitslistePdfService.renderPdf(unit.getId(), id);
-                    CupsPrintService.CupsPrintResult printResult =
-                            unitPrintSettingsService.printPdf(unit.getId(), pdf);
-                    if (printResult.success()) {
-                        followUpMessages.add("Anwesenheitsliste wurde zum Drucken gesendet.");
-                    } else {
-                        followUpMessages.add("Druck: " + printResult.message());
-                    }
-                    log.info(
-                            "Anwesenheitsliste-Druck nach Freigabe {} ({}): {}",
-                            id,
-                            anwesenheitslistePdfService.suggestedFilename(report),
-                            printResult.success() ? "OK" : printResult.message());
-                } catch (IllegalArgumentException e) {
-                    followUpMessages.add("Druck: " + e.getMessage());
-                }
-            }
+            List<String> followUpMessages = applyAnwesenheitReleaseFollowUps(
+                    unit.getId(),
+                    id,
+                    actor,
+                    createGeraetewart,
+                    printReport,
+                    printGeraetewart,
+                    printMaengel);
 
             String message = "Anwesenheitsliste wurde freigegeben.";
             if (!followUpMessages.isEmpty()) {
@@ -884,6 +930,109 @@ public class BerichteController {
             }
             return redirectBerichte(unitId, "anwesenheit");
         }
+    }
+
+    private List<String> applyAnwesenheitReleaseFollowUps(
+            long unitId,
+            long reportId,
+            AppUserDetails actor,
+            boolean createGeraetewart,
+            boolean printReport,
+            boolean printGeraetewart,
+            boolean printMaengel) {
+        List<String> followUpMessages = new ArrayList<>();
+        AttendanceReport attendance = anwesenheitslisteService.requireReport(unitId, reportId);
+        try {
+            List<DefectReport> maengelReports =
+                    maengelberichtService.createFromAttendanceReport(unitId, attendance, actor);
+            if (!maengelReports.isEmpty()) {
+                followUpMessages.add(
+                        maengelReports.size() == 1
+                                ? "1 Mängelbericht wurde automatisch erstellt."
+                                : maengelReports.size() + " Mängelberichte wurden automatisch erstellt.");
+            }
+            if (printMaengel && !maengelReports.isEmpty()) {
+                int printed = 0;
+                int failed = 0;
+                String lastError = null;
+                for (DefectReport maengelReport : maengelReports) {
+                    try {
+                        byte[] pdf = maengelberichtPdfService.renderPdf(unitId, maengelReport.getId());
+                        CupsPrintService.CupsPrintResult printResult =
+                                unitPrintSettingsService.printPdf(unitId, pdf);
+                        if (printResult.success()) {
+                            printed++;
+                        } else {
+                            failed++;
+                            lastError = printResult.message();
+                        }
+                    } catch (IllegalArgumentException e) {
+                        failed++;
+                        lastError = e.getMessage();
+                    }
+                }
+                if (printed > 0) {
+                    followUpMessages.add(
+                            printed == 1
+                                    ? "1 Mängelbericht wurde zum Drucken gesendet."
+                                    : printed + " Mängelberichte wurden zum Drucken gesendet.");
+                }
+                if (failed > 0) {
+                    followUpMessages.add(
+                            "Mängelbericht drucken: "
+                                    + (lastError != null ? lastError : failed + " fehlgeschlagen"));
+                }
+            }
+        } catch (IllegalArgumentException e) {
+            followUpMessages.add("Mängelberichte: " + e.getMessage());
+        }
+
+        Long geraetewartReportId = null;
+        if (createGeraetewart) {
+            try {
+                EquipmentMaintenanceReport gwm =
+                        geraetewartmitteilungService.createFromAttendanceReport(unitId, reportId, actor);
+                geraetewartReportId = gwm.getId();
+                followUpMessages.add("Gerätewartmitteilung wurde erstellt.");
+            } catch (IllegalArgumentException e) {
+                followUpMessages.add("Gerätewartmitteilung: " + e.getMessage());
+            }
+        }
+        if (printReport) {
+            try {
+                byte[] pdf = anwesenheitslistePdfService.renderPdf(unitId, reportId);
+                CupsPrintService.CupsPrintResult printResult = unitPrintSettingsService.printPdf(unitId, pdf);
+                if (printResult.success()) {
+                    followUpMessages.add("Anwesenheitsliste wurde zum Drucken gesendet.");
+                } else {
+                    followUpMessages.add("Druck: " + printResult.message());
+                }
+            } catch (IllegalArgumentException e) {
+                followUpMessages.add("Druck: " + e.getMessage());
+            }
+        }
+        if (printGeraetewart) {
+            try {
+                if (geraetewartReportId == null) {
+                    EquipmentMaintenanceReport gwm =
+                            geraetewartmitteilungService.createFromAttendanceReport(unitId, reportId, actor);
+                    geraetewartReportId = gwm.getId();
+                    if (!createGeraetewart) {
+                        followUpMessages.add("Gerätewartmitteilung wurde erstellt.");
+                    }
+                }
+                byte[] pdf = geraetewartmitteilungPdfService.renderPdf(unitId, geraetewartReportId);
+                CupsPrintService.CupsPrintResult printResult = unitPrintSettingsService.printPdf(unitId, pdf);
+                if (printResult.success()) {
+                    followUpMessages.add("Gerätewartmitteilung wurde zum Drucken gesendet.");
+                } else {
+                    followUpMessages.add("Gerätewartmitteilung drucken: " + printResult.message());
+                }
+            } catch (IllegalArgumentException e) {
+                followUpMessages.add("Gerätewartmitteilung: " + e.getMessage());
+            }
+        }
+        return followUpMessages;
     }
 
     @PostMapping("/anwesenheitslisten/{id}/archivieren")
@@ -970,14 +1119,17 @@ public class BerichteController {
 
     @GetMapping("/anwesenheitslisten/{id}/freigabe-check")
     @ResponseBody
-    public Map<String, Integer> anwesenheitFreigabeCheck(
+    public Map<String, Object> anwesenheitFreigabeCheck(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit") long unitId,
             @PathVariable long id) {
         accessControlService.requireUnitAccess(actor, unitId);
         requireModuleEnabled(unitId);
         requireBerichteRead(actor, unitId);
-        return Map.of("unassignedCount", anwesenheitslisteService.countUnassignedPersonnel(unitId, id));
+        AttendanceReport report = anwesenheitslisteService.requireReport(unitId, id);
+        return Map.of(
+                "unassignedCount", anwesenheitslisteService.countUnassignedPersonnel(unitId, id),
+                "hasMaterialDamages", anwesenheitslisteService.hasMaterialDamageEntries(report));
     }
 
     @GetMapping("/anwesenheitslisten/vehicle-equipment")
@@ -1001,8 +1153,36 @@ public class BerichteController {
         model.addAttribute("allowForeignUnitPersonnel", bundle.allowForeignUnitPersonnel());
         model.addAttribute("unitAddressJson", anwesenheitslisteService.buildUnitAddressJson(unitId));
         model.addAttribute("unitPersonsJson", anwesenheitslisteService.buildUnitPersonsJson(unitId));
+        model.addAttribute("unitVehiclesJson", einsatzberichtService.serializeUnitVehiclesJson(unitId));
         model.addAttribute("showChangeHistory", false);
         model.addAttribute("reportChanges", List.of());
+        addAnwesenheitReleaseAttributes(model, unitId, bundle.report());
+    }
+
+    private void addAnwesenheitReleaseAttributes(Model model, long unitId, AttendanceReport report) {
+        addAnwesenheitReleaseDefaults(model, unitId);
+        model.addAttribute(
+                "anwesenheitReleaseHasMaterialDamages",
+                report != null && anwesenheitslisteService.hasMaterialDamageEntries(report));
+    }
+
+    private void addAnwesenheitReleaseDefaults(Model model, long unitId) {
+        try {
+            UnitBerichteSettings settings = berichteSettingsService.ensureSettings(unitId);
+            model.addAttribute("anwesenheitReleaseDefaultPrintReport", settings.isAnwesenheitReleasePrintReport());
+            model.addAttribute(
+                    "anwesenheitReleaseDefaultCreateGeraetewart", settings.isEinsatzReleaseCreateGeraetewart());
+            model.addAttribute(
+                    "anwesenheitReleaseDefaultPrintGeraetewart", settings.isEinsatzReleasePrintGeraetewart());
+            model.addAttribute(
+                    "anwesenheitReleaseDefaultPrintMaengel", settings.isEinsatzReleasePrintMaengel());
+        } catch (Exception e) {
+            log.warn("Anwesenheits-Freigabe-Defaults unit={} nicht ladbar: {}", unitId, e.getMessage());
+            model.addAttribute("anwesenheitReleaseDefaultPrintReport", false);
+            model.addAttribute("anwesenheitReleaseDefaultCreateGeraetewart", false);
+            model.addAttribute("anwesenheitReleaseDefaultPrintGeraetewart", false);
+            model.addAttribute("anwesenheitReleaseDefaultPrintMaengel", false);
+        }
     }
 
     @GetMapping("/anwesenheitslisten/{id}/pdf")
@@ -1728,16 +1908,6 @@ public class BerichteController {
             model.addAttribute("releaseDefaultPrintReport", false);
             model.addAttribute("releaseDefaultPrintGeraetewart", false);
             model.addAttribute("releaseDefaultPrintMaengel", false);
-        }
-    }
-
-    private void addAnwesenheitReleaseDefaults(Model model, long unitId) {
-        try {
-            UnitBerichteSettings settings = berichteSettingsService.ensureSettings(unitId);
-            model.addAttribute("anwesenheitReleaseDefaultPrintReport", settings.isAnwesenheitReleasePrintReport());
-        } catch (Exception e) {
-            log.warn("Anwesenheits-Freigabe-Defaults unit={} nicht ladbar: {}", unitId, e.getMessage());
-            model.addAttribute("anwesenheitReleaseDefaultPrintReport", false);
         }
     }
 

@@ -35,6 +35,17 @@
         <button type="submit" class="btn btn--outline">Drucken</button>
       </form>
       <button type="submit" class="btn btn--primary" form="anwesenheitsliste-form">Speichern</button>
+      <button type="button" class="btn btn--primary btn--success" id="btn-anwesenheit-save-release"
+              th:if="${formMode != 'view' and canApprove and (report == null or report.status.name() == 'ENTWURF')}"
+              th:attr="data-report-id=${report != null ? report.id : ''},
+                       data-unit-id=${unitId},
+                       data-release-print-report=${anwesenheitReleaseDefaultPrintReport},
+                       data-release-create-geraetewart=${anwesenheitReleaseDefaultCreateGeraetewart},
+                       data-release-print-geraetewart=${anwesenheitReleaseDefaultPrintGeraetewart},
+                       data-release-print-maengel=${anwesenheitReleaseDefaultPrintMaengel},
+                       data-release-has-material-damages=${anwesenheitReleaseHasMaterialDamages}">
+        Speichern &amp; Freigeben
+      </button>
     </div>
   </div>
 
@@ -61,6 +72,9 @@
   <script th:src="@{/js/berichte-kraefte-foreign.js}" defer></script>
   <script th:src="@{/js/berichte-anwesenheit-unit-person.js}" defer></script>
   <script th:src="@{/js/berichte-geraete.js}" defer></script>
+  <script th:src="@{/js/berichte-schaeden.js}" defer></script>
+  <script th:src="@{/js/berichte-anwesenheit-crew-injury.js}" defer></script>
+  <script th:src="@{/js/berichte-anwesenheit-save-release.js}" defer></script>
   <script th:if="${report != null}" th:src="@{/js/berichte-anhaenge.js}" defer></script>
 </main>
 </html>

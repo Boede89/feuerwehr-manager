@@ -51,6 +51,7 @@ public class EinsatzberichtForm {
     private String reporterPhone;
     private String crewAssignmentsJson;
     private String deployedEquipmentJson;
+    private String crewInjuryEntriesJson;
     private String einsatzkurzbericht;
     private boolean personDamagesEnabled;
     private String personDamageDetailsJson;

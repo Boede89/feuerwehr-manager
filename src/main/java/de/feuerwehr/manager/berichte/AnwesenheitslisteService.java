@@ -196,6 +196,12 @@ public class AnwesenheitslisteService {
         if (form.getDeployedEquipmentJson() == null || form.getDeployedEquipmentJson().isBlank()) {
             form.setDeployedEquipmentJson("[]");
         }
+        if (form.getMaterialDamageEntriesJson() == null || form.getMaterialDamageEntriesJson().isBlank()) {
+            form.setMaterialDamageEntriesJson(MaterialDamageEntriesSupport.emptyJson());
+        }
+        if (form.getCrewInjuryEntriesJson() == null || form.getCrewInjuryEntriesJson().isBlank()) {
+            form.setCrewInjuryEntriesJson(CrewInjuryEntriesSupport.emptyJson());
+        }
         if (form.getPersonDamageDetailsJson() == null || form.getPersonDamageDetailsJson().isBlank()) {
             form.setPersonDamageDetailsJson(PersonDamageDetailsSupport.emptyJson());
         }
@@ -331,6 +337,17 @@ public class AnwesenheitslisteService {
     public int countUnassignedPersonnel(long unitId, long reportId) {
         AttendanceReport report = requireReport(unitId, reportId);
         return personIdsForVehicle(report, IncidentCrewSupport.BETEILIGT_VEHICLE_ID).size();
+    }
+
+    @Transactional(readOnly = true)
+    public boolean hasMaterialDamageEntries(AttendanceReport report) {
+        if (report == null) {
+            return false;
+        }
+        return !MaterialDamageEntriesSupport.parse(report.getMaterialDamageEntriesJson())
+                .normalized()
+                .entries()
+                .isEmpty();
     }
 
     @Transactional

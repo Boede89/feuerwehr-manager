@@ -134,21 +134,20 @@
   function releaseFromTable(reportId) {
     function proceed(prep) {
       var ask = window.FwConfirm && window.FwConfirm.releaseAnwesenheitsliste
-        ? window.FwConfirm.releaseAnwesenheitsliste(releaseDefaults())
+        ? window.FwConfirm.releaseAnwesenheitsliste(releaseDefaults({
+          hasMaterialDamages: !!(prep && prep.hasMaterialDamages)
+        }))
         : Promise.resolve(window.confirm('Anwesenheitsliste wirklich freigeben?'));
       ask.then(function (result) {
         var ok = result === true || (result && result.ok);
         if (!ok) {
           return;
         }
-        var extras = {};
-        if (result && result.printReport) {
-          extras.printReport = true;
-        }
-        if (prep && prep.assignRemainingToWache) {
-          extras.assignRemainingToWache = true;
-        }
-        postAction('/berichte/anwesenheitslisten/' + reportId + '/freigeben', listReturnPath(), extras);
+        postAction(
+          '/berichte/anwesenheitslisten/' + reportId + '/freigeben',
+          listReturnPath(),
+          releaseExtrasFromResult(result, prep)
+        );
       });
     }
     if (window.BerichteAnwesenheitRelease) {
@@ -202,10 +201,27 @@
     form.submit();
   }
 
-  function releaseDefaults() {
-    return {
-      printReport: root.dataset.releasePrintReport === 'true'
-    };
+  function releaseDefaults(extra) {
+    return Object.assign({
+      printReport: root.dataset.releasePrintReport === 'true',
+      createGeraetewart: root.dataset.releaseCreateGeraetewart === 'true',
+      printGeraetewart: root.dataset.releasePrintGeraetewart === 'true',
+      printMaengel: root.dataset.releasePrintMaengel === 'true',
+      hasMaterialDamages: false
+    }, extra || {});
+  }
+
+  function releaseExtrasFromResult(result, prep) {
+    var extras = {};
+    ['printReport', 'createGeraetewart', 'printGeraetewart', 'printMaengel'].forEach(function (key) {
+      if (result && result[key]) {
+        extras[key] = true;
+      }
+    });
+    if (prep && prep.assignRemainingToWache) {
+      extras.assignRemainingToWache = true;
+    }
+    return extras;
   }
 
   function buildFooter(meta) {
@@ -238,21 +254,20 @@
     document.getElementById('btn-attendance-modal-release')?.addEventListener('click', function () {
       function proceed(prep) {
         var ask = window.FwConfirm && window.FwConfirm.releaseAnwesenheitsliste
-          ? window.FwConfirm.releaseAnwesenheitsliste(releaseDefaults())
+          ? window.FwConfirm.releaseAnwesenheitsliste(releaseDefaults({
+            hasMaterialDamages: !!(prep && prep.hasMaterialDamages)
+          }))
           : Promise.resolve(window.confirm('Anwesenheitsliste wirklich freigeben?'));
         ask.then(function (result) {
           var ok = result === true || (result && result.ok);
           if (!ok) {
             return;
           }
-          var extras = {};
-          if (result && result.printReport) {
-            extras.printReport = true;
-          }
-          if (prep && prep.assignRemainingToWache) {
-            extras.assignRemainingToWache = true;
-          }
-          postAction('/berichte/anwesenheitslisten/' + meta.reportId + '/freigeben', returnPath, extras);
+          postAction(
+            '/berichte/anwesenheitslisten/' + meta.reportId + '/freigeben',
+            returnPath,
+            releaseExtrasFromResult(result, prep)
+          );
         });
       }
       if (window.BerichteAnwesenheitRelease) {

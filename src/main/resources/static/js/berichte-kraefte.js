@@ -8,6 +8,7 @@
   var activeCrewTab = 1;
   var selectedInvolvedChips = new Set();
   var vehicleMenuChips = null;
+  var multiSelectMode = false;
   var WACHE_VEHICLE_ID = -1;
 
   var ROLE_EF = 'EINHEITSFUEHRER';
@@ -21,7 +22,7 @@
     return !!document.querySelector('[data-berichte-form="anwesenheit"]');
   }
 
-  function bulkAssignEnabled() {
+  function bulkToolbarVisible() {
     return isAnwesenheitForm() && activeCrewTab === 2 && !isBoardReadonly();
   }
 
@@ -31,6 +32,17 @@
     });
     selectedInvolvedChips.clear();
     updateBulkToolbar();
+  }
+
+  function pruneBulkSelection() {
+    var alive = new Set();
+    selectedInvolvedChips.forEach(function (chip) {
+      if (chip && chip.isConnected && isInvolvedChip(chip) && !isMirrorChip(chip)) {
+        alive.add(chip);
+        chip.classList.add('incident-crew-chip--bulk-selected');
+      }
+    });
+    selectedInvolvedChips = alive;
   }
 
   function toggleBulkChipSelection(chip) {
@@ -47,49 +59,79 @@
     updateBulkToolbar();
   }
 
-  function selectAllInvolved() {
-    clearBulkSelection();
+  function involvedChips() {
     var zone = involvedDropzone();
     if (!zone) {
-      return;
+      return [];
     }
-    zone.querySelectorAll('.incident-crew-chip:not(.incident-crew-chip--involved-mirror)').forEach(function (chip) {
+    return Array.from(zone.querySelectorAll('.incident-crew-chip:not(.incident-crew-chip--involved-mirror)'));
+  }
+
+  function allInvolvedSelected() {
+    var chips = involvedChips();
+    return chips.length > 0 && chips.every(function (chip) {
+      return selectedInvolvedChips.has(chip);
+    });
+  }
+
+  function selectAllInvolved() {
+    clearBulkSelection();
+    involvedChips().forEach(function (chip) {
       selectedInvolvedChips.add(chip);
       chip.classList.add('incident-crew-chip--bulk-selected');
     });
     updateBulkToolbar();
   }
 
+  function setMultiSelectMode(active) {
+    multiSelectMode = !!active;
+    var btn = document.getElementById('btn-bulk-multi-select');
+    if (btn) {
+      btn.setAttribute('aria-pressed', multiSelectMode ? 'true' : 'false');
+      btn.classList.toggle('btn--primary', multiSelectMode);
+      btn.classList.toggle('btn--outline', !multiSelectMode);
+    }
+    if (!multiSelectMode) {
+      // keep selection so assign still works, but mode is off for click behavior
+    }
+    updateBulkToolbar();
+  }
+
   function updateBulkToolbar() {
+    pruneBulkSelection();
     var toolbar = document.getElementById('incident-bulk-assign-toolbar');
     if (!toolbar) {
       return;
     }
-    toolbar.hidden = !bulkAssignEnabled();
+    toolbar.hidden = !bulkToolbarVisible();
     var assignBtn = document.getElementById('btn-bulk-assign-vehicle');
     if (assignBtn) {
       assignBtn.disabled = selectedInvolvedChips.size === 0;
     }
+    var selectAllBtn = document.getElementById('btn-bulk-select-all-involved');
+    if (selectAllBtn) {
+      selectAllBtn.textContent = allInvolvedSelected() ? 'Auswahl aufheben' : 'Alle auswählen';
+    }
+  }
+
+  function syncUnitPersonButtonVisibility() {
+    var btn = document.getElementById('unit-person-open-btn');
+    if (!btn) {
+      return;
+    }
+    btn.hidden = activeReserveTab() !== 'divera';
   }
 
   function countUnassignedInvolved() {
-    var zone = involvedDropzone();
-    if (!zone) {
-      return 0;
-    }
-    return zone.querySelectorAll('.incident-crew-chip:not(.incident-crew-chip--involved-mirror)').length;
+    return involvedChips().length;
   }
 
   function assignRemainingToWache() {
-    var zone = involvedDropzone();
-    var wacheZone = document.querySelector('.incident-vehicle-dropzone[data-vehicle-id="' + WACHE_VEHICLE_ID + '"]');
-    if (!zone || !wacheZone) {
+    var chips = involvedChips();
+    if (chips.length === 0) {
       return 0;
     }
-    var chips = Array.from(zone.querySelectorAll('.incident-crew-chip:not(.incident-crew-chip--involved-mirror)'));
-    chips.forEach(function (chip) {
-      assignChipsToVehicle([chip], String(WACHE_VEHICLE_ID));
-    });
+    assignChipsToVehicle(chips, String(WACHE_VEHICLE_ID));
     return chips.length;
   }
 
@@ -747,6 +789,11 @@
     hideAllMenus();
     draggedChip = chip;
     chip.classList.add('incident-crew-chip--dragging');
+    if (selectedInvolvedChips.has(chip) && selectedInvolvedChips.size > 1) {
+      draggedChip._bulkDrag = true;
+    } else {
+      draggedChip._bulkDrag = false;
+    }
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', chip.dataset.personId || '');
   }
@@ -790,6 +837,13 @@
       return;
     }
     if (isReserveChip(draggedChip) && !isInvolvedZone(zone)) {
+      return;
+    }
+    var vehicleId = zone.dataset.vehicleId;
+    if (draggedChip._bulkDrag && selectedInvolvedChips.has(draggedChip) && selectedInvolvedChips.size > 1
+        && !isInvolvedZone(zone)) {
+      assignChipsToVehicle(Array.from(selectedInvolvedChips), vehicleId);
+      draggedChip = null;
       return;
     }
     var personId = draggedChip.dataset.personId;
@@ -869,6 +923,7 @@
       filterReservePool(searchEl.value);
     }
     updateActiveEmptyHint();
+    syncUnitPersonButtonVisibility();
   }
 
   function homePoolForChip(chip) {
@@ -961,11 +1016,18 @@
       }
       if (isInvolvedChip(chip) && activeCrewTab === 2) {
         e.stopPropagation();
-        if (bulkAssignEnabled()) {
+        if (multiSelectMode) {
           toggleBulkChipSelection(chip);
-        } else {
-          showVehicleAssignMenu(chip);
+          return;
         }
+        if (selectedInvolvedChips.size > 0 && selectedInvolvedChips.has(chip)) {
+          showVehicleAssignMenu(Array.from(selectedInvolvedChips));
+          return;
+        }
+        if (selectedInvolvedChips.size > 0) {
+          clearBulkSelection();
+        }
+        showVehicleAssignMenu(chip);
         return;
       }
       if (!chip.closest('.incident-vehicle-dropzone')) {
@@ -998,15 +1060,32 @@
       });
     }
 
+    var bulkMultiBtn = document.getElementById('btn-bulk-multi-select');
+    if (bulkMultiBtn) {
+      bulkMultiBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        setMultiSelectMode(!multiSelectMode);
+      });
+    }
     var bulkSelectAllBtn = document.getElementById('btn-bulk-select-all-involved');
     if (bulkSelectAllBtn) {
-      bulkSelectAllBtn.addEventListener('click', function () {
-        selectAllInvolved();
+      bulkSelectAllBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (allInvolvedSelected()) {
+          clearBulkSelection();
+        } else {
+          if (!multiSelectMode) {
+            setMultiSelectMode(true);
+          }
+          selectAllInvolved();
+        }
       });
     }
     var bulkAssignBtn = document.getElementById('btn-bulk-assign-vehicle');
     if (bulkAssignBtn) {
-      bulkAssignBtn.addEventListener('click', function () {
+      bulkAssignBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        e.preventDefault();
         if (selectedInvolvedChips.size === 0) {
           return;
         }
@@ -1016,6 +1095,9 @@
 
     document.addEventListener('click', function (e) {
       if (e.target.closest('#incident-crew-role-menu') || e.target.closest('#incident-vehicle-assign-menu')) {
+        return;
+      }
+      if (e.target.closest('#incident-bulk-assign-toolbar')) {
         return;
       }
       if (e.target.closest('.incident-vehicle-dropzone .incident-crew-chip') ||
@@ -1195,8 +1277,12 @@
       activeCrewTab = tabIdx;
       placeInvolvedCard(tabIdx);
       hideAllMenus();
-      clearBulkSelection();
+      if (tabIdx !== 2) {
+        setMultiSelectMode(false);
+        clearBulkSelection();
+      }
       refreshBoard();
+      syncUnitPersonButtonVisibility();
     },
     countUnassignedInvolved: countUnassignedInvolved,
     assignRemainingToWache: assignRemainingToWache

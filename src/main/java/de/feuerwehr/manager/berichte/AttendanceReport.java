@@ -84,6 +84,12 @@ public class AttendanceReport {
     @Column(name = "deployed_equipment_json", columnDefinition = "TEXT")
     private String deployedEquipmentJson;
 
+    @Column(name = "material_damage_entries_json", columnDefinition = "TEXT")
+    private String materialDamageEntriesJson;
+
+    @Column(name = "crew_injury_entries_json", columnDefinition = "TEXT")
+    private String crewInjuryEntriesJson;
+
     @Column(name = "instructor_responsible", length = 255)
     private String instructorResponsible;
 

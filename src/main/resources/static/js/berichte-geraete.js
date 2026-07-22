@@ -22,15 +22,24 @@
   }
 
   function involvedVehicleIds() {
+    var showAll = shouldShowAllVehicles();
     var ids = [];
     document.querySelectorAll('#incident-vehicle-stack .incident-vehicle-card').forEach(function (card) {
-      if (card.dataset.involvedInIncident === 'true') {
+      if (showAll || card.dataset.involvedInIncident === 'true') {
         ids.push(Number(card.dataset.vehicleId));
       }
     });
     return ids.filter(function (id) {
       return !isNaN(id) && id > 0;
     });
+  }
+
+  function shouldShowAllVehicles() {
+    var wrap = document.getElementById('incident-deployed-equipment');
+    if (wrap && wrap.dataset.showAllVehicles === 'true') {
+      return true;
+    }
+    return !!document.querySelector('[data-berichte-form="anwesenheit"]');
   }
 
   function ensureVehicleMaps(vehicleId) {
@@ -537,12 +546,21 @@
     if (vehicleIds.length === 0) {
       wrap.textContent = '';
       if (noVehicles) {
-        noVehicles.hidden = false;
+        noVehicles.hidden = shouldShowAllVehicles();
+        if (shouldShowAllVehicles()) {
+          wrap.innerHTML = '<p class="hint">Keine Fahrzeuge in dieser Einheit hinterlegt.</p>';
+        } else {
+          noVehicles.hidden = false;
+        }
       }
       return;
     }
     if (noVehicles) {
       noVehicles.hidden = true;
+    }
+    var anwesenheitHint = document.getElementById('deployed-equipment-anwesenheit-hint');
+    if (anwesenheitHint) {
+      anwesenheitHint.hidden = !shouldShowAllVehicles();
     }
     var cacheKey = currentCacheKey();
     if (equipmentCache[cacheKey]) {

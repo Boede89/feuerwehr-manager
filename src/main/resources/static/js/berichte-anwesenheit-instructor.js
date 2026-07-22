@@ -209,23 +209,38 @@
 
   function bind(scope) {
     var root = scope || document;
-    if (!root.querySelector('#anwesenheit-ausbilder-open-btn')) {
+    var openBtn = root.querySelector('#anwesenheit-ausbilder-open-btn');
+    if (!openBtn || openBtn.dataset.bound === 'true') {
       return;
     }
+    openBtn.dataset.bound = 'true';
     applyInitialSelection();
     bindSearch();
-    root.querySelector('#anwesenheit-ausbilder-open-btn')?.addEventListener('click', openModal);
-    root.querySelector('#anwesenheit-ausbilder-apply')?.addEventListener('click', function () {
+    openBtn.addEventListener('click', openModal);
+    root.querySelector('#anwesenheit-ausbilder-apply')?.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
       syncHiddenFields();
       closeModal(false);
     });
     root.querySelectorAll('[data-close-anwesenheit-ausbilder-modal]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
         closeModal(true);
       });
     });
     var overlay = root.querySelector('#modal-anwesenheit-ausbilder');
     if (overlay) {
+      var modalBox = overlay.querySelector('.modal');
+      if (modalBox) {
+        modalBox.addEventListener('click', function (e) {
+          e.stopPropagation();
+        });
+        modalBox.addEventListener('mousedown', function (e) {
+          e.stopPropagation();
+        });
+      }
       overlay.addEventListener('click', function (e) {
         if (e.target === overlay) {
           closeModal(true);

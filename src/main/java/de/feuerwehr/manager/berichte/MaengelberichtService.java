@@ -102,6 +102,47 @@ public class MaengelberichtService {
         return created;
     }
 
+    @Transactional
+    public List<DefectReport> createFromAttendanceReport(
+            long unitId, AttendanceReport attendance, AppUserDetails actor) {
+        if (attendance == null) {
+            return List.of();
+        }
+        List<MaterialDamageEntry> entries = MaterialDamageEntriesSupport.parse(
+                        attendance.getMaterialDamageEntriesJson())
+                .normalized()
+                .entries();
+        if (entries.isEmpty()) {
+            return List.of();
+        }
+        List<DefectReport> created = new ArrayList<>();
+        for (MaterialDamageEntry entry : entries) {
+            created.add(create(unitId, toMaengelFormFromAttendance(attendance, entry, actor), actor));
+        }
+        return created;
+    }
+
+    private MaengelberichtForm toMaengelFormFromAttendance(
+            AttendanceReport attendance, MaterialDamageEntry entry, AppUserDetails actor) {
+        MaengelberichtForm form = new MaengelberichtForm();
+        form.setStandort(MaengelberichtStandort.GH_AMERN.name());
+        form.setMangelAn(MaengelberichtMangelAn.fromKey(entry.mangelAn()).name());
+        form.setBezeichnung(entry.bezeichnung());
+        if (entry.vehicleId() != null && entry.vehicleId() > 0) {
+            form.setVehicleId(entry.vehicleId());
+        }
+        form.setMangelBeschreibung(entry.mangelBeschreibung());
+        form.setUrsache(entry.ursache());
+        form.setVerbleib(entry.verbleib());
+        form.setAufgenommenAm(attendance.getEventDate() != null ? attendance.getEventDate() : LocalDate.now());
+        if (attendance.getInstructorResponsible() != null && !attendance.getInstructorResponsible().isBlank()) {
+            form.setRecordedByName(attendance.getInstructorResponsible().trim());
+        } else if (actor != null && actor.getDisplayName() != null && !actor.getDisplayName().isBlank()) {
+            form.setRecordedByName(actor.getDisplayName().trim());
+        }
+        return form;
+    }
+
     private MaengelberichtForm toMaengelFormFromIncident(
             IncidentReport incident, MaterialDamageEntry entry, AppUserDetails actor) {
         MaengelberichtForm form = new MaengelberichtForm();

@@ -22,22 +22,27 @@
 
   function fetchUnassignedCount(reportId, unitId) {
     if (!reportId || !unitId) {
-      return Promise.resolve({ unassignedCount: countUnassignedFromBoard() });
+      return Promise.resolve({
+        unassignedCount: countUnassignedFromBoard(),
+        hasMaterialDamages: false
+      });
     }
     var boardCount = countUnassignedFromBoard();
-    if (boardCount > 0) {
-      return Promise.resolve({ unassignedCount: boardCount });
-    }
     return fetch(apiBase() + '/' + encodeURIComponent(reportId) + '/freigabe-check?unit='
       + encodeURIComponent(unitId), { credentials: 'same-origin' })
       .then(function (res) {
         if (!res.ok) {
-          return { unassignedCount: 0 };
+          return { unassignedCount: boardCount, hasMaterialDamages: false };
         }
-        return res.json();
+        return res.json().then(function (data) {
+          return {
+            unassignedCount: boardCount > 0 ? boardCount : (Number(data.unassignedCount) || 0),
+            hasMaterialDamages: !!data.hasMaterialDamages
+          };
+        });
       })
       .catch(function () {
-        return { unassignedCount: 0 };
+        return { unassignedCount: boardCount, hasMaterialDamages: false };
       });
   }
 
@@ -53,14 +58,19 @@
   function prepareRelease(reportId, unitId) {
     return fetchUnassignedCount(reportId, unitId).then(function (data) {
       var count = Number(data && data.unassignedCount) || 0;
+      var hasMaterialDamages = !!(data && data.hasMaterialDamages);
+      var base = { assignRemainingToWache: false, hasMaterialDamages: hasMaterialDamages };
       if (count <= 0) {
-        return { assignRemainingToWache: false };
+        return base;
       }
       return promptWacheAssignment(count).then(function (yes) {
         if (yes && window.BerichteKraefte && window.BerichteKraefte.assignRemainingToWache) {
           window.BerichteKraefte.assignRemainingToWache();
         }
-        return { assignRemainingToWache: yes === true };
+        return {
+          assignRemainingToWache: yes === true,
+          hasMaterialDamages: hasMaterialDamages
+        };
       });
     });
   }

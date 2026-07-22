@@ -5339,6 +5339,32 @@ span.required { color: var(--error); }
   background: color-mix(in srgb, var(--accent) 12%, var(--bg-card));
 }
 
+.einsatzbericht-form-page #btn-bulk-multi-select[aria-pressed="true"] {
+  font-weight: 600;
+}
+
+.einsatzbericht-form-page .incident-crew-injury-section {
+  margin-top: 24px;
+}
+
+.einsatzbericht-form-page .crew-injury-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.einsatzbericht-form-page .crew-injury-entry {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card-hover);
+}
+
+.einsatzbericht-form-page .crew-injury-entry__title {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
 .einsatzbericht-form-page .incident-bericht-equipment {
   margin-bottom: 20px;
 }

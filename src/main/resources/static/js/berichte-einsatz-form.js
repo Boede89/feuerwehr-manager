@@ -207,8 +207,11 @@
         if (idx === 3 && window.BerichteGeraete) {
           window.BerichteGeraete.onTabShow();
         }
-        if (!anwesenheit && idx === 4 && window.BerichteSchaeden) {
+        if (idx === 4 && window.BerichteSchaeden) {
           window.BerichteSchaeden.init(scope);
+        }
+        if (anwesenheit && idx === 4 && window.BerichteAnwesenheitCrewInjury) {
+          window.BerichteAnwesenheitCrewInjury.init(scope);
         }
         var attachmentsTab = anwesenheit ? 5 : 6;
         if (idx === attachmentsTab && window.BerichteAnhaenge) {
@@ -217,8 +220,11 @@
       });
     });
 
-    if (!anwesenheit && window.BerichteSchaeden) {
+    if (window.BerichteSchaeden) {
       window.BerichteSchaeden.init(scope);
+    }
+    if (anwesenheit && window.BerichteAnwesenheitCrewInjury) {
+      window.BerichteAnwesenheitCrewInjury.init(scope);
     }
 
     if (!anwesenheit) {

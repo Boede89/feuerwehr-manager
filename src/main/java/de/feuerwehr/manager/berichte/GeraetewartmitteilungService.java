@@ -36,6 +36,7 @@ public class GeraetewartmitteilungService {
     private final PersonalService personalService;
     private final TestModeService testModeService;
     private final EinsatzberichtService einsatzberichtService;
+    private final AnwesenheitslisteService anwesenheitslisteService;
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -126,6 +127,79 @@ public class GeraetewartmitteilungService {
         IncidentReport incident = einsatzberichtService.requireReport(unitId, incidentReportId);
         GeraetewartmitteilungForm form = buildFormFromIncidentReport(unitId, incidentReportId, incident);
         return create(unitId, form, actor);
+    }
+
+    @Transactional
+    public EquipmentMaintenanceReport createFromAttendanceReport(
+            long unitId, long attendanceReportId, AppUserDetails actor) {
+        AttendanceReport attendance = anwesenheitslisteService.requireReport(unitId, attendanceReportId);
+        GeraetewartmitteilungForm form = buildFormFromAttendanceReport(unitId, attendanceReportId, attendance);
+        return create(unitId, form, actor);
+    }
+
+    @Transactional(readOnly = true)
+    public GeraetewartmitteilungForm buildFormFromAttendanceReport(
+            long unitId, long attendanceReportId, AttendanceReport attendance) {
+        KraefteFahrzeugeState state =
+                anwesenheitslisteService.buildKraefteFahrzeugeState(unitId, attendanceReportId);
+        Map<Long, List<Long>> equipmentByVehicleId =
+                loadEquipmentByVehicleIdFromJson(attendance.getDeployedEquipmentJson());
+        Map<Long, KraefteFahrzeugeState.KraefteVehicleView> vehicleViewById = new LinkedHashMap<>();
+        for (KraefteFahrzeugeState.KraefteVehicleView vehicle : state.vehicles()) {
+            vehicleViewById.put(vehicle.vehicleId(), vehicle);
+        }
+
+        Set<Long> vehicleIds = new LinkedHashSet<>();
+        for (KraefteFahrzeugeState.KraefteVehicleView vehicle : state.involvedVehicles()) {
+            vehicleIds.add(vehicle.vehicleId());
+        }
+        vehicleIds.addAll(equipmentByVehicleId.keySet());
+        if (vehicleIds.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Keine Fahrzeuge/Geräte in der Anwesenheitsliste – Gerätewartmitteilung kann nicht erstellt werden.");
+        }
+
+        List<GwmVehicleData> gwmVehicles = new ArrayList<>();
+        for (Long vehicleId : vehicleIds) {
+            KraefteFahrzeugeState.KraefteVehicleView view = vehicleViewById.get(vehicleId);
+            List<Long> equipmentIds = equipmentByVehicleId.getOrDefault(vehicleId, List.of());
+            gwmVehicles.add(new GwmVehicleData(
+                    vehicleId,
+                    view != null ? resolvePersonRef(view.maschinistPersonId()) : null,
+                    view != null ? resolvePersonRef(view.einheitsfuehrerPersonId()) : null,
+                    equipmentIds,
+                    List.of(),
+                    Map.of(),
+                    null,
+                    null));
+        }
+
+        GeraetewartmitteilungForm form = new GeraetewartmitteilungForm();
+        form.setTyp(GeraetewartTyp.UEBUNG.name());
+        form.setEventArt(GeraetewartEventArt.SONSTIGES.name());
+        form.setEventDate(attendance.getEventDate() != null ? attendance.getEventDate() : LocalDate.now());
+        form.setReadiness(GeraetewartReadiness.HERGESTELLT.name());
+        if (attendance.getInstructorResponsible() != null && !attendance.getInstructorResponsible().isBlank()) {
+            form.setLeaderName(attendance.getInstructorResponsible().trim());
+        }
+        form.setVehiclesDataJson(GwmVehicleDataSupport.serialize(gwmVehicles, objectMapper));
+        form.setDeployedEquipmentJson(GwmVehicleDataSupport.toDeployedEquipmentJson(gwmVehicles, objectMapper));
+        return form;
+    }
+
+    private Map<Long, List<Long>> loadEquipmentByVehicleIdFromJson(String deployedEquipmentJson) {
+        Map<Long, List<Long>> result = new LinkedHashMap<>();
+        for (DeployedEquipmentAssignment assignment :
+                einsatzberichtService.parseDeployedEquipment(deployedEquipmentJson)) {
+            if (assignment.vehicleId() <= 0) {
+                continue;
+            }
+            List<Long> ids = assignment.equipmentIds() != null ? assignment.equipmentIds() : List.of();
+            if (!ids.isEmpty()) {
+                result.put(assignment.vehicleId(), ids);
+            }
+        }
+        return result;
     }
 
     @Transactional(readOnly = true)
