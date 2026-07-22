@@ -5,8 +5,10 @@ import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -101,12 +103,54 @@ public class PersonalGroupService {
             Person person = personRepository
                     .findActiveById(personId, testData)
                     .orElseThrow(() -> new IllegalArgumentException("Person nicht gefunden: " + personId));
-            if (person.getUnit().getId() != unitId) {
-                throw new IllegalArgumentException("Person gehört nicht zu dieser Einheit.");
-            }
             members.add(person);
         }
         return members;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> listOtherUnits(long unitId) {
+        requireUnit(unitId);
+        List<Map<String, Object>> units = new ArrayList<>();
+        for (Unit unit : unitRepository.findActiveVisible(testModeService.isEnabled())) {
+            if (unit.getId() == unitId) {
+                continue;
+            }
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", unit.getId());
+            item.put("name", unit.getName());
+            units.add(item);
+        }
+        return units;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> listOtherUnitPersonnel(long ownUnitId, long sourceUnitId, String query) {
+        requireUnit(ownUnitId);
+        Unit sourceUnit = unitRepository
+                .findVisibleById(sourceUnitId, testModeService.isEnabled())
+                .orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden."));
+        if (sourceUnit.getId() == ownUnitId) {
+            throw new IllegalArgumentException("Bitte eine andere Einheit wählen.");
+        }
+        boolean testData = testModeService.isEnabled();
+        String normalized = query != null ? query.trim() : "";
+        List<Person> persons;
+        if (normalized.length() < 2) {
+            persons = personRepository.findActiveByUnitIdWithUnit(sourceUnitId, testData);
+        } else {
+            persons = personRepository.searchActiveByUnitId(sourceUnitId, normalized, testData);
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Person person : persons) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", person.getId());
+            item.put("displayName", person.displayName());
+            item.put("unitId", sourceUnitId);
+            item.put("unitName", sourceUnit.getName());
+            result.add(item);
+        }
+        return result;
     }
 
     private static void validateName(String name) {

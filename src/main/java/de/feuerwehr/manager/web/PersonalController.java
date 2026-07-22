@@ -14,7 +14,8 @@ import de.feuerwehr.manager.personal.PersonalMemberService;
 import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.personal.PersonGroup;
 import de.feuerwehr.manager.personal.PersonalService.CourseCompletionInput;
-import de.feuerwehr.manager.mail.AccountMailService;
+import de.feuerwehr.manager.berichte.AnwesenheitslisteService;
+import de.feuerwehr.manager.termine.TermineCategory;
 import de.feuerwehr.manager.personal.PersonalService.PersonCreateResult;
 import de.feuerwehr.manager.personal.PersonalService.PersonDetailView;
 import de.feuerwehr.manager.personal.PersonalService.StammdatenUpdateResult;
@@ -28,6 +29,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -46,6 +48,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
@@ -58,6 +61,7 @@ public class PersonalController {
     private final PersonalMemberService personalMemberService;
     private final PersonalGroupService personalGroupService;
     private final PersonalInstructorGroupService personalInstructorGroupService;
+    private final AnwesenheitslisteService anwesenheitslisteService;
     private final AccessControlService accessControlService;
     private final AccountMailService accountMailService;
 
@@ -82,8 +86,36 @@ public class PersonalController {
             List<InstructorGroup> instructorGroups = personalInstructorGroupService.listGroups(unit.getId());
             model.addAttribute("instructorGroups", instructorGroups);
             model.addAttribute("instructorGroupCount", instructorGroups.size());
+            model.addAttribute("knownInstructorThemen", listKnownInstructorThemen(unit.getId()));
         }
         return "personal/index";
+    }
+
+    private List<String> listKnownInstructorThemen(long unitId) {
+        LinkedHashSet<String> themes = new LinkedHashSet<>();
+        anwesenheitslisteService.listKnownStichworte(unitId, TermineCategory.DIENSTPLAN).forEach(themes::add);
+        anwesenheitslisteService.listKnownStichworte(unitId, TermineCategory.SONSTIGES).forEach(themes::add);
+        personalInstructorGroupService.listThemen(unitId).forEach(themes::add);
+        return themes.stream().sorted(String.CASE_INSENSITIVE_ORDER).toList();
+    }
+
+    @GetMapping("/foreign-units")
+    @ResponseBody
+    public List<Map<String, Object>> foreignUnits(
+            @AuthenticationPrincipal AppUserDetails actor, @RequestParam(name = "unit") long unitId) {
+        accessControlService.requireUnitAccess(actor, unitId);
+        return personalGroupService.listOtherUnits(unitId);
+    }
+
+    @GetMapping("/foreign-personnel")
+    @ResponseBody
+    public List<Map<String, Object>> foreignPersonnel(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @RequestParam(name = "sourceUnit") long sourceUnitId,
+            @RequestParam(name = "q", required = false) String query) {
+        accessControlService.requireUnitAccess(actor, unitId);
+        return personalGroupService.listOtherUnitPersonnel(unitId, sourceUnitId, query);
     }
 
     @PostMapping("/groups")

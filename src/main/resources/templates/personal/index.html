@@ -89,7 +89,8 @@
           <tr th:each="g : ${groups}" class="group-row"
               th:attr="data-id=${g.id},
                        data-name=${g.name},
-                       data-member-ids=${g.memberIdsCsv()}">
+                       data-member-ids=${g.memberIdsCsv()},
+                       data-foreign-members=${g.foreignMembersJson()}">
             <td><strong th:text="${g.name}">Gruppe</strong></td>
             <td class="text-muted text-sm"
                 th:text="${#lists.isEmpty(g.members)} ? '—' : ${g.memberNamesLabel()}">Mitglieder</td>
@@ -132,15 +133,21 @@
             <div class="form-group">
               <label>Mitglieder</label>
               <p class="hint" style="margin:0 0 0.5rem;">Eine Person kann mehreren Gruppen angehören.</p>
-              <div class="member-picker" th:if="${!#lists.isEmpty(persons)}">
+              <div class="member-picker-toolbar">
+                <button type="button" class="btn btn--outline btn--sm" id="btn-group-add-foreign">
+                  Aus anderer Einheit …
+                </button>
+              </div>
+              <div class="member-picker" id="group-member-picker"
+                   th:attr="data-unit-id=${unitId}">
                 <label class="checkbox-row member-picker__item" th:each="p : ${persons}">
                   <input type="checkbox" name="personIds" th:value="${p.id}"
                          th:attr="data-person-id=${p.id}"/>
                   <span th:text="${p.displayName()}">Name</span>
                 </label>
               </div>
-              <p class="hint" th:if="${#lists.isEmpty(persons)}" style="margin:0;">
-                Noch keine Mitglieder vorhanden — legen Sie zuerst Personen an.
+              <p class="hint" th:if="${#lists.isEmpty(persons)}" id="group-member-empty" style="margin:0.5rem 0 0;">
+                Noch keine Mitglieder vorhanden — legen Sie zuerst Personen an oder fügen Sie Personen aus einer anderen Einheit hinzu.
               </p>
             </div>
           </div>
@@ -149,6 +156,34 @@
             <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <div id="modal-group-foreign-person" class="modal-overlay modal-overlay--stack">
+      <div class="modal" role="dialog" aria-labelledby="modal-group-foreign-title">
+        <div class="modal__header">
+          <h3 id="modal-group-foreign-title">Person aus anderer Einheit</h3>
+          <button type="button" class="modal__close" data-close-group-foreign aria-label="Schließen">✕</button>
+        </div>
+        <div class="modal__body">
+          <div class="form-group">
+            <label for="group-foreign-unit-select">Einheit</label>
+            <select id="group-foreign-unit-select" class="field">
+              <option value="">Bitte Einheit wählen …</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="group-foreign-person-search">Suchen</label>
+            <input type="search" id="group-foreign-person-search" class="field" placeholder="Name …"
+                   autocomplete="off" disabled/>
+          </div>
+          <div id="group-foreign-person-results" class="foreign-person-results">
+            <p class="hint">Bitte zuerst eine Einheit wählen.</p>
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button type="button" class="btn btn--outline" data-close-group-foreign>Schließen</button>
+        </div>
       </div>
     </div>
 
@@ -212,8 +247,15 @@
           <div class="modal__body">
             <div class="form-group">
               <label for="instructor-group-thema">Thema <span class="required">*</span></label>
-              <input type="text" id="instructor-group-thema" name="thema" required maxlength="150"
-                     placeholder="z. B. Atemschutz, Technische Hilfeleistung"/>
+              <div class="combo-suggest" data-combo-suggest data-combo-min="1">
+                <input type="text" id="instructor-group-thema" name="thema" required maxlength="150"
+                       class="combo-suggest__input" autocomplete="off"
+                       placeholder="Thema eingeben oder auswählen …"/>
+                <ul class="combo-suggest__list" role="listbox" hidden>
+                  <li class="combo-suggest__option" th:each="t : ${knownInstructorThemen}"
+                      th:attr="data-value=${t}" th:text="${t}">Thema</li>
+                </ul>
+              </div>
               <p class="hint text-sm">Wird beim Anlegen eines Dienstplan-Termins mit diesem Thema für die Ausbilder-Vorauswahl genutzt.</p>
             </div>
             <div class="form-group">
@@ -239,6 +281,7 @@
       </div>
     </div>
 
+    <script th:src="@{/js/combo-suggest.js}"></script>
     <script th:src="@{/js/personal-ausbilder-groups.js}"></script>
   </div>
 </main>

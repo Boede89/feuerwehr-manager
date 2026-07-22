@@ -67,6 +67,52 @@ public class PersonGroup {
         if (members == null || members.isEmpty()) {
             return "";
         }
-        return members.stream().map(Person::displayName).collect(Collectors.joining(", "));
+        Long ownUnitId = unit != null ? unit.getId() : null;
+        return members.stream()
+                .map(person -> {
+                    String name = person.displayName();
+                    if (ownUnitId != null
+                            && person.getUnit() != null
+                            && !ownUnitId.equals(person.getUnit().getId())) {
+                        return name + " (" + person.getUnit().getName() + ")";
+                    }
+                    return name;
+                })
+                .collect(Collectors.joining(", "));
+    }
+
+    /** JSON für JS: Mitglieder anderer Einheiten [{id,name,unitName}, …]. */
+    public String foreignMembersJson() {
+        if (members == null || members.isEmpty() || unit == null) {
+            return "[]";
+        }
+        Long ownUnitId = unit.getId();
+        StringBuilder json = new StringBuilder("[");
+        boolean first = true;
+        for (Person person : members) {
+            if (person.getUnit() == null || ownUnitId.equals(person.getUnit().getId())) {
+                continue;
+            }
+            if (!first) {
+                json.append(',');
+            }
+            first = false;
+            json.append("{\"id\":")
+                    .append(person.getId())
+                    .append(",\"name\":\"")
+                    .append(escapeJson(person.displayName()))
+                    .append("\",\"unitName\":\"")
+                    .append(escapeJson(person.getUnit().getName()))
+                    .append("\"}");
+        }
+        json.append(']');
+        return json.toString();
+    }
+
+    private static String escapeJson(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }

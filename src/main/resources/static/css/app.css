@@ -2992,6 +2992,12 @@ span.required { color: var(--error); }
   padding: 0.5rem 0.75rem;
   background: var(--bg-card-hover);
 }
+.member-picker-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 0.5rem;
+}
 .member-picker__item { display: flex; padding: 0.35rem 0; margin: 0; }
 .attendance-toolbar__controls {
   display: flex;

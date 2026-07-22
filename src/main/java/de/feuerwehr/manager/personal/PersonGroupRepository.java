@@ -11,7 +11,8 @@ public interface PersonGroupRepository extends JpaRepository<PersonGroup, Long> 
 
     @Query("""
             SELECT DISTINCT g FROM PersonGroup g
-            LEFT JOIN FETCH g.members
+            LEFT JOIN FETCH g.members m
+            LEFT JOIN FETCH m.unit
             WHERE g.unit.id = :unitId AND g.testData = :testData
             ORDER BY g.name
             """)
@@ -20,7 +21,8 @@ public interface PersonGroupRepository extends JpaRepository<PersonGroup, Long> 
     @Query("""
             SELECT g FROM PersonGroup g
             LEFT JOIN FETCH g.unit
-            LEFT JOIN FETCH g.members
+            LEFT JOIN FETCH g.members m
+            LEFT JOIN FETCH m.unit
             WHERE g.id = :id AND g.testData = :testData
             """)
     Optional<PersonGroup> findByIdWithMembers(@Param("id") long id, @Param("testData") boolean testData);
