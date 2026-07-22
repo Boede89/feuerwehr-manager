@@ -150,7 +150,12 @@
           Die Person wird anonymisiert. Ein verknüpftes Benutzerkonto wird ebenfalls gelöscht.
           Protokolleinträge bleiben ohne Namenszuordnung erhalten.
         </p>
-        <form method="post" th:action="@{/personal/{id}/delete(id=${person.id})}" data-confirm="Person wirklich löschen? Dieser Vorgang kann nicht rückgängig gemacht werden.">
+        <form method="post" th:action="@{/personal/{id}/delete(id=${person.id})}"
+              data-confirm
+              data-confirm-title="Person löschen?"
+              data-confirm-message="Die Person wird anonymisiert. Ein verknüpftes Benutzerkonto wird ebenfalls gelöscht. Protokolleinträge bleiben ohne Namenszuordnung. Dieser Vorgang kann nicht rückgängig gemacht werden."
+              data-confirm-label="Löschen"
+              data-confirm-variant="danger">
           <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
           <input type="hidden" name="unit" th:value="${unitId}"/>
           <button type="submit" class="btn btn--danger">Person löschen</button>

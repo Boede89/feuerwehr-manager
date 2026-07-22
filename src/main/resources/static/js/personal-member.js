@@ -169,12 +169,7 @@
     });
   });
 
-  document.querySelectorAll('form[data-confirm]').forEach(function (form) {
-    form.addEventListener('submit', function (e) {
-      var msg = form.getAttribute('data-confirm');
-      if (msg && !window.confirm(msg)) e.preventDefault();
-    });
-  });
+  // Bestätigung für form[data-confirm] übernimmt confirm-dialog.js (schönes Modal).
 
   var loginForm = document.getElementById('form-login-access');
   if (loginForm) {
