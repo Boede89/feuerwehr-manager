@@ -34,6 +34,14 @@
     });
   }
 
+  function shouldShowAllVehicles() {
+    var wrap = document.getElementById('incident-deployed-equipment');
+    if (wrap && wrap.dataset.showAllVehicles === 'true') {
+      return true;
+    }
+    return !!document.querySelector('[data-berichte-form="anwesenheit"]');
+  }
+
   function isVehicleInvolvedInEinsatz(vehicleId) {
     var id = String(vehicleId);
     var card = document.querySelector(
