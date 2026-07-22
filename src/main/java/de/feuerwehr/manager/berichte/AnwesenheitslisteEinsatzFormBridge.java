@@ -1,5 +1,7 @@
 package de.feuerwehr.manager.berichte;
 
+import de.feuerwehr.manager.termine.TermineCategory;
+
 /** Mappt Anwesenheitslisten-Stammdaten auf das Einsatzbericht-Formular (gleiche UI). */
 public final class AnwesenheitslisteEinsatzFormBridge {
 
@@ -33,6 +35,8 @@ public final class AnwesenheitslisteEinsatzFormBridge {
                         : CrewInjuryEntriesSupport.emptyJson());
         form.setIncidentCommander(report.getInstructorResponsible());
         form.setInstructorPersonIdsJson(report.getInstructorPersonIdsJson());
+        form.setTerminCategoryKey(
+                report.getTerminCategory() != null ? report.getTerminCategory().key() : null);
         form.setEinsatzkurzbericht(report.getNotes());
         form.setPersonDamageDetailsJson(PersonDamageDetailsSupport.emptyJson());
         form.setDamagePerpetratorJson(DamagePerpetratorSupport.emptyJson());
@@ -68,6 +72,18 @@ public final class AnwesenheitslisteEinsatzFormBridge {
         if (form.getIncidentNumber() != null && !form.getIncidentNumber().isBlank()) {
             report.setReportNumber(form.getIncidentNumber().trim());
         }
+        report.setTerminCategory(resolveTerminCategory(form.getTerminCategoryKey()));
+    }
+
+    private static TermineCategory resolveTerminCategory(String key) {
+        if (key == null || key.isBlank()) {
+            return null;
+        }
+        TermineCategory category = TermineCategory.fromKey(key);
+        if (category == TermineCategory.DIENSTPLAN || category == TermineCategory.SONSTIGES) {
+            return category;
+        }
+        return null;
     }
 
     private static String trimOrNull(String value) {

@@ -30,6 +30,22 @@
         <input id="endTime" name="endTime" type="time" th:readonly="${formMode == 'view'}"
                th:value="${form.endTime != null ? #temporals.format(form.endTime, 'HH:mm') : ''}"/>
       </div>
+      <div class="form-group">
+        <label for="terminCategoryKey">Bereich <span class="required">*</span></label>
+        <select id="terminCategoryKey" name="terminCategoryKey" class="field" required
+                th:disabled="${formMode == 'view'}">
+          <option value="dienstplan"
+                  th:selected="${form.terminCategoryKey == null or form.terminCategoryKey == 'dienstplan'}">
+            Dienstplan
+          </option>
+          <option value="sonstiges"
+                  th:selected="${form.terminCategoryKey == 'sonstiges'}">
+            Sonstiges
+          </option>
+        </select>
+        <input th:if="${formMode == 'view'}" type="hidden" name="terminCategoryKey"
+               th:value="${form.terminCategoryKey != null ? form.terminCategoryKey : 'dienstplan'}"/>
+      </div>
       <div class="form-group form-group--full">
         <label for="stichwort">Thema/Bezeichnung <span class="required">*</span></label>
         <div class="combo-suggest" data-combo-suggest data-combo-min="1">

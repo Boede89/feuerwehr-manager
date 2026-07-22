@@ -47,6 +47,8 @@ public class EinsatzberichtForm {
     private int violenceCount;
     private String incidentCommander;
     private String instructorPersonIdsJson;
+    /** Anwesenheitsliste: dienstplan | sonstiges */
+    private String terminCategoryKey;
     private String reporterName;
     private String reporterPhone;
     private String crewAssignmentsJson;

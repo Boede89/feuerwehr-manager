@@ -108,6 +108,7 @@ public class AnwesenheitslisteService {
         EinsatzberichtForm form = einsatzberichtService.newForm(unitId);
         form.setIncidentNumber(suggestReportNumber(unitId, form.getIncidentDate()));
         form.setStichwort("");
+        form.setTerminCategoryKey(TermineCategory.DIENSTPLAN.key());
         return form;
     }
 
@@ -672,6 +673,13 @@ public class AnwesenheitslisteService {
         }
         if (form.getLocation() == null || form.getLocation().isBlank()) {
             throw new IllegalArgumentException("Bitte einen Ort angeben.");
+        }
+        if (form.getTerminCategoryKey() == null || form.getTerminCategoryKey().isBlank()) {
+            throw new IllegalArgumentException("Bitte einen Bereich (Dienstplan oder Sonstiges) wählen.");
+        }
+        TermineCategory category = TermineCategory.fromKey(form.getTerminCategoryKey());
+        if (category != TermineCategory.DIENSTPLAN && category != TermineCategory.SONSTIGES) {
+            throw new IllegalArgumentException("Bitte einen gültigen Bereich wählen.");
         }
     }
 
