@@ -988,7 +988,7 @@ input:focus, select:focus, textarea:focus {
 
 .checkin-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(180px, 220px);
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
   gap: 18px;
   flex: 1;
 }
@@ -1010,13 +1010,22 @@ input:focus, select:focus, textarea:focus {
 }
 
 .checkin-panel--checked {
-  max-width: 220px;
+  max-width: 300px;
 }
 
 @media (max-width: 900px) {
   .checkin-panel--checked {
     max-width: none;
   }
+}
+
+.checkin-search {
+  padding: 12px 14px 0;
+}
+
+.checkin-search .field {
+  width: 100%;
+  margin: 0;
 }
 
 .checkin-panel__head {
@@ -1095,9 +1104,8 @@ input:focus, select:focus, textarea:focus {
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--rot) 12%, var(--bg-card));
   color: inherit;
-  padding: 10px 12px;
+  padding: 12px 14px;
   font: inherit;
-  font-size: 0.95rem;
   font-weight: 600;
   text-align: left;
   cursor: pointer;

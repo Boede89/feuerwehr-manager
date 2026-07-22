@@ -53,6 +53,40 @@
       .replace(/"/g, '&quot;');
   }
 
+  function normalizeSearch(value) {
+    return String(value || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim();
+  }
+
+  function applyPersonSearch() {
+    var searchInput = document.getElementById('checkin-person-search');
+    var query = normalizeSearch(searchInput ? searchInput.value : '');
+    var availableList = document.getElementById('checkin-available-list');
+    if (!availableList) {
+      return;
+    }
+    var tiles = availableList.querySelectorAll('.checkin-tile');
+    var visible = 0;
+    tiles.forEach(function (tile) {
+      var match = !query || normalizeSearch(tile.textContent).indexOf(query) >= 0;
+      tile.hidden = !match;
+      if (match) {
+        visible += 1;
+      }
+    });
+    var emptyAll = document.getElementById('checkin-available-empty');
+    var emptySearch = document.getElementById('checkin-search-empty');
+    if (emptyAll) {
+      emptyAll.hidden = tiles.length > 0;
+    }
+    if (emptySearch) {
+      emptySearch.hidden = !(tiles.length > 0 && visible === 0);
+    }
+  }
+
   function render(page) {
     var themeEl = document.getElementById('checkin-theme-value');
     if (themeEl) {
@@ -77,12 +111,15 @@
     var availableList = document.getElementById('checkin-available-list');
     if (availableList) {
       if (available.length === 0) {
-        availableList.innerHTML = '<p class="hint checkin-empty" id="checkin-available-empty">Alle Personen sind eingecheckt.</p>';
+        availableList.innerHTML =
+          '<p class="hint checkin-empty" id="checkin-available-empty">Alle Personen sind eingecheckt.</p>' +
+          '<p class="hint checkin-empty" id="checkin-search-empty" hidden>Keine Person gefunden.</p>';
       } else {
         availableList.innerHTML = available.map(function (p) {
           return '<button type="button" class="checkin-tile" data-person-id="' + esc(p.id) + '">' +
             esc(p.displayName) + '</button>';
-        }).join('');
+        }).join('') +
+          '<p class="hint checkin-empty" id="checkin-search-empty" hidden>Keine Person gefunden.</p>';
       }
     }
 
@@ -97,6 +134,8 @@
         }).join('');
       }
     }
+
+    applyPersonSearch();
   }
 
   function basePath() {
@@ -207,6 +246,8 @@
       saveTheme();
     }
   });
+
+  document.getElementById('checkin-person-search')?.addEventListener('input', applyPersonSearch);
 
   tickClock();
   window.setInterval(tickClock, 1000);
