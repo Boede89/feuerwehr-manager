@@ -676,6 +676,19 @@ public class AnwesenheitslisteService {
         return persons;
     }
 
+    /** Für Check-In und verwandte Funktionen. */
+    @Transactional(readOnly = true)
+    public Set<Person> resolveAudiencePersonsPublic(long unitId, UnitTermin termin) {
+        touchTerminAudience(termin);
+        return resolveAudiencePersons(unitId, termin);
+    }
+
+    @Transactional
+    public void saveCrewAsPersonnelPublic(
+            AttendanceReport report, List<CrewAssignment> crewAssignments, long unitId) {
+        saveCrewAsPersonnel(report, crewAssignments, unitId);
+    }
+
     private void touchTerminAudience(UnitTermin termin) {
         if (!termin.isAudienceAll()) {
             termin.getAssignedPersons().size();

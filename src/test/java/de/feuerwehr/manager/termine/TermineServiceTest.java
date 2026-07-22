@@ -149,8 +149,10 @@ class TermineServiceTest {
         List<DashboardTerminWidgetView> result = termineService.listUpcomingDashboardTermine(1L, 7L, 5);
 
         assertThat(result).hasSize(1);
+        assertThat(result.get(0).terminId()).isEqualTo(2L);
         assertThat(result.get(0).title()).isEqualTo("Zukunft");
         assertThat(result.get(0).categoryLabel()).isEqualTo("Sonstiges");
         assertThat(result.get(0).time()).isEqualTo("18:30");
+        assertThat(result.get(0).today()).isFalse();
     }
 }

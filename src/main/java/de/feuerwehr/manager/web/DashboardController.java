@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.web;
 
+import de.feuerwehr.manager.berichte.AttendanceCheckInService;
 import de.feuerwehr.manager.berichte.UnitAddressSupport;
 import de.feuerwehr.manager.divera.DiveraAlarmsResponse;
 import de.feuerwehr.manager.divera.DiveraService;
@@ -39,6 +40,7 @@ public class DashboardController {
     private final TermineService termineService;
     private final PersonRepository personRepository;
     private final TestModeService testModeService;
+    private final AttendanceCheckInService attendanceCheckInService;
 
     @GetMapping("/")
     public String dashboard(
@@ -95,6 +97,17 @@ public class DashboardController {
                 .map(person -> termineService.listUpcomingDashboardTermine(
                         unitId, person.getId(), DASHBOARD_TERMINE_LIMIT))
                 .orElse(List.of());
+        boolean canWriteBerichte = moduleSettingsService.isEnabled(AppModule.BERICHTE, unitId)
+                && userPermissionService.hasPermission(currentUser, unitId, "berichte.write");
+        model.addAttribute("canCheckInBerichte", canWriteBerichte);
+        if (canWriteBerichte && !dashboardTermine.isEmpty()) {
+            dashboardTermine = attendanceCheckInService.enrichDashboardTermineForCheckIn(
+                    unitId, dashboardTermine, true);
+        } else {
+            dashboardTermine = dashboardTermine.stream()
+                    .map(t -> t.withCheckIn(false, null))
+                    .toList();
+        }
         model.addAttribute("dashboardTermine", dashboardTermine);
     }
 }

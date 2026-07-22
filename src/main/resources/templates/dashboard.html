@@ -119,6 +119,11 @@
               <div class="termine-row__meta">
                 <span th:text="${termin.time() + ' Uhr'}">19:00 Uhr</span>
               </div>
+              <a class="btn btn--danger btn--sm termine-row__checkin"
+                 th:if="${termin.checkInAvailable()}"
+                 th:href="@{/berichte/anwesenheitslisten/check-in(unit=${unitId}, terminId=${termin.terminId()})}">
+                Check In starten
+              </a>
             </div>
           </div>
         </div>

@@ -11,6 +11,7 @@ import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -73,9 +74,9 @@ public class TermineService {
 
     @Transactional(readOnly = true)
     public List<DashboardTerminWidgetView> listUpcomingDashboardTermine(long unitId, long personId, int limit) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDate today = LocalDate.now();
         return listMyTermine(unitId, personId).stream()
-                .filter(termin -> !termin.startAt().isBefore(now))
+                .filter(termin -> !termin.startAt().toLocalDate().isBefore(today))
                 .sorted(Comparator.comparing(MeineTerminView::startAt))
                 .limit(Math.max(limit, 0))
                 .map(this::toDashboardTerminWidgetView)
@@ -345,13 +346,20 @@ public class TermineService {
     }
 
     private DashboardTerminWidgetView toDashboardTerminWidgetView(MeineTerminView termin) {
+        LocalDate today = LocalDate.now();
+        boolean todayTermin = termin.datum().equals(today);
+        boolean checkInEligible = todayTermin && termin.category().supportsAttendanceReports();
         return new DashboardTerminWidgetView(
+                termin.id(),
                 termin.thema(),
                 DASHBOARD_DAY_FMT.format(termin.datum()),
                 DASHBOARD_MONTH_FMT.format(termin.datum()),
                 DASHBOARD_TIME_FMT.format(termin.beginn()),
                 termin.categoryLabel(),
-                termin.category());
+                termin.category(),
+                todayTermin,
+                checkInEligible,
+                null);
     }
 
     private String formatInstructorLabel(UnitTermin termin) {

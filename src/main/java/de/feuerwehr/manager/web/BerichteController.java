@@ -6,6 +6,8 @@ import de.feuerwehr.manager.berichte.AnwesenheitFormBundle;
 import de.feuerwehr.manager.berichte.KraefteCrewJsonSupport;
 import de.feuerwehr.manager.berichte.AnwesenheitslisteService;
 import de.feuerwehr.manager.berichte.AnwesenheitslisteTerminSyncService;
+import de.feuerwehr.manager.berichte.AttendanceCheckInPageView;
+import de.feuerwehr.manager.berichte.AttendanceCheckInService;
 import de.feuerwehr.manager.berichte.AttendanceReport;
 import de.feuerwehr.manager.berichte.BerichteSettingsService;
 import de.feuerwehr.manager.berichte.BerichteTab;
@@ -65,10 +67,12 @@ import org.springframework.ui.Model;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -90,6 +94,7 @@ public class BerichteController {
     private final AnwesenheitslisteService anwesenheitslisteService;
     private final AnwesenheitslistePdfService anwesenheitslistePdfService;
     private final AnwesenheitslisteTerminSyncService anwesenheitslisteTerminSyncService;
+    private final AttendanceCheckInService attendanceCheckInService;
     private final GeraetewartmitteilungService geraetewartmitteilungService;
     private final GeraetewartmitteilungPdfService geraetewartmitteilungPdfService;
     private final MaengelberichtService maengelberichtService;
@@ -632,6 +637,118 @@ public class BerichteController {
         requireModuleEnabled(unit.getId());
         requireBerichteRead(actor, unit.getId());
         return anwesenheitslisteService.suggestReportNumber(unit.getId(), date);
+    }
+
+    @GetMapping("/anwesenheitslisten/check-in")
+    public String startCheckIn(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "terminId") long terminId,
+            Model model,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor, model);
+            requireModuleEnabled(unit.getId());
+            requireBerichteWrite(actor, unit.getId());
+            AttendanceCheckInPageView page = attendanceCheckInService.openCheckIn(unit.getId(), terminId, actor);
+            model.addAttribute("checkIn", page);
+            model.addAttribute("pageTitle", "Check-In");
+            return "berichte/anwesenheit-checkin";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return unitId != null ? "redirect:/?unit=" + unitId : "redirect:/";
+        }
+    }
+
+    @GetMapping("/anwesenheitslisten/{id}/check-in")
+    public String resumeCheckIn(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @PathVariable long id,
+            Model model,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor, model);
+            requireModuleEnabled(unit.getId());
+            requireBerichteWrite(actor, unit.getId());
+            AttendanceCheckInPageView page = attendanceCheckInService.loadCheckIn(unit.getId(), id);
+            model.addAttribute("checkIn", page);
+            model.addAttribute("pageTitle", "Check-In");
+            return "berichte/anwesenheit-checkin";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectBerichte(unitId, "anwesenheit");
+        }
+    }
+
+    @PostMapping("/anwesenheitslisten/{id}/check-in/person/{personId}")
+    @ResponseBody
+    public Object checkInPerson(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @PathVariable long id,
+            @PathVariable long personId) {
+        try {
+            requireModuleEnabled(unitId);
+            requireBerichteWrite(actor, unitId);
+            accessControlService.requireUnitAccess(actor, unitId);
+            return attendanceCheckInService.checkInPerson(unitId, id, personId, actor);
+        } catch (IllegalArgumentException e) {
+            return Map.of("ok", false, "message", e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/anwesenheitslisten/{id}/check-in/person/{personId}")
+    @ResponseBody
+    public Object checkOutPerson(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @PathVariable long id,
+            @PathVariable long personId) {
+        try {
+            requireModuleEnabled(unitId);
+            requireBerichteWrite(actor, unitId);
+            accessControlService.requireUnitAccess(actor, unitId);
+            return attendanceCheckInService.checkOutPerson(unitId, id, personId, actor);
+        } catch (IllegalArgumentException e) {
+            return Map.of("ok", false, "message", e.getMessage());
+        }
+    }
+
+    @PostMapping("/anwesenheitslisten/{id}/check-in/theme")
+    @ResponseBody
+    public Object updateCheckInTheme(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @PathVariable long id,
+            @RequestBody Map<String, String> body) {
+        try {
+            requireModuleEnabled(unitId);
+            requireBerichteWrite(actor, unitId);
+            accessControlService.requireUnitAccess(actor, unitId);
+            String theme = body != null ? body.get("theme") : null;
+            return attendanceCheckInService.updateTheme(unitId, id, theme, actor);
+        } catch (IllegalArgumentException e) {
+            return Map.of("ok", false, "message", e.getMessage());
+        }
+    }
+
+    @PostMapping("/anwesenheitslisten/{id}/check-in/finish")
+    public String finishCheckIn(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @PathVariable long id,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor);
+            requireModuleEnabled(unit.getId());
+            requireBerichteWrite(actor, unit.getId());
+            long reportId = attendanceCheckInService.finishCheckIn(unit.getId(), id, actor);
+            return "redirect:/berichte/anwesenheitslisten/" + reportId + "/bearbeiten?unit=" + unit.getId();
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectBerichte(unitId, "anwesenheit");
+        }
     }
 
     @GetMapping("/anwesenheitslisten/neu")

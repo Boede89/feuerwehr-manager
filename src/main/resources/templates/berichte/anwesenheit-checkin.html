@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout(${pageTitle}, ~{::main})}">
+<main class="checkin-page"
+      th:attr="data-unit-id=${checkIn.unitId()},
+               data-report-id=${checkIn.reportId()}">
+  <div class="checkin-topbar">
+    <div class="checkin-topbar__left">
+      <div class="checkin-clock" id="checkin-clock" aria-live="polite">00:00:00</div>
+      <div class="checkin-theme">
+        <span class="checkin-theme__label">Heutiges Thema:</span>
+        <strong class="checkin-theme__value" id="checkin-theme-value" th:text="${checkIn.theme()}">Thema</strong>
+        <button type="button" class="btn btn--outline btn--sm" id="checkin-theme-edit-btn">Ändern</button>
+      </div>
+    </div>
+    <div class="checkin-topbar__meta">
+      <span class="termine-tag" th:text="${checkIn.categoryLabel()}">Übungsdienst</span>
+      <span class="checkin-topbar__time" th:if="${checkIn.startTimeLabel() != null and !#strings.isEmpty(checkIn.startTimeLabel())}"
+            th:text="${checkIn.startTimeLabel() + ' Uhr'}">19:00 Uhr</span>
+    </div>
+  </div>
+
+  <div class="checkin-layout">
+    <section class="checkin-panel checkin-panel--available">
+      <header class="checkin-panel__head">
+        <h3>Personen</h3>
+        <span class="checkin-panel__count" id="checkin-available-count"
+              th:text="${#lists.size(checkIn.availablePersons())}">0</span>
+      </header>
+      <div class="checkin-tiles" id="checkin-available-list">
+        <button type="button" class="checkin-tile"
+                th:each="p : ${checkIn.availablePersons()}"
+                th:attr="data-person-id=${p.id()}"
+                th:text="${p.displayName()}">Name</button>
+        <p class="hint checkin-empty" id="checkin-available-empty"
+           th:if="${#lists.isEmpty(checkIn.availablePersons())}">Alle Personen sind eingecheckt.</p>
+      </div>
+    </section>
+
+    <section class="checkin-panel checkin-panel--checked">
+      <header class="checkin-panel__head">
+        <h3>Eingecheckt</h3>
+        <span class="checkin-panel__count" id="checkin-checked-count"
+              th:text="${#lists.size(checkIn.checkedInPersons())}">0</span>
+      </header>
+      <div class="checkin-checked-list" id="checkin-checked-list">
+        <button type="button" class="checkin-checked-item"
+                th:each="p : ${checkIn.checkedInPersons()}"
+                th:attr="data-person-id=${p.id()}"
+                th:text="${p.displayName()}">Name</button>
+        <p class="hint checkin-empty" id="checkin-checked-empty"
+           th:if="${#lists.isEmpty(checkIn.checkedInPersons())}">Noch niemand eingecheckt.</p>
+      </div>
+    </section>
+  </div>
+
+  <div class="checkin-footer">
+    <a class="btn btn--outline" th:href="@{/(unit=${checkIn.unitId()})}">Zurück</a>
+    <form method="post"
+          th:action="@{/berichte/anwesenheitslisten/{id}/check-in/finish(id=${checkIn.reportId()}, unit=${checkIn.unitId()})}">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+      <button type="submit" class="btn btn--primary btn--lg" id="checkin-finish-btn">Dienst beenden</button>
+    </form>
+  </div>
+
+  <div id="checkin-theme-modal" class="modal-overlay" hidden>
+    <div class="modal modal--sm" role="dialog" aria-labelledby="checkin-theme-modal-title">
+      <div class="modal__header">
+        <h3 id="checkin-theme-modal-title">Thema ändern</h3>
+        <button type="button" class="modal__close" id="checkin-theme-modal-close" aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal__body">
+        <label for="checkin-theme-input">Thema</label>
+        <input type="text" id="checkin-theme-input" class="field" maxlength="255"
+               th:value="${checkIn.theme()}"/>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--primary" id="checkin-theme-save-btn">Speichern</button>
+        <button type="button" class="btn btn--outline" id="checkin-theme-cancel-btn">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <script th:src="@{/js/berichte-anwesenheit-checkin.js}" defer></script>
+</main>
+</html>

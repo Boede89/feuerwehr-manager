@@ -919,6 +919,202 @@ input:focus, select:focus, textarea:focus {
   margin-top: 1px;
 }
 
+.termine-row__checkin {
+  display: inline-flex;
+  margin-top: 8px;
+}
+
+/* Check-In Seite */
+.checkin-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: calc(100vh - 10rem);
+}
+
+.checkin-topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+}
+
+.checkin-topbar__left {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 24px;
+  min-width: 0;
+}
+
+.checkin-clock {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--rot);
+}
+
+.checkin-theme {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  min-width: 0;
+}
+
+.checkin-theme__label {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.checkin-theme__value {
+  font-size: 1.15rem;
+  word-break: break-word;
+}
+
+.checkin-topbar__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.checkin-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.8fr);
+  gap: 18px;
+  flex: 1;
+}
+
+@media (max-width: 900px) {
+  .checkin-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.checkin-panel {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  min-height: 360px;
+  overflow: hidden;
+}
+
+.checkin-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--einsatz-c, var(--rot)) 8%, var(--bg-card));
+}
+
+.checkin-panel__head h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.checkin-panel__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--rot-hell);
+  color: var(--rot);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.checkin-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+  padding: 14px;
+  align-content: start;
+}
+
+.checkin-tile {
+  appearance: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card-hover);
+  color: inherit;
+  padding: 16px 12px;
+  font: inherit;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.checkin-tile:hover {
+  border-color: color-mix(in srgb, var(--rot) 45%, var(--border));
+  background: color-mix(in srgb, var(--rot) 10%, var(--bg-card));
+}
+
+.checkin-tile:active {
+  transform: scale(0.98);
+}
+
+.checkin-checked-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  overflow-y: auto;
+}
+
+.checkin-checked-item {
+  appearance: none;
+  width: 100%;
+  border: 1px solid color-mix(in srgb, var(--rot) 30%, var(--border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--rot) 12%, var(--bg-card));
+  color: inherit;
+  padding: 12px 14px;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.checkin-checked-item:hover {
+  background: color-mix(in srgb, var(--rot) 18%, var(--bg-card));
+}
+
+.checkin-empty {
+  margin: 8px 4px;
+}
+
+.checkin-footer {
+  position: sticky;
+  bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0 4px;
+  background: linear-gradient(to top, var(--bg) 70%, transparent);
+}
+
+.checkin-footer .btn--lg {
+  min-width: 11rem;
+  padding: 0.85rem 1.4rem;
+  font-size: 1.05rem;
+}
+
 .termine-tag {
   display: inline-block;
   padding: 1px 5px;
