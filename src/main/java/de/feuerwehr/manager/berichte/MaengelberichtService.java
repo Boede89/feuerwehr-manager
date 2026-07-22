@@ -72,7 +72,13 @@ public class MaengelberichtService {
         }
         if (report.getRecordedPerson() != null) {
             form.setRecordedPersonId(report.getRecordedPerson().getId());
-            form.setRecordedByName(report.getRecordedPerson().anwesenheitDisplayName());
+            if (report.getRecordedPerson().getAnonymizedAt() != null
+                    && report.getRecordedByText() != null
+                    && !report.getRecordedByText().isBlank()) {
+                form.setRecordedByName(report.getRecordedByText().trim());
+            } else {
+                form.setRecordedByName(report.getRecordedPerson().anwesenheitDisplayName());
+            }
         } else {
             form.setRecordedByName(report.getRecordedByText());
         }
@@ -202,11 +208,11 @@ public class MaengelberichtService {
 
     @Transactional(readOnly = true)
     public String resolveRecordedByDisplay(DefectReport report) {
-        if (report.getRecordedPerson() != null) {
-            return report.getRecordedPerson().anwesenheitDisplayName();
-        }
         if (report.getRecordedByText() != null && !report.getRecordedByText().isBlank()) {
             return report.getRecordedByText().trim();
+        }
+        if (report.getRecordedPerson() != null) {
+            return report.getRecordedPerson().anwesenheitDisplayName();
         }
         return "—";
     }
@@ -252,7 +258,10 @@ public class MaengelberichtService {
             personRepository
                     .findActiveById(form.getRecordedPersonId(), includeTestReports())
                     .ifPresentOrElse(
-                            report::setRecordedPerson,
+                            person -> {
+                                report.setRecordedPerson(person);
+                                report.setRecordedByText(person.anwesenheitDisplayName());
+                            },
                             () -> {
                                 throw new IllegalArgumentException("Aufgenommen durch: Person nicht gefunden.");
                             });

@@ -33,6 +33,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -210,14 +211,35 @@ public class EinsatzberichtService {
     @Transactional(readOnly = true)
     public KraefteFahrzeugeState buildKraefteFahrzeugeStateForAnwesenheit(
             long unitId, List<Long> anwesendPersonIds, Set<Long> manualPoolPersonIds) {
-        return buildKraefteFahrzeugeState(unitId, null, anwesendPersonIds, manualPoolPersonIds, null);
+        return buildKraefteFahrzeugeStateForAnwesenheit(unitId, anwesendPersonIds, manualPoolPersonIds, Map.of());
+    }
+
+    @Transactional(readOnly = true)
+    public KraefteFahrzeugeState buildKraefteFahrzeugeStateForAnwesenheit(
+            long unitId,
+            List<Long> anwesendPersonIds,
+            Set<Long> manualPoolPersonIds,
+            Map<Long, String> frozenDisplayNames) {
+        return buildKraefteFahrzeugeState(
+                unitId, null, anwesendPersonIds, manualPoolPersonIds, null, frozenDisplayNames);
     }
 
     /** Kräfte-Board aus gespeicherter Crew-JSON (Fahrzeuge, Anwesend, Rollen). */
     @Transactional(readOnly = true)
     public KraefteFahrzeugeState buildKraefteFahrzeugeStateForAnwesenheitWithAssignments(
             long unitId, List<CrewAssignment> crewAssignments, Set<Long> manualPoolPersonIds) {
-        return buildKraefteFahrzeugeState(unitId, null, null, manualPoolPersonIds, crewAssignments);
+        return buildKraefteFahrzeugeStateForAnwesenheitWithAssignments(
+                unitId, crewAssignments, manualPoolPersonIds, Map.of());
+    }
+
+    @Transactional(readOnly = true)
+    public KraefteFahrzeugeState buildKraefteFahrzeugeStateForAnwesenheitWithAssignments(
+            long unitId,
+            List<CrewAssignment> crewAssignments,
+            Set<Long> manualPoolPersonIds,
+            Map<Long, String> frozenDisplayNames) {
+        return buildKraefteFahrzeugeState(
+                unitId, null, null, manualPoolPersonIds, crewAssignments, frozenDisplayNames);
     }
 
     private KraefteFahrzeugeState buildKraefteFahrzeugeState(
@@ -226,6 +248,19 @@ public class EinsatzberichtService {
             List<Long> presetAnwesendPersonIds,
             Set<Long> manualPoolPersonIds,
             List<CrewAssignment> presetCrewAssignments) {
+        return buildKraefteFahrzeugeState(
+                unitId, reportId, presetAnwesendPersonIds, manualPoolPersonIds, presetCrewAssignments, Map.of());
+    }
+
+    private KraefteFahrzeugeState buildKraefteFahrzeugeState(
+            long unitId,
+            Long reportId,
+            List<Long> presetAnwesendPersonIds,
+            Set<Long> manualPoolPersonIds,
+            List<CrewAssignment> presetCrewAssignments,
+            Map<Long, String> frozenDisplayNames) {
+        Map<Long, String> displayNameSnapshots =
+                frozenDisplayNames != null ? new LinkedHashMap<>(frozenDisplayNames) : new LinkedHashMap<>();
         List<Person> allPersons = listPersonsForForm(unitId);
         List<IncidentReportPersonnel> reportRows =
                 reportId != null ? incidentReportPersonnelRepository.findByIncidentReportId(reportId) : List.of();
@@ -234,11 +269,22 @@ public class EinsatzberichtService {
             if (row.getPerson() != null) {
                 extraPersonIds.add(row.getPerson().getId());
             }
+            if (row.getDisplayName() != null && !row.getDisplayName().isBlank()) {
+                long refId;
+                try {
+                    refId = personnelRefId(row);
+                } catch (IllegalStateException ex) {
+                    continue;
+                }
+                displayNameSnapshots.putIfAbsent(refId, row.getDisplayName().trim());
+            }
         }
         Map<Long, Person> personById = new LinkedHashMap<>();
         allPersons.forEach(person -> personById.put(person.getId(), person));
         if (!extraPersonIds.isEmpty()) {
             personRepository.findActiveByIdIn(extraPersonIds, includeTestReports()).forEach(person -> personById.putIfAbsent(person.getId(), person));
+            // Anonymisierte Personen weiterhin für Besatzung laden, Anzeige kommt aus Snapshot-Namen
+            loadMissingPersonsIncludingAnonymized(extraPersonIds, personById);
         }
         List<Vehicle> unitVehicles = listVehiclesForForm(unitId);
 
@@ -358,6 +404,7 @@ public class EinsatzberichtService {
                     involvedByVehicleId,
                     onVehicleRefIds,
                     paByRefId);
+            loadMissingPersonsIncludingAnonymized(onVehicleRefIds, personById);
         } else if (presetAnwesendPersonIds != null && !presetAnwesendPersonIds.isEmpty()) {
             LinkedHashSet<Long> presetIds = new LinkedHashSet<>();
             for (Long pid : presetAnwesendPersonIds) {
@@ -369,6 +416,7 @@ public class EinsatzberichtService {
                 personRepository
                         .findActiveByIdIn(presetIds, includeTestReports())
                         .forEach(person -> personById.putIfAbsent(person.getId(), person));
+                loadMissingPersonsIncludingAnonymized(presetIds, personById);
                 for (Long pid : presetAnwesendPersonIds) {
                     if (pid == null || onVehicleRefIds.contains(pid)) {
                         continue;
@@ -427,12 +475,14 @@ public class EinsatzberichtService {
             List<Person> crewPersons = crewRefIds.stream()
                     .map(personById::get)
                     .filter(Objects::nonNull)
+                    .filter(person -> person.getAnonymizedAt() == null)
                     .toList();
             List<KraefteFahrzeugeState.KraeftePersonView> crewViews = crewRefIds.stream()
                     .map(refId -> toPersonViewFromRef(
                             refId,
                             personById,
                             rowByRefId,
+                            displayNameSnapshots,
                             sortOrderByRefId,
                             roles.get(refId),
                             paByRefId.getOrDefault(refId, false),
@@ -473,6 +523,7 @@ public class EinsatzberichtService {
                 beteiligtCrewIds,
                 personById,
                 rowByRefId,
+                displayNameSnapshots,
                 sortOrderByRefId,
                 sourceByRefId,
                 paByRefId,
@@ -483,6 +534,7 @@ public class EinsatzberichtService {
                 einsatzstelleCrewIds,
                 personById,
                 rowByRefId,
+                displayNameSnapshots,
                 sortOrderByRefId,
                 sourceByRefId,
                 paByRefId,
@@ -493,6 +545,7 @@ public class EinsatzberichtService {
                 wacheCrewIds,
                 personById,
                 rowByRefId,
+                displayNameSnapshots,
                 sortOrderByRefId,
                 sourceByRefId,
                 paByRefId,
@@ -1112,6 +1165,7 @@ public class EinsatzberichtService {
         long reportId = report.getId();
         Map<Long, IncidentPersonnelSource> existingSources = loadExistingSources(reportId);
         Map<Long, String> existingUcrNames = loadExistingUcrNames(reportId);
+        Map<Long, String> existingDisplayNames = loadExistingPersonDisplayNames(reportId);
         List<IncidentReportPersonnel> previousReserveRows =
                 incidentReportPersonnelRepository.findByIncidentReportId(reportId).stream()
                         .filter(row -> row.getIncidentReportVehicle() == null)
@@ -1188,11 +1242,18 @@ public class EinsatzberichtService {
                 } else {
                     Person person = resolvePersonForReport(personRefId, unitId);
                     row.setPerson(person);
-                    row.setDisplayName(person.anwesenheitDisplayName());
+                    String snapshotName = existingDisplayNames.get(personRefId);
+                    if (person.getAnonymizedAt() != null && snapshotName != null && !snapshotName.isBlank()) {
+                        row.setDisplayName(snapshotName.trim());
+                    } else {
+                        row.setDisplayName(person.anwesenheitDisplayName());
+                    }
                     IncidentPersonnelSource source =
                             existingSources.getOrDefault(personRefId, IncidentPersonnelSource.MANUAL);
                     row.setSource(source);
-                    if (person.getUnit() != null && person.getUnit().getId() != unitId) {
+                    if (person.getAnonymizedAt() == null
+                            && person.getUnit() != null
+                            && person.getUnit().getId() != unitId) {
                         row.setSource(IncidentPersonnelSource.FOREIGN);
                         row.setForeignUnit(person.getUnit());
                     }
@@ -1304,6 +1365,17 @@ public class EinsatzberichtService {
         return names;
     }
 
+    private Map<Long, String> loadExistingPersonDisplayNames(long reportId) {
+        Map<Long, String> names = new LinkedHashMap<>();
+        for (IncidentReportPersonnel row : incidentReportPersonnelRepository.findByIncidentReportId(reportId)) {
+            if (row.getPerson() == null || row.getDisplayName() == null || row.getDisplayName().isBlank()) {
+                continue;
+            }
+            names.putIfAbsent(row.getPerson().getId(), row.getDisplayName().trim());
+        }
+        return names;
+    }
+
     private int countAssignedPersons(List<CrewAssignment> assignments) {
         if (assignments == null) {
             return 0;
@@ -1323,6 +1395,7 @@ public class EinsatzberichtService {
             List<Long> crewRefIds,
             Map<Long, Person> personById,
             Map<Long, IncidentReportPersonnel> rowByRefId,
+            Map<Long, String> displayNameSnapshots,
             Map<Long, Integer> sortOrderByRefId,
             Map<Long, IncidentPersonnelSource> sourceByRefId,
             Map<Long, Boolean> paByRefId,
@@ -1330,6 +1403,7 @@ public class EinsatzberichtService {
         List<Person> crewPersons = crewRefIds.stream()
                 .map(personById::get)
                 .filter(Objects::nonNull)
+                .filter(person -> person.getAnonymizedAt() == null)
                 .toList();
         return new KraefteFahrzeugeState.KraefteVehicleView(
                 slotId,
@@ -1342,6 +1416,7 @@ public class EinsatzberichtService {
                                 refId,
                                 personById,
                                 rowByRefId,
+                                displayNameSnapshots,
                                 sortOrderByRefId,
                                 null,
                                 paByRefId.getOrDefault(refId, false),
@@ -1407,6 +1482,7 @@ public class EinsatzberichtService {
             long refId,
             Map<Long, Person> personById,
             Map<Long, IncidentReportPersonnel> rowByRefId,
+            Map<Long, String> displayNameSnapshots,
             Map<Long, Integer> sortOrderByRefId,
             IncidentVehicleCrewRole vehicleRole,
             boolean usesPa,
@@ -1415,23 +1491,71 @@ public class EinsatzberichtService {
         if (IncidentPersonnelRefs.isUcrRef(refId)) {
             long ucrId = IncidentPersonnelRefs.ucrFromRef(refId);
             IncidentReportPersonnel row = rowByRefId.get(refId);
-            String displayName = row != null ? row.getDisplayName() : IncidentPersonnelRefs.displayNameForUcr(ucrId);
+            String displayName = firstNonBlank(
+                    row != null ? row.getDisplayName() : null,
+                    displayNameSnapshots != null ? displayNameSnapshots.get(refId) : null,
+                    IncidentPersonnelRefs.displayNameForUcr(ucrId));
             return toUcrPersonView(refId, ucrId, displayName, sortOrderByRefId.getOrDefault(refId, 0));
         }
+        IncidentReportPersonnel row = rowByRefId.get(refId);
+        String snapshotName = firstNonBlank(
+                row != null ? row.getDisplayName() : null,
+                displayNameSnapshots != null ? displayNameSnapshots.get(refId) : null);
         Person person = personById.get(refId);
-        if (person == null) {
-            IncidentReportPersonnel row = rowByRefId.get(refId);
-            String displayName = row != null ? row.getDisplayName() : "Unbekannt";
-            return new KraefteFahrzeugeState.KraeftePersonView(
-                    refId, displayName, Besatzungsstaerke.QualTier.MANNSCHAFT.name(), 0, null, usesPa, "manual", null, null, false);
+        if (person != null && person.getAnonymizedAt() == null && snapshotName == null) {
+            return toPersonView(
+                    person,
+                    sortOrderByRefId,
+                    vehicleRole,
+                    usesPa,
+                    poolSourceFor(source),
+                    unitLabelForPerson(person, reportUnitId));
         }
-        return toPersonView(
-                person,
-                sortOrderByRefId,
-                vehicleRole,
-                usesPa,
-                poolSourceFor(source),
-                unitLabelForPerson(person, reportUnitId));
+        if (snapshotName != null) {
+            String qual = person != null && person.getAnonymizedAt() == null
+                    ? Besatzungsstaerke.qualTier(person).name()
+                    : Besatzungsstaerke.QualTier.MANNSCHAFT.name();
+            return new KraefteFahrzeugeState.KraeftePersonView(
+                    refId,
+                    snapshotName,
+                    qual,
+                    sortOrderByRefId.getOrDefault(refId, 0),
+                    vehicleRole != null ? vehicleRole.name() : null,
+                    usesPa,
+                    poolSourceFor(source),
+                    person != null && person.getAnonymizedAt() == null
+                            ? unitLabelForPerson(person, reportUnitId)
+                            : null,
+                    person != null && person.getAnonymizedAt() == null ? person.getDiveraUcrId() : null,
+                    false);
+        }
+        if (person != null) {
+            return toPersonView(
+                    person,
+                    sortOrderByRefId,
+                    vehicleRole,
+                    usesPa,
+                    poolSourceFor(source),
+                    unitLabelForPerson(person, reportUnitId));
+        }
+        return new KraefteFahrzeugeState.KraeftePersonView(
+                refId, "Unbekannt", Besatzungsstaerke.QualTier.MANNSCHAFT.name(), 0, null, usesPa, "manual", null, null, false);
+    }
+
+    private void loadMissingPersonsIncludingAnonymized(Collection<Long> personIds, Map<Long, Person> personById) {
+        if (personIds == null || personIds.isEmpty()) {
+            return;
+        }
+        List<Long> missing = personIds.stream()
+                .filter(Objects::nonNull)
+                .filter(id -> !IncidentPersonnelRefs.isUcrRef(id))
+                .filter(id -> !personById.containsKey(id))
+                .distinct()
+                .toList();
+        if (missing.isEmpty()) {
+            return;
+        }
+        personRepository.findAllById(missing).forEach(person -> personById.putIfAbsent(person.getId(), person));
     }
 
     private static String unitLabelForPerson(Person person, long reportUnitId) {
@@ -1456,11 +1580,9 @@ public class EinsatzberichtService {
     }
 
     private Person resolvePersonForReport(long personId, long reportUnitId) {
-        Person person = personalService.requirePerson(personId);
-        if (person.getUnit().getId() == reportUnitId) {
-            return person;
-        }
-        return person;
+        return personRepository
+                .findById(personId)
+                .orElseThrow(() -> new IllegalArgumentException("Person nicht gefunden."));
     }
 
     @Transactional

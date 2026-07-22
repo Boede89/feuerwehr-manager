@@ -80,7 +80,13 @@ public class GeraetewartmitteilungService {
                         : GeraetewartReadiness.HERGESTELLT.name());
         if (report.getLeaderPerson() != null) {
             form.setLeaderPersonId(report.getLeaderPerson().getId());
-            form.setLeaderName(report.getLeaderPerson().anwesenheitDisplayName());
+            if (report.getLeaderPerson().getAnonymizedAt() != null
+                    && report.getLeaderName() != null
+                    && !report.getLeaderName().isBlank()) {
+                form.setLeaderName(report.getLeaderName().trim());
+            } else {
+                form.setLeaderName(report.getLeaderPerson().anwesenheitDisplayName());
+            }
         } else {
             form.setLeaderName(report.getLeaderName());
         }
@@ -305,11 +311,11 @@ public class GeraetewartmitteilungService {
 
     @Transactional(readOnly = true)
     public String resolveLeaderDisplay(EquipmentMaintenanceReport report) {
-        if (report.getLeaderPerson() != null) {
-            return report.getLeaderPerson().anwesenheitDisplayName();
-        }
         if (report.getLeaderName() != null && !report.getLeaderName().isBlank()) {
             return report.getLeaderName().trim();
+        }
+        if (report.getLeaderPerson() != null) {
+            return report.getLeaderPerson().anwesenheitDisplayName();
         }
         return "—";
     }
@@ -431,7 +437,10 @@ public class GeraetewartmitteilungService {
             personRepository
                     .findActiveById(form.getLeaderPersonId(), includeTestReports())
                     .ifPresentOrElse(
-                            report::setLeaderPerson,
+                            person -> {
+                                report.setLeaderPerson(person);
+                                report.setLeaderName(person.anwesenheitDisplayName());
+                            },
                             () -> {
                                 throw new IllegalArgumentException("Einsatz-/Übungsleiter nicht gefunden.");
                             });

@@ -156,12 +156,13 @@ public class AnwesenheitslisteService {
                     .map(Person::getId)
                     .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
         }
+        Map<Long, String> frozenDisplayNames = frozenDisplayNamesFromPersonnel(attendanceReportId);
         String storedCrewJson = report.getCrewAssignmentsJson();
         if (storedCrewJson != null && !storedCrewJson.isBlank()) {
             List<CrewAssignment> assignments = einsatzberichtService.parseCrewAssignments(storedCrewJson);
             if (!assignments.isEmpty()) {
                 return einsatzberichtService.buildKraefteFahrzeugeStateForAnwesenheitWithAssignments(
-                        unitId, assignments, manualPoolPersonIds);
+                        unitId, assignments, manualPoolPersonIds, frozenDisplayNames);
             }
         }
         List<Long> anwesendPersonIds = listPersonnel(attendanceReportId).stream()
@@ -171,7 +172,21 @@ public class AnwesenheitslisteService {
                 .distinct()
                 .toList();
         return einsatzberichtService.buildKraefteFahrzeugeStateForAnwesenheit(
-                unitId, anwesendPersonIds, manualPoolPersonIds);
+                unitId, anwesendPersonIds, manualPoolPersonIds, frozenDisplayNames);
+    }
+
+    private Map<Long, String> frozenDisplayNamesFromPersonnel(long attendanceReportId) {
+        Map<Long, String> names = new LinkedHashMap<>();
+        for (AttendanceReportPersonnel row : listPersonnel(attendanceReportId)) {
+            if (row.getPerson() == null) {
+                continue;
+            }
+            if (row.getDisplayName() == null || row.getDisplayName().isBlank()) {
+                continue;
+            }
+            names.putIfAbsent(row.getPerson().getId(), row.getDisplayName().trim());
+        }
+        return names;
     }
 
     @Transactional(readOnly = true)
@@ -735,6 +750,14 @@ public class AnwesenheitslisteService {
     }
 
     private void saveCrewAsPersonnel(AttendanceReport report, List<CrewAssignment> crewAssignments, long unitId) {
+        Map<Long, String> previousNames = new LinkedHashMap<>();
+        for (AttendanceReportPersonnel existing : attendanceReportPersonnelRepository.findByReportId(report.getId())) {
+            if (existing.getPerson() != null
+                    && existing.getDisplayName() != null
+                    && !existing.getDisplayName().isBlank()) {
+                previousNames.putIfAbsent(existing.getPerson().getId(), existing.getDisplayName().trim());
+            }
+        }
         attendanceReportPersonnelRepository.deleteByReportId(report.getId());
         if (crewAssignments == null || crewAssignments.isEmpty()) {
             return;
@@ -749,15 +772,25 @@ public class AnwesenheitslisteService {
         }
         int order = 0;
         for (Long personId : personIds) {
-            var personOpt = personRepository.findActiveById(personId, includeTestReports());
-            if (personOpt.isEmpty()) {
+            Person person = personRepository.findById(personId).orElse(null);
+            if (person == null) {
                 continue;
             }
-            Person person = personOpt.get();
+            if (person.getAnonymizedAt() == null) {
+                var active = personRepository.findActiveById(personId, includeTestReports());
+                if (active.isEmpty()) {
+                    continue;
+                }
+                person = active.get();
+            }
             AttendanceReportPersonnel row = new AttendanceReportPersonnel();
             row.setAttendanceReport(report);
             row.setPerson(person);
-            row.setDisplayName(person.anwesenheitDisplayName());
+            if (person.getAnonymizedAt() != null && previousNames.containsKey(personId)) {
+                row.setDisplayName(previousNames.get(personId));
+            } else {
+                row.setDisplayName(person.anwesenheitDisplayName());
+            }
             row.setAttendanceStatus(AttendancePersonStatus.PRESENT);
             row.setSortOrder(order++);
             attendanceReportPersonnelRepository.save(row);
@@ -870,13 +903,23 @@ public class AnwesenheitslisteService {
                 }
             });
             List<String> names = new ArrayList<>();
+            boolean keepExistingInstructorLabel = false;
             for (Long id : ids) {
                 Person person = byId.get(id);
-                if (person != null) {
-                    names.add(person.anwesenheitDisplayName());
+                if (person == null) {
+                    continue;
                 }
+                if (person.getAnonymizedAt() != null) {
+                    keepExistingInstructorLabel = true;
+                    break;
+                }
+                names.add(person.anwesenheitDisplayName());
             }
-            if (!names.isEmpty()) {
+            if (keepExistingInstructorLabel
+                    && report.getInstructorResponsible() != null
+                    && !report.getInstructorResponsible().isBlank()) {
+                // Historische Bezeichnung beibehalten, wenn Ausbilder inzwischen gelöscht/anonymisiert wurde
+            } else if (!names.isEmpty()) {
                 report.setInstructorResponsible(String.join(", ", names));
             }
             try {
