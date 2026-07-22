@@ -217,7 +217,7 @@
       '      <select id="deployed-equipment-category-select" class="field"></select>' +
       '    </div>' +
       '    <div class="form-group" id="deployed-equipment-category-custom-wrap" hidden>' +
-      '      <label for="deployed-equipment-category-custom">Eigene Kategorie</label>' +
+      '      <label for="deployed-equipment-category-custom">Neue Kategorie</label>' +
       '      <input type="text" id="deployed-equipment-category-custom" class="field" maxlength="120" placeholder="Kategoriename …"/>' +
       '    </div>' +
       '  </div>' +
@@ -278,7 +278,7 @@
     });
     var optCustom = document.createElement('option');
     optCustom.value = '__custom__';
-    optCustom.textContent = 'Eigene Kategorie …';
+    optCustom.textContent = 'Neue Kategorie …';
     select.appendChild(optCustom);
     select.value = categories.length > 0 ? categories[0] : '';
     if (customInput) {
@@ -377,30 +377,52 @@
     return section;
   }
 
+  function parseCustomEquipmentNames(raw) {
+    var seen = {};
+    var names = [];
+    String(raw || '').split(/[\n,;]+/).forEach(function (part) {
+      var name = part.trim();
+      if (!name) {
+        return;
+      }
+      var key = name.toLocaleLowerCase('de');
+      if (seen[key]) {
+        return;
+      }
+      seen[key] = true;
+      names.push(name.length > 255 ? name.slice(0, 255) : name);
+    });
+    return names;
+  }
+
   function renderCustomAddRow(vehicle, card) {
     var row = document.createElement('div');
     row.className = 'incident-deployed-equipment-custom-add';
-    var input = document.createElement('input');
-    input.type = 'text';
+    var input = document.createElement('textarea');
     input.className = 'field incident-deployed-equipment-custom-add__input';
-    input.placeholder = 'Gerät manuell eingeben …';
-    input.maxLength = 255;
-    input.setAttribute('aria-label', 'Gerät manuell eingeben');
+    input.rows = 2;
+    input.placeholder = 'Geräte manuell eingeben (eines pro Zeile oder mit Komma) …';
+    input.setAttribute('aria-label', 'Geräte manuell eingeben');
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'btn btn--outline btn--sm';
     btn.textContent = 'Hinzufügen';
     btn.addEventListener('click', function () {
-      var name = input.value.trim();
-      if (!name) {
-        window.alert('Bitte einen Gerätenamen eingeben.');
+      var names = parseCustomEquipmentNames(input.value);
+      if (names.length === 0) {
+        window.alert('Bitte mindestens einen Gerätenamen eingeben.');
         return;
       }
       promptCategory(vehicle).then(function (categoryName) {
+        if (categoryName === undefined) {
+          return;
+        }
         ensureVehicleMaps(vehicle.vehicleId);
-        customByVehicle[vehicle.vehicleId].push({
-          name: name,
-          categoryName: categoryName
+        names.forEach(function (name) {
+          customByVehicle[vehicle.vehicleId].push({
+            name: name,
+            categoryName: categoryName
+          });
         });
         input.value = '';
         syncHiddenJson();

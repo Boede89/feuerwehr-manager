@@ -5303,6 +5303,7 @@ span.required { color: var(--error); }
 .einsatzbericht-form-page .incident-deployed-equipment-custom-add {
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-start;
   gap: 8px;
   margin-top: 12px;
   padding-top: 12px;
@@ -5312,6 +5313,13 @@ span.required { color: var(--error); }
 .einsatzbericht-form-page .incident-deployed-equipment-custom-add__input {
   flex: 1 1 180px;
   min-width: 0;
+  min-height: 2.75rem;
+  resize: vertical;
+}
+
+/* .form-group setzt display:flex und würde sonst [hidden] überschreiben */
+#deployed-equipment-category-custom-wrap[hidden] {
+  display: none !important;
 }
 
 .einsatzbericht-form-page .incident-deployed-equipment-item--custom {
