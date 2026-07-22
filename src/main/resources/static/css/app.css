@@ -988,7 +988,7 @@ input:focus, select:focus, textarea:focus {
 
 .checkin-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.8fr);
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 220px);
   gap: 18px;
   flex: 1;
 }
@@ -1007,6 +1007,16 @@ input:focus, select:focus, textarea:focus {
   background: var(--bg-card);
   min-height: 360px;
   overflow: hidden;
+}
+
+.checkin-panel--checked {
+  max-width: 220px;
+}
+
+@media (max-width: 900px) {
+  .checkin-panel--checked {
+    max-width: none;
+  }
 }
 
 .checkin-panel__head {
@@ -1039,9 +1049,9 @@ input:focus, select:focus, textarea:focus {
 
 .checkin-tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 10px;
-  padding: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 12px;
+  padding: 16px;
   align-content: start;
 }
 
@@ -1051,8 +1061,10 @@ input:focus, select:focus, textarea:focus {
   border-radius: var(--radius-md);
   background: var(--bg-card-hover);
   color: inherit;
-  padding: 16px 12px;
+  padding: 22px 14px;
+  min-height: 4.5rem;
   font: inherit;
+  font-size: 1.05rem;
   font-weight: 600;
   text-align: center;
   cursor: pointer;
@@ -1083,11 +1095,13 @@ input:focus, select:focus, textarea:focus {
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--rot) 12%, var(--bg-card));
   color: inherit;
-  padding: 12px 14px;
+  padding: 10px 12px;
   font: inherit;
+  font-size: 0.95rem;
   font-weight: 600;
   text-align: left;
   cursor: pointer;
+  word-break: break-word;
 }
 
 .checkin-checked-item:hover {

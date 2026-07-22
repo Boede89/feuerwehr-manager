@@ -9,6 +9,7 @@ import de.feuerwehr.manager.termine.UnitTermin;
 import de.feuerwehr.manager.termine.UnitTerminRepository;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -133,6 +134,25 @@ public class AttendanceCheckInService {
     public long finishCheckIn(long unitId, long reportId, AppUserDetails actor) {
         AttendanceReport report = requireEditableReport(unitId, reportId);
         claimCreatorIfMissing(report, actor);
+        LocalTime endTime = LocalTime.now().withSecond(0).withNano(0);
+        report.setEndTime(endTime);
+        UnitTermin termin = report.getUnitTermin();
+        if (termin != null && report.getEventDate() != null && report.getStartTime() != null) {
+            LocalDateTime startAt = LocalDateTime.of(report.getEventDate(), report.getStartTime());
+            LocalDateTime endAt = LocalDateTime.of(report.getEventDate(), endTime);
+            if (!endAt.isAfter(startAt)) {
+                endAt = endAt.plusDays(1);
+            }
+            termin.setEndAt(endAt);
+            unitTerminRepository.save(termin);
+        } else if (termin != null && termin.getStartAt() != null) {
+            LocalDateTime endAt = LocalDateTime.of(termin.getStartAt().toLocalDate(), endTime);
+            if (!endAt.isAfter(termin.getStartAt())) {
+                endAt = endAt.plusDays(1);
+            }
+            termin.setEndAt(endAt);
+            unitTerminRepository.save(termin);
+        }
         attendanceReportRepository.save(report);
         return report.getId();
     }
