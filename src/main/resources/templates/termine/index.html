@@ -11,6 +11,10 @@
             th:if="${canWrite and termineTab == 'dienstplan'}">
       + Neuer Termin
     </button>
+    <button type="button" class="btn btn--primary" id="termine-new-sonderdienst-btn"
+            th:if="${canWrite and termineTab == 'sonderdienst'}">
+      + Neuer Termin
+    </button>
     <button type="button" class="btn btn--primary" id="termine-new-sonstiges-btn"
             th:if="${canWrite and termineTab == 'sonstiges'}">
       + Neuer Termin
@@ -125,8 +129,8 @@
        th:attr="data-unit-id=${unitId},data-can-write=${canWrite}">
     <div class="page-header termine-panel-header termine-dienstplan-header">
       <div class="termine-dienstplan-header__text">
-        <h3>Dienstplan</h3>
-        <p>Übungsabende, Dienste und dienstplanbezogene Termine</p>
+        <h3>Übungsdienst</h3>
+        <p>Übungsabende und regelmäßige Übungsdienste</p>
       </div>
       <div class="filter-bar berichte-einsatz-filter termine-dienstplan-header__filter"
            th:if="${!#lists.isEmpty(dienstplanTermine)}">
@@ -200,7 +204,7 @@
   <div id="modal-dienstplan-termin" class="modal-overlay" th:if="${canWrite and termineTab == 'dienstplan'}">
     <div class="modal" role="dialog" aria-labelledby="dienstplan-termin-modal-title">
       <div class="modal__header">
-        <h3 id="dienstplan-termin-modal-title">Neuer Dienstplan-Termin</h3>
+        <h3 id="dienstplan-termin-modal-title">Neuer Übungsdienst-Termin</h3>
         <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
       </div>
       <div class="modal__body">
@@ -395,12 +399,266 @@
     </div>
   </div>
 
+  <div th:if="${termineTab == 'sonderdienst'}" id="termine-sonderdienst-panel" class="termine-module-panel"
+       th:attr="data-unit-id=${unitId},data-can-write=${canWrite}">
+    <div class="page-header termine-panel-header termine-dienstplan-header">
+      <div class="termine-dienstplan-header__text">
+        <h3>Sonderdienst</h3>
+        <p>Sonderdienste und besondere Termine außerhalb des Übungsdienstes</p>
+      </div>
+      <div class="filter-bar berichte-einsatz-filter termine-dienstplan-header__filter"
+           th:if="${!#lists.isEmpty(sonderdienstTermine)}">
+        <select id="sonderdienst-filter-zeit" class="berichte-filter-select berichte-filter-select--status"
+                aria-label="Zeitraum filtern">
+          <option value="alle">Alle</option>
+          <option value="bevorstehend" selected>Bevorstehende</option>
+          <option value="vergangen">Vergangene</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card" th:if="${!#lists.isEmpty(sonderdienstTermine)}">
+      <div class="card__body card__body--flush">
+        <p id="sonderdienst-filter-empty" class="hint dienstplan-filter-empty" hidden>
+          Keine Termine für den gewählten Filter gefunden.
+        </p>
+        <div class="table-wrap" id="sonderdienst-table-wrap">
+          <table class="data-table termine-dienstplan-table">
+            <thead>
+            <tr>
+              <th>Datum</th>
+              <th>Beschreibung</th>
+              <th>Beginn</th>
+              <th>Ende</th>
+              <th>Personen/Gruppen</th>
+              <th>Ausbilder/Verantwortlicher</th>
+              <th th:if="${canWrite}">Aktionen</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="termin : ${sonderdienstTermine}" class="sonderdienst-termin-row"
+                th:attr="data-id=${termin.id()},
+                         data-datum=${termin.datum()},
+                         data-beschreibung=${termin.thema()},
+                         data-beginn=${#temporals.format(termin.dienstBeginn(), 'HH:mm')},
+                         data-ende=${termin.dienstEnde() != null ? #temporals.format(termin.dienstEnde(), 'HH:mm') : ''},
+                         data-audience-all=${termin.audienceAll()},
+                         data-group-ids=${termin.audienceGroupIdsCsv()},
+                         data-person-ids=${termin.audiencePersonIdsCsv()},
+                         data-instructor-ids=${termin.instructorPersonIdsCsv()}">
+              <td th:text="${#temporals.format(termin.datum(), 'dd.MM.yyyy')}">01.01.2026</td>
+              <td th:text="${termin.thema()}">Beschreibung</td>
+              <td th:text="${#temporals.format(termin.dienstBeginn(), 'HH:mm')}">19:00</td>
+              <td th:text="${termin.dienstEnde() != null ? #temporals.format(termin.dienstEnde(), 'HH:mm') : '—'}">22:00</td>
+              <td th:text="${termin.personenGruppenLabel()}">Alle</td>
+              <td th:text="${termin.ausbilderName() != null ? termin.ausbilderName() : '—'}">—</td>
+              <td th:if="${canWrite}">
+                <div class="btn-group">
+                  <button type="button" class="btn btn--outline btn--sm" data-edit-sonderdienst-termin>Bearb.</button>
+                  <button type="button" class="btn btn--danger btn--sm" data-delete-sonderdienst-termin>Löschen</button>
+                </div>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" th:if="${#lists.isEmpty(sonderdienstTermine)}">
+      <div class="card__body">
+        <p class="hint">Noch keine Termine vorhanden.</p>
+        <button type="button" class="btn btn--primary" id="termine-new-sonderdienst-empty-btn" th:if="${canWrite}">
+          Ersten Termin erstellen
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-sonderdienst-termin" class="modal-overlay" th:if="${canWrite and termineTab == 'sonderdienst'}">
+    <div class="modal" role="dialog" aria-labelledby="sonderdienst-termin-modal-title">
+      <div class="modal__header">
+        <h3 id="sonderdienst-termin-modal-title">Neuer Termin</h3>
+        <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal__body">
+        <input type="hidden" id="sonderdienst-termin-id" value=""/>
+        <div class="form-grid form-grid--2">
+          <div class="form-group">
+            <label for="sonderdienst-termin-datum">Datum <span class="required">*</span></label>
+            <input id="sonderdienst-termin-datum" class="field" type="date" required/>
+          </div>
+          <div class="form-group form-group--full">
+            <label for="sonderdienst-termin-beschreibung">Beschreibung <span class="required">*</span></label>
+            <select id="sonderdienst-termin-beschreibung" class="field" required>
+              <option value="">Bitte wählen …</option>
+              <option th:each="beschreibung : ${knownSonderdienstBeschreibungen}" th:value="${beschreibung}"
+                      th:text="${beschreibung}">Beschreibung</option>
+              <option value="__custom__">— Andere Beschreibung —</option>
+            </select>
+            <input id="sonderdienst-termin-beschreibung-custom" class="field" type="text" maxlength="150"
+                   hidden placeholder="Neue Beschreibung eingeben …"/>
+          </div>
+          <div class="form-group">
+            <label for="sonderdienst-termin-beginn">Uhrzeit Beginn <span class="required">*</span></label>
+            <input id="sonderdienst-termin-beginn" class="field" type="time" value="19:00" required/>
+          </div>
+          <div class="form-group">
+            <label for="sonderdienst-termin-ende">Uhrzeit Ende <span class="required">*</span></label>
+            <input id="sonderdienst-termin-ende" class="field" type="time" value="22:00" required/>
+          </div>
+          <div class="form-group form-group--full termine-audience-block">
+            <span class="form-label">Personen/Gruppen</span>
+            <label class="termine-audience-all">
+              <input type="checkbox" id="sonderdienst-audience-all" checked/>
+              <span>Alle</span>
+            </label>
+            <div id="sonderdienst-audience-pick" class="termine-audience-pick" hidden>
+              <div class="termine-audience-field" th:if="${!#lists.isEmpty(unitPersonGroups)}">
+                <button type="button" class="btn btn--outline btn--sm" id="sonderdienst-groups-open-btn">
+                  Gruppen wählen (<span id="sonderdienst-groups-count">0</span>)
+                </button>
+                <div id="sonderdienst-groups-summary" class="termine-ausbilder-summary" hidden aria-live="polite"></div>
+                <p id="sonderdienst-groups-empty" class="hint text-sm termine-audience-empty">Keine Gruppen ausgewählt.</p>
+              </div>
+              <p class="hint text-sm" th:if="${#lists.isEmpty(unitPersonGroups)}">Noch keine Gruppen im Personalbereich angelegt.</p>
+              <div class="termine-audience-field" th:if="${!#lists.isEmpty(unitPersons)}">
+                <button type="button" class="btn btn--outline btn--sm" id="sonderdienst-persons-open-btn">
+                  Personen wählen (<span id="sonderdienst-persons-count">0</span>)
+                </button>
+                <div id="sonderdienst-persons-summary" class="termine-ausbilder-summary" hidden aria-live="polite"></div>
+                <p id="sonderdienst-persons-empty" class="hint text-sm termine-audience-empty">Keine Personen ausgewählt.</p>
+              </div>
+              <p class="hint text-sm">Mindestens eine Gruppe oder Person, wenn „Alle“ deaktiviert ist.</p>
+            </div>
+          </div>
+          <div class="form-group form-group--full">
+            <span class="form-label">Ausbilder/Verantwortlicher</span>
+            <p class="hint text-sm" style="margin:0 0 0.5rem;">Optional.</p>
+            <div class="termine-ausbilder-field" th:if="${!#lists.isEmpty(unitPersons)}">
+              <button type="button" class="btn btn--outline btn--sm" id="sonderdienst-ausbilder-open-btn">
+                Auswählen (<span id="sonderdienst-ausbilder-count">0</span>)
+              </button>
+              <div id="sonderdienst-ausbilder-summary" class="termine-ausbilder-summary" hidden aria-live="polite"></div>
+              <p id="sonderdienst-ausbilder-empty" class="hint text-sm termine-ausbilder-empty">Niemand ausgewählt.</p>
+            </div>
+            <p class="hint text-sm" th:if="${#lists.isEmpty(unitPersons)}">Noch keine Personen im Personalbereich angelegt.</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--primary" id="sonderdienst-save-termin">Speichern</button>
+        <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-sonderdienst-groups" class="modal-overlay modal-overlay--stack"
+       th:if="${canWrite and termineTab == 'sonderdienst' and !#lists.isEmpty(unitPersonGroups)}">
+    <div class="modal modal--lg" role="dialog" aria-labelledby="sonderdienst-groups-modal-title">
+      <div class="modal__header">
+        <h3 id="sonderdienst-groups-modal-title">Gruppen wählen</h3>
+        <button type="button" class="modal__close" data-close-sonderdienst-groups-modal aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal__body">
+        <p class="hint text-sm">Mehrfachauswahl möglich.</p>
+        <div class="atemschutz-person-search-wrap">
+          <input type="search" id="sonderdienst-groups-search" class="field atemschutz-person-search"
+                 placeholder="Gruppe suchen …" autocomplete="off"/>
+        </div>
+        <div id="sonderdienst-groups-picker" class="user-picker user-picker--scroll">
+          <label class="user-picker__item" th:each="g : ${unitPersonGroups}"
+                 th:attr="data-search=${#strings.toLowerCase(g.name)}">
+            <input type="checkbox" class="sonderdienst-audience-group-cb" th:value="${g.id}"
+                   th:attr="data-display-name=${g.name}"/>
+            <span class="user-picker__text">
+              <span class="user-picker__name" th:text="${g.name}">Gruppe</span>
+            </span>
+          </label>
+        </div>
+        <p class="hint atemschutz-person-search-empty" id="sonderdienst-groups-search-empty" hidden>Keine Treffer.</p>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--primary" id="sonderdienst-groups-apply">Übernehmen</button>
+        <button type="button" class="btn btn--outline" data-close-sonderdienst-groups-modal>Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-sonderdienst-persons" class="modal-overlay modal-overlay--stack"
+       th:if="${canWrite and termineTab == 'sonderdienst' and !#lists.isEmpty(unitPersons)}">
+    <div class="modal modal--lg" role="dialog" aria-labelledby="sonderdienst-persons-modal-title">
+      <div class="modal__header">
+        <h3 id="sonderdienst-persons-modal-title">Personen wählen</h3>
+        <button type="button" class="modal__close" data-close-sonderdienst-persons-modal aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal__body">
+        <p class="hint text-sm">Mehrfachauswahl möglich.</p>
+        <div class="atemschutz-person-search-wrap">
+          <input type="search" id="sonderdienst-persons-search" class="field atemschutz-person-search"
+                 placeholder="Name suchen …" autocomplete="off"/>
+        </div>
+        <div id="sonderdienst-persons-picker" class="user-picker user-picker--scroll">
+          <label class="user-picker__item" th:each="p : ${unitPersons}"
+                 th:attr="data-search=${#strings.toLowerCase(p.anwesenheitDisplayName())}">
+            <input type="checkbox" class="sonderdienst-audience-person-cb" th:value="${p.id}"
+                   th:attr="data-display-name=${p.anwesenheitDisplayName()}"/>
+            <span class="user-picker__text">
+              <span class="user-picker__name" th:text="${p.anwesenheitDisplayName()}">Name</span>
+            </span>
+          </label>
+        </div>
+        <p class="hint atemschutz-person-search-empty" id="sonderdienst-persons-search-empty" hidden>Keine Treffer.</p>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--primary" id="sonderdienst-persons-apply">Übernehmen</button>
+        <button type="button" class="btn btn--outline" data-close-sonderdienst-persons-modal>Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-sonderdienst-ausbilder" class="modal-overlay modal-overlay--stack"
+       th:if="${canWrite and termineTab == 'sonderdienst' and !#lists.isEmpty(unitPersons)}">
+    <div class="modal modal--lg" role="dialog" aria-labelledby="sonderdienst-ausbilder-modal-title">
+      <div class="modal__header">
+        <h3 id="sonderdienst-ausbilder-modal-title">Ausbilder/Verantwortlicher wählen</h3>
+        <button type="button" class="modal__close" data-close-sonderdienst-ausbilder-modal aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal__body">
+        <p class="hint text-sm">Mehrfachauswahl möglich.</p>
+        <div class="atemschutz-person-search-wrap">
+          <input type="search" id="sonderdienst-ausbilder-search" class="field atemschutz-person-search"
+                 placeholder="Name suchen …" autocomplete="off"/>
+        </div>
+        <div id="sonderdienst-ausbilder-picker" class="user-picker user-picker--scroll">
+          <label class="user-picker__item" th:each="p : ${unitPersons}"
+                 th:attr="data-search=${#strings.toLowerCase(p.anwesenheitDisplayName())}">
+            <input type="checkbox" class="sonderdienst-ausbilder-cb" th:value="${p.id}"
+                   th:attr="data-person-id=${p.id}, data-display-name=${p.anwesenheitDisplayName()}"/>
+            <span class="user-picker__text">
+              <span class="user-picker__name" th:text="${p.anwesenheitDisplayName()}">Name</span>
+            </span>
+          </label>
+        </div>
+        <p class="hint atemschutz-person-search-empty" id="sonderdienst-ausbilder-search-empty" hidden>Keine Treffer.</p>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--primary" id="sonderdienst-ausbilder-apply">Übernehmen</button>
+        <button type="button" class="btn btn--outline" data-close-sonderdienst-ausbilder-modal>Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <th:block th:if="${termineTab == 'sonderdienst'}">
+    <script th:src="@{/js/termine-audience-picker.js}" defer></script>
+    <script th:src="@{/js/termine-sonderdienst.js}" defer></script>
+  </th:block>
   <div th:if="${termineTab == 'sonstiges'}" id="termine-sonstiges-panel" class="termine-module-panel"
        th:attr="data-unit-id=${unitId},data-can-write=${canWrite}">
     <div class="page-header termine-panel-header termine-dienstplan-header">
       <div class="termine-dienstplan-header__text">
         <h3>Sonstiges</h3>
-        <p>Weitere Termine, die nicht zum Dienstplan oder zu Fahrzeugen gehören</p>
+        <p>Weitere Termine außerhalb von Übungsdienst, Sonderdienst und Fahrzeugen</p>
       </div>
       <div class="filter-bar berichte-einsatz-filter termine-dienstplan-header__filter"
            th:if="${!#lists.isEmpty(sonstigesTermine)}">

@@ -80,10 +80,7 @@ public final class AnwesenheitslisteEinsatzFormBridge {
             return null;
         }
         TermineCategory category = TermineCategory.fromKey(key);
-        if (category == TermineCategory.DIENSTPLAN || category == TermineCategory.SONSTIGES) {
-            return category;
-        }
-        return null;
+        return category.supportsAttendanceReports() ? category : null;
     }
 
     private static String trimOrNull(String value) {

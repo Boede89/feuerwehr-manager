@@ -2,7 +2,8 @@ package de.feuerwehr.manager.termine;
 
 public enum TermineTab {
     MEINE("meine", "Meine Termine"),
-    DIENSTPLAN("dienstplan", "Dienstplan"),
+    DIENSTPLAN("dienstplan", "Übungsdienst"),
+    SONDERDIENST("sonderdienst", "Sonderdienst"),
     FAHRZEUGE("fahrzeuge", "Fahrzeuge"),
     SONSTIGES("sonstiges", "Sonstiges");
 

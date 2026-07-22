@@ -256,6 +256,7 @@ public class AnwesenheitslisteService {
                 einsatzberichtService.serializeKraefteFahrzeugeState(kraefteState),
                 einsatzberichtService.listPersonsForForm(unitId),
                 listKnownStichworte(unitId, TermineCategory.DIENSTPLAN),
+                listKnownStichworte(unitId, TermineCategory.SONDERDIENST),
                 listKnownStichworte(unitId, TermineCategory.SONSTIGES),
                 einsatzberichtService.isForeignUnitPersonnelAllowed(unitId));
     }
@@ -535,7 +536,7 @@ public class AnwesenheitslisteService {
         if (termin == null || termin.getId() == null) {
             return false;
         }
-        if (termin.getCategory() != TermineCategory.DIENSTPLAN && termin.getCategory() != TermineCategory.SONSTIGES) {
+        if (termin.getCategory() == null || !termin.getCategory().supportsAttendanceReports()) {
             return false;
         }
         if (attendanceReportRepository
@@ -741,10 +742,11 @@ public class AnwesenheitslisteService {
             throw new IllegalArgumentException("Bitte einen Ort angeben.");
         }
         if (form.getTerminCategoryKey() == null || form.getTerminCategoryKey().isBlank()) {
-            throw new IllegalArgumentException("Bitte einen Bereich (Dienstplan oder Sonstiges) wählen.");
+            throw new IllegalArgumentException(
+                    "Bitte einen Bereich (Übungsdienst, Sonderdienst oder Sonstiges) wählen.");
         }
         TermineCategory category = TermineCategory.fromKey(form.getTerminCategoryKey());
-        if (category != TermineCategory.DIENSTPLAN && category != TermineCategory.SONSTIGES) {
+        if (!category.supportsAttendanceReports()) {
             throw new IllegalArgumentException("Bitte einen gültigen Bereich wählen.");
         }
     }

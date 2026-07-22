@@ -1155,6 +1155,7 @@ public class BerichteController {
         model.addAttribute("form", bundle.form());
         model.addAttribute("unitPersons", bundle.unitPersons());
         model.addAttribute("knownStichworteDienstplan", bundle.knownStichworteDienstplan());
+        model.addAttribute("knownStichworteSonderdienst", bundle.knownStichworteSonderdienst());
         model.addAttribute("knownStichworteSonstiges", bundle.knownStichworteSonstiges());
         model.addAttribute("kraefteState", bundle.kraefteState());
         model.addAttribute("kraefteInitialJson", bundle.kraefteInitialJson());

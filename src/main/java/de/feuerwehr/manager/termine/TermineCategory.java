@@ -2,6 +2,7 @@ package de.feuerwehr.manager.termine;
 
 public enum TermineCategory {
     DIENSTPLAN("dienstplan"),
+    SONDERDIENST("sonderdienst"),
     FAHRZEUGE("fahrzeuge"),
     SONSTIGES("sonstiges");
 
@@ -29,9 +30,15 @@ public enum TermineCategory {
 
     public String displayLabel() {
         return switch (this) {
-            case DIENSTPLAN -> "Dienstplan";
+            case DIENSTPLAN -> "Übungsdienst";
+            case SONDERDIENST -> "Sonderdienst";
             case FAHRZEUGE -> "Fahrzeuge";
             case SONSTIGES -> "Sonstiges";
         };
+    }
+
+    /** Kategorien, aus denen Anwesenheitslisten erzeugt werden können. */
+    public boolean supportsAttendanceReports() {
+        return this == DIENSTPLAN || this == SONDERDIENST || this == SONSTIGES;
     }
 }

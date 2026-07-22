@@ -95,6 +95,7 @@ public class PersonalController {
     private List<String> listKnownInstructorThemen(long unitId) {
         LinkedHashSet<String> themes = new LinkedHashSet<>();
         anwesenheitslisteService.listKnownStichworte(unitId, TermineCategory.DIENSTPLAN).forEach(themes::add);
+        anwesenheitslisteService.listKnownStichworte(unitId, TermineCategory.SONDERDIENST).forEach(themes::add);
         anwesenheitslisteService.listKnownStichworte(unitId, TermineCategory.SONSTIGES).forEach(themes::add);
         personalInstructorGroupService.listThemen(unitId).forEach(themes::add);
         return themes.stream().sorted(String.CASE_INSENSITIVE_ORDER).toList();

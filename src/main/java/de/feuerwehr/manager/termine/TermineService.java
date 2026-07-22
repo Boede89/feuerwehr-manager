@@ -53,6 +53,11 @@ public class TermineService {
     }
 
     @Transactional(readOnly = true)
+    public List<DienstplanTerminView> listSonderdienstTermine(long unitId) {
+        return listTermineByCategory(unitId, TermineCategory.SONDERDIENST);
+    }
+
+    @Transactional(readOnly = true)
     public List<DienstplanTerminView> listTermineByCategory(long unitId, TermineCategory category) {
         List<UnitTermin> termins = unitTerminRepository.findByUnitAndCategoryWithInstructor(unitId, category);
         termins.forEach(this::touchTerminCollections);
@@ -91,6 +96,11 @@ public class TermineService {
     }
 
     @Transactional(readOnly = true)
+    public List<String> listKnownSonderdienstBeschreibungen(long unitId) {
+        return listKnownTitles(unitId, TermineCategory.SONDERDIENST);
+    }
+
+    @Transactional(readOnly = true)
     public List<String> listKnownTitles(long unitId, TermineCategory category) {
         return unitTerminRepository.findDistinctTitlesByUnitAndCategory(unitId, category).stream()
                 .sorted(String.CASE_INSENSITIVE_ORDER)
@@ -105,6 +115,11 @@ public class TermineService {
     @Transactional
     public void createSonstigesTermin(long unitId, long userId, CreateDienstplanTerminRequest request) {
         createTermin(unitId, userId, TermineCategory.SONSTIGES, request);
+    }
+
+    @Transactional
+    public void createSonderdienstTermin(long unitId, long userId, CreateDienstplanTerminRequest request) {
+        createTermin(unitId, userId, TermineCategory.SONDERDIENST, request);
     }
 
     @Transactional
@@ -137,6 +152,11 @@ public class TermineService {
     }
 
     @Transactional
+    public void updateSonderdienstTermin(long unitId, long terminId, CreateDienstplanTerminRequest request) {
+        updateTermin(unitId, terminId, TermineCategory.SONDERDIENST, request);
+    }
+
+    @Transactional
     public void updateTermin(
             long unitId, long terminId, TermineCategory category, CreateDienstplanTerminRequest request) {
         ParsedDienstplanFields parsed = parseDienstplanRequest(request);
@@ -154,6 +174,11 @@ public class TermineService {
     @Transactional
     public void deleteSonstigesTermin(long unitId, long terminId) {
         deleteTermin(unitId, terminId, TermineCategory.SONSTIGES);
+    }
+
+    @Transactional
+    public void deleteSonderdienstTermin(long unitId, long terminId) {
+        deleteTermin(unitId, terminId, TermineCategory.SONDERDIENST);
     }
 
     @Transactional

@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AnwesenheitslisteTerminSyncService {
 
     private static final List<TermineCategory> SYNC_CATEGORIES =
-            List.of(TermineCategory.DIENSTPLAN, TermineCategory.SONSTIGES);
+            List.of(TermineCategory.DIENSTPLAN, TermineCategory.SONDERDIENST, TermineCategory.SONSTIGES);
 
     private final UnitTerminRepository unitTerminRepository;
     private final AnwesenheitslisteService anwesenheitslisteService;
@@ -56,7 +56,7 @@ public class AnwesenheitslisteTerminSyncService {
         if (termin == null || termin.getCategory() == null) {
             return;
         }
-        if (termin.getCategory() != TermineCategory.DIENSTPLAN && termin.getCategory() != TermineCategory.SONSTIGES) {
+        if (!termin.getCategory().supportsAttendanceReports()) {
             return;
         }
         if (!anwesenheitslisteService.createDraftFromTerminIfMissing(unitId, termin)) {

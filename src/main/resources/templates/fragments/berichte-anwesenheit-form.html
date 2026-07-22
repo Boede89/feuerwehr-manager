@@ -36,7 +36,11 @@
                 th:disabled="${formMode == 'view'}">
           <option value="dienstplan"
                   th:selected="${form.terminCategoryKey == null or form.terminCategoryKey == 'dienstplan'}">
-            Dienstplan
+            Übungsdienst
+          </option>
+          <option value="sonderdienst"
+                  th:selected="${form.terminCategoryKey == 'sonderdienst'}">
+            Sonderdienst
           </option>
           <option value="sonstiges"
                   th:selected="${form.terminCategoryKey == 'sonstiges'}">
@@ -57,6 +61,9 @@
           <ul class="combo-suggest__list" role="listbox" hidden>
             <li class="combo-suggest__option" th:each="s : ${knownStichworteDienstplan}"
                 data-category="dienstplan"
+                th:attr="data-value=${s}" th:text="${s}">Thema</li>
+            <li class="combo-suggest__option" th:each="s : ${knownStichworteSonderdienst}"
+                data-category="sonderdienst"
                 th:attr="data-value=${s}" th:text="${s}">Thema</li>
             <li class="combo-suggest__option" th:each="s : ${knownStichworteSonstiges}"
                 data-category="sonstiges"

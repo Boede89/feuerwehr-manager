@@ -83,6 +83,13 @@ public class TermineController {
                 model.addAttribute("sonstigesTermine", termineService.listSonstigesTermine(unit.getId()));
                 model.addAttribute("knownSonstigesBeschreibungen", termineService.listKnownSonstigesBeschreibungen(unit.getId()));
             }
+            if (termineTab == TermineTab.SONDERDIENST) {
+                addTerminFormModel(unit.getId(), model);
+                model.addAttribute("sonderdienstTermine", termineService.listSonderdienstTermine(unit.getId()));
+                model.addAttribute(
+                        "knownSonderdienstBeschreibungen",
+                        termineService.listKnownSonderdienstBeschreibungen(unit.getId()));
+            }
             return "termine/index";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
@@ -171,6 +178,58 @@ public class TermineController {
             requireTermineWrite(actor, unitId);
             accessControlService.requireUnitAccess(actor, unitId);
             termineService.deleteSonstigesTermin(unitId, terminId);
+            return ActionResultDto.success("Termin wurde gelöscht.");
+        } catch (IllegalArgumentException e) {
+            return ActionResultDto.failure(e.getMessage());
+        }
+    }
+
+    @PostMapping("/api/sonderdienst")
+    @ResponseBody
+    public ActionResultDto createSonderdienstTermin(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @RequestBody CreateDienstplanTerminRequest body) {
+        try {
+            requireModuleEnabled(unitId);
+            requireTermineWrite(actor, unitId);
+            accessControlService.requireUnitAccess(actor, unitId);
+            termineService.createSonderdienstTermin(unitId, actor.getUserId(), body);
+            return ActionResultDto.success("Termin wurde erstellt.");
+        } catch (IllegalArgumentException e) {
+            return ActionResultDto.failure(e.getMessage());
+        }
+    }
+
+    @PutMapping("/api/sonderdienst/{terminId}")
+    @ResponseBody
+    public ActionResultDto updateSonderdienstTermin(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @PathVariable long terminId,
+            @RequestBody CreateDienstplanTerminRequest body) {
+        try {
+            requireModuleEnabled(unitId);
+            requireTermineWrite(actor, unitId);
+            accessControlService.requireUnitAccess(actor, unitId);
+            termineService.updateSonderdienstTermin(unitId, terminId, body);
+            return ActionResultDto.success("Termin wurde gespeichert.");
+        } catch (IllegalArgumentException e) {
+            return ActionResultDto.failure(e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/api/sonderdienst/{terminId}")
+    @ResponseBody
+    public ActionResultDto deleteSonderdienstTermin(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @PathVariable long terminId) {
+        try {
+            requireModuleEnabled(unitId);
+            requireTermineWrite(actor, unitId);
+            accessControlService.requireUnitAccess(actor, unitId);
+            termineService.deleteSonderdienstTermin(unitId, terminId);
             return ActionResultDto.success("Termin wurde gelöscht.");
         } catch (IllegalArgumentException e) {
             return ActionResultDto.failure(e.getMessage());
