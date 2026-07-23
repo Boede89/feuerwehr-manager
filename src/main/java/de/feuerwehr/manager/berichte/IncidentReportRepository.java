@@ -90,6 +90,19 @@ public interface IncidentReportRepository extends JpaRepository<IncidentReport, 
             @Param("includeTestReports") boolean includeTestReports);
 
     @Query("""
+            SELECT CASE WHEN COUNT(r) > 0 THEN TRUE ELSE FALSE END FROM IncidentReport r
+            WHERE r.unit.id = :unitId
+              AND r.incidentNumber = :incidentNumber
+              AND (:excludeId IS NULL OR r.id <> :excludeId)
+              AND (r.testData = FALSE OR :includeTestReports = TRUE)
+            """)
+    boolean existsIncidentNumber(
+            @Param("unitId") long unitId,
+            @Param("incidentNumber") String incidentNumber,
+            @Param("excludeId") Long excludeId,
+            @Param("includeTestReports") boolean includeTestReports);
+
+    @Query("""
             SELECT DISTINCT r.stichwort FROM IncidentReport r
             WHERE r.unit.id = :unitId AND r.stichwort IS NOT NULL AND r.stichwort <> ''
               AND (r.testData = FALSE OR :includeTestReports = TRUE)

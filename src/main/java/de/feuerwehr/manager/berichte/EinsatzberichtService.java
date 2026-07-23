@@ -750,18 +750,27 @@ public class EinsatzberichtService {
 
     @Transactional
     public IncidentReport create(long unitId, EinsatzberichtFormData form, AppUserDetails actor) {
-        validateRequired(form);
-        IncidentReport report = newDraft(unitId);
-        applyForm(report, form, unitId);
-        report.setStatus(IncidentReportStatus.ENTWURF);
-        report.setIncidentNumber(resolveIncidentNumberForCreate(unitId, form.incidentDate(), form.incidentNumber()));
-        applyCreator(report, actor);
-        IncidentReport saved = incidentReportRepository.save(report);
-        saveCrewAssignments(saved, form, unitId);
-        saveDeployedEquipment(saved, form, unitId);
-        syncPaAtemschutzRecords(saved, form, actor);
-        eventPublisher.publishEvent(BerichteEmailEvent.onCreate(unitId, BerichteEmailReportType.EINSATZ, saved.getId()));
-        return saved;
+        try {
+            validateRequired(form);
+            IncidentReport report = newDraft(unitId);
+            applyForm(report, form, unitId);
+            report.setStatus(IncidentReportStatus.ENTWURF);
+            report.setIncidentNumber(
+                    resolveIncidentNumberForCreate(unitId, form.incidentDate(), form.incidentNumber()));
+            applyCreator(report, actor);
+            IncidentReport saved = incidentReportRepository.save(report);
+            saveCrewAssignments(saved, form, unitId);
+            saveDeployedEquipment(saved, form, unitId);
+            syncPaAtemschutzRecords(saved, form, actor);
+            eventPublisher.publishEvent(
+                    BerichteEmailEvent.onCreate(unitId, BerichteEmailReportType.EINSATZ, saved.getId()));
+            return saved;
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            throw new IllegalArgumentException(
+                    "Die Einsatznummer konnte nicht gespeichert werden (Nummer möglicherweise bereits vergeben). "
+                            + "Bitte eine freie Nummer wählen und erneut speichern.",
+                    e);
+        }
     }
 
     @Transactional
@@ -839,6 +848,23 @@ public class EinsatzberichtService {
 
     @Transactional
     public IncidentReport update(
+            long unitId,
+            long reportId,
+            EinsatzberichtFormData form,
+            String changeComment,
+            AppUserDetails actor,
+            boolean canApprove) {
+        try {
+            return updateInternal(unitId, reportId, form, changeComment, actor, canApprove);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            throw new IllegalArgumentException(
+                    "Die Einsatznummer konnte nicht gespeichert werden (Nummer möglicherweise bereits vergeben). "
+                            + "Bitte eine freie Nummer wählen und erneut speichern.",
+                    e);
+        }
+    }
+
+    private IncidentReport updateInternal(
             long unitId,
             long reportId,
             EinsatzberichtFormData form,
@@ -1645,8 +1671,9 @@ public class EinsatzberichtService {
         } else {
             number = suggestIncidentNumber(unitId, date);
         }
+        ensureIncidentNumberAssignable(unitId, number, null);
         IncidentNumberSupport.ParsedIncidentNumber parsed = IncidentNumberSupport.parse(number);
-        if (parsed != null) {
+        if (parsed != null && isSequenceTaken(unitId, parsed.year(), parsed.sequence(), null)) {
             shiftSequencesFrom(unitId, parsed.year(), parsed.sequence(), null);
         }
         return number;
@@ -1654,7 +1681,7 @@ public class EinsatzberichtService {
 
     /**
      * Setzt die Einsatznummer und schiebt bei Bedarf spätere Jahres-Sequenzen um +1
-     * (Einfügen „in der Mitte“).
+     * (Einfügen „in der Mitte“, nur wenn die Zielsequenz schon vergeben ist).
      */
     private void applyIncidentNumber(IncidentReport report, long unitId, String requestedNumber) {
         if (requestedNumber == null || requestedNumber.isBlank()) {
@@ -1672,6 +1699,7 @@ public class EinsatzberichtService {
         if (trimmed.equals(current)) {
             return;
         }
+        ensureIncidentNumberAssignable(unitId, trimmed, report.getId());
         IncidentNumberSupport.ParsedIncidentNumber parsed = IncidentNumberSupport.parse(trimmed);
         if (parsed == null) {
             report.setIncidentNumber(trimmed);
@@ -1679,26 +1707,52 @@ public class EinsatzberichtService {
         }
         Long excludeId = report.getId();
         // Alte Nummer freigeben, damit Unique-Constraint beim Hochzählen nicht kollidiert
-        report.setIncidentNumber("__RENUMBERING__" + excludeId);
+        report.setIncidentNumber(temporaryRenumberPlaceholder(excludeId));
         incidentReportRepository.saveAndFlush(report);
-        shiftSequencesFrom(unitId, parsed.year(), parsed.sequence(), excludeId);
+        if (isSequenceTaken(unitId, parsed.year(), parsed.sequence(), excludeId)) {
+            shiftSequencesFrom(unitId, parsed.year(), parsed.sequence(), excludeId);
+        }
         report.setIncidentNumber(trimmed);
+    }
+
+    private void ensureIncidentNumberAssignable(long unitId, String number, Long excludeReportId) {
+        if (number == null || number.isBlank()) {
+            return;
+        }
+        if (incidentReportRepository.existsIncidentNumber(
+                unitId, number, excludeReportId, includeTestReports())) {
+            throw new IllegalArgumentException(
+                    "Die Einsatznummer „" + number + "“ ist bereits vergeben. "
+                            + "Bitte eine andere Nummer wählen.");
+        }
+    }
+
+    private boolean isSequenceTaken(long unitId, int year, int sequence, Long excludeReportId) {
+        List<IncidentReport> reports = incidentReportRepository.findReportsWithIncidentNumberForYear(
+                unitId, yearPrefix(year), includeTestReports());
+        for (IncidentReport candidate : reports) {
+            if (excludeReportId != null && excludeReportId.equals(candidate.getId())) {
+                continue;
+            }
+            IncidentNumberSupport.ParsedIncidentNumber parsed =
+                    IncidentNumberSupport.parse(candidate.getIncidentNumber());
+            if (parsed != null && parsed.year() == year && parsed.sequence() == sequence) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
      * Erhöht bei allen anderen Berichten des Jahres die Sequenz um 1, wenn sie
-     * {@code >= fromSequence} ist. Absteigend, damit Unique-Constraints greifen.
+     * {@code >= fromSequence} ist. Zwei Phasen (Platzhalter → Ziel), damit Unique-Constraints
+     * auch bei doppelten Sequenzen und gleicher Datums-Basis nicht kollidieren.
      */
     private void shiftSequencesFrom(long unitId, int year, int fromSequence, Long excludeReportId) {
-        List<String> existing = incidentReportRepository.findIncidentNumbersForYear(
-                unitId, yearPrefix(year), includeTestReports());
-        int max = IncidentNumberSupport.maxSequenceForYear(year, existing);
-        if (fromSequence > max) {
-            return;
-        }
         List<IncidentReport> reports = incidentReportRepository.findReportsWithIncidentNumberForYear(
                 unitId, yearPrefix(year), includeTestReports());
-        List<IncidentReport> toShift = new ArrayList<>();
+        record ShiftItem(IncidentReport report, IncidentNumberSupport.ParsedIncidentNumber parsed) {}
+        List<ShiftItem> toShift = new ArrayList<>();
         for (IncidentReport candidate : reports) {
             if (excludeReportId != null && excludeReportId.equals(candidate.getId())) {
                 continue;
@@ -1706,32 +1760,46 @@ public class EinsatzberichtService {
             IncidentNumberSupport.ParsedIncidentNumber parsed =
                     IncidentNumberSupport.parse(candidate.getIncidentNumber());
             if (parsed != null && parsed.year() == year && parsed.sequence() >= fromSequence) {
-                toShift.add(candidate);
+                toShift.add(new ShiftItem(candidate, parsed));
             }
+        }
+        if (toShift.isEmpty()) {
+            return;
         }
         toShift.sort((a, b) -> {
-            int seqA = IncidentNumberSupport.parse(a.getIncidentNumber()).sequence();
-            int seqB = IncidentNumberSupport.parse(b.getIncidentNumber()).sequence();
-            return Integer.compare(seqB, seqA);
-        });
-        for (IncidentReport candidate : toShift) {
-            IncidentNumberSupport.ParsedIncidentNumber parsed =
-                    IncidentNumberSupport.parse(candidate.getIncidentNumber());
-            if (parsed == null) {
-                continue;
+            int bySeq = Integer.compare(b.parsed().sequence(), a.parsed().sequence());
+            if (bySeq != 0) {
+                return bySeq;
             }
-            candidate.setIncidentNumber(IncidentNumberSupport.withSequence(parsed, parsed.sequence() + 1));
+            return Long.compare(b.report().getId(), a.report().getId());
+        });
+
+        // Phase 1: eindeutige Platzhalter
+        for (ShiftItem item : toShift) {
+            item.report().setIncidentNumber(temporaryRenumberPlaceholder(item.report().getId()));
+            incidentReportRepository.saveAndFlush(item.report());
         }
-        if (!toShift.isEmpty()) {
-            incidentReportRepository.saveAll(toShift);
-            incidentReportRepository.flush();
-            log.info(
-                    "[Einsatznummer] unit={} year={} ab Sequenz {} um +1 verschoben ({} Berichte)",
-                    unitId,
-                    year,
-                    fromSequence,
-                    toShift.size());
+        // Phase 2: Sequenz + 1
+        for (ShiftItem item : toShift) {
+            item.report()
+                    .setIncidentNumber(
+                            IncidentNumberSupport.withSequence(item.parsed(), item.parsed().sequence() + 1));
+            incidentReportRepository.saveAndFlush(item.report());
         }
+        log.info(
+                "[Einsatznummer] unit={} year={} ab Sequenz {} um +1 verschoben ({} Berichte)",
+                unitId,
+                year,
+                fromSequence,
+                toShift.size());
+    }
+
+    private static String temporaryRenumberPlaceholder(long reportId) {
+        String value = "__TMP__" + reportId;
+        if (value.length() > 32) {
+            value = "__T" + reportId;
+        }
+        return value;
     }
 
     private static String yearPrefix(int year) {
