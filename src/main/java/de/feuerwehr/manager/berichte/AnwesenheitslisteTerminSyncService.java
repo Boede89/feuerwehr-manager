@@ -65,7 +65,9 @@ public class AnwesenheitslisteTerminSyncService {
     }
 
     @Transactional
-    public void onTerminDeleted(long unitId, long terminId) {
-        anwesenheitslisteService.deleteDraftForTermin(unitId, terminId);
+    public void onTerminDeleted(long unitId, long terminId, boolean deleteAttendanceReport) {
+        if (deleteAttendanceReport) {
+            anwesenheitslisteService.deleteForTermin(unitId, terminId);
+        }
     }
 }

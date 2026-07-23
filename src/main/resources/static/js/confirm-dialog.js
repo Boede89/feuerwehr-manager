@@ -619,6 +619,27 @@
         variant: 'danger'
       });
     },
+    deleteTermin: function (options) {
+      var opts = options || {};
+      var checkboxes = [];
+      if (opts.offerDeleteAttendance !== false) {
+        checkboxes.push({
+          id: 'fw-confirm-delete-attendance',
+          name: 'deleteAttendance',
+          label: 'Zugehörige Anwesenheitsliste ebenfalls löschen',
+          checked: opts.deleteAttendance !== false
+        });
+      }
+      return show({
+        title: 'Termin löschen?',
+        message: checkboxes.length
+          ? 'Der Termin wird gelöscht. Optional kann die verknüpfte Anwesenheitsliste mitgelöscht werden.'
+          : 'Termin wirklich löschen?',
+        confirmLabel: 'Löschen',
+        variant: 'danger',
+        checkboxes: checkboxes
+      });
+    },
     deleteAttachment: function () {
       return show({
         title: 'Anhang löschen?',

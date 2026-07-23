@@ -592,18 +592,23 @@ public class AnwesenheitslisteService {
 
     @Transactional
     public void refreshDraftFromTermin(long unitId, UnitTermin termin) {
-        // Bestehende Anwesenheitslisten-Entwürfe werden nicht mehr vom Termin überschrieben.
-        // Stammdaten werden in der Anwesenheitsliste gepflegt und beim Speichern in den Termin zurückgeschrieben.
+        if (termin == null || termin.getId() == null) {
+            return;
+        }
+        attendanceReportRepository
+                .findByUnitIdAndUnitTerminId(unitId, termin.getId(), includeTestReports())
+                .ifPresent(report -> {
+                    applyTerminFields(report, termin, true);
+                    attendanceReportRepository.save(report);
+                });
     }
 
+    /** Löscht die verknüpfte Anwesenheitsliste (jeder Status), falls vorhanden. */
     @Transactional
-    public void deleteDraftForTermin(long unitId, long terminId) {
+    public void deleteForTermin(long unitId, long terminId) {
         attendanceReportRepository
                 .findByUnitIdAndUnitTerminId(unitId, terminId, includeTestReports())
                 .ifPresent(report -> {
-                    if (report.getStatus() != IncidentReportStatus.ENTWURF) {
-                        return;
-                    }
                     attendanceReportPersonnelRepository.deleteByReportId(report.getId());
                     attendanceReportRepository.delete(report);
                 });
@@ -697,13 +702,17 @@ public class AnwesenheitslisteService {
     }
 
     private void applyTerminFields(AttendanceReport report, UnitTermin termin, boolean includeSchedule) {
-        if (includeSchedule) {
+        if (includeSchedule && termin.getStartAt() != null) {
             report.setEventDate(termin.getStartAt().toLocalDate());
             report.setStartTime(termin.getStartAt().toLocalTime());
             report.setEndTime(termin.getEndAt() != null ? termin.getEndAt().toLocalTime() : null);
         }
-        report.setTitle(termin.getTitle());
-        report.setTerminCategory(termin.getCategory());
+        if (termin.getTitle() != null && !termin.getTitle().isBlank()) {
+            report.setTitle(termin.getTitle().trim());
+        }
+        if (termin.getCategory() != null && termin.getCategory().supportsAttendanceReports()) {
+            report.setTerminCategory(termin.getCategory());
+        }
         String location = termin.getLocation() != null ? termin.getLocation().trim() : "";
         if (!location.isBlank()) {
             report.setLocation(location);
@@ -720,10 +729,12 @@ public class AnwesenheitslisteService {
             } catch (Exception ignored) {
                 // Fallback nur Anzeigenamen
             }
-        }
-        String instructors = formatInstructorNames(termin);
-        if (instructors != null && !instructors.isBlank()) {
-            report.setInstructorResponsible(instructors);
+            String instructors = formatInstructorNames(termin);
+            report.setInstructorResponsible(
+                    instructors != null && !instructors.isBlank() ? instructors : null);
+        } else {
+            report.setInstructorPersonIdsJson(null);
+            report.setInstructorResponsible(null);
         }
     }
 
@@ -742,6 +753,9 @@ public class AnwesenheitslisteService {
         if (report.getLocation() != null) {
             termin.setLocation(report.getLocation().trim());
         }
+        if (report.getTerminCategory() != null && report.getTerminCategory().supportsAttendanceReports()) {
+            termin.setCategory(report.getTerminCategory());
+        }
         LocalDate date = report.getEventDate();
         LocalTime start = report.getStartTime();
         if (date != null && start != null) {
@@ -757,6 +771,20 @@ public class AnwesenheitslisteService {
             } else {
                 termin.setEndAt(null);
             }
+        }
+        List<Long> instructorIds = parseInstructorPersonIds(report.getInstructorPersonIdsJson());
+        if (!instructorIds.isEmpty()) {
+            LinkedHashSet<Person> instructors = new LinkedHashSet<>();
+            personRepository.findAllById(instructorIds).forEach(person -> {
+                if (person.getUnit() != null
+                        && report.getUnit() != null
+                        && Objects.equals(person.getUnit().getId(), report.getUnit().getId())) {
+                    instructors.add(person);
+                }
+            });
+            termin.setInstructorPersons(instructors);
+        } else {
+            termin.setInstructorPersons(new LinkedHashSet<>());
         }
         unitTerminRepository.save(termin);
     }

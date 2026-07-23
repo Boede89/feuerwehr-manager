@@ -586,12 +586,26 @@
     if (!terminId) {
       return;
     }
-    if (!window.confirm('Termin wirklich löschen?')) {
-      return;
-    }
-    apiFetch('/termine/api/sonstiges/' + encodeURIComponent(terminId) + '?unit=' + encodeURIComponent(unitId), {
-      method: 'DELETE'
-    }).then(notifyResult);
+    var ask = window.FwConfirm && window.FwConfirm.deleteTermin
+      ? window.FwConfirm.deleteTermin({ offerDeleteAttendance: true, deleteAttendance: true })
+      : Promise.resolve(
+          window.confirm('Termin wirklich löschen?\n\nOK = mit Anwesenheitsliste, Abbrechen = abbrechen')
+            ? { ok: true, deleteAttendance: true }
+            : { ok: false }
+        );
+    ask.then(function (result) {
+      var ok = result === true || (result && result.ok);
+      if (!ok) {
+        return;
+      }
+      var deleteAttendance = result === true || !!(result && result.deleteAttendance);
+      apiFetch(
+        '/termine/api/sonstiges/' + encodeURIComponent(terminId) +
+          '?unit=' + encodeURIComponent(unitId) +
+          '&deleteAttendance=' + (deleteAttendance ? 'true' : 'false'),
+        { method: 'DELETE' }
+      ).then(notifyResult);
+    });
   }
 
   document.querySelectorAll('[data-close-modal]').forEach(function (btn) {

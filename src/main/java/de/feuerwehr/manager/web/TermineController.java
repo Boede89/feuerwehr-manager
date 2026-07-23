@@ -172,13 +172,17 @@ public class TermineController {
     public ActionResultDto deleteSonstigesTermin(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit") long unitId,
+            @RequestParam(name = "deleteAttendance", defaultValue = "false") boolean deleteAttendance,
             @PathVariable long terminId) {
         try {
             requireModuleEnabled(unitId);
             requireTermineWrite(actor, unitId);
             accessControlService.requireUnitAccess(actor, unitId);
-            termineService.deleteSonstigesTermin(unitId, terminId);
-            return ActionResultDto.success("Termin wurde gelöscht.");
+            termineService.deleteSonstigesTermin(unitId, terminId, deleteAttendance);
+            return ActionResultDto.success(
+                    deleteAttendance
+                            ? "Termin und zugehörige Anwesenheitsliste wurden gelöscht."
+                            : "Termin wurde gelöscht.");
         } catch (IllegalArgumentException e) {
             return ActionResultDto.failure(e.getMessage());
         }
@@ -224,13 +228,17 @@ public class TermineController {
     public ActionResultDto deleteSonderdienstTermin(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit") long unitId,
+            @RequestParam(name = "deleteAttendance", defaultValue = "false") boolean deleteAttendance,
             @PathVariable long terminId) {
         try {
             requireModuleEnabled(unitId);
             requireTermineWrite(actor, unitId);
             accessControlService.requireUnitAccess(actor, unitId);
-            termineService.deleteSonderdienstTermin(unitId, terminId);
-            return ActionResultDto.success("Termin wurde gelöscht.");
+            termineService.deleteSonderdienstTermin(unitId, terminId, deleteAttendance);
+            return ActionResultDto.success(
+                    deleteAttendance
+                            ? "Termin und zugehörige Anwesenheitsliste wurden gelöscht."
+                            : "Termin wurde gelöscht.");
         } catch (IllegalArgumentException e) {
             return ActionResultDto.failure(e.getMessage());
         }
@@ -241,13 +249,17 @@ public class TermineController {
     public ActionResultDto deleteDienstplanTermin(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit") long unitId,
+            @RequestParam(name = "deleteAttendance", defaultValue = "false") boolean deleteAttendance,
             @PathVariable long terminId) {
         try {
             requireModuleEnabled(unitId);
             requireTermineWrite(actor, unitId);
             accessControlService.requireUnitAccess(actor, unitId);
-            termineService.deleteDienstplanTermin(unitId, terminId);
-            return ActionResultDto.success("Termin wurde gelöscht.");
+            termineService.deleteDienstplanTermin(unitId, terminId, deleteAttendance);
+            return ActionResultDto.success(
+                    deleteAttendance
+                            ? "Termin und zugehörige Anwesenheitsliste wurden gelöscht."
+                            : "Termin wurde gelöscht.");
         } catch (IllegalArgumentException e) {
             return ActionResultDto.failure(e.getMessage());
         }

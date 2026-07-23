@@ -168,24 +168,25 @@ public class TermineService {
     }
 
     @Transactional
-    public void deleteDienstplanTermin(long unitId, long terminId) {
-        deleteTermin(unitId, terminId, TermineCategory.DIENSTPLAN);
+    public void deleteDienstplanTermin(long unitId, long terminId, boolean deleteAttendanceReport) {
+        deleteTermin(unitId, terminId, TermineCategory.DIENSTPLAN, deleteAttendanceReport);
     }
 
     @Transactional
-    public void deleteSonstigesTermin(long unitId, long terminId) {
-        deleteTermin(unitId, terminId, TermineCategory.SONSTIGES);
+    public void deleteSonstigesTermin(long unitId, long terminId, boolean deleteAttendanceReport) {
+        deleteTermin(unitId, terminId, TermineCategory.SONSTIGES, deleteAttendanceReport);
     }
 
     @Transactional
-    public void deleteSonderdienstTermin(long unitId, long terminId) {
-        deleteTermin(unitId, terminId, TermineCategory.SONDERDIENST);
+    public void deleteSonderdienstTermin(long unitId, long terminId, boolean deleteAttendanceReport) {
+        deleteTermin(unitId, terminId, TermineCategory.SONDERDIENST, deleteAttendanceReport);
     }
 
     @Transactional
-    public void deleteTermin(long unitId, long terminId, TermineCategory category) {
+    public void deleteTermin(
+            long unitId, long terminId, TermineCategory category, boolean deleteAttendanceReport) {
         UnitTermin termin = requireCategoryTermin(unitId, terminId, category);
-        anwesenheitslisteTerminSyncService.onTerminDeleted(unitId, terminId);
+        anwesenheitslisteTerminSyncService.onTerminDeleted(unitId, terminId, deleteAttendanceReport);
         unitTerminRepository.delete(termin);
     }
 
