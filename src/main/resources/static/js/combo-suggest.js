@@ -18,6 +18,7 @@
     });
 
     var minChars = Number(root.getAttribute('data-combo-min') || '1');
+    var allowFreeText = root.hasAttribute('data-combo-free-text');
     var categorySelectId = root.getAttribute('data-combo-category-select');
     var categorySelect = categorySelectId ? document.getElementById(categorySelectId) : null;
     var activeIndex = -1;
@@ -86,7 +87,9 @@
       });
       if (visibleCount > 0 && (showAllOnFocus || q.length >= minChars)) {
         openList();
-        setActive(0);
+        // Freitext: nichts vorwählen — Enter übernimmt den getippten Namen.
+        // Sonst: ersten Treffer aktivieren (klassische Combobox).
+        setActive(allowFreeText ? -1 : 0);
       } else {
         closeList();
       }
@@ -145,13 +148,18 @@
       });
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setActive(Math.min(activeIndex + 1, visible.length - 1));
+        setActive(activeIndex < 0 ? 0 : Math.min(activeIndex + 1, visible.length - 1));
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setActive(Math.max(activeIndex - 1, 0));
+        setActive(activeIndex < 0 ? visible.length - 1 : Math.max(activeIndex - 1, 0));
       } else if (e.key === 'Enter' && activeIndex >= 0 && visible[activeIndex]) {
         e.preventDefault();
         selectOption(visible[activeIndex]);
+      } else if (e.key === 'Enter' && allowFreeText) {
+        // Freitext übernehmen, Liste schließen — kein erzwungenes Listenelement.
+        closeList();
+        syncPersonIdFromValue();
+        input.dispatchEvent(new Event('change', { bubbles: true }));
       } else if (e.key === 'Escape') {
         closeList();
       }

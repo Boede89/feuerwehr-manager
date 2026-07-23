@@ -106,17 +106,18 @@
       </div>
       <div class="form-group form-group--full">
         <label for="incidentCommander">Einsatzleiter <span class="required">*</span></label>
-        <div class="combo-suggest" data-combo-suggest data-combo-min="1">
+        <div class="combo-suggest" data-combo-suggest data-combo-free-text data-combo-min="1">
           <input id="incidentCommander" name="incidentCommander" type="text" maxlength="255"
                  th:readonly="${formMode == 'view'}"
                  class="combo-suggest__input" autocomplete="off"
-                 placeholder="Name eingeben …" th:value="${form.incidentCommander}"/>
+                 placeholder="Person wählen oder Namen frei eingeben …" th:value="${form.incidentCommander}"/>
           <ul class="combo-suggest__list" role="listbox" hidden>
             <li class="combo-suggest__option" th:each="p : ${unitPersons}"
                 th:attr="data-value=${p.anwesenheitDisplayName()}, data-person-id=${p.id}"
                 th:text="${p.anwesenheitDisplayName()}">Name</li>
           </ul>
         </div>
+        <p class="hint text-sm" th:if="${formMode != 'view'}">Vorschlag aus der Einheitsliste oder beliebigen Namen eintippen.</p>
       </div>
       <div class="form-group">
         <label for="reporterName">Meldender</label>
