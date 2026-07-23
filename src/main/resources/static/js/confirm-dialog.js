@@ -217,26 +217,31 @@
     }
     var d = defaults || {};
     var hasMaengel = !!d.hasMaterialDamages;
+    var hasGeraete = !!d.hasDeployedEquipment;
     activeCheckboxes = [
       {
         id: 'fw-confirm-print-report',
         name: 'printReport',
         label: 'Einsatzbericht drucken',
         checked: !!d.printReport
-      },
-      {
-        id: 'fw-confirm-create-geraetewart',
-        name: 'createGeraetewart',
-        label: 'Gerätewartmitteilung erstellen',
-        checked: !!d.createGeraetewart
-      },
-      {
-        id: 'fw-confirm-print-geraetewart',
-        name: 'printGeraetewart',
-        label: 'Gerätewartmitteilung drucken',
-        checked: !!d.printGeraetewart
       }
     ];
+    if (hasGeraete) {
+      activeCheckboxes.push(
+        {
+          id: 'fw-confirm-create-geraetewart',
+          name: 'createGeraetewart',
+          label: 'Gerätewartmitteilung erstellen',
+          checked: !!d.createGeraetewart
+        },
+        {
+          id: 'fw-confirm-print-geraetewart',
+          name: 'printGeraetewart',
+          label: 'Gerätewartmitteilung drucken',
+          checked: !!d.printGeraetewart
+        }
+      );
+    }
     if (hasMaengel) {
       activeCheckboxes.push({
         id: 'fw-confirm-print-maengel',
@@ -252,22 +257,24 @@
       'Einsatzbericht drucken',
       d.printReport
     );
-    html +=
-      '<div class="confirm-dialog__checkbox-row">' +
-      checkboxMarkup(
-        'fw-confirm-create-geraetewart',
-        'createGeraetewart',
-        'Gerätewartmitteilung erstellen',
-        d.createGeraetewart
-      ) +
-      '<div class="confirm-dialog__checkbox-dependent" id="fw-confirm-print-geraetewart-wrap" hidden>' +
-      checkboxMarkup(
-        'fw-confirm-print-geraetewart',
-        'printGeraetewart',
-        'Gerätewartmitteilung drucken',
-        d.printGeraetewart
-      ) +
-      '</div></div>';
+    if (hasGeraete) {
+      html +=
+        '<div class="confirm-dialog__checkbox-row">' +
+        checkboxMarkup(
+          'fw-confirm-create-geraetewart',
+          'createGeraetewart',
+          'Gerätewartmitteilung erstellen',
+          d.createGeraetewart
+        ) +
+        '<div class="confirm-dialog__checkbox-dependent" id="fw-confirm-print-geraetewart-wrap" hidden>' +
+        checkboxMarkup(
+          'fw-confirm-print-geraetewart',
+          'printGeraetewart',
+          'Gerätewartmitteilung drucken',
+          d.printGeraetewart
+        ) +
+        '</div></div>';
+    }
     if (hasMaengel) {
       html += checkboxMarkup(
         'fw-confirm-print-maengel',
@@ -279,7 +286,9 @@
 
     checkboxesEl.innerHTML = html;
     checkboxesEl.hidden = false;
-    bindEinsatzReleaseCheckboxInteractions(d);
+    if (hasGeraete) {
+      bindEinsatzReleaseCheckboxInteractions(d);
+    }
   }
 
   function renderAnwesenheitReleaseCheckboxes(defaults) {
@@ -455,8 +464,19 @@
           var reportId = window.BerichteEinsatzRelease
             ? window.BerichteEinsatzRelease.parseReportIdFromAction(form.getAttribute('action'))
             : null;
-          function proceedRelease() {
-            window.FwConfirm.releaseEinsatzbericht(releaseDefaultsFromElement(form)).then(function (result) {
+          function proceedRelease(prep) {
+            var defaults = releaseDefaultsFromElement(form);
+            if (prep && prep.hasMaterialDamages) {
+              defaults.hasMaterialDamages = true;
+            }
+            if (prep && prep.hasDeployedEquipment) {
+              defaults.hasDeployedEquipment = true;
+            }
+            if (!defaults.hasDeployedEquipment) {
+              defaults.createGeraetewart = false;
+              defaults.printGeraetewart = false;
+            }
+            window.FwConfirm.releaseEinsatzbericht(defaults).then(function (result) {
               if (result && result.ok) {
                 appendReleaseOptions(form, result, EINSATZ_RELEASE_FIELD_NAMES);
                 form.dataset.confirmSubmitting = 'true';
@@ -471,11 +491,11 @@
           if (window.BerichteEinsatzRelease && reportId && unitId) {
             window.BerichteEinsatzRelease.ensureValidBeforeRelease(reportId, unitId).then(function (check) {
               if (check && check.ok) {
-                proceedRelease();
+                proceedRelease(check);
               }
             });
           } else {
-            proceedRelease();
+            proceedRelease({});
           }
           return;
         }

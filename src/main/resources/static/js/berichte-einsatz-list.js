@@ -84,17 +84,18 @@
     });
   }
 
-  function releaseDefaults(meta) {
+  function releaseDefaults(meta, prep) {
+    var hasGeraete = !!(prep && prep.hasDeployedEquipment)
+      || (meta && meta.hasDeployedEquipment === 'true');
     var defaults = {
-      createGeraetewart: root.dataset.releaseCreateGeraetewart === 'true',
+      createGeraetewart: hasGeraete && root.dataset.releaseCreateGeraetewart === 'true',
       printReport: root.dataset.releasePrintReport === 'true',
-      printGeraetewart: root.dataset.releasePrintGeraetewart === 'true',
+      printGeraetewart: hasGeraete && root.dataset.releasePrintGeraetewart === 'true',
       printMaengel: root.dataset.releasePrintMaengel === 'true',
-      hasMaterialDamages: false
+      hasMaterialDamages: !!(prep && prep.hasMaterialDamages)
+        || (meta && meta.hasMaterialDamages === 'true'),
+      hasDeployedEquipment: hasGeraete
     };
-    if (meta && meta.hasMaterialDamages === 'true') {
-      defaults.hasMaterialDamages = true;
-    }
     return defaults;
   }
 
@@ -129,9 +130,9 @@
   }
 
   function releaseFromTable(reportId) {
-    function proceedRelease() {
+    function proceedRelease(prep) {
       var ask = window.FwConfirm && window.FwConfirm.releaseEinsatzbericht
-        ? window.FwConfirm.releaseEinsatzbericht(releaseDefaults())
+        ? window.FwConfirm.releaseEinsatzbericht(releaseDefaults(null, prep))
         : Promise.resolve(window.confirm('Einsatzbericht wirklich freigeben?'));
       ask.then(function (result) {
         var ok = result === true || (result && result.ok);
@@ -157,12 +158,12 @@
     if (window.BerichteEinsatzRelease) {
       window.BerichteEinsatzRelease.ensureValidBeforeRelease(reportId, unitId).then(function (check) {
         if (check && check.ok) {
-          proceedRelease();
+          proceedRelease(check);
         }
       });
       return;
     }
-    proceedRelease();
+    proceedRelease({});
   }
 
   function tablePdfPrintActions(reportId) {
@@ -342,9 +343,9 @@
       postAction('/berichte/einsatzberichte/' + meta.reportId + '/drucken', returnPath);
     });
     document.getElementById('btn-modal-release')?.addEventListener('click', function () {
-      function proceedRelease() {
+      function proceedRelease(prep) {
         var ask = window.FwConfirm && window.FwConfirm.releaseEinsatzbericht
-          ? window.FwConfirm.releaseEinsatzbericht(releaseDefaults(meta))
+          ? window.FwConfirm.releaseEinsatzbericht(releaseDefaults(meta, prep))
           : Promise.resolve(window.confirm('Einsatzbericht wirklich freigeben?'));
         ask.then(function (result) {
           var ok = result === true || (result && result.ok);
@@ -370,12 +371,12 @@
       if (window.BerichteEinsatzRelease) {
         window.BerichteEinsatzRelease.ensureValidBeforeRelease(meta.reportId, unitId).then(function (check) {
           if (check && check.ok) {
-            proceedRelease();
+            proceedRelease(check);
           }
         });
         return;
       }
-      proceedRelease();
+      proceedRelease({});
     });
     document.getElementById('btn-modal-archive')?.addEventListener('click', function () {
       var ask = window.FwConfirm && window.FwConfirm.archiveReport

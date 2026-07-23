@@ -189,6 +189,21 @@ public class BerichteController {
         return einsatzberichtService.validateForRelease(unit.getId(), id);
     }
 
+    @GetMapping("/einsatzberichte/{id}/freigabe-check")
+    @ResponseBody
+    public Map<String, Object> einsatzFreigabeCheck(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @PathVariable long id) {
+        accessControlService.requireUnitAccess(actor, unitId);
+        requireModuleEnabled(unitId);
+        requireBerichteRead(actor, unitId);
+        IncidentReport report = einsatzberichtService.requireReport(unitId, id);
+        return Map.of(
+                "hasMaterialDamages", einsatzberichtService.hasMaterialDamageEntries(report),
+                "hasDeployedEquipment", einsatzberichtService.hasDeployedEquipment(report));
+    }
+
     @GetMapping("/einsatzberichte/{id}/modal")
     public String modalEinsatzbericht(
             @AuthenticationPrincipal AppUserDetails actor,
@@ -215,6 +230,7 @@ public class BerichteController {
             String number = report.getIncidentNumber() != null ? report.getIncidentNumber() : String.valueOf(id);
             model.addAttribute("modalTitle", number + " — " + stichwort);
             model.addAttribute("releaseHasMaterialDamages", einsatzberichtService.hasMaterialDamageEntries(report));
+            model.addAttribute("releaseHasDeployedEquipment", einsatzberichtService.hasDeployedEquipment(report));
             addEinsatzReleaseDefaults(model, unit.getId());
             return "berichte/einsatzbericht-modal-body";
         } catch (IllegalArgumentException e) {
@@ -2022,6 +2038,9 @@ public class BerichteController {
         model.addAttribute(
                 "releaseHasMaterialDamages",
                 report != null && einsatzberichtService.hasMaterialDamageEntries(report));
+        model.addAttribute(
+                "releaseHasDeployedEquipment",
+                report != null && einsatzberichtService.hasDeployedEquipment(report));
     }
 
     private void addEinsatzReleaseDefaults(Model model, long unitId) {

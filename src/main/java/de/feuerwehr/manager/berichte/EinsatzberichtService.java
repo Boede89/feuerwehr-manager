@@ -714,6 +714,14 @@ public class EinsatzberichtService {
                 .isEmpty();
     }
 
+    @Transactional(readOnly = true)
+    public boolean hasDeployedEquipment(IncidentReport report) {
+        if (report == null || report.getId() == null) {
+            return false;
+        }
+        return !incidentReportEquipmentRepository.findByIncidentReportId(report.getId()).isEmpty();
+    }
+
     public EinsatzberichtForm newForm(long unitId) {
         Unit unit = requireUnit(unitId);
         LocalDate today = LocalDate.now();

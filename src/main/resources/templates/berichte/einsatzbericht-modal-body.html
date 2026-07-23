@@ -5,7 +5,8 @@
               data-can-archive=${canArchive},
               data-can-delete=${canDeleteReport},
               data-report-id=${report.id},
-              data-has-material-damages=${releaseHasMaterialDamages}">
+              data-has-material-damages=${releaseHasMaterialDamages},
+              data-has-deployed-equipment=${releaseHasDeployedEquipment}">
   <div id="einsatzbericht-view" class="einsatzbericht-form--view">
     <th:block th:replace="~{fragments/berichte-einsatz-form :: form}"></th:block>
   </div>

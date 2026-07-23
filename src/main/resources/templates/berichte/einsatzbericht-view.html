@@ -31,7 +31,8 @@
                      data-release-print-report=${releaseDefaultPrintReport},
                      data-release-print-geraetewart=${releaseDefaultPrintGeraetewart},
                      data-release-print-maengel=${releaseDefaultPrintMaengel},
-                     data-release-has-material-damages=${releaseHasMaterialDamages}">
+                     data-release-has-material-damages=${releaseHasMaterialDamages},
+                     data-release-has-deployed-equipment=${releaseHasDeployedEquipment}">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="unit" th:value="${unitId}"/>
         <input type="hidden" name="returnUrl" th:value="${einsatzListPath != null ? einsatzListPath : '/berichte?tab=einsatz'}"/>

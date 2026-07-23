@@ -38,10 +38,86 @@
     window.location.href = editUrl(reportId, unitId, target);
   }
 
+  function fetchFreigabeCheck(reportId, unitId) {
+    var fromForm = hasDeployedEquipmentFromForm();
+    var fromFormMaengel = hasMaterialDamagesFromForm();
+    if (!reportId || !unitId) {
+      return Promise.resolve({
+        hasMaterialDamages: fromFormMaengel,
+        hasDeployedEquipment: fromForm
+      });
+    }
+    return fetch(
+      '/berichte/einsatzberichte/' + encodeURIComponent(reportId) +
+        '/freigabe-check?unit=' + encodeURIComponent(unitId),
+      { credentials: 'same-origin' }
+    ).then(function (res) {
+      if (!res.ok) {
+        return {
+          hasMaterialDamages: fromFormMaengel,
+          hasDeployedEquipment: fromForm
+        };
+      }
+      return res.json().then(function (data) {
+        return {
+          hasMaterialDamages: fromFormMaengel || !!data.hasMaterialDamages,
+          hasDeployedEquipment: fromForm || !!data.hasDeployedEquipment
+        };
+      });
+    }).catch(function () {
+      return {
+        hasMaterialDamages: fromFormMaengel,
+        hasDeployedEquipment: fromForm
+      };
+    });
+  }
+
+  function hasDeployedEquipmentFromForm() {
+    if (window.BerichteGeraete && typeof window.BerichteGeraete.sync === 'function') {
+      window.BerichteGeraete.sync();
+    }
+    var field = document.getElementById('deployedEquipmentJson');
+    if (!field || !field.value) {
+      return false;
+    }
+    try {
+      var data = JSON.parse(field.value);
+      if (!Array.isArray(data)) {
+        return false;
+      }
+      return data.some(function (row) {
+        var ids = row && row.equipmentIds ? row.equipmentIds : [];
+        var custom = row && row.customEquipment ? row.customEquipment : [];
+        return (ids && ids.length > 0) || (custom && custom.length > 0);
+      });
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function hasMaterialDamagesFromForm() {
+    var field = document.getElementById('materialDamageEntriesJson');
+    if (!field || !field.value) {
+      return false;
+    }
+    try {
+      var data = JSON.parse(field.value);
+      return Array.isArray(data) && data.length > 0;
+    } catch (e) {
+      return false;
+    }
+  }
+
   function ensureValidBeforeRelease(reportId, unitId) {
     return fetchValidation(reportId, unitId).then(function (result) {
       if (result && result.valid) {
-        return { ok: true };
+        return fetchFreigabeCheck(reportId, unitId).then(function (check) {
+          return {
+            ok: true,
+            hasDeployedEquipment: !!(check && check.hasDeployedEquipment),
+            hasMaterialDamages: !!(check && check.hasMaterialDamages)
+          };
+        });
       }
       var issues = (result && result.issues) || [];
       if (window.FwConfirm && window.FwConfirm.releaseValidationIssues) {
