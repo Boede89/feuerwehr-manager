@@ -216,7 +216,7 @@
                    th:hidden="${!diveraDefault}">
                 <div class="incident-crew-chip incident-crew-chip--reserve incident-crew-chip--divera" draggable="true"
                      th:each="p : ${kraefteState.diveraPersons()}"
-                     th:classappend="${p.ucrOnly() ? ' incident-crew-chip--ucr-only' : ''}"
+                     th:classappend="${(p.ucrOnly() ? ' incident-crew-chip--ucr-only' : '') + (p.poolSource() == 'foreign' ? ' incident-crew-chip--foreign' : '')}"
                      th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}, data-sort-order=${p.sortOrder()}, data-pool-source=${p.poolSource()}, data-ucr-only=${p.ucrOnly() ? 'true' : 'false'}, data-divera-ucr=${p.diveraUcrId()}"
                      th:text="${p.unitLabel() != null ? p.displayName() + ' (' + p.unitLabel() + ')' : p.displayName()}">Name</div>
               </div>

@@ -949,7 +949,21 @@
       return;
     }
     if (draggedChip.dataset.poolSource === 'foreign') {
-      removePersonFromBoard(draggedChip.dataset.personId, null);
+      var foreignHome = poolForTab('divera') || poolForTab('manual');
+      if (foreignHome && draggedChip.parentElement !== foreignHome) {
+        removePersonFromBoard(draggedChip.dataset.personId, draggedChip);
+        clearChipVehicleRole(draggedChip);
+        clearChipPa(draggedChip);
+        draggedChip.classList.remove('incident-crew-chip--vehicle-role');
+        draggedChip.classList.add('incident-crew-chip--foreign');
+        if (foreignHome.dataset.pool === 'divera') {
+          draggedChip.classList.add('incident-crew-chip--divera');
+        }
+        insertChipSorted(foreignHome, draggedChip);
+        switchReserveTab(foreignHome.dataset.pool);
+      } else {
+        removePersonFromBoard(draggedChip.dataset.personId, null);
+      }
       draggedChip = null;
       applyCrewInvolvementToAllVehicles();
       refreshBoard();

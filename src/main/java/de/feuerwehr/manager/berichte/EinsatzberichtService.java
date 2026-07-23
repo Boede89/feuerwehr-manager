@@ -329,7 +329,9 @@ public class EinsatzberichtService {
                 if (row.isUsesPa()) {
                     paByRefId.put(refId, true);
                 }
-                if (row.getPerson() != null && row.getSource() == IncidentPersonnelSource.DIVERA) {
+                if (row.getPerson() != null
+                        && (row.getSource() == IncidentPersonnelSource.DIVERA
+                                || (row.getDiveraUcrId() != null && !row.getDiveraUcrId().isBlank()))) {
                     diveraPersonIds.add(row.getPerson().getId());
                 } else if (row.getDiveraUcrId() != null && !row.getDiveraUcrId().isBlank()) {
                     try {
@@ -341,12 +343,7 @@ public class EinsatzberichtService {
                 }
                 IncidentReportVehicle reportVehicle = row.getIncidentReportVehicle();
                 if (reportVehicle == null) {
-                    if (row.getSource() == IncidentPersonnelSource.FOREIGN
-                            && row.getPerson() != null
-                            && !onVehicleRefIds.contains(refId)) {
-                        beteiligtCrewIds.add(refId);
-                        onVehicleRefIds.add(refId);
-                    }
+                    // Reserve bleibt Reserve (auch FOREIGN/DIVERA) — nicht erneut „beteiligt“ erzwingen
                     continue;
                 }
                 if (reportVehicle.getVehicle() != null) {
@@ -448,8 +445,8 @@ public class EinsatzberichtService {
         for (Person person : allPersons) {
             if (diveraPersonIds.contains(person.getId())) {
                 if (!onVehicleRefIds.contains(person.getId())) {
-                    diveraPersons.add(toPersonView(
-                            person, sortOrderByRefId, null, false, "divera", unitLabelForPerson(person, unitId)));
+                    diveraPersons.add(toDiveraReservePersonView(
+                            person, sortOrderByRefId, sourceByRefId, unitId));
                 }
             } else if (!onVehicleRefIds.contains(person.getId())) {
                 if (manualPoolPersonIds != null
@@ -459,6 +456,17 @@ public class EinsatzberichtService {
                 }
                 manualPersons.add(toPersonView(person, sortOrderByRefId, null, false, "manual", null));
             }
+        }
+        for (Long diveraPersonId : diveraPersonIds) {
+            if (onVehicleRefIds.contains(diveraPersonId) || personById.get(diveraPersonId) == null) {
+                continue;
+            }
+            boolean alreadyListed = diveraPersons.stream().anyMatch(p -> p.id() == diveraPersonId);
+            if (alreadyListed) {
+                continue;
+            }
+            Person person = personById.get(diveraPersonId);
+            diveraPersons.add(toDiveraReservePersonView(person, sortOrderByRefId, sourceByRefId, unitId));
         }
         for (Map.Entry<Long, String> ucrEntry : diveraUcrReserveNames.entrySet()) {
             long refId = IncidentPersonnelRefs.refFromUcr(ucrEntry.getKey());
@@ -1196,9 +1204,12 @@ public class EinsatzberichtService {
         Map<Long, IncidentPersonnelSource> existingSources = loadExistingSources(reportId);
         Map<Long, String> existingUcrNames = loadExistingUcrNames(reportId);
         Map<Long, String> existingDisplayNames = loadExistingPersonDisplayNames(reportId);
-        List<IncidentReportPersonnel> previousReserveRows =
+        // Personen, die der Nutzer von „beteiligt“/Fahrzeug zurück in die Reserve gezogen hat,
+        // müssen als Reserve (vehicle == null) erhalten bleiben — sonst löscht Speichern sie
+        // und der nächste DIVERA-Import setzt sie erneut auf „Am Einsatz beteiligt“.
+        List<IncidentReportPersonnel> previousRowsToKeepAsReserve =
                 incidentReportPersonnelRepository.findByIncidentReportId(reportId).stream()
-                        .filter(row -> row.getIncidentReportVehicle() == null)
+                        .filter(this::shouldKeepAsReserveWhenUnassigned)
                         .map(this::copyReserveRow)
                         .toList();
         incidentReportPersonnelRepository.deleteByIncidentReportId(reportId);
@@ -1297,7 +1308,7 @@ public class EinsatzberichtService {
                 incidentReportPersonnelRepository.save(row);
             }
         }
-        for (IncidentReportPersonnel reserve : previousReserveRows) {
+        for (IncidentReportPersonnel reserve : previousRowsToKeepAsReserve) {
             long refId = personnelRefId(reserve);
             if (assignedPersons.contains(refId)) {
                 continue;
@@ -1307,6 +1318,21 @@ public class EinsatzberichtService {
             row.setIncidentReportVehicle(null);
             incidentReportPersonnelRepository.save(row);
         }
+    }
+
+    /**
+     * Reserve bleiben Reserve; DIVERA-Rückmeldungen (auch FOREIGN mit UCR), die von einer
+     * Zuordnung entfernt wurden, bleiben als Reserve erhalten, damit sie nicht erneut
+     * automatisch „beteiligt“ werden.
+     */
+    private boolean shouldKeepAsReserveWhenUnassigned(IncidentReportPersonnel row) {
+        if (row.getIncidentReportVehicle() == null) {
+            return true;
+        }
+        if (row.getSource() == IncidentPersonnelSource.DIVERA) {
+            return true;
+        }
+        return row.getDiveraUcrId() != null && !row.getDiveraUcrId().isBlank();
     }
 
     private IncidentReportPersonnel copyReserveRow(IncidentReportPersonnel source) {
@@ -1468,6 +1494,21 @@ public class EinsatzberichtService {
             return "foreign";
         }
         return "manual";
+    }
+
+    private KraefteFahrzeugeState.KraeftePersonView toDiveraReservePersonView(
+            Person person,
+            Map<Long, Integer> sortOrderByRefId,
+            Map<Long, IncidentPersonnelSource> sourceByRefId,
+            long unitId) {
+        IncidentPersonnelSource source =
+                sourceByRefId.getOrDefault(person.getId(), IncidentPersonnelSource.DIVERA);
+        String poolSource = poolSourceFor(source);
+        if ("manual".equals(poolSource)) {
+            poolSource = "divera";
+        }
+        return toPersonView(
+                person, sortOrderByRefId, null, false, poolSource, unitLabelForPerson(person, unitId));
     }
 
     private KraefteFahrzeugeState.KraeftePersonView toPersonView(
@@ -1935,15 +1976,7 @@ public class EinsatzberichtService {
                 .filter(ucr -> ucr != null && !ucr.isBlank())
                 .map(String::trim)
                 .collect(Collectors.toCollection(HashSet::new));
-        if (autoAnwesenheit && anwesenheitVehicle != null) {
-            for (IncidentReportPersonnel row : existingRows) {
-                if (row.getSource() != IncidentPersonnelSource.DIVERA || row.getIncidentReportVehicle() != null) {
-                    continue;
-                }
-                row.setIncidentReportVehicle(anwesenheitVehicle);
-                incidentReportPersonnelRepository.save(row);
-            }
-        }
+        // Bewusst in Reserve belassenes DIVERA-Personal nicht erneut auf „beteiligt“ schieben.
         refreshDiveraPersonnelDisplayNames(existingRows, targetUcrIds, displayNameByUcr, unitId, testData);
         Set<Long> assignedPersons = new HashSet<>(alreadyPresentPersons);
         int added = 0;
