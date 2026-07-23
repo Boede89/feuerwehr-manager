@@ -10,7 +10,13 @@
   }
 
   function apiBase() {
-    return window.BerichteApiBase ? window.BerichteApiBase.path() : '/berichte/anwesenheitslisten';
+    // Immer Anwesenheits-API — auf der Listen-Seite fehlt oft das Meta-Tag,
+    // und BerichteApiBase fällt sonst auf /berichte/einsatzberichte zurück.
+    var fromMeta = window.BerichteApiBase ? window.BerichteApiBase.path() : '';
+    if (fromMeta && fromMeta.indexOf('/anwesenheitslisten') !== -1) {
+      return fromMeta;
+    }
+    return '/berichte/anwesenheitslisten';
   }
 
   function countUnassignedFromBoard() {
