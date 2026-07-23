@@ -18,10 +18,6 @@
   var ACTION_CLEAR_PA = 'CLEAR_PA';
   var BETEILIGT_VEHICLE_ID = -3;
 
-  function isAnwesenheitForm() {
-    return !!document.querySelector('[data-berichte-form="anwesenheit"]');
-  }
-
   function bulkToolbarVisible() {
     return activeCrewTab === 2 && !isBoardReadonly()
       && !!document.getElementById('incident-bulk-assign-toolbar');
