@@ -43,6 +43,16 @@ public final class IncidentNumberSupport {
         return String.valueOf(sequence);
     }
 
+    /** Ersetzt nur den Sequenz-Suffix, Datumsteil bleibt erhalten. */
+    public static String withSequence(ParsedIncidentNumber parsed, int sequence) {
+        if (parsed == null) {
+            throw new IllegalArgumentException("Nummer fehlt.");
+        }
+        return String.format(
+                "%04d-%02d-%02d-%s",
+                parsed.year(), parsed.month(), parsed.day(), formatSequence(sequence));
+    }
+
     public static ParsedIncidentNumber parse(String incidentNumber) {
         if (incidentNumber == null || incidentNumber.isBlank()) {
             return null;

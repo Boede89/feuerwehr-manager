@@ -23,7 +23,8 @@
   }
 
   function bulkToolbarVisible() {
-    return isAnwesenheitForm() && activeCrewTab === 2 && !isBoardReadonly();
+    return activeCrewTab === 2 && !isBoardReadonly()
+      && !!document.getElementById('incident-bulk-assign-toolbar');
   }
 
   function clearBulkSelection() {

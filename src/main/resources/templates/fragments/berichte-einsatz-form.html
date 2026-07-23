@@ -379,7 +379,16 @@
     <article id="involved-card" class="incident-vehicle-card incident-vehicle-card--involved"
              th:attr="data-vehicle-id=${beteiligt.vehicleId()}">
       <header class="incident-vehicle-card__head">
-        <h3 class="incident-kraefte-section__title" th:text="${beteiligt.name()}">Am Einsatz beteiligt</h3>
+        <div class="incident-involved-card__title-row">
+          <h3 class="incident-kraefte-section__title" th:text="${beteiligt.name()}">Am Einsatz beteiligt</h3>
+          <div class="incident-bulk-assign-toolbar" id="incident-bulk-assign-toolbar" hidden
+               th:if="${formMode != 'view'}">
+            <button type="button" class="btn btn--outline btn--sm" id="btn-bulk-multi-select"
+                    aria-pressed="false">Mehrfachauswahl</button>
+            <button type="button" class="btn btn--outline btn--sm" id="btn-bulk-select-all-involved">Alle auswählen</button>
+            <button type="button" class="btn btn--outline btn--sm" id="btn-bulk-assign-vehicle" disabled>Zu Fahrzeug zuweisen</button>
+          </div>
+        </div>
         <span class="incident-vehicle-card__staerke" th:attr="data-staerke-badge=${beteiligt.vehicleId()}"
               th:text="${beteiligt.besatzungsstaerke()}">0/0/0/0</span>
       </header>
@@ -426,13 +435,18 @@
   <!-- Tab 3: Eingesetzte Geräte -->
   <div class="incident-tab-panel" data-panel="3" hidden>
     <p class="hint" id="deployed-equipment-no-vehicles" hidden>
-      Markieren Sie zuerst im Reiter Fahrzeuge die am Einsatz beteiligten Fahrzeuge.
+      Es sind keine Fahrzeuge in dieser Einheit hinterlegt.
+    </p>
+    <p class="hint" id="deployed-equipment-anwesenheit-hint">
+      Hier können Geräte auch von Fahrzeugen erfasst werden, die selbst nicht am Einsatz beteiligt waren
+      (z.&nbsp;B. Gerät aus dem Fahrzeuglager).
     </p>
     <p class="hint" id="deployed-equipment-empty" hidden>
-      Für die beteiligten Fahrzeuge sind noch keine Geräte in der Technik-Verwaltung hinterlegt.
+      Für die Fahrzeuge sind noch keine Geräte in der Technik-Verwaltung hinterlegt.
     </p>
     <div id="incident-deployed-equipment" class="incident-deployed-equipment"
          th:data-readonly="${formMode == 'view' ? 'true' : 'false'}"
+         th:data-show-all-vehicles="true"
          th:data-initial="${form.deployedEquipmentJson}"></div>
   </div>
 

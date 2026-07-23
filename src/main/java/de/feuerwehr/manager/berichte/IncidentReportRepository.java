@@ -78,6 +78,18 @@ public interface IncidentReportRepository extends JpaRepository<IncidentReport, 
             @Param("includeTestReports") boolean includeTestReports);
 
     @Query("""
+            SELECT r FROM IncidentReport r
+            WHERE r.unit.id = :unitId
+              AND r.incidentNumber IS NOT NULL
+              AND r.incidentNumber LIKE CONCAT(:yearPrefix, '%')
+              AND (r.testData = FALSE OR :includeTestReports = TRUE)
+            """)
+    List<IncidentReport> findReportsWithIncidentNumberForYear(
+            @Param("unitId") long unitId,
+            @Param("yearPrefix") String yearPrefix,
+            @Param("includeTestReports") boolean includeTestReports);
+
+    @Query("""
             SELECT DISTINCT r.stichwort FROM IncidentReport r
             WHERE r.unit.id = :unitId AND r.stichwort IS NOT NULL AND r.stichwort <> ''
               AND (r.testData = FALSE OR :includeTestReports = TRUE)

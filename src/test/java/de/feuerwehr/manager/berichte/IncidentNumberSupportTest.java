@@ -24,4 +24,11 @@ class IncidentNumberSupportTest {
         assertEquals("2026-04-01-101", IncidentNumberSupport.suggestForDate(
                 LocalDate.of(2026, 4, 1), List.of("2026-01-01-100")));
     }
+
+    @Test
+    void withSequenceKeepsDatePart() {
+        var parsed = IncidentNumberSupport.parse("2026-03-15-05");
+        assertEquals("2026-03-15-06", IncidentNumberSupport.withSequence(parsed, 6));
+        assertEquals("2026-03-15-100", IncidentNumberSupport.withSequence(parsed, 100));
+    }
 }
