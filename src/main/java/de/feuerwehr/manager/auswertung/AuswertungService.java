@@ -29,11 +29,13 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +45,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuswertungService {
 
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
+    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
     private final IncidentReportRepository incidentReportRepository;
     private final IncidentReportPersonnelRepository incidentReportPersonnelRepository;
@@ -170,6 +173,8 @@ public class AuswertungService {
 
         Map<Long, Integer> dienstCountByPerson = new HashMap<>();
         Map<Long, Integer> einsatzCountByPerson = new HashMap<>();
+        Map<Long, List<DatedTeilnahme>> diensteByPerson = new HashMap<>();
+        Map<Long, List<DatedTeilnahme>> einsaetzeByPerson = new HashMap<>();
 
         int totalUebungen = 0;
         LocalDateRange uebungRange = uebungDateRange(yearStart, yearEndExclusive, LocalDate.now());
@@ -181,8 +186,14 @@ public class AuswertungService {
                     .toList();
             totalUebungen = uebungen.size();
             for (AttendanceReport report : uebungen) {
+                LocalDate eventDate = report.getEventDate();
+                String label = report.getTitle() != null && !report.getTitle().isBlank()
+                        ? report.getTitle().trim()
+                        : "Übungsdienst";
+                DatedTeilnahme teilnahme = new DatedTeilnahme(eventDate, label);
                 for (Long personId : anwesenheitslisteService.presentPersonIds(unitId, report.getId())) {
                     dienstCountByPerson.merge(personId, 1, Integer::sum);
+                    diensteByPerson.computeIfAbsent(personId, id -> new ArrayList<>()).add(teilnahme);
                 }
             }
         }
@@ -191,13 +202,34 @@ public class AuswertungService {
                 unitId, yearStart, yearEndExclusive, includeTest);
         int totalEinsaetze = einsaetze.size();
         if (!einsaetze.isEmpty()) {
+            Map<Long, IncidentReport> einsatzById = new HashMap<>();
+            for (IncidentReport report : einsaetze) {
+                einsatzById.put(report.getId(), report);
+            }
+            Map<Long, Set<Long>> einsatzIdsByPerson = new HashMap<>();
             List<Long> reportIds = einsaetze.stream().map(IncidentReport::getId).toList();
             for (IncidentReportPersonnel row :
                     incidentReportPersonnelRepository.findByIncidentReportIdIn(reportIds)) {
-                if (row.getPerson() == null) {
+                if (row.getPerson() == null || row.getIncidentReport() == null) {
                     continue;
                 }
-                einsatzCountByPerson.merge(row.getPerson().getId(), 1, Integer::sum);
+                long personId = row.getPerson().getId();
+                long reportId = row.getIncidentReport().getId();
+                Set<Long> seen = einsatzIdsByPerson.computeIfAbsent(personId, id -> new HashSet<>());
+                if (!seen.add(reportId)) {
+                    continue;
+                }
+                IncidentReport report = einsatzById.get(reportId);
+                if (report == null) {
+                    continue;
+                }
+                String label = report.getStichwort() != null && !report.getStichwort().isBlank()
+                        ? report.getStichwort().trim()
+                        : "Einsatz";
+                einsatzCountByPerson.merge(personId, 1, Integer::sum);
+                einsaetzeByPerson
+                        .computeIfAbsent(personId, id -> new ArrayList<>())
+                        .add(new DatedTeilnahme(report.getIncidentDate(), label));
             }
         }
 
@@ -213,10 +245,28 @@ public class AuswertungService {
                     formatBeteiligungPct(dienst, totalUebungen),
                     formatBeteiligungPct(einsatz, totalEinsaetze),
                     dienstPct,
-                    einsatzPct));
+                    einsatzPct,
+                    toTeilnahmeList(diensteByPerson.get(person.getId())),
+                    toTeilnahmeList(einsaetzeByPerson.get(person.getId()))));
         }
         return rows;
     }
+
+    private static List<AuswertungPersonTeilnahme> toTeilnahmeList(List<DatedTeilnahme> items) {
+        if (items == null || items.isEmpty()) {
+            return List.of();
+        }
+        return items.stream()
+                .sorted(Comparator.comparing(
+                                DatedTeilnahme::date, Comparator.nullsLast(Comparator.naturalOrder()))
+                        .reversed())
+                .map(t -> new AuswertungPersonTeilnahme(
+                        t.date() != null ? t.date().format(DATE_FMT) : "—",
+                        t.label()))
+                .toList();
+    }
+
+    private record DatedTeilnahme(LocalDate date, String label) {}
 
     private static String formatBeteiligungPct(int attended, int total) {
         if (total <= 0) {

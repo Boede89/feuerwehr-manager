@@ -6695,6 +6695,48 @@ a.auswertung-stat-card {
   cursor: pointer;
 }
 
+.auswertung-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.auswertung-sort-btn::after {
+  content: "?";
+  font-size: 0.75em;
+  opacity: 0.35;
+}
+
+.auswertung-sort-btn[aria-sort="ascending"]::after {
+  content: "?";
+  opacity: 1;
+}
+
+.auswertung-sort-btn[aria-sort="descending"]::after {
+  content: "?";
+  opacity: 1;
+}
+
+.auswertung-sort-btn:hover,
+.auswertung-sort-btn:focus-visible {
+  color: var(--primary, #b91c1c);
+  outline: none;
+}
+
+.auswertung-teilnahme-date {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
 .auswertung-detail-modal__body {
   display: flex;
   flex-direction: column;

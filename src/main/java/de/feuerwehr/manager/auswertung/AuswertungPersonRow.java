@@ -1,5 +1,7 @@
 package de.feuerwehr.manager.auswertung;
 
+import java.util.List;
+
 /** Zeile in der Personen-Auswertungstabelle. */
 public record AuswertungPersonRow(
         long personId,
@@ -7,4 +9,6 @@ public record AuswertungPersonRow(
         String dienstbeteiligung,
         String einsatzbeteiligung,
         double dienstPct,
-        double einsatzPct) {}
+        double einsatzPct,
+        List<AuswertungPersonTeilnahme> dienste,
+        List<AuswertungPersonTeilnahme> einsaetze) {}

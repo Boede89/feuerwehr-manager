@@ -211,15 +211,27 @@
         <p class="hint" th:text="${#lists.size(personRows)} + ' Personen'">0 Personen</p>
       </div>
       <div class="table-wrap auswertung-detail__table-wrap">
-        <table class="data-table">
+        <table class="data-table" id="auswertung-personen-table">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Dienstbeteiligung</th>
-              <th>Einsatzbeteiligung</th>
+              <th scope="col">
+                <button type="button" class="auswertung-sort-btn" data-sort="name" aria-sort="ascending">
+                  Name
+                </button>
+              </th>
+              <th scope="col">
+                <button type="button" class="auswertung-sort-btn" data-sort="dienstPct" aria-sort="none">
+                  Dienstbeteiligung
+                </button>
+              </th>
+              <th scope="col">
+                <button type="button" class="auswertung-sort-btn" data-sort="einsatzPct" aria-sort="none">
+                  Einsatzbeteiligung
+                </button>
+              </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody id="auswertung-personen-tbody">
             <tr class="auswertung-person-row" th:each="row, iter : ${personRows}"
                 tabindex="0" role="button"
                 th:attr="data-row-index=${iter.index}"
@@ -250,7 +262,7 @@
           <h3 id="auswertung-person-modal-title">Person</h3>
           <button type="button" class="modal__close" data-auswertung-person-modal-close aria-label="Schließen">✕</button>
         </div>
-        <div class="modal__body">
+        <div class="modal__body auswertung-detail-modal__body">
           <dl class="auswertung-detail-modal__meta">
             <div>
               <dt>Name</dt>
@@ -265,7 +277,14 @@
               <dd id="apm-einsatz">—</dd>
             </div>
           </dl>
-          <p class="hint" style="margin:16px 0 0;">Weitere Details folgen.</p>
+          <section class="auswertung-detail-modal__section">
+            <h4>Dienste</h4>
+            <ul id="apm-dienste" class="auswertung-detail-modal__list"></ul>
+          </section>
+          <section class="auswertung-detail-modal__section">
+            <h4>Einsätze</h4>
+            <ul id="apm-einsaetze" class="auswertung-detail-modal__list"></ul>
+          </section>
         </div>
         <div class="modal__footer">
           <button type="button" class="btn btn-secondary" data-auswertung-person-modal-close>Schließen</button>
