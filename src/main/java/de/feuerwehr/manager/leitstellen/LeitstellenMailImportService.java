@@ -64,6 +64,7 @@ public class LeitstellenMailImportService {
         }
         int lookbackHours = effectiveLookbackHours(settings, catchUp);
         int matchWindowHours = effectiveMatchWindowHours(settings, catchUp);
+        cleanupOrphanImports(unitId);
         List<IncidentReport> allInWindow = loadCandidates(unitId, lookbackHours);
         return pollInternal(
                 settings, allInWindow, null, lookbackHours, matchWindowHours, allInWindow.size(), catchUp);
@@ -87,6 +88,7 @@ public class LeitstellenMailImportService {
         if (report.getStatus() == IncidentReportStatus.ARCHIVIERT) {
             return finish(settings, 0, 0, 0, 0, 0, "Archivierte Berichte werden nicht ergänzt.");
         }
+        cleanupOrphanImports(unitId);
         if (alreadyComplete(reportId)) {
             return finish(
                     settings,
@@ -264,12 +266,26 @@ public class LeitstellenMailImportService {
     }
 
     private boolean hasKind(long reportId, LeitstellenMailKind kind) {
-        if (importRepository.existsByIncidentReportIdAndKind(reportId, kind)) {
-            return true;
-        }
+        // Nur echte Anhänge zählen — verwaiste Import-Zeilen (ohne PDF) dürfen Abruf nicht blockieren
         return attachmentRepository
                 .findFirstByIncidentReportIdAndFilenameIgnoreCase(reportId, kind.storedFilename())
                 .isPresent();
+    }
+
+    /** Entfernt Import-Einträge, deren PDF am Bericht fehlt (z. B. nach manuellem Löschen vor Cleanup-Fix). */
+    private void cleanupOrphanImports(long unitId) {
+        for (LeitstellenMailImport row : importRepository.findByUnitId(unitId)) {
+            if (row.getIncidentReport() == null || row.getKind() == null) {
+                continue;
+            }
+            boolean filePresent = attachmentRepository
+                    .findFirstByIncidentReportIdAndFilenameIgnoreCase(
+                            row.getIncidentReport().getId(), row.getKind().storedFilename())
+                    .isPresent();
+            if (!filePresent) {
+                importRepository.delete(row);
+            }
+        }
     }
 
     private UnitLeitstellenMailSettings requireEnabledSettings(long unitId) {

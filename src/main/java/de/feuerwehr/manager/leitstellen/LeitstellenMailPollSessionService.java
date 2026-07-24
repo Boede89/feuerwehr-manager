@@ -133,9 +133,6 @@ public class LeitstellenMailPollSessionService {
     }
 
     private boolean hasKind(long reportId, LeitstellenMailKind kind) {
-        if (importRepository.existsByIncidentReportIdAndKind(reportId, kind)) {
-            return true;
-        }
         return attachmentRepository
                 .findFirstByIncidentReportIdAndFilenameIgnoreCase(reportId, kind.storedFilename())
                 .isPresent();

@@ -12,4 +12,6 @@ public interface LeitstellenMailImportRepository extends JpaRepository<Leitstell
 
     java.util.Optional<LeitstellenMailImport> findByIncidentReportIdAndKind(
             long incidentReportId, LeitstellenMailKind kind);
+
+    java.util.List<LeitstellenMailImport> findByUnitId(long unitId);
 }
