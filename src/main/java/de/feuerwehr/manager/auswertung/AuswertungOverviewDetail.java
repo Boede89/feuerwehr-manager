@@ -8,7 +8,8 @@ public enum AuswertungOverviewDetail {
     FEUER("feuer", "Feuer"),
     TH("th", "TH"),
     CBRN("cbrn", "CBRN"),
-    SONSTIGES("sonstiges", "Sonstiges");
+    SONSTIGES("sonstiges", "Sonstiges"),
+    UEBUNGSDIENSTE("uebungsdienste", "Übungsdienste");
 
     private final String key;
     private final String label;
@@ -46,6 +47,7 @@ public enum AuswertungOverviewDetail {
             case TH -> kategorie == AuswertungStichwortKategorie.Kategorie.TH;
             case CBRN -> kategorie == AuswertungStichwortKategorie.Kategorie.CBRN;
             case SONSTIGES -> kategorie == AuswertungStichwortKategorie.Kategorie.SONSTIGES;
+            case UEBUNGSDIENSTE -> false;
         };
     }
 }

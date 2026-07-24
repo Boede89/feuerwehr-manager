@@ -73,8 +73,7 @@ public class AuswertungController {
                 model.addAttribute("overviewDetail", detail);
                 if (detail != null) {
                     model.addAttribute(
-                            "einsatzDetailRows",
-                            auswertungService.listEinsatzRows(unit.getId(), filterYear, detail));
+                            "detailRows", auswertungService.listDetailRows(unit.getId(), filterYear, detail));
                 }
             }
 

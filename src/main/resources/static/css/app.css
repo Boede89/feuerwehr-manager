@@ -6519,10 +6519,45 @@ a.auswertung-stat-card {
   cursor: pointer;
 }
 
-.auswertung-stat-card--clickable:hover,
+.auswertung-stat-card--clickable:hover {
+  border-color: color-mix(in srgb, var(--primary, #b91c1c) 55%, var(--border));
+}
+
 .auswertung-stat-card--active {
+  border-width: 2px;
   border-color: var(--primary, #b91c1c);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary, #b91c1c) 35%, transparent);
+  background: color-mix(in srgb, var(--primary, #b91c1c) 16%, var(--bg-card));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary, #b91c1c) 28%, transparent);
+}
+
+.auswertung-stat-card--feuer.auswertung-stat-card--active {
+  border-color: var(--rot, #dc2626);
+  background: color-mix(in srgb, var(--rot, #dc2626) 18%, var(--bg-card));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--rot, #dc2626) 30%, transparent);
+}
+
+.auswertung-stat-card--th.auswertung-stat-card--active {
+  border-color: #ea8c1a;
+  background: color-mix(in srgb, #ea8c1a 20%, var(--bg-card));
+  box-shadow: 0 0 0 2px color-mix(in srgb, #ea8c1a 32%, transparent);
+}
+
+.auswertung-stat-card--cbrn.auswertung-stat-card--active {
+  border-color: #ca8a04;
+  background: color-mix(in srgb, #ca8a04 20%, var(--bg-card));
+  box-shadow: 0 0 0 2px color-mix(in srgb, #ca8a04 32%, transparent);
+}
+
+.auswertung-stat-card--sonstiges.auswertung-stat-card--active {
+  border-color: #3b82f6;
+  background: color-mix(in srgb, #3b82f6 18%, var(--bg-card));
+  box-shadow: 0 0 0 2px color-mix(in srgb, #3b82f6 30%, transparent);
+}
+
+.auswertung-stat-card--uebung.auswertung-stat-card--active {
+  border-color: var(--gruen, #16a34a);
+  background: color-mix(in srgb, var(--gruen, #16a34a) 18%, var(--bg-card));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--gruen, #16a34a) 30%, transparent);
 }
 
 .auswertung-stat-card__value {

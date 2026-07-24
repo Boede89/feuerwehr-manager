@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.berichte;
 
+import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -15,6 +16,15 @@ public interface AttendanceReportPersonnelRepository extends JpaRepository<Atten
             ORDER BY p.sortOrder ASC, p.displayName ASC
             """)
     List<AttendanceReportPersonnel> findByReportId(@Param("reportId") long reportId);
+
+    @Query("""
+            SELECT p FROM AttendanceReportPersonnel p
+            JOIN FETCH p.attendanceReport
+            LEFT JOIN FETCH p.person pers
+            LEFT JOIN FETCH pers.qualificationType
+            WHERE p.attendanceReport.id IN :reportIds
+            """)
+    List<AttendanceReportPersonnel> findByReportIdIn(@Param("reportIds") Collection<Long> reportIds);
 
     @Modifying
     @Query("DELETE FROM AttendanceReportPersonnel p WHERE p.attendanceReport.id = :reportId")

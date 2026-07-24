@@ -1,6 +1,10 @@
 package de.feuerwehr.manager.auswertung;
 
 import de.feuerwehr.manager.atemschutz.AtemschutzService;
+import de.feuerwehr.manager.berichte.AttendancePersonStatus;
+import de.feuerwehr.manager.berichte.AttendanceReport;
+import de.feuerwehr.manager.berichte.AttendanceReportPersonnel;
+import de.feuerwehr.manager.berichte.AttendanceReportPersonnelRepository;
 import de.feuerwehr.manager.berichte.AttendanceReportRepository;
 import de.feuerwehr.manager.berichte.Besatzungsstaerke;
 import de.feuerwehr.manager.berichte.IncidentReport;
@@ -31,6 +35,7 @@ public class AuswertungService {
     private final IncidentReportRepository incidentReportRepository;
     private final IncidentReportPersonnelRepository incidentReportPersonnelRepository;
     private final AttendanceReportRepository attendanceReportRepository;
+    private final AttendanceReportPersonnelRepository attendanceReportPersonnelRepository;
     private final PersonalService personalService;
     private final AtemschutzService atemschutzService;
     private final ModuleSettingsService moduleSettingsService;
@@ -59,16 +64,11 @@ public class AuswertungService {
         }
         int einsaetze = stichworte.size();
 
-        LocalDate uebungTo = today;
-        if (uebungTo.isBefore(yearStart)) {
-            uebungTo = yearStart.minusDays(1);
-        } else if (uebungTo.isAfter(yearEndExclusive.minusDays(1))) {
-            uebungTo = yearEndExclusive.minusDays(1);
-        }
         int uebungsdienste = 0;
-        if (!uebungTo.isBefore(yearStart)) {
+        LocalDateRange uebungRange = uebungDateRange(yearStart, yearEndExclusive, today);
+        if (uebungRange != null) {
             uebungsdienste = (int) attendanceReportRepository.countByUnitIdAndDateRangeAndCategory(
-                    unitId, yearStart, uebungTo, TermineCategory.DIENSTPLAN, includeTest);
+                    unitId, uebungRange.from(), uebungRange.to(), TermineCategory.DIENSTPLAN, includeTest);
         }
 
         int mitglieder = personalService.listPersons(unitId).size();
@@ -79,10 +79,17 @@ public class AuswertungService {
     }
 
     @Transactional(readOnly = true)
-    public List<AuswertungEinsatzRow> listEinsatzRows(long unitId, int year, AuswertungOverviewDetail detail) {
+    public List<AuswertungEinsatzRow> listDetailRows(long unitId, int year, AuswertungOverviewDetail detail) {
         if (detail == null) {
             return List.of();
         }
+        if (detail == AuswertungOverviewDetail.UEBUNGSDIENSTE) {
+            return listUebungsdienstRows(unitId, year);
+        }
+        return listEinsatzRows(unitId, year, detail);
+    }
+
+    private List<AuswertungEinsatzRow> listEinsatzRows(long unitId, int year, AuswertungOverviewDetail detail) {
         LocalDate yearStart = LocalDate.of(year, 1, 1);
         LocalDate yearEndExclusive = LocalDate.of(year + 1, 1, 1);
         boolean includeTest = testModeService.isEnabled();
@@ -132,6 +139,73 @@ public class AuswertungService {
         return rows;
     }
 
+    private List<AuswertungEinsatzRow> listUebungsdienstRows(long unitId, int year) {
+        LocalDate yearStart = LocalDate.of(year, 1, 1);
+        LocalDate yearEndExclusive = LocalDate.of(year + 1, 1, 1);
+        LocalDateRange range = uebungDateRange(yearStart, yearEndExclusive, LocalDate.now());
+        if (range == null) {
+            return List.of();
+        }
+        boolean includeTest = testModeService.isEnabled();
+
+        List<AttendanceReport> reports = attendanceReportRepository
+                .findByUnitIdAndDateRange(unitId, range.from(), range.to(), includeTest)
+                .stream()
+                .filter(r -> r.getTerminCategory() == TermineCategory.DIENSTPLAN)
+                .toList();
+        if (reports.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> reportIds = reports.stream().map(AttendanceReport::getId).toList();
+        Map<Long, List<AttendanceReportPersonnel>> personnelByReport = new HashMap<>();
+        for (AttendanceReportPersonnel row : attendanceReportPersonnelRepository.findByReportIdIn(reportIds)) {
+            if (row.getAttendanceStatus() != AttendancePersonStatus.PRESENT) {
+                continue;
+            }
+            personnelByReport
+                    .computeIfAbsent(row.getAttendanceReport().getId(), id -> new ArrayList<>())
+                    .add(row);
+        }
+
+        List<AuswertungEinsatzRow> rows = new ArrayList<>(reports.size());
+        for (AttendanceReport report : reports) {
+            List<AttendanceReportPersonnel> crew =
+                    personnelByReport.getOrDefault(report.getId(), List.of());
+            int personal = crew.size();
+            int zf = 0;
+            int gf = 0;
+            for (AttendanceReportPersonnel member : crew) {
+                switch (Besatzungsstaerke.qualTier(member.getPerson())) {
+                    case ZF -> zf++;
+                    case GF -> gf++;
+                    default -> {
+                        // Mannschaft
+                    }
+                }
+            }
+            rows.add(new AuswertungEinsatzRow(
+                    report.getEventDate(),
+                    blankToDash(report.getTitle()),
+                    formatDauerStunden(report.getStartTime(), report.getEndTime()),
+                    personal,
+                    zf,
+                    gf));
+        }
+        return rows;
+    }
+
+    private static LocalDateRange uebungDateRange(LocalDate yearStart, LocalDate yearEndExclusive, LocalDate today) {
+        LocalDate to = today;
+        if (to.isBefore(yearStart)) {
+            return null;
+        }
+        if (to.isAfter(yearEndExclusive.minusDays(1))) {
+            to = yearEndExclusive.minusDays(1);
+        }
+        return new LocalDateRange(yearStart, to);
+    }
+
     static String formatDauerStunden(LocalTime from, LocalTime to) {
         if (from == null || to == null) {
             return "—";
@@ -164,4 +238,6 @@ public class AuswertungService {
             return 0;
         }
     }
+
+    private record LocalDateRange(LocalDate from, LocalDate to) {}
 }
