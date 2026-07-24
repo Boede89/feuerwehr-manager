@@ -10,7 +10,8 @@
 
   var rows = [];
   try {
-    rows = JSON.parse(jsonEl.getAttribute('data-json') || '[]');
+    var raw = (jsonEl.textContent || jsonEl.getAttribute('data-json') || '').trim();
+    rows = JSON.parse(raw || '[]');
   } catch (e) {
     rows = [];
   }
@@ -45,7 +46,7 @@
     ul.innerHTML = items.map(function (item) {
       var date = item && item.date ? item.date : '—';
       var label = item && item.label ? item.label : '—';
-      var pa = item && item.usesPa
+      var pa = item && (item.pa === true || item.usesPa === true)
         ? ' <span class="auswertung-teilnahme-pa" title="PA getragen">PA</span>'
         : '';
       return '<li><span class="auswertung-teilnahme-date">' + esc(date) + '</span> · '

@@ -186,11 +186,11 @@ public class AuswertungService {
                 AnwesenheitslisteService.AnwesenheitPersonIds ids =
                         anwesenheitslisteService.presentAndPaPersonIds(unitId, report.getId());
                 for (Long personId : ids.presentIds()) {
-                    boolean usesPa = ids.paIds().contains(personId);
+                    boolean pa = ids.paIds().contains(personId);
                     dienstCountByPerson.merge(personId, 1, Integer::sum);
                     diensteByPerson
                             .computeIfAbsent(personId, id -> new ArrayList<>())
-                            .add(new DatedTeilnahme(eventDate, label, usesPa));
+                            .add(new DatedTeilnahme(eventDate, label, pa));
                 }
             }
         }
@@ -222,11 +222,11 @@ public class AuswertungService {
                 Map<Long, DatedTeilnahme> byReport =
                         einsatzTeilnahmeByPerson.computeIfAbsent(personId, id -> new HashMap<>());
                 DatedTeilnahme existing = byReport.get(reportId);
-                boolean usesPa = row.isUsesPa() || (existing != null && existing.usesPa());
+                boolean pa = row.isUsesPa() || (existing != null && existing.pa());
                 if (existing == null) {
                     einsatzCountByPerson.merge(personId, 1, Integer::sum);
                 }
-                byReport.put(reportId, new DatedTeilnahme(report.getIncidentDate(), label, usesPa));
+                byReport.put(reportId, new DatedTeilnahme(report.getIncidentDate(), label, pa));
             }
             for (Map.Entry<Long, Map<Long, DatedTeilnahme>> entry : einsatzTeilnahmeByPerson.entrySet()) {
                 einsaetzeByPerson.put(entry.getKey(), new ArrayList<>(entry.getValue().values()));
@@ -263,11 +263,11 @@ public class AuswertungService {
                 .map(t -> new AuswertungPersonTeilnahme(
                         t.date() != null ? t.date().format(DATE_FMT) : "—",
                         t.label(),
-                        t.usesPa()))
+                        t.pa()))
                 .toList();
     }
 
-    private record DatedTeilnahme(LocalDate date, String label, boolean usesPa) {}
+    private record DatedTeilnahme(LocalDate date, String label, boolean pa) {}
 
     private static String formatBeteiligungPct(int attended, int total) {
         if (total <= 0) {

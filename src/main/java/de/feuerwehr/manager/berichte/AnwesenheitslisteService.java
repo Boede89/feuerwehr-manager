@@ -841,6 +841,19 @@ public class AnwesenheitslisteService {
                 einsatzberichtService.parseCrewAssignments(report.getCrewAssignmentsJson());
         LinkedHashSet<Long> presentIds = new LinkedHashSet<>();
         LinkedHashSet<Long> paIds = new LinkedHashSet<>();
+
+        // PA immer aus dem Kräfte-JSON lesen (auch wenn Anwesenheit später per Fallback kommt).
+        for (CrewAssignment assignment : assignments) {
+            if (assignment.paPersonIds() == null) {
+                continue;
+            }
+            for (Long paId : assignment.paPersonIds()) {
+                if (paId != null && paId != 0L) {
+                    paIds.add(paId);
+                }
+            }
+        }
+
         if (hasAssignedPersons(assignments)) {
             for (CrewAssignment assignment : assignments) {
                 long vehicleId = assignment.vehicleId();
@@ -856,13 +869,6 @@ public class AnwesenheitslisteService {
                 for (Long personId : personIds) {
                     if (personId != null && personId != 0L) {
                         presentIds.add(personId);
-                    }
-                }
-                if (assignment.paPersonIds() != null) {
-                    for (Long paId : assignment.paPersonIds()) {
-                        if (paId != null && paId != 0L) {
-                            paIds.add(paId);
-                        }
                     }
                 }
             }

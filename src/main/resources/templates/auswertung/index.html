@@ -295,9 +295,9 @@
       </div>
     </div>
 
-    <div id="auswertung-person-rows-data" hidden
-         th:if="${!#lists.isEmpty(personRows)}"
-         th:attr="data-json=${personRowsJson}"></div>
+    <script type="application/json" id="auswertung-person-rows-data"
+            th:if="${!#lists.isEmpty(personRows)}"
+            th:utext="${personRowsJson}"></script>
     <script th:if="${!#lists.isEmpty(personRows)}" th:src="@{/js/auswertung-personen.js}" defer></script>
   </section>
 
