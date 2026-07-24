@@ -54,34 +54,75 @@ public class AuswertungService {
         LocalDate today = LocalDate.now();
         boolean includeTest = testModeService.isEnabled();
 
-        List<String> stichworte = incidentReportRepository.findStichworteByUnitIdAndYear(
-                unitId, yearStart, yearEndExclusive, includeTest);
         int feuer = 0;
         int th = 0;
         int cbrn = 0;
         int sonstiges = 0;
-        for (String stichwort : stichworte) {
-            switch (AuswertungStichwortKategorie.classify(stichwort)) {
-                case FEUER -> feuer++;
-                case TH -> th++;
-                case CBRN -> cbrn++;
-                case SONSTIGES -> sonstiges++;
+        long feuerMin = 0;
+        long thMin = 0;
+        long cbrnMin = 0;
+        long sonstigesMin = 0;
+        long einsaetzeMin = 0;
+
+        List<IncidentReport> reports = incidentReportRepository.findByUnitIdAndYear(
+                unitId, yearStart, yearEndExclusive, includeTest);
+        for (IncidentReport report : reports) {
+            long minutes = durationMinutes(report.getAlarmTime(), report.getEndTime());
+            einsaetzeMin += minutes;
+            switch (AuswertungStichwortKategorie.classify(report.getStichwort())) {
+                case FEUER -> {
+                    feuer++;
+                    feuerMin += minutes;
+                }
+                case TH -> {
+                    th++;
+                    thMin += minutes;
+                }
+                case CBRN -> {
+                    cbrn++;
+                    cbrnMin += minutes;
+                }
+                case SONSTIGES -> {
+                    sonstiges++;
+                    sonstigesMin += minutes;
+                }
             }
         }
-        int einsaetze = stichworte.size();
+        int einsaetze = reports.size();
 
         int uebungsdienste = 0;
+        long uebungMin = 0;
         LocalDateRange uebungRange = uebungDateRange(yearStart, yearEndExclusive, today);
         if (uebungRange != null) {
-            uebungsdienste = (int) attendanceReportRepository.countByUnitIdAndDateRangeAndCategory(
-                    unitId, uebungRange.from(), uebungRange.to(), TermineCategory.DIENSTPLAN, includeTest);
+            List<AttendanceReport> uebungen = attendanceReportRepository
+                    .findByUnitIdAndDateRange(unitId, uebungRange.from(), uebungRange.to(), includeTest)
+                    .stream()
+                    .filter(r -> r.getTerminCategory() == TermineCategory.DIENSTPLAN)
+                    .toList();
+            uebungsdienste = uebungen.size();
+            for (AttendanceReport report : uebungen) {
+                uebungMin += durationMinutes(report.getStartTime(), report.getEndTime());
+            }
         }
 
         int mitglieder = personalService.listPersons(unitId).size();
         int tauglichePa = countTauglichePaTraeger(unitId);
 
         return new AuswertungOverviewStats(
-                einsaetze, feuer, th, cbrn, sonstiges, uebungsdienste, mitglieder, tauglichePa);
+                einsaetze,
+                formatStundenTotal(einsaetzeMin),
+                feuer,
+                formatStundenTotal(feuerMin),
+                th,
+                formatStundenTotal(thMin),
+                cbrn,
+                formatStundenTotal(cbrnMin),
+                sonstiges,
+                formatStundenTotal(sonstigesMin),
+                uebungsdienste,
+                formatStundenTotal(uebungMin),
+                mitglieder,
+                tauglichePa);
     }
 
     @Transactional(readOnly = true)
@@ -269,18 +310,37 @@ public class AuswertungService {
     }
 
     static String formatDauerStunden(LocalTime from, LocalTime to) {
+        long minutes = durationMinutes(from, to);
         if (from == null || to == null) {
             return "—";
         }
-        long minutes = Duration.between(from, to).toMinutes();
-        if (minutes < 0) {
-            minutes += 24 * 60;
+        return formatStundenValue(minutes);
+    }
+
+    static String formatStundenTotal(long minutes) {
+        if (minutes <= 0) {
+            return "0 Std.";
         }
+        return formatStundenValue(minutes) + " Std.";
+    }
+
+    private static String formatStundenValue(long minutes) {
         double hours = minutes / 60.0;
         if (Math.abs(hours - Math.rint(hours)) < 0.0001) {
             return String.format(Locale.GERMAN, "%.0f", hours);
         }
         return String.format(Locale.GERMAN, "%.1f", hours);
+    }
+
+    private static long durationMinutes(LocalTime from, LocalTime to) {
+        if (from == null || to == null) {
+            return 0;
+        }
+        long minutes = Duration.between(from, to).toMinutes();
+        if (minutes < 0) {
+            minutes += 24 * 60;
+        }
+        return minutes;
     }
 
     private static String formatTime(LocalTime time) {

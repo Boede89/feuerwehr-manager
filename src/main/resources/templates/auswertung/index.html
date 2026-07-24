@@ -41,6 +41,7 @@
            : @{/auswertung(unit=${unitId}, jahr=${filterYear}, detail='einsaetze')}">
         <strong class="auswertung-stat-card__value" th:text="${overviewStats.einsaetze()}">0</strong>
         <span class="auswertung-stat-card__label">Einsätze</span>
+        <span class="auswertung-stat-card__hours" th:text="${overviewStats.einsaetzeStunden()}">0 Std.</span>
       </a>
       <a class="auswertung-stat-card auswertung-stat-card--feuer auswertung-stat-card--clickable" role="listitem"
          th:classappend="${overviewDetail != null and overviewDetail.key() == 'feuer'} ? ' auswertung-stat-card--active' : ''"
@@ -49,6 +50,7 @@
            : @{/auswertung(unit=${unitId}, jahr=${filterYear}, detail='feuer')}">
         <strong class="auswertung-stat-card__value" th:text="${overviewStats.feuer()}">0</strong>
         <span class="auswertung-stat-card__label">Feuer</span>
+        <span class="auswertung-stat-card__hours" th:text="${overviewStats.feuerStunden()}">0 Std.</span>
       </a>
       <a class="auswertung-stat-card auswertung-stat-card--th auswertung-stat-card--clickable" role="listitem"
          th:classappend="${overviewDetail != null and overviewDetail.key() == 'th'} ? ' auswertung-stat-card--active' : ''"
@@ -57,6 +59,7 @@
            : @{/auswertung(unit=${unitId}, jahr=${filterYear}, detail='th')}">
         <strong class="auswertung-stat-card__value" th:text="${overviewStats.th()}">0</strong>
         <span class="auswertung-stat-card__label">TH</span>
+        <span class="auswertung-stat-card__hours" th:text="${overviewStats.thStunden()}">0 Std.</span>
       </a>
       <a class="auswertung-stat-card auswertung-stat-card--cbrn auswertung-stat-card--clickable" role="listitem"
          th:classappend="${overviewDetail != null and overviewDetail.key() == 'cbrn'} ? ' auswertung-stat-card--active' : ''"
@@ -65,6 +68,7 @@
            : @{/auswertung(unit=${unitId}, jahr=${filterYear}, detail='cbrn')}">
         <strong class="auswertung-stat-card__value" th:text="${overviewStats.cbrn()}">0</strong>
         <span class="auswertung-stat-card__label">CBRN</span>
+        <span class="auswertung-stat-card__hours" th:text="${overviewStats.cbrnStunden()}">0 Std.</span>
       </a>
       <a class="auswertung-stat-card auswertung-stat-card--sonstiges auswertung-stat-card--clickable" role="listitem"
          th:classappend="${overviewDetail != null and overviewDetail.key() == 'sonstiges'} ? ' auswertung-stat-card--active' : ''"
@@ -73,6 +77,7 @@
            : @{/auswertung(unit=${unitId}, jahr=${filterYear}, detail='sonstiges')}">
         <strong class="auswertung-stat-card__value" th:text="${overviewStats.sonstiges()}">0</strong>
         <span class="auswertung-stat-card__label">Sonstiges</span>
+        <span class="auswertung-stat-card__hours" th:text="${overviewStats.sonstigesStunden()}">0 Std.</span>
       </a>
       <a class="auswertung-stat-card auswertung-stat-card--uebung auswertung-stat-card--clickable" role="listitem"
          th:classappend="${overviewDetail != null and overviewDetail.key() == 'uebungsdienste'} ? ' auswertung-stat-card--active' : ''"
@@ -81,6 +86,7 @@
            : @{/auswertung(unit=${unitId}, jahr=${filterYear}, detail='uebungsdienste')}">
         <strong class="auswertung-stat-card__value" th:text="${overviewStats.uebungsdienste()}">0</strong>
         <span class="auswertung-stat-card__label">Übungsdienste</span>
+        <span class="auswertung-stat-card__hours" th:text="${overviewStats.uebungsdiensteStunden()}">0 Std.</span>
       </a>
       <article class="auswertung-stat-card auswertung-stat-card--mitglieder" role="listitem">
         <strong class="auswertung-stat-card__value" th:text="${overviewStats.mitglieder()}">0</strong>

@@ -6574,28 +6574,41 @@ a.auswertung-stat-card {
   color: var(--text-muted);
 }
 
+.auswertung-stat-card__hours {
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--text-muted);
+  opacity: 0.9;
+}
+
 .auswertung-stat-card--feuer .auswertung-stat-card__value,
-.auswertung-stat-card--feuer .auswertung-stat-card__label {
+.auswertung-stat-card--feuer .auswertung-stat-card__label,
+.auswertung-stat-card--feuer .auswertung-stat-card__hours {
   color: var(--rot, #dc2626);
 }
 
 .auswertung-stat-card--th .auswertung-stat-card__value,
-.auswertung-stat-card--th .auswertung-stat-card__label {
+.auswertung-stat-card--th .auswertung-stat-card__label,
+.auswertung-stat-card--th .auswertung-stat-card__hours {
   color: #ea8c1a;
 }
 
 .auswertung-stat-card--cbrn .auswertung-stat-card__value,
-.auswertung-stat-card--cbrn .auswertung-stat-card__label {
+.auswertung-stat-card--cbrn .auswertung-stat-card__label,
+.auswertung-stat-card--cbrn .auswertung-stat-card__hours {
   color: #ca8a04;
 }
 
 .auswertung-stat-card--sonstiges .auswertung-stat-card__value,
-.auswertung-stat-card--sonstiges .auswertung-stat-card__label {
+.auswertung-stat-card--sonstiges .auswertung-stat-card__label,
+.auswertung-stat-card--sonstiges .auswertung-stat-card__hours {
   color: #3b82f6;
 }
 
 .auswertung-stat-card--uebung .auswertung-stat-card__value,
-.auswertung-stat-card--uebung .auswertung-stat-card__label {
+.auswertung-stat-card--uebung .auswertung-stat-card__label,
+.auswertung-stat-card--uebung .auswertung-stat-card__hours {
   color: var(--gruen, #16a34a);
 }
 
@@ -6610,17 +6623,20 @@ a.auswertung-stat-card {
 }
 
 [data-theme="dark"] .auswertung-stat-card--th .auswertung-stat-card__value,
-[data-theme="dark"] .auswertung-stat-card--th .auswertung-stat-card__label {
+[data-theme="dark"] .auswertung-stat-card--th .auswertung-stat-card__label,
+[data-theme="dark"] .auswertung-stat-card--th .auswertung-stat-card__hours {
   color: #f0b429;
 }
 
 [data-theme="dark"] .auswertung-stat-card--cbrn .auswertung-stat-card__value,
-[data-theme="dark"] .auswertung-stat-card--cbrn .auswertung-stat-card__label {
+[data-theme="dark"] .auswertung-stat-card--cbrn .auswertung-stat-card__label,
+[data-theme="dark"] .auswertung-stat-card--cbrn .auswertung-stat-card__hours {
   color: #eab308;
 }
 
 [data-theme="dark"] .auswertung-stat-card--sonstiges .auswertung-stat-card__value,
-[data-theme="dark"] .auswertung-stat-card--sonstiges .auswertung-stat-card__label {
+[data-theme="dark"] .auswertung-stat-card--sonstiges .auswertung-stat-card__label,
+[data-theme="dark"] .auswertung-stat-card--sonstiges .auswertung-stat-card__hours {
   color: #60a5fa;
 }
 
