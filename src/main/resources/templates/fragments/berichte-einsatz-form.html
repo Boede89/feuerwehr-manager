@@ -567,7 +567,7 @@
   <!-- Tab 6: Anhänge -->
   <div class="incident-tab-panel" data-panel="6" hidden th:if="${report != null}">
     <div id="incident-attachments-wrap"
-         th:attr="data-report-id=${report.id},data-unit-id=${unitId},data-readonly=${formMode == 'view' or report.status.name() != 'ENTWURF' ? 'true' : 'false'},data-allow-delete=${formMode != 'view'},data-leitstellen-abruf=true">
+         th:attr="data-report-id=${report.id},data-unit-id=${unitId},data-readonly=${formMode == 'view'},data-allow-delete=${formMode != 'view'},data-allow-upload=${formMode != 'view'},data-leitstellen-abruf=true">
     </div>
   </div>
   </div>

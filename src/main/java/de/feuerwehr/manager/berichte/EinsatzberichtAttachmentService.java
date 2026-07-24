@@ -53,7 +53,7 @@ public class EinsatzberichtAttachmentService {
 
     @Transactional
     public IncidentAttachmentDto upload(long unitId, long reportId, MultipartFile file, Long userId) {
-        IncidentReport report = requireEditableReport(unitId, reportId);
+        IncidentReport report = requireMutableAttachmentReport(unitId, reportId);
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Keine Datei im Request gefunden.");
         }
@@ -154,7 +154,7 @@ public class EinsatzberichtAttachmentService {
 
     @Transactional
     public void delete(long unitId, long reportId, long attachmentId) {
-        IncidentReport report = requireDeletableAttachmentReport(unitId, reportId);
+        IncidentReport report = requireMutableAttachmentReport(unitId, reportId);
         IncidentReportAttachment attachment = attachmentRepository
                 .findByIdAndIncidentReportId(attachmentId, reportId)
                 .orElseThrow(() -> new IllegalArgumentException("Anhang nicht gefunden."));
@@ -188,15 +188,15 @@ public class EinsatzberichtAttachmentService {
         return report;
     }
 
-    /** Löschen von Anhängen: Entwurf und freigegeben (z. B. falsche Leitstellen-PDFs). */
-    private IncidentReport requireDeletableAttachmentReport(long unitId, long reportId) {
+    /** Hochladen/Löschen: Entwurf und freigegeben (Anzeigenmodus steuert die UI). */
+    private IncidentReport requireMutableAttachmentReport(long unitId, long reportId) {
         IncidentReport report = requireReport(unitId, reportId);
         if (testModeService.isEnabled() && !report.isTestData()) {
             throw new IllegalArgumentException(
                     "Produktiv-Einsatzberichte können im Testmodus nur angesehen werden.");
         }
         if (report.getStatus() == IncidentReportStatus.ARCHIVIERT) {
-            throw new IllegalArgumentException("Anhänge archivierter Berichte können nicht gelöscht werden.");
+            throw new IllegalArgumentException("Anhänge archivierter Berichte können nicht geändert werden.");
         }
         return report;
     }

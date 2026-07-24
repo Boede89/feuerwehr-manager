@@ -76,9 +76,16 @@
     return !isReadonly(wrap);
   }
 
+  function canUpload(wrap) {
+    if (wrap.dataset.allowUpload === 'true') {
+      return true;
+    }
+    return !isReadonly(wrap);
+  }
+
   function render(wrap, attachments) {
-    var readonly = isReadonly(wrap);
     var allowDelete = canDelete(wrap);
+    var allowUpload = canUpload(wrap);
     var listHtml = attachments.length
       ? '<div class="incident-attachments-list">' + attachments.map(function (a) {
         return '<div class="incident-attachment-card">' +
@@ -93,10 +100,10 @@
       }).join('') + '</div>'
       : '<p class="incident-attachments-empty">Keine Anhänge vorhanden.</p>';
 
-    var uploadHtml = readonly ? '' :
+    var uploadHtml = !allowUpload ? '' :
       '<div class="incident-attachment-drop" id="attach-drop-zone">' +
         '<div class="incident-attachment-drop__icon">📎</div>' +
-        '<div class="incident-attachment-drop__hint">Datei hierher ziehen oder klicken zum Auswählen</div>' +
+        '<div class="incident-attachment-drop__hint">Weitere Datei hierher ziehen oder klicken zum Auswählen</div>' +
         '<div class="incident-attachment-drop__types">Bilder (JPEG/PNG/GIF/WebP), PDF, Word (docx), ODT, Text — max. 20 MB</div>' +
         '<input type="file" id="attach-file-input" hidden accept="image/*,.pdf,.docx,.odt,.txt">' +
       '</div>' +
@@ -141,7 +148,7 @@
       });
     }
 
-    if (!readonly) {
+    if (allowUpload) {
       bindUpload(wrap);
     }
   }
