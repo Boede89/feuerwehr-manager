@@ -689,7 +689,7 @@ input:focus, select:focus, textarea:focus {
   margin-bottom: 0;
 }
 
-/* display:flex überschreibt sonst das HTML-Attribut hidden */
+/* display:flex ?berschreibt sonst das HTML-Attribut hidden */
 .form-group[hidden],
 .login-password-options[hidden] {
   display: none !important;
@@ -6754,6 +6754,7 @@ a.auswertung-stat-card {
   margin: 0 -6px;
   padding: 4px 6px;
   border-radius: 6px;
+  overflow-wrap: anywhere;
   transition: background-color 0.12s ease;
 }
 
@@ -6767,6 +6768,7 @@ a.auswertung-stat-card {
   margin: 0 -6px;
   padding: 4px 6px;
   border-radius: 6px;
+  overflow-wrap: anywhere;
   transition: background-color 0.12s ease;
 }
 
@@ -6891,6 +6893,7 @@ a.auswertung-stat-card {
 }
 
 .auswertung-person-modal__body {
+  overflow-x: hidden;
   overflow-y: auto;
   flex: 1 1 auto;
   min-height: 0;
@@ -6908,6 +6911,7 @@ a.auswertung-stat-card {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow-x: hidden;
   overflow-y: auto;
   flex: 1 1 auto;
   min-height: 0;
@@ -6964,6 +6968,7 @@ a.auswertung-stat-card {
   display: grid;
   gap: 4px;
   max-height: min(42vh, 360px);
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
