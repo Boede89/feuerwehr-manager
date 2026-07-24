@@ -203,6 +203,9 @@
         if (result && result.printMaengel) {
           extras.printMaengel = true;
         }
+        if (window.FwConfirm && window.FwConfirm.applyTestModeEmailExtra) {
+          extras = window.FwConfirm.applyTestModeEmailExtra(extras, result);
+        }
         postAction('/berichte/einsatzberichte/' + reportId + '/freigeben', listReturnPath(), extras);
       });
     }
@@ -260,7 +263,7 @@
             '/bearbeiten?unit=' + encodeURIComponent(unitId) + '">Bearbeiten</a>' : '') +
           (canArchiveItem(r) ?
             '<form method="post" action="/berichte/einsatzberichte/' + r.id + '/archivieren" class="table-inline-form" ' +
-            'data-confirm data-confirm-title="Einsatzbericht ins Archiv verschieben?" ' +
+            'data-confirm data-testmode-email="true" data-confirm-title="Einsatzbericht ins Archiv verschieben?" ' +
             'data-confirm-message="Der Bericht wird ins Archiv verschoben und erscheint standardmäßig nicht mehr in der aktiven Liste." ' +
             'data-confirm-label="Ins Archiv verschieben">' +
             '<input type="hidden" name="' + esc(root.dataset.csrfParam || '_csrf') + '" value="' + esc(csrfToken) + '"/>' +
@@ -355,8 +358,11 @@
       '<input type="hidden" name="unit" value="' + esc(unitId) + '"/>' +
       '<input type="hidden" name="returnUrl" value="' + esc(returnPath) + '"/>';
     Object.keys(extraFields || {}).forEach(function (key) {
-      if (extraFields[key]) {
+      var value = extraFields[key];
+      if (value === true) {
         form.innerHTML += '<input type="hidden" name="' + esc(key) + '" value="true"/>';
+      } else if (value !== false && value != null && value !== '') {
+        form.innerHTML += '<input type="hidden" name="' + esc(key) + '" value="' + esc(String(value)) + '"/>';
       }
     });
     document.body.appendChild(form);
@@ -416,6 +422,9 @@
           if (result && result.printMaengel) {
             extras.printMaengel = true;
           }
+          if (window.FwConfirm && window.FwConfirm.applyTestModeEmailExtra) {
+            extras = window.FwConfirm.applyTestModeEmailExtra(extras, result);
+          }
           postAction('/berichte/einsatzberichte/' + meta.reportId + '/freigeben', returnPath, extras);
         });
       }
@@ -433,10 +442,15 @@
       var ask = window.FwConfirm && window.FwConfirm.archiveReport
         ? window.FwConfirm.archiveReport('Einsatzbericht')
         : Promise.resolve(window.confirm('Einsatzbericht wirklich ins Archiv verschieben?'));
-      ask.then(function (ok) {
-        if (ok) {
-          postAction('/berichte/einsatzberichte/' + meta.reportId + '/archivieren', returnPath);
+      ask.then(function (result) {
+        var ok = result === true || (result && result.ok);
+        if (!ok) {
+          return;
         }
+        var extras = window.FwConfirm && window.FwConfirm.applyTestModeEmailExtra
+          ? window.FwConfirm.applyTestModeEmailExtra({}, result)
+          : {};
+        postAction('/berichte/einsatzberichte/' + meta.reportId + '/archivieren', returnPath, extras);
       });
     });
     document.getElementById('btn-modal-delete')?.addEventListener('click', function () {

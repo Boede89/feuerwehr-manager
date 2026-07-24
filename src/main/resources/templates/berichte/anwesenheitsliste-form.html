@@ -15,6 +15,7 @@
             th:action="@{/berichte/anwesenheitslisten/{id}/archivieren(id=${report.id})}"
             class="bar-form"
             data-confirm
+            data-testmode-email="true"
             data-confirm-title="Anwesenheitsliste ins Archiv verschieben?"
             data-confirm-message="Die Liste wird ins Archiv verschoben und erscheint standardmäßig nicht mehr in der aktiven Liste."
             data-confirm-label="Ins Archiv verschieben">

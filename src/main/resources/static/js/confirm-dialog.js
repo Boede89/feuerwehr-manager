@@ -9,6 +9,52 @@
   var cancelBtn = null;
   var resolveFn = null;
   var activeCheckboxes = [];
+  var emailSelectActive = false;
+
+  function isTestMode() {
+    return document.body && document.body.getAttribute('data-test-mode') === 'true';
+  }
+
+  function testModeEmailSelectMarkup() {
+    return (
+      '<div class="confirm-dialog__email-select" id="fw-confirm-testmode-email-wrap">' +
+      '  <label for="fw-confirm-testmode-email">E-Mail im Testmodus</label>' +
+      '  <select id="fw-confirm-testmode-email" name="testModeEmailDelivery" class="field">' +
+      '    <option value="NONE" selected>Keine E-Mail senden</option>' +
+      '    <option value="SELF">An mich</option>' +
+      '    <option value="CONFIGURED">An hinterlegte Person</option>' +
+      '  </select>' +
+      '  <p class="hint" style="margin:0;">Im Produktivbetrieb könnte hier automatisch eine E-Mail versendet werden.</p>' +
+      '</div>'
+    );
+  }
+
+  function appendTestModeEmailSelect(html) {
+    if (!isTestMode()) {
+      return html;
+    }
+    emailSelectActive = true;
+    return (html || '') + testModeEmailSelectMarkup();
+  }
+
+  function collectTestModeEmailDelivery() {
+    var select = document.getElementById('fw-confirm-testmode-email');
+    return select && select.value ? select.value : 'NONE';
+  }
+
+  function appendHiddenField(form, name, value) {
+    if (!form) {
+      return;
+    }
+    form.querySelectorAll('input[name="' + name + '"]').forEach(function (el) {
+      el.remove();
+    });
+    var input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = name;
+    input.value = value;
+    form.appendChild(input);
+  }
 
   function ensureModal() {
     if (modalEl) {
@@ -95,6 +141,9 @@
       var input = checkboxesEl ? checkboxesEl.querySelector('#' + cb.id) : null;
       values[key] = input ? input.checked : false;
     });
+    if (emailSelectActive || document.getElementById('fw-confirm-testmode-email')) {
+      values.testModeEmailDelivery = collectTestModeEmailDelivery();
+    }
     return values;
   }
 
@@ -106,9 +155,13 @@
     modalEl.classList.remove('active', 'confirm-dialog--release-validation');
     document.body.classList.remove('modal-open');
     if (resolveFn) {
-      if (result && activeCheckboxes.length) {
-        resolveFn(collectCheckboxValues());
-      } else if (activeCheckboxes.length) {
+      if (result && (activeCheckboxes.length || emailSelectActive)) {
+        var values = collectCheckboxValues();
+        if (!activeCheckboxes.length) {
+          values.ok = true;
+        }
+        resolveFn(values);
+      } else if (activeCheckboxes.length || emailSelectActive) {
         resolveFn({ ok: false });
       } else {
         resolveFn(!!result);
@@ -116,6 +169,7 @@
       resolveFn = null;
     }
     activeCheckboxes = [];
+    emailSelectActive = false;
   }
 
   function applyVariant(variant) {
@@ -139,7 +193,15 @@
       confirmBtn.textContent = opts.confirmLabel || 'Bestätigen';
       cancelBtn.textContent = opts.cancelLabel || 'Abbrechen';
       applyVariant(opts.variant || 'primary');
+      emailSelectActive = false;
       renderCheckboxes(opts.checkboxes);
+      if (opts.emailSelect && isTestMode()) {
+        emailSelectActive = true;
+        if (checkboxesEl) {
+          checkboxesEl.innerHTML = (checkboxesEl.innerHTML || '') + testModeEmailSelectMarkup();
+          checkboxesEl.hidden = false;
+        }
+      }
       resolveFn = resolve;
       modalEl.hidden = false;
       modalEl.classList.add('active');
@@ -284,7 +346,7 @@
       );
     }
 
-    checkboxesEl.innerHTML = html;
+    checkboxesEl.innerHTML = appendTestModeEmailSelect(html);
     checkboxesEl.hidden = false;
     if (hasGeraete) {
       bindEinsatzReleaseCheckboxInteractions(d);
@@ -364,7 +426,7 @@
       );
     }
 
-    checkboxesEl.innerHTML = html;
+    checkboxesEl.innerHTML = appendTestModeEmailSelect(html);
     checkboxesEl.hidden = false;
     if (hasGeraete) {
       bindEinsatzReleaseCheckboxInteractions(d);
@@ -387,6 +449,11 @@
         form.appendChild(input);
       }
     });
+    if (result.testModeEmailDelivery) {
+      appendHiddenField(form, 'testModeEmailDelivery', result.testModeEmailDelivery);
+    } else if (isTestMode()) {
+      appendHiddenField(form, 'testModeEmailDelivery', 'NONE');
+    }
   }
 
   function releaseValidationIssues(issues, options) {
@@ -542,20 +609,49 @@
           return;
         }
 
+        form = e.target.closest('form[data-testmode-email-prompt]');
+        if (form && isTestMode() && form.dataset.confirmSubmitting !== 'true') {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          window.FwConfirm.askTestModeEmail().then(function (result) {
+            if (result && result.ok) {
+              appendHiddenField(form, 'testModeEmailDelivery', result.testModeEmailDelivery || 'NONE');
+              form.dataset.confirmSubmitting = 'true';
+              if (typeof form.requestSubmit === 'function') {
+                form.requestSubmit();
+              } else {
+                form.submit();
+              }
+            }
+          });
+          return;
+        }
+
         form = e.target.closest('form[data-confirm], form[data-confirm-message]');
         if (!form || form.dataset.confirmSubmitting === 'true') {
           return;
         }
         e.preventDefault();
         e.stopImmediatePropagation();
-        show(optionsFromForm(form)).then(function (ok) {
-          if (ok) {
-            form.dataset.confirmSubmitting = 'true';
-            if (typeof form.requestSubmit === 'function') {
-              form.requestSubmit();
-            } else {
-              form.submit();
-            }
+        var opts = optionsFromForm(form);
+        if (isTestMode() && form.getAttribute('data-testmode-email') === 'true') {
+          opts.emailSelect = true;
+        }
+        show(opts).then(function (result) {
+          var ok = result === true || (result && result.ok);
+          if (!ok) {
+            return;
+          }
+          if (result && result.testModeEmailDelivery) {
+            appendHiddenField(form, 'testModeEmailDelivery', result.testModeEmailDelivery);
+          } else if (isTestMode() && form.getAttribute('data-testmode-email') === 'true') {
+            appendHiddenField(form, 'testModeEmailDelivery', 'NONE');
+          }
+          form.dataset.confirmSubmitting = 'true';
+          if (typeof form.requestSubmit === 'function') {
+            form.requestSubmit();
+          } else {
+            form.submit();
           }
         });
       },
@@ -565,8 +661,40 @@
 
   window.FwConfirm = {
     show: show,
+    isTestMode: isTestMode,
     ask: function (message, title) {
       return show({ title: title || 'Bitte bestätigen', message: message || '' });
+    },
+    askTestModeEmail: function () {
+      if (!isTestMode()) {
+        return Promise.resolve({ ok: true, testModeEmailDelivery: 'NONE' });
+      }
+      return show({
+        title: 'E-Mail im Testmodus',
+        message:
+          'Im Produktivbetrieb könnte bei dieser Aktion automatisch eine E-Mail versendet werden. ' +
+          'Wie soll im Testmodus verfahren werden?',
+        confirmLabel: 'Weiter',
+        variant: 'primary',
+        emailSelect: true
+      }).then(function (result) {
+        if (result === true) {
+          return { ok: true, testModeEmailDelivery: 'NONE' };
+        }
+        if (result && result.ok) {
+          return result;
+        }
+        return { ok: false };
+      });
+    },
+    applyTestModeEmailExtra: function (extras, result) {
+      var out = extras || {};
+      if (result && result.testModeEmailDelivery) {
+        out.testModeEmailDelivery = result.testModeEmailDelivery;
+      } else if (isTestMode()) {
+        out.testModeEmailDelivery = 'NONE';
+      }
+      return out;
     },
     releaseReport: function (reportLabel) {
       return show({
@@ -575,7 +703,8 @@
           'Nach der Freigabe ist der Eintrag für die normale Bearbeitung gesperrt. ' +
           'Administratoren können weiterhin Änderungen vornehmen.',
         confirmLabel: 'Freigeben',
-        variant: 'success'
+        variant: 'success',
+        emailSelect: isTestMode()
       });
     },
     releaseValidationIssues: releaseValidationIssues,
@@ -591,6 +720,7 @@
         confirmBtn.textContent = 'Freigeben';
         cancelBtn.textContent = 'Abbrechen';
         applyVariant('success');
+        emailSelectActive = false;
         renderEinsatzReleaseCheckboxes(defaults);
         resolveFn = resolve;
         modalEl.hidden = false;
@@ -613,6 +743,7 @@
         confirmBtn.textContent = 'Freigeben';
         cancelBtn.textContent = 'Abbrechen';
         applyVariant('success');
+        emailSelectActive = false;
         renderAnwesenheitReleaseCheckboxes(defaults);
         resolveFn = resolve;
         modalEl.hidden = false;
@@ -628,7 +759,8 @@
         title: (reportLabel || 'Bericht') + ' ins Archiv verschieben?',
         message: 'Der Eintrag wird ins Archiv verschoben und erscheint standardmäßig nicht mehr in der aktiven Liste.',
         confirmLabel: 'Ins Archiv verschieben',
-        variant: 'primary'
+        variant: 'primary',
+        emailSelect: isTestMode()
       });
     },
     deleteReport: function (reportLabel) {

@@ -13,6 +13,7 @@
             th:action="@{/berichte/einsatzberichte/{id}/archivieren(id=${report.id})}"
             class="bar-form"
             data-confirm
+            data-testmode-email="true"
             data-confirm-title="Einsatzbericht ins Archiv verschieben?"
             data-confirm-message="Der Bericht wird ins Archiv verschoben und erscheint standardmäßig nicht mehr in der aktiven Liste."
             data-confirm-label="Ins Archiv verschieben">

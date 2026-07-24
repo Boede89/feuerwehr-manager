@@ -255,8 +255,11 @@
       '<input type="hidden" name="unit" value="' + esc(unitId) + '"/>' +
       '<input type="hidden" name="returnUrl" value="' + esc(returnPath) + '"/>';
     Object.keys(extraFields || {}).forEach(function (key) {
-      if (extraFields[key]) {
+      var value = extraFields[key];
+      if (value === true) {
         form.innerHTML += '<input type="hidden" name="' + esc(key) + '" value="true"/>';
+      } else if (value !== false && value != null && value !== '') {
+        form.innerHTML += '<input type="hidden" name="' + esc(key) + '" value="' + esc(String(value)) + '"/>';
       }
     });
     document.body.appendChild(form);
@@ -283,6 +286,9 @@
     });
     if (prep && prep.assignRemainingToWache) {
       extras.assignRemainingToWache = true;
+    }
+    if (window.FwConfirm && window.FwConfirm.applyTestModeEmailExtra) {
+      extras = window.FwConfirm.applyTestModeEmailExtra(extras, result);
     }
     return extras;
   }
@@ -349,10 +355,15 @@
       var ask = window.FwConfirm && window.FwConfirm.archiveReport
         ? window.FwConfirm.archiveReport('Anwesenheitsliste')
         : Promise.resolve(window.confirm('Anwesenheitsliste wirklich ins Archiv verschieben?'));
-      ask.then(function (ok) {
-        if (ok) {
-          postAction('/berichte/anwesenheitslisten/' + meta.reportId + '/archivieren', returnPath);
+      ask.then(function (result) {
+        var ok = result === true || (result && result.ok);
+        if (!ok) {
+          return;
         }
+        var extras = window.FwConfirm && window.FwConfirm.applyTestModeEmailExtra
+          ? window.FwConfirm.applyTestModeEmailExtra({}, result)
+          : {};
+        postAction('/berichte/anwesenheitslisten/' + meta.reportId + '/archivieren', returnPath, extras);
       });
     });
     document.getElementById('btn-attendance-modal-delete')?.addEventListener('click', function () {
@@ -453,7 +464,7 @@
             '/bearbeiten?unit=' + encodeURIComponent(unitId) + '">Bearbeiten</a>' : '') +
           (canArchiveItem(r) ?
             '<form method="post" action="/berichte/anwesenheitslisten/' + r.id + '/archivieren" class="table-inline-form" ' +
-            'data-confirm data-confirm-title="Anwesenheitsliste ins Archiv verschieben?" ' +
+            'data-confirm data-testmode-email="true" data-confirm-title="Anwesenheitsliste ins Archiv verschieben?" ' +
             'data-confirm-message="Die Liste wird ins Archiv verschoben und erscheint standardmäßig nicht mehr in der aktiven Liste." ' +
             'data-confirm-label="Ins Archiv verschieben">' +
             '<input type="hidden" name="' + esc(csrfParam) + '" value="' + esc(csrfToken) + '"/>' +

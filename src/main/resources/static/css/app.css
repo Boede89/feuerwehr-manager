@@ -3010,6 +3010,25 @@ body.modal-open {
   display: none !important;
 }
 
+.confirm-dialog__email-select {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.confirm-dialog__email-select label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.confirm-dialog__email-select select {
+  width: 100%;
+  max-width: 22rem;
+}
+
 .release-validation-banner {
   margin: 0 0 16px;
   padding: 12px 14px;

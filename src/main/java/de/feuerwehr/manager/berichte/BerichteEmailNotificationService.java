@@ -1,6 +1,7 @@
 package de.feuerwehr.manager.berichte;
 
 import de.feuerwehr.manager.mail.UnitMailService;
+import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.technik.VehicleChecklistPdfService;
 import de.feuerwehr.manager.technik.VehicleChecklistService;
 import java.util.List;
@@ -17,6 +18,7 @@ public class BerichteEmailNotificationService {
 
     private final BerichteEmailSettingsService emailSettingsService;
     private final UnitMailService unitMailService;
+    private final TestModeService testModeService;
     private final EinsatzberichtPdfService einsatzberichtPdfService;
     private final AnwesenheitslistePdfService anwesenheitslistePdfService;
     private final GeraetewartmitteilungPdfService geraetewartmitteilungPdfService;
@@ -33,6 +35,10 @@ public class BerichteEmailNotificationService {
         if (event == null) {
             return;
         }
+        if (testModeService.isEnabled()) {
+            handleTestModeEvent(event);
+            return;
+        }
         switch (event.trigger()) {
             case CREATE -> {
                 if (event.reportType() == BerichteEmailReportType.CHECKLISTEN && event.vehicleId() != null) {
@@ -44,6 +50,41 @@ public class BerichteEmailNotificationService {
             case STATUS_CHANGE -> trySendOnStatusChange(
                     event.unitId(), event.reportType(), event.reportId(), event.status());
         }
+    }
+
+    private void handleTestModeEvent(BerichteEmailEvent event) {
+        TestModeEmailDelivery delivery = event.testModeEmailDelivery() != null
+                ? event.testModeEmailDelivery()
+                : TestModeEmailDelivery.NONE;
+        if (delivery == TestModeEmailDelivery.NONE) {
+            log.info(
+                    "Testmodus: Berichte-E-Mail {} nicht gesendet (Auswahl: keine E-Mail).",
+                    event.reportType());
+            return;
+        }
+        List<String> recipients;
+        if (delivery == TestModeEmailDelivery.SELF) {
+            if (event.testModeActorEmail() == null || event.testModeActorEmail().isBlank()) {
+                log.warn(
+                        "Testmodus: Berichte-E-Mail {} nicht gesendet — keine Login-E-Mail für den Benutzer.",
+                        event.reportType());
+                return;
+            }
+            recipients = List.of(event.testModeActorEmail().trim());
+        } else {
+            UnitBerichteEmailSettings settings =
+                    emailSettingsService.ensureSettings(event.unitId(), event.reportType());
+            recipients = emailSettingsService.resolveRecipientEmails(event.unitId(), settings);
+            if (recipients.isEmpty()) {
+                log.info(
+                        "Testmodus: Berichte-E-Mail {} nicht gesendet — keine hinterlegten Empfänger (Einheit {}).",
+                        event.reportType(),
+                        event.unitId());
+                return;
+            }
+        }
+        Long vehicleId = event.reportType() == BerichteEmailReportType.CHECKLISTEN ? event.vehicleId() : null;
+        dispatchToRecipients(event.unitId(), event.reportType(), event.reportId(), vehicleId, recipients);
     }
 
     public void trySendOnCreate(long unitId, BerichteEmailReportType reportType, long reportId) {
@@ -90,7 +131,16 @@ public class BerichteEmailNotificationService {
             Long vehicleId,
             UnitBerichteEmailSettings settings) {
         List<String> recipients = emailSettingsService.resolveRecipientEmails(unitId, settings);
-        if (recipients.isEmpty()) {
+        dispatchToRecipients(unitId, reportType, reportId, vehicleId, recipients);
+    }
+
+    private void dispatchToRecipients(
+            long unitId,
+            BerichteEmailReportType reportType,
+            long reportId,
+            Long vehicleId,
+            List<String> recipients) {
+        if (recipients == null || recipients.isEmpty()) {
             log.info("Berichte-E-Mail {}: keine Empfänger konfiguriert (Einheit {}).", reportType, unitId);
             return;
         }
@@ -101,6 +151,9 @@ public class BerichteEmailNotificationService {
         try {
             PdfPayload payload = renderPdf(unitId, reportType, reportId, vehicleId);
             String subject = "Feuerwehr-Manager: " + reportType.label();
+            if (testModeService.isEnabled()) {
+                subject = "[Testmodus] " + subject;
+            }
             String body = buildBody(reportType, payload.title());
             int sent = 0;
             int failed = 0;

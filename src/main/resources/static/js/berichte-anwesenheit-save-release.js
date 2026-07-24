@@ -131,6 +131,18 @@
               .forEach(function (name) {
                 setHiddenFlag(form, name, !!(result[name] || (prep && prep[name])));
               });
+            form.querySelectorAll('input[name="testModeEmailDelivery"]').forEach(function (el) {
+              el.remove();
+            });
+            var delivery = result.testModeEmailDelivery
+              || (window.FwConfirm && window.FwConfirm.isTestMode && window.FwConfirm.isTestMode() ? 'NONE' : null);
+            if (delivery) {
+              var input = document.createElement('input');
+              input.type = 'hidden';
+              input.name = 'testModeEmailDelivery';
+              input.value = delivery;
+              form.appendChild(input);
+            }
             if (typeof form.requestSubmit === 'function') {
               form.requestSubmit();
             } else {
