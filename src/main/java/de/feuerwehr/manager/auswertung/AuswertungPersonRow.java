@@ -10,5 +10,7 @@ public record AuswertungPersonRow(
         String einsatzbeteiligung,
         double dienstPct,
         double einsatzPct,
+        String dienstQuote,
+        String einsatzQuote,
         List<AuswertungPersonTeilnahme> dienste,
         List<AuswertungPersonTeilnahme> einsaetze) {}

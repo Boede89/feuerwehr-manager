@@ -246,6 +246,8 @@ public class AuswertungService {
                     formatBeteiligungPct(einsatz, totalEinsaetze),
                     dienstPct,
                     einsatzPct,
+                    formatBeteiligungQuote(dienst, totalUebungen),
+                    formatBeteiligungQuote(einsatz, totalEinsaetze),
                     toTeilnahmeList(diensteByPerson.get(person.getId())),
                     toTeilnahmeList(einsaetzeByPerson.get(person.getId()))));
         }
@@ -278,6 +280,13 @@ public class AuswertungService {
             return String.format(Locale.GERMAN, "%.0f %%", pct);
         }
         return String.format(Locale.GERMAN, "%.1f %%", pct);
+    }
+
+    private static String formatBeteiligungQuote(int attended, int total) {
+        if (total <= 0) {
+            return "—";
+        }
+        return attended + "/" + total;
     }
 
     private List<AuswertungEinsatzRow> listEinsatzRows(

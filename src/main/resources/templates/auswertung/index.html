@@ -238,17 +238,25 @@
                 th:aria-label="|Details zu ${row.name()}|">
               <td><span class="auswertung-person-name" th:text="${row.name()}">Mustermann, Max</span></td>
               <td>
-                <div class="auswertung-pct-bar" th:attr="aria-label=${row.dienstbeteiligung()}">
-                  <div class="auswertung-pct-bar__fill"
-                       th:style="|width: ${row.dienstbeteiligung() == '—' ? 0 : row.dienstPct()}%|"></div>
-                  <span class="auswertung-pct-bar__label" th:text="${row.dienstbeteiligung()}">80 %</span>
+                <div class="auswertung-pct-cell">
+                  <div class="auswertung-pct-bar"
+                       th:attr="aria-label=${row.dienstbeteiligung() + ' (' + row.dienstQuote() + ')'}">
+                    <div class="auswertung-pct-bar__fill"
+                         th:style="|width: ${row.dienstbeteiligung() == '—' ? 0 : row.dienstPct()}%|"></div>
+                    <span class="auswertung-pct-bar__label" th:text="${row.dienstbeteiligung()}">80 %</span>
+                  </div>
+                  <span class="auswertung-pct-quote" th:text="${row.dienstQuote()}">2/3</span>
                 </div>
               </td>
               <td>
-                <div class="auswertung-pct-bar" th:attr="aria-label=${row.einsatzbeteiligung()}">
-                  <div class="auswertung-pct-bar__fill"
-                       th:style="|width: ${row.einsatzbeteiligung() == '—' ? 0 : row.einsatzPct()}%|"></div>
-                  <span class="auswertung-pct-bar__label" th:text="${row.einsatzbeteiligung()}">50 %</span>
+                <div class="auswertung-pct-cell">
+                  <div class="auswertung-pct-bar"
+                       th:attr="aria-label=${row.einsatzbeteiligung() + ' (' + row.einsatzQuote() + ')'}">
+                    <div class="auswertung-pct-bar__fill"
+                         th:style="|width: ${row.einsatzbeteiligung() == '—' ? 0 : row.einsatzPct()}%|"></div>
+                    <span class="auswertung-pct-bar__label" th:text="${row.einsatzbeteiligung()}">50 %</span>
+                  </div>
+                  <span class="auswertung-pct-quote" th:text="${row.einsatzQuote()}">1/2</span>
                 </div>
               </td>
             </tr>

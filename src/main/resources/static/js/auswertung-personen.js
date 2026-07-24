@@ -65,10 +65,10 @@
       nameEl.textContent = row.name || '—';
     }
     if (dienstEl) {
-      dienstEl.textContent = row.dienstbeteiligung || '—';
+      dienstEl.textContent = formatBeteiligungDisplay(row.dienstbeteiligung, row.dienstQuote);
     }
     if (einsatzEl) {
-      einsatzEl.textContent = row.einsatzbeteiligung || '—';
+      einsatzEl.textContent = formatBeteiligungDisplay(row.einsatzbeteiligung, row.einsatzQuote);
     }
     fillTeilnahmen(diensteListEl, row.dienste, 'Keine Dienste');
     fillTeilnahmen(einsaetzeListEl, row.einsaetze, 'Keine Einsätze');
@@ -125,16 +125,29 @@
     });
   }
 
-  function pctBarHtml(pct, label) {
+  function formatBeteiligungDisplay(pctLabel, quote) {
+    var text = pctLabel || '—';
+    if (quote && quote !== '—' && text !== '—') {
+      return text + ' (' + quote + ')';
+    }
+    return text;
+  }
+
+  function pctBarHtml(pct, label, quote) {
     var text = label || '—';
+    var quoteText = quote || '—';
     var width = 0;
     if (text !== '—' && Number.isFinite(Number(pct))) {
       width = Math.max(0, Math.min(100, Number(pct)));
     }
+    var aria = text !== '—' && quoteText !== '—' ? text + ' (' + quoteText + ')' : text;
     return (
-      '<div class="auswertung-pct-bar" aria-label="' + esc(text) + '">' +
-        '<div class="auswertung-pct-bar__fill" style="width:' + width + '%"></div>' +
-        '<span class="auswertung-pct-bar__label">' + esc(text) + '</span>' +
+      '<div class="auswertung-pct-cell">' +
+        '<div class="auswertung-pct-bar" aria-label="' + esc(aria) + '">' +
+          '<div class="auswertung-pct-bar__fill" style="width:' + width + '%"></div>' +
+          '<span class="auswertung-pct-bar__label">' + esc(text) + '</span>' +
+        '</div>' +
+        '<span class="auswertung-pct-quote">' + esc(quoteText) + '</span>' +
       '</div>'
     );
   }
@@ -148,8 +161,8 @@
         ' data-row-index="' + originalIndex + '"' +
         ' aria-label="Details zu ' + esc(row.name || 'Person') + '">' +
         '<td><span class="auswertung-person-name">' + esc(row.name || '—') + '</span></td>' +
-        '<td>' + pctBarHtml(row.dienstPct, row.dienstbeteiligung) + '</td>' +
-        '<td>' + pctBarHtml(row.einsatzPct, row.einsatzbeteiligung) + '</td>' +
+        '<td>' + pctBarHtml(row.dienstPct, row.dienstbeteiligung, row.dienstQuote) + '</td>' +
+        '<td>' + pctBarHtml(row.einsatzPct, row.einsatzbeteiligung, row.einsatzQuote) + '</td>' +
         '</tr>'
       );
     }).join('');

@@ -6778,14 +6778,22 @@ a.auswertung-stat-card {
   font-weight: 600;
 }
 
+.auswertung-pct-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 7.5rem;
+}
+
 .auswertung-pct-bar {
   --auswertung-pct-fill: #0f766e;
   --auswertung-pct-fill-end: #14b8a6;
   position: relative;
   display: block;
+  flex: 1 1 auto;
   height: 1.55rem;
-  min-width: 5.75rem;
-  max-width: 10rem;
+  min-width: 4.75rem;
+  max-width: 9rem;
   background: color-mix(in srgb, var(--auswertung-pct-fill) 12%, var(--bg-card, #fff));
   border: 1px solid color-mix(in srgb, var(--auswertung-pct-fill) 22%, transparent);
   border-radius: 999px;
@@ -6814,6 +6822,16 @@ a.auswertung-stat-card {
     0 0 2px rgba(255, 255, 255, 0.95),
     0 0 6px rgba(255, 255, 255, 0.8);
   pointer-events: none;
+}
+
+.auswertung-pct-quote {
+  flex: 0 0 auto;
+  min-width: 2.25rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .auswertung-teilnahme-pa {
