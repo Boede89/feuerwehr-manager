@@ -50,8 +50,8 @@ public class AuswertungService {
         int mitglieder = personalService.listPersons(unitId).size();
         int tauglichePa = countTauglichePaTraeger(unitId);
 
-        // Feuer / TH / Sonstiges folgen später.
-        return new AuswertungOverviewStats(einsaetze, 0, 0, 0, uebungsdienste, mitglieder, tauglichePa);
+        // Feuer / TH / CBRN / Sonstiges folgen später.
+        return new AuswertungOverviewStats(einsaetze, 0, 0, 0, 0, uebungsdienste, mitglieder, tauglichePa);
     }
 
     private int countTauglichePaTraeger(long unitId) {

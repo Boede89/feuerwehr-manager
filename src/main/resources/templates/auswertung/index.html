@@ -45,6 +45,10 @@
         <strong class="auswertung-stat-card__value" th:text="${overviewStats.th()}">0</strong>
         <span class="auswertung-stat-card__label">TH</span>
       </article>
+      <article class="auswertung-stat-card auswertung-stat-card--cbrn" role="listitem">
+        <strong class="auswertung-stat-card__value" th:text="${overviewStats.cbrn()}">0</strong>
+        <span class="auswertung-stat-card__label">CBRN</span>
+      </article>
       <article class="auswertung-stat-card auswertung-stat-card--sonstiges" role="listitem">
         <strong class="auswertung-stat-card__value" th:text="${overviewStats.sonstiges()}">0</strong>
         <span class="auswertung-stat-card__label">Sonstiges</span>
