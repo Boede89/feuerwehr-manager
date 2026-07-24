@@ -5547,6 +5547,7 @@ span.required { color: var(--error); }
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid var(--border);
+  grid-column: 1 / -1;
 }
 
 .einsatzbericht-form-page .incident-deployed-equipment-custom-add__input {

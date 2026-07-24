@@ -5,6 +5,8 @@
   var selectionByVehicle = {};
   var customByVehicle = {};
   var collapsedByVehicle = {};
+  /** Offene Textfeld-Entwürfe je Fahrzeug — überleben DOM-Rebuilds und Tab-Wechsel. */
+  var pendingDraftByVehicle = {};
   var categoryModal = null;
 
   function hiddenField() {
@@ -97,57 +99,94 @@
     }
   }
 
-  /**
-   * Übernimmt noch nicht per „Hinzufügen“ bestätigte Entwürfe aus den Textareas
-   * als berichtsbezogene Custom-Geräte (ohne Kategorie, ohne Stammdaten am Fahrzeug).
-   */
-  function flushPendingCustomInputs() {
+  function resolveVehicleIdFromInput(input) {
+    var vehicleId = Number(input && input.dataset ? input.dataset.vehicleId : NaN);
+    if (isNaN(vehicleId) || vehicleId <= 0) {
+      var card = input ? input.closest('.incident-deployed-vehicle-card') : null;
+      vehicleId = card ? Number(card.dataset.vehicleId) : NaN;
+    }
+    return vehicleId;
+  }
+
+  /** Speichert aktuelle Textarea-Inhalte im JS-State (ohne Commit). */
+  function captureDraftsFromDom() {
     var wrap = document.getElementById('incident-deployed-equipment');
     if (!wrap || isReadonly()) {
-      return false;
+      return;
     }
-    var changed = false;
     wrap.querySelectorAll('.incident-deployed-equipment-custom-add__input').forEach(function (input) {
-      var vehicleId = Number(input.dataset.vehicleId);
-      if (isNaN(vehicleId) || vehicleId <= 0) {
-        var card = input.closest('.incident-deployed-vehicle-card');
-        vehicleId = card ? Number(card.dataset.vehicleId) : NaN;
-      }
+      var vehicleId = resolveVehicleIdFromInput(input);
       if (isNaN(vehicleId) || vehicleId <= 0) {
         return;
       }
-      var names = parseCustomEquipmentNames(input.value);
+      var raw = String(input.value || '');
+      if (raw.trim()) {
+        pendingDraftByVehicle[vehicleId] = raw;
+      } else {
+        delete pendingDraftByVehicle[vehicleId];
+        delete pendingDraftByVehicle[String(vehicleId)];
+      }
+    });
+  }
+
+  function existingCustomNameKeys(vehicleId) {
+    var keys = {};
+    (customByVehicle[vehicleId] || []).forEach(function (item) {
+      if (item && item.name) {
+        keys[String(item.name).toLocaleLowerCase('de')] = true;
+      }
+    });
+    return keys;
+  }
+
+  /**
+   * Übernimmt offene Textfeld-Entwürfe als berichtsbezogene Custom-Geräte
+   * (ohne Kategorie, ohne Stammdaten am Fahrzeug) und schreibt das Hidden-Feld.
+   */
+  function commitPendingDrafts() {
+    if (isReadonly()) {
+      return false;
+    }
+    captureDraftsFromDom();
+    var changed = false;
+    Object.keys(pendingDraftByVehicle).forEach(function (key) {
+      var vehicleId = Number(key);
+      if (isNaN(vehicleId) || vehicleId <= 0) {
+        return;
+      }
+      var names = parseCustomEquipmentNames(pendingDraftByVehicle[key]);
       if (names.length === 0) {
         return;
       }
       ensureVehicleMaps(vehicleId);
       var existing = customByVehicle[vehicleId];
-      var existingKeys = {};
-      existing.forEach(function (item) {
-        if (item && item.name) {
-          existingKeys[String(item.name).toLocaleLowerCase('de')] = true;
-        }
-      });
+      var existingKeys = existingCustomNameKeys(vehicleId);
       names.forEach(function (name) {
-        var key = name.toLocaleLowerCase('de');
-        if (existingKeys[key]) {
+        var nameKey = name.toLocaleLowerCase('de');
+        if (existingKeys[nameKey]) {
           return;
         }
-        existingKeys[key] = true;
+        existingKeys[nameKey] = true;
         existing.push({
           name: name,
           categoryName: null
         });
         changed = true;
       });
-      input.value = '';
     });
+    pendingDraftByVehicle = {};
+    var wrap = document.getElementById('incident-deployed-equipment');
+    if (wrap) {
+      wrap.querySelectorAll('.incident-deployed-equipment-custom-add__input').forEach(function (input) {
+        input.value = '';
+      });
+    }
     return changed;
   }
 
   function syncHiddenJson(options) {
     if (options && options.flushPending) {
-      flushPendingCustomInputs();
+      commitPendingDrafts();
     }
     var hidden = hiddenField();
     if (!hidden) {
@@ -658,6 +697,19 @@
     input.dataset.vehicleId = String(vehicle.vehicleId);
     input.placeholder = 'Geräte manuell eingeben (eines pro Zeile oder mit Komma) …';
     input.setAttribute('aria-label', 'Geräte manuell eingeben');
+    var draft = pendingDraftByVehicle[vehicle.vehicleId] || pendingDraftByVehicle[String(vehicle.vehicleId)];
+    if (draft) {
+      input.value = draft;
+    }
+    input.addEventListener('input', function () {
+      var raw = String(input.value || '');
+      if (raw.trim()) {
+        pendingDraftByVehicle[vehicle.vehicleId] = raw;
+      } else {
+        delete pendingDraftByVehicle[vehicle.vehicleId];
+        delete pendingDraftByVehicle[String(vehicle.vehicleId)];
+      }
+    });
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'btn btn--outline btn--sm';
@@ -675,12 +727,7 @@
         }
         ensureVehicleMaps(vehicle.vehicleId);
         var existing = customByVehicle[vehicle.vehicleId];
-        var existingKeys = {};
-        existing.forEach(function (item) {
-          if (item && item.name) {
-            existingKeys[String(item.name).toLocaleLowerCase('de')] = true;
-          }
-        });
+        var existingKeys = existingCustomNameKeys(vehicle.vehicleId);
         assignments.forEach(function (item) {
           var key = String(item.name).toLocaleLowerCase('de');
           if (existingKeys[key]) {
@@ -693,6 +740,8 @@
           });
         });
         input.value = '';
+        delete pendingDraftByVehicle[vehicle.vehicleId];
+        delete pendingDraftByVehicle[String(vehicle.vehicleId)];
         syncHiddenJson();
         renderCards(equipmentCache[currentCacheKey()] || []);
       });
@@ -709,8 +758,8 @@
   }
 
   function renderCards(vehicles) {
-    // Offene Eingaben zuerst in den Bericht übernehmen, bevor die DOM-Zeilen neu gebaut werden.
-    flushPendingCustomInputs();
+    // Entwürfe vor DOM-Rebuild sichern (nicht committen — Text bleibt nach Tab-Wechsel erhalten).
+    captureDraftsFromDom();
     var wrap = document.getElementById('incident-deployed-equipment');
     var empty = document.getElementById('deployed-equipment-empty');
     var noVehicles = document.getElementById('deployed-equipment-no-vehicles');
@@ -726,7 +775,8 @@
       ensureVehicleMaps(vehicle.vehicleId);
       var hasCatalog = vehicle.equipment && vehicle.equipment.length > 0;
       var hasCustom = (customByVehicle[vehicle.vehicleId] || []).length > 0;
-      if (!hasCatalog && !hasCustom && isReadonly()) {
+      var hasDraft = !!(pendingDraftByVehicle[vehicle.vehicleId] || pendingDraftByVehicle[String(vehicle.vehicleId)]);
+      if (!hasCatalog && !hasCustom && !hasDraft && isReadonly()) {
         return;
       }
       hasAnyContent = true;
@@ -737,6 +787,10 @@
       }
       card.dataset.vehicleId = String(vehicle.vehicleId);
       card.dataset.equipmentCount = String((vehicle.equipment || []).length);
+      // Offene Entwürfe oder Auswahl: Karte aufgeklappt lassen, damit der Eintrag sichtbar bleibt.
+      if (hasCustom || hasDraft || selectedCountForVehicle(vehicle.vehicleId) > 0) {
+        collapsedByVehicle[vehicle.vehicleId] = false;
+      }
       setVehicleCollapsed(vehicle.vehicleId, isVehicleCollapsed(vehicle.vehicleId), card);
 
       var head = document.createElement('header');
@@ -828,8 +882,8 @@
     }
     var vehicleIds = involvedVehicleIds();
     if (vehicleIds.length === 0) {
-      flushPendingCustomInputs();
-      syncHiddenJson();
+      captureDraftsFromDom();
+      syncHiddenJson({ flushPending: true });
       wrap.textContent = '';
       if (noVehicles) {
         noVehicles.hidden = shouldShowAllVehicles();
@@ -853,8 +907,7 @@
       renderCards(equipmentCache[cacheKey]);
       return;
     }
-    flushPendingCustomInputs();
-    syncHiddenJson();
+    captureDraftsFromDom();
     wrap.innerHTML = '<p class="hint">Geräte werden geladen …</p>';
     var apiBase = window.BerichteApiBase ? window.BerichteApiBase.path() : '/berichte/einsatzberichte';
     var url = apiBase + '/vehicle-equipment?unit=' + encodeURIComponent(unitId())
@@ -879,8 +932,7 @@
 
   window.BerichteGeraete = {
     onTabShow: function () {
-      flushPendingCustomInputs();
-      syncHiddenJson();
+      captureDraftsFromDom();
       loadSelectionFromHidden();
       render();
     },
@@ -890,11 +942,13 @@
       delete selectionByVehicle[String(vehicleId)];
       delete customByVehicle[key];
       delete customByVehicle[String(vehicleId)];
+      delete pendingDraftByVehicle[key];
+      delete pendingDraftByVehicle[String(vehicleId)];
       syncHiddenJson();
     },
     refresh: function () {
-      flushPendingCustomInputs();
-      syncHiddenJson();
+      captureDraftsFromDom();
+      syncHiddenJson({ flushPending: true });
       loadSelectionFromHidden();
       equipmentCache = {};
       render();
@@ -919,7 +973,19 @@
     if (form) {
       form.addEventListener('submit', function () {
         syncHiddenJson({ flushPending: true });
+      }, true);
+      form.addEventListener('formdata', function () {
+        syncHiddenJson({ flushPending: true });
       });
     }
+    document.querySelectorAll(
+      'button[type="submit"][form="einsatzbericht-form"],' +
+      'button[type="submit"][form="anwesenheitsliste-form"],' +
+      'button[type="submit"][form="geraetewart-form"]'
+    ).forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        syncHiddenJson({ flushPending: true });
+      });
+    });
   });
 })();

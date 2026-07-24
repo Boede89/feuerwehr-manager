@@ -13,14 +13,33 @@
   var csrfToken = root.dataset.csrfToken || '';
   var csrfHeader = root.dataset.csrfHeader || 'X-XSRF-TOKEN';
 
-  var filters = {
-    year: Number(root.dataset.filterYear) || new Date().getFullYear(),
-    stichwort: '',
-    status: ''
-  };
+  var filters = window.BerichteListFilters
+    ? window.BerichteListFilters.load(unitId, 'einsatz', {
+      year: Number(root.dataset.filterYear) || new Date().getFullYear(),
+      stichwort: '',
+      status: ''
+    })
+    : {
+      year: Number(root.dataset.filterYear) || new Date().getFullYear(),
+      stichwort: '',
+      status: ''
+    };
+  filters.year = Number(filters.year) || new Date().getFullYear();
+  filters.stichwort = filters.stichwort || '';
+  filters.status = filters.status || '';
 
   var allItems = [];
   var stichworte = [];
+
+  function persistFilters() {
+    if (window.BerichteListFilters) {
+      window.BerichteListFilters.save(unitId, 'einsatz', {
+        year: filters.year,
+        stichwort: filters.stichwort,
+        status: filters.status
+      });
+    }
+  }
 
   function esc(text) {
     var div = document.createElement('div');
@@ -475,6 +494,7 @@
       yearSel.addEventListener('change', function () {
         filters.year = Number(yearSel.value);
         filters.stichwort = '';
+        persistFilters();
         loadList();
       });
     }
@@ -482,13 +502,16 @@
     if (stichwortSel) {
       stichwortSel.addEventListener('change', function () {
         filters.stichwort = stichwortSel.value;
+        persistFilters();
         renderTable();
       });
     }
 
     if (statusSel) {
+      statusSel.value = filters.status;
       statusSel.addEventListener('change', function () {
         filters.status = statusSel.value;
+        persistFilters();
         renderTable();
       });
     }

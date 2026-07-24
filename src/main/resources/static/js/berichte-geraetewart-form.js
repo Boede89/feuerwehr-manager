@@ -58,6 +58,9 @@
   }
 
   function switchTab(idx) {
+    if (window.BerichteGeraete && typeof window.BerichteGeraete.sync === 'function') {
+      window.BerichteGeraete.sync();
+    }
     document.querySelectorAll('[data-berichte-form="geraetewart"] .incident-tab').forEach(function (btn) {
       btn.classList.toggle('tab-btn--active', Number(btn.dataset.tab) === idx);
     });
@@ -463,6 +466,18 @@
     var vehiclesHidden = document.getElementById('vehiclesDataJson');
     var equipmentHidden = document.getElementById('deployedEquipmentJson');
     var rows = [];
+    var customByVehicleId = {};
+    if (equipmentHidden && equipmentHidden.value) {
+      try {
+        JSON.parse(equipmentHidden.value).forEach(function (row) {
+          if (row && row.vehicleId != null && row.customEquipment && row.customEquipment.length) {
+            customByVehicleId[Number(row.vehicleId)] = row.customEquipment;
+          }
+        });
+      } catch (e) {
+        customByVehicleId = {};
+      }
+    }
     var equipmentRows = [];
     Object.keys(vehicleState).forEach(function (vehicleId) {
       var state = vehicleState[vehicleId];
@@ -497,7 +512,20 @@
         defectiveEquipmentIds: defectiveIds,
         defectiveMangelByEquipmentId: mangelByEquipment
       });
-      equipmentRows.push({ vehicleId: vid, equipmentIds: equipmentIds });
+      equipmentRows.push({
+        vehicleId: vid,
+        equipmentIds: equipmentIds,
+        customEquipment: customByVehicleId[vid] || []
+      });
+      delete customByVehicleId[vid];
+    });
+    Object.keys(customByVehicleId).forEach(function (vidKey) {
+      var vid = Number(vidKey);
+      equipmentRows.push({
+        vehicleId: vid,
+        equipmentIds: [],
+        customEquipment: customByVehicleId[vid]
+      });
     });
     if (vehiclesHidden) {
       vehiclesHidden.value = JSON.stringify(rows);
@@ -709,6 +737,10 @@
         }
         mergeEquipmentFromHidden();
         syncHiddenJson();
+        // Nach GWM-Sync erneut Geräte-JSON schreiben, damit Custom-Geräte erhalten bleiben.
+        if (window.BerichteGeraete && typeof window.BerichteGeraete.sync === 'function') {
+          window.BerichteGeraete.sync();
+        }
       });
     }
   }

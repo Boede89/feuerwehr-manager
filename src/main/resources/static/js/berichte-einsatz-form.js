@@ -200,6 +200,9 @@
       btn.dataset.bound = 'true';
       btn.addEventListener('click', function () {
         var idx = Number(btn.dataset.tab);
+        if (window.BerichteGeraete && typeof window.BerichteGeraete.sync === 'function') {
+          window.BerichteGeraete.sync();
+        }
         switchTab(idx, scope);
         if (window.BerichteKraefte && (idx === 1 || idx === 2)) {
           window.BerichteKraefte.onTabShow(idx);

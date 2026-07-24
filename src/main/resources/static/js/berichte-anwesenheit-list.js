@@ -13,14 +13,36 @@
   var csrfToken = root.dataset.csrfToken || '';
   var csrfParam = root.dataset.csrfParam || '_csrf';
 
-  var filters = {
-    year: Number(root.dataset.filterYear) || new Date().getFullYear(),
-    zeitraum: 'aktuell',
-    category: '',
-    status: 'entwurf'
-  };
+  var filters = window.BerichteListFilters
+    ? window.BerichteListFilters.load(unitId, 'anwesenheit', {
+      year: Number(root.dataset.filterYear) || new Date().getFullYear(),
+      zeitraum: 'aktuell',
+      category: '',
+      status: 'entwurf'
+    })
+    : {
+      year: Number(root.dataset.filterYear) || new Date().getFullYear(),
+      zeitraum: 'aktuell',
+      category: '',
+      status: 'entwurf'
+    };
+  filters.year = Number(filters.year) || new Date().getFullYear();
+  filters.zeitraum = filters.zeitraum || 'aktuell';
+  filters.category = filters.category || '';
+  filters.status = filters.status || 'entwurf';
 
   var allItems = [];
+
+  function persistFilters() {
+    if (window.BerichteListFilters) {
+      window.BerichteListFilters.save(unitId, 'anwesenheit', {
+        year: filters.year,
+        zeitraum: filters.zeitraum,
+        category: filters.category,
+        status: filters.status
+      });
+    }
+  }
 
   function esc(text) {
     var div = document.createElement('div');
@@ -475,6 +497,7 @@
       }
       yearSel.addEventListener('change', function () {
         filters.year = Number(yearSel.value);
+        persistFilters();
         loadList();
       });
     }
@@ -483,13 +506,16 @@
       zeitraumSel.value = filters.zeitraum;
       zeitraumSel.addEventListener('change', function () {
         filters.zeitraum = zeitraumSel.value;
+        persistFilters();
         renderTable();
       });
     }
 
     if (categorySel) {
+      categorySel.value = filters.category;
       categorySel.addEventListener('change', function () {
         filters.category = categorySel.value;
+        persistFilters();
         renderTable();
       });
     }
@@ -498,6 +524,7 @@
       statusSel.value = filters.status;
       statusSel.addEventListener('change', function () {
         filters.status = statusSel.value;
+        persistFilters();
         renderTable();
       });
     }

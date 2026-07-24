@@ -11,8 +11,19 @@
   var isAdmin = root.dataset.isAdmin === 'true';
   var csrfToken = root.dataset.csrfToken || '';
   var csrfParam = root.dataset.csrfParam || '_csrf';
-  var filters = { year: Number(root.dataset.filterYear) || new Date().getFullYear() };
+  var filters = window.BerichteListFilters
+    ? window.BerichteListFilters.load(unitId, 'maengel', {
+      year: Number(root.dataset.filterYear) || new Date().getFullYear()
+    })
+    : { year: Number(root.dataset.filterYear) || new Date().getFullYear() };
+  filters.year = Number(filters.year) || new Date().getFullYear();
   var allItems = [];
+
+  function persistFilters() {
+    if (window.BerichteListFilters) {
+      window.BerichteListFilters.save(unitId, 'maengel', { year: filters.year });
+    }
+  }
 
   function esc(text) {
     var div = document.createElement('div');
@@ -226,6 +237,7 @@
     }
     select.addEventListener('change', function () {
       filters.year = Number(select.value);
+      persistFilters();
       loadList();
     });
   }
