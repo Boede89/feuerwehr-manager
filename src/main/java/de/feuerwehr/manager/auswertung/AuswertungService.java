@@ -2,20 +2,15 @@ package de.feuerwehr.manager.auswertung;
 
 import de.feuerwehr.manager.atemschutz.AtemschutzService;
 import de.feuerwehr.manager.berichte.AnwesenheitslisteService;
-import de.feuerwehr.manager.berichte.AttendancePersonStatus;
 import de.feuerwehr.manager.berichte.AttendanceReport;
-import de.feuerwehr.manager.berichte.AttendanceReportPersonnel;
-import de.feuerwehr.manager.berichte.AttendanceReportPersonnelRepository;
 import de.feuerwehr.manager.berichte.AttendanceReportRepository;
 import de.feuerwehr.manager.berichte.Besatzungsstaerke;
-import de.feuerwehr.manager.berichte.IncidentCrewSupport;
 import de.feuerwehr.manager.berichte.IncidentReport;
 import de.feuerwehr.manager.berichte.IncidentReportPersonnel;
 import de.feuerwehr.manager.berichte.IncidentReportPersonnelRepository;
 import de.feuerwehr.manager.berichte.IncidentReportRepository;
 import de.feuerwehr.manager.berichte.IncidentReportVehicle;
 import de.feuerwehr.manager.berichte.IncidentReportVehicleRepository;
-import de.feuerwehr.manager.berichte.KraefteFahrzeugeState;
 import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.settings.AppModule;
 import de.feuerwehr.manager.settings.ModuleSettingsService;
@@ -29,11 +24,9 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,7 +41,6 @@ public class AuswertungService {
     private final IncidentReportPersonnelRepository incidentReportPersonnelRepository;
     private final IncidentReportVehicleRepository incidentReportVehicleRepository;
     private final AttendanceReportRepository attendanceReportRepository;
-    private final AttendanceReportPersonnelRepository attendanceReportPersonnelRepository;
     private final AnwesenheitslisteService anwesenheitslisteService;
     private final PersonalService personalService;
     private final AtemschutzService atemschutzService;
@@ -219,113 +211,31 @@ public class AuswertungService {
             return List.of();
         }
 
-        List<Long> reportIds = reports.stream().map(AttendanceReport::getId).toList();
-        Map<Long, List<AttendanceReportPersonnel>> personnelByReport = new HashMap<>();
-        for (AttendanceReportPersonnel row : attendanceReportPersonnelRepository.findByReportIdIn(reportIds)) {
-            if (row.getAttendanceStatus() != AttendancePersonStatus.PRESENT) {
-                continue;
-            }
-            personnelByReport
-                    .computeIfAbsent(row.getAttendanceReport().getId(), id -> new ArrayList<>())
-                    .add(row);
-        }
-
         List<AuswertungEinsatzRow> rows = new ArrayList<>(reports.size());
         for (AttendanceReport report : reports) {
-            List<AttendanceReportPersonnel> crew =
-                    personnelByReport.getOrDefault(report.getId(), List.of());
-            List<String> personen = crew.stream()
-                    .map(this::attendanceDisplayName)
-                    .sorted(String.CASE_INSENSITIVE_ORDER)
-                    .toList();
-
-            int zf = 0;
-            int gf = 0;
-            for (AttendanceReportPersonnel member : crew) {
-                switch (Besatzungsstaerke.qualTier(member.getPerson())) {
-                    case ZF -> zf++;
-                    case GF -> gf++;
-                    default -> {
-                        // Mannschaft
-                    }
-                }
-            }
-
-            List<String> paTraeger = List.of();
-            List<String> fahrzeuge = List.of();
-            try {
-                KraefteFahrzeugeState state =
-                        anwesenheitslisteService.buildKraefteFahrzeugeState(unitId, report.getId());
-                Set<String> paNames = new LinkedHashSet<>();
-                Set<String> vehicleNames = new LinkedHashSet<>();
-                collectFromVehicle(state.beteiligt(), paNames, vehicleNames, false);
-                collectFromVehicle(state.einsatzstelle(), paNames, vehicleNames, false);
-                collectFromVehicle(state.wache(), paNames, vehicleNames, false);
-                for (KraefteFahrzeugeState.KraefteVehicleView vehicle : state.involvedVehicles()) {
-                    collectFromVehicle(vehicle, paNames, vehicleNames, true);
-                }
-                paTraeger = paNames.stream().sorted(String.CASE_INSENSITIVE_ORDER).toList();
-                fahrzeuge = vehicleNames.stream().sorted(String.CASE_INSENSITIVE_ORDER).toList();
-            } catch (RuntimeException ignored) {
-                // Listen bleiben leer
-            }
-
+            AnwesenheitslisteService.AnwesenheitPresenceSummary presence =
+                    anwesenheitslisteService.presenceSummary(unitId, report.getId());
             rows.add(new AuswertungEinsatzRow(
                     report.getId(),
                     "uebung",
                     report.getEventDate(),
                     blankToDash(report.getTitle()),
                     formatDauerStunden(report.getStartTime(), report.getEndTime()),
-                    personen.size(),
-                    zf,
-                    gf,
+                    presence.personal(),
+                    presence.zf(),
+                    presence.gf(),
                     formatTime(report.getStartTime()),
                     formatTime(report.getEndTime()),
-                    personen,
-                    paTraeger,
-                    fahrzeuge,
+                    presence.personen(),
+                    presence.paTraeger(),
+                    presence.fahrzeuge(),
                     buildViewUrl("/berichte/anwesenheitslisten/" + report.getId(), unitId, returnUrl),
                     "Zur Anwesenheitsliste"));
         }
         return rows;
     }
 
-    private static void collectFromVehicle(
-            KraefteFahrzeugeState.KraefteVehicleView vehicle,
-            Set<String> paNames,
-            Set<String> vehicleNames,
-            boolean includeVehicleName) {
-        if (vehicle == null) {
-            return;
-        }
-        if (includeVehicleName
-                && vehicle.vehicleId() > 0
-                && !IncidentCrewSupport.isVirtualSlot(vehicle.vehicleId())
-                && vehicle.name() != null
-                && !vehicle.name().isBlank()) {
-            vehicleNames.add(vehicle.name().trim());
-        }
-        if (vehicle.crewPersons() == null) {
-            return;
-        }
-        for (KraefteFahrzeugeState.KraeftePersonView person : vehicle.crewPersons()) {
-            if (person.usesPa() && person.displayName() != null && !person.displayName().isBlank()) {
-                paNames.add(person.displayName().trim());
-            }
-        }
-    }
-
     private String personnelDisplayName(IncidentReportPersonnel row) {
-        if (row.getDisplayName() != null && !row.getDisplayName().isBlank()) {
-            return row.getDisplayName().trim();
-        }
-        if (row.getPerson() != null) {
-            return row.getPerson().displayName();
-        }
-        return "Unbekannt";
-    }
-
-    private String attendanceDisplayName(AttendanceReportPersonnel row) {
         if (row.getDisplayName() != null && !row.getDisplayName().isBlank()) {
             return row.getDisplayName().trim();
         }
