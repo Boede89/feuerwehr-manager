@@ -1,4 +1,4 @@
-/* Feuerwehr-Manager — Design angelehnt an FW-Hub (hell + dunkel) */
+/* Feuerwehr-Manager ? Design angelehnt an FW-Hub (hell + dunkel) */
 
 :root {
   --bg: #f4f5f7;
@@ -38,7 +38,7 @@
   --radius-xl: 16px;
   --radius-pill: 999px;
   --transition-fast: 0.15s ease;
-  /* Schriftgrößen (FW-Hub) */
+  /* Schriftgr??en (FW-Hub) */
   --fs-2xs: 10px;
   --fs-xs: 11px;
   --fs-sm: 12px;
@@ -99,7 +99,7 @@ button, input, select, textarea {
   overflow: hidden; clip: rect(0, 0, 0, 0); border: 0;
 }
 
-/* ── App-Shell ─────────────────────────────────────────────────────────────── */
+/* ?? App-Shell ??????????????????????????????????????????????????????????????? */
 .app-shell {
   display: flex;
   flex-direction: column;
@@ -298,7 +298,7 @@ button, input, select, textarea {
   flex: 1;
 }
 
-/* Seiteninhalt in layout.html (verschachteltes main/page-body) — volle Breite wie FW-Hub #page-content */
+/* Seiteninhalt in layout.html (verschachteltes main/page-body) ? volle Breite wie FW-Hub #page-content */
 .page-main__inner > main,
 .page-main__inner > .page-body {
   display: block;
@@ -379,7 +379,7 @@ button, input, select, textarea {
 
 .page-back:hover { color: var(--rot); text-decoration: none; }
 
-/* ── Tabs (FW-Hub tab-bar) ─────────────────────────────────────────────────── */
+/* ?? Tabs (FW-Hub tab-bar) ??????????????????????????????????????????????????? */
 .tab-bar,
 .person-tabs {
   display: flex;
@@ -434,7 +434,7 @@ button, input, select, textarea {
 
 .admin-panel { display: block; }
 
-/* ── Cards ─────────────────────────────────────────────────────────────────── */
+/* ?? Cards ??????????????????????????????????????????????????????????????????? */
 .card,
 .panel-card {
   background: var(--bg-card);
@@ -488,7 +488,7 @@ button, input, select, textarea {
   justify-content: space-between;
 }
 
-/* ── Buttons ───────────────────────────────────────────────────────────────── */
+/* ?? Buttons ????????????????????????????????????????????????????????????????? */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -579,7 +579,7 @@ button, input, select, textarea {
 
 .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
-/* ── Forms ─────────────────────────────────────────────────────────────────── */
+/* ?? Forms ??????????????????????????????????????????????????????????????????? */
 label {
   display: block;
   font-size: 11px;
@@ -705,7 +705,7 @@ input:focus, select:focus, textarea:focus {
   min-height: auto;
 }
 
-/* form-grid + align-items:end: unter jedem Feld gleicher Platz für Hinweise */
+/* form-grid + align-items:end: unter jedem Feld gleicher Platz f?r Hinweise */
 .form-grid .form-group > .hint {
   margin: 0;
   line-height: 1.45;
@@ -722,7 +722,7 @@ input:focus, select:focus, textarea:focus {
   flex-shrink: 0;
 }
 
-/* ── Dashboard tiles ───────────────────────────────────────────────────────── */
+/* ?? Dashboard tiles ????????????????????????????????????????????????????????? */
 .dashboard-grid,
 .tile-grid {
   display: grid;
@@ -1565,7 +1565,7 @@ input:focus, select:focus, textarea:focus {
   flex: 1;
 }
 
-/* Öffentliche Datenschutzerklärung (wie FW-Hub #/datenschutz) */
+/* ?ffentliche Datenschutzerkl?rung (wie FW-Hub #/datenschutz) */
 .dse-page {
   min-height: 100vh;
   background: var(--bg);
@@ -2180,7 +2180,7 @@ select.field {
   color: var(--text);
 }
 
-/* Einstellungen — volle Seitenbreite wie FW-Hub, einheitliche Feldhöhen */
+/* Einstellungen ? volle Seitenbreite wie FW-Hub, einheitliche Feldh?hen */
 .settings-page .card {
   width: 100%;
   max-width: none;
@@ -3064,19 +3064,19 @@ body.modal-open {
 }
 
 .table__th-sort::after {
-  content: ' ⇅';
+  content: ' ?';
   font-size: 0.75em;
   color: var(--text-muted);
   font-weight: 400;
 }
 
 .table__th-sort--asc::after {
-  content: ' ▲';
+  content: ' ?';
   color: var(--rot);
 }
 
 .table__th-sort--desc::after {
-  content: ' ▼';
+  content: ' ?';
   color: var(--rot);
 }
 
@@ -3191,7 +3191,7 @@ span.required { color: var(--error); }
   .dashboard-grid, .tile-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
-/* Personal-Modul (FW-Hub Parität) */
+/* Personal-Modul (FW-Hub Parit?t) */
 .member-row { cursor: pointer; }
 .member-row:nth-child(even) { background: var(--bg-card-hover); }
 .member-row:hover { background: var(--rot-subtle); }
@@ -3951,7 +3951,7 @@ span.required { color: var(--error); }
 .att-stat--quote .att-stat__value { font-size: 1.35rem; }
 .att-stats-hint { margin: 1rem 0 0; text-align: center; max-width: 36rem; margin-left: auto; margin-right: auto; }
 
-/* ── Berichte-Übersicht ───────────────────────────────────────────────────── */
+/* ?? Berichte-?bersicht ????????????????????????????????????????????????????? */
 .berichte-module-tabs { margin-bottom: 1rem; }
 .berichte-module-panel { margin-top: 0.25rem; }
 
@@ -4186,7 +4186,7 @@ span.required { color: var(--error); }
   z-index: 300;
 }
 
-/* ── Einsatzbericht-Formular (1:1 FW-Hub incident-form) ─────────────────────── */
+/* ?? Einsatzbericht-Formular (1:1 FW-Hub incident-form) ??????????????????????? */
 .einsatzbericht-form-page {
   --accent: var(--einsatz-c, var(--rot));
 }
@@ -4269,7 +4269,7 @@ span.required { color: var(--error); }
   background: var(--rot-subtle);
 }
 
-/* Kompakte Felder wie FW-Hub field-base (ohne 44px Touch-Höhe) */
+/* Kompakte Felder wie FW-Hub field-base (ohne 44px Touch-H?he) */
 .einsatzbericht-form-page .form-group input,
 .einsatzbericht-form-page .form-group select,
 .einsatzbericht-form-page .form-group textarea {
@@ -4746,7 +4746,7 @@ span.required { color: var(--error); }
   }
 }
 
-/* Personal & Fahrzeuge — Board */
+/* Personal & Fahrzeuge ? Board */
 .einsatzbericht-form-page .incident-kraefte-board {
   position: relative;
   width: 100%;
@@ -5557,7 +5557,7 @@ span.required { color: var(--error); }
   resize: vertical;
 }
 
-/* .form-group setzt display:flex und würde sonst [hidden] überschreiben */
+/* .form-group setzt display:flex und w?rde sonst [hidden] ?berschreiben */
 #deployed-equipment-category-bulk-wrap[hidden],
 #deployed-equipment-category-bulk-custom-wrap[hidden],
 .deployed-equipment-category-row__custom-wrap[hidden] {
@@ -5793,7 +5793,7 @@ span.required { color: var(--error); }
   background: color-mix(in srgb, var(--personal-c) 10%, var(--bg-card));
 }
 
-/* Fahrzeugkarten — Farbe nach Typ */
+/* Fahrzeugkarten ? Farbe nach Typ */
 .einsatzbericht-form-page .incident-vehicle-card--type-lkw .incident-vehicle-card__head {
   background: color-mix(in srgb, #2563eb 14%, var(--bg-card));
   border-bottom-color: color-mix(in srgb, #2563eb 35%, var(--border));
@@ -5917,7 +5917,7 @@ span.required { color: var(--error); }
   }
 }
 
-/* ── Einsatzberichte-Liste (FW-Hub) ───────────────────────────────────────── */
+/* ?? Einsatzberichte-Liste (FW-Hub) ????????????????????????????????????????? */
 .filter-bar {
   display: flex;
   flex-direction: row;
@@ -6349,7 +6349,7 @@ span.required { color: var(--error); }
   white-space: pre-wrap;
 }
 
-/* Manueller Einsatz – Formular */
+/* Manueller Einsatz ? Formular */
 .manual-alarm-page .manual-alarm-form {
   display: flex;
   flex-direction: column;
@@ -6389,7 +6389,7 @@ span.required { color: var(--error); }
   margin-bottom: 0.35rem;
 }
 
-/* ── Reservierungen ─────────────────────────────────────────────────────────── */
+/* ?? Reservierungen ??????????????????????????????????????????????????????????? */
 .reservierungen-page .reservierungen-module-panel {
   margin-top: 16px;
 }
@@ -6444,7 +6444,7 @@ span.required { color: var(--error); }
   gap: 8px;
 }
 
-/* ===== Auswertung � �bersicht ===== */
+/* ===== Auswertung ? ?bersicht ===== */
 .auswertung-overview {
   margin-top: 16px;
 }
@@ -6482,17 +6482,17 @@ span.required { color: var(--error); }
 
 .auswertung-stat-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 12px;
 }
 
-@media (max-width: 960px) {
+@media (max-width: 1100px) {
   .auswertung-stat-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
   .auswertung-stat-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -6543,6 +6543,16 @@ span.required { color: var(--error); }
   color: var(--gruen, #16a34a);
 }
 
+.auswertung-stat-card--mitglieder .auswertung-stat-card__value,
+.auswertung-stat-card--mitglieder .auswertung-stat-card__label {
+  color: #475569;
+}
+
+.auswertung-stat-card--pa .auswertung-stat-card__value,
+.auswertung-stat-card--pa .auswertung-stat-card__label {
+  color: #0d9488;
+}
+
 [data-theme="dark"] .auswertung-stat-card--th .auswertung-stat-card__value,
 [data-theme="dark"] .auswertung-stat-card--th .auswertung-stat-card__label {
   color: #f0b429;
@@ -6551,4 +6561,14 @@ span.required { color: var(--error); }
 [data-theme="dark"] .auswertung-stat-card--sonstiges .auswertung-stat-card__value,
 [data-theme="dark"] .auswertung-stat-card--sonstiges .auswertung-stat-card__label {
   color: #60a5fa;
+}
+
+[data-theme="dark"] .auswertung-stat-card--mitglieder .auswertung-stat-card__value,
+[data-theme="dark"] .auswertung-stat-card--mitglieder .auswertung-stat-card__label {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .auswertung-stat-card--pa .auswertung-stat-card__value,
+[data-theme="dark"] .auswertung-stat-card--pa .auswertung-stat-card__label {
+  color: #2dd4bf;
 }

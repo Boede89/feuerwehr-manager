@@ -53,6 +53,14 @@
         <strong class="auswertung-stat-card__value" th:text="${overviewStats.uebungsdienste()}">0</strong>
         <span class="auswertung-stat-card__label">Übungsdienste</span>
       </article>
+      <article class="auswertung-stat-card auswertung-stat-card--mitglieder" role="listitem">
+        <strong class="auswertung-stat-card__value" th:text="${overviewStats.mitglieder()}">0</strong>
+        <span class="auswertung-stat-card__label">Mitglieder</span>
+      </article>
+      <article class="auswertung-stat-card auswertung-stat-card--pa" role="listitem">
+        <strong class="auswertung-stat-card__value" th:text="${overviewStats.tauglichePaTraeger()}">0</strong>
+        <span class="auswertung-stat-card__label">Taugliche PA-Träger</span>
+      </article>
     </div>
   </section>
 
