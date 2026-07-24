@@ -182,21 +182,26 @@ public class AdminUnitViewService {
     }
 
     private void populateLeitstellenMail(Model model, long unitId) {
-        Optional<UnitLeitstellenMailSettings> opt = leitstellenMailSettingsService.findByUnitId(unitId);
-        if (opt.isPresent()) {
-            UnitLeitstellenMailSettings s = opt.get();
-            model.addAttribute("leitstellenMail", s);
-            model.addAttribute(
-                    "leitstellenMailPasswordConfigured",
-                    s.getImapPassword() != null && !s.getImapPassword().isBlank());
-            if (s.getLastPollAt() != null) {
+        try {
+            Optional<UnitLeitstellenMailSettings> opt = leitstellenMailSettingsService.findByUnitId(unitId);
+            if (opt.isPresent()) {
+                UnitLeitstellenMailSettings s = opt.get();
+                model.addAttribute("leitstellenMail", s);
                 model.addAttribute(
-                        "leitstellenMailLastPollAt",
-                        s.getLastPollAt()
-                                .atZone(java.time.ZoneId.of("Europe/Berlin"))
-                                .format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")));
+                        "leitstellenMailPasswordConfigured",
+                        s.getImapPassword() != null && !s.getImapPassword().isBlank());
+                if (s.getLastPollAt() != null) {
+                    model.addAttribute(
+                            "leitstellenMailLastPollAt",
+                            s.getLastPollAt()
+                                    .atZone(java.time.ZoneId.of("Europe/Berlin"))
+                                    .format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")));
+                }
+            } else {
+                model.addAttribute("leitstellenMail", null);
+                model.addAttribute("leitstellenMailPasswordConfigured", false);
             }
-        } else {
+        } catch (Exception e) {
             model.addAttribute("leitstellenMail", null);
             model.addAttribute("leitstellenMailPasswordConfigured", false);
         }

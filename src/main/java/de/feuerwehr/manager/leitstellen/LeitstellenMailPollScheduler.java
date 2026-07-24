@@ -21,11 +21,14 @@ public class LeitstellenMailPollScheduler {
 
     @Scheduled(
             fixedDelayString = "${feuerwehr.leitstellen-mail.poll-interval-ms:120000}",
-            initialDelayString = "${feuerwehr.leitstellen-mail.poll-initial-delay-ms:60000}")
+            initialDelayString = "${feuerwehr.leitstellen-mail.poll-initial-delay-ms:90000}")
     public void pollMailboxes() {
         int imported = 0;
         int units = 0;
-        for (UnitLeitstellenMailSettings settings : settingsRepository.findAllEnabledWithHost()) {
+        for (UnitLeitstellenMailSettings settings : settingsRepository.findAllEnabled()) {
+            if (settings.getImapHost() == null || settings.getImapHost().isBlank()) {
+                continue;
+            }
             units++;
             try {
                 LeitstellenMailImportService.PollResult result =

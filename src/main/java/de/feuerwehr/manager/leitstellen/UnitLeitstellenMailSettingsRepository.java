@@ -13,8 +13,6 @@ public interface UnitLeitstellenMailSettingsRepository extends JpaRepository<Uni
             SELECT s FROM UnitLeitstellenMailSettings s
             JOIN FETCH s.unit
             WHERE s.enabled = TRUE
-              AND s.imapHost IS NOT NULL
-              AND TRIM(s.imapHost) <> ''
             """)
-    List<UnitLeitstellenMailSettings> findAllEnabledWithHost();
+    List<UnitLeitstellenMailSettings> findAllEnabled();
 }
