@@ -9,6 +9,7 @@ import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.termine.TermineCategory;
 import java.time.LocalDate;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,12 +32,24 @@ public class AuswertungService {
         LocalDate today = LocalDate.now();
         boolean includeTest = testModeService.isEnabled();
 
-        int einsaetze = (int) incidentReportRepository.countByUnitIdAndYear(
+        List<String> stichworte = incidentReportRepository.findStichworteByUnitIdAndYear(
                 unitId, yearStart, yearEndExclusive, includeTest);
+        int feuer = 0;
+        int th = 0;
+        int cbrn = 0;
+        int sonstiges = 0;
+        for (String stichwort : stichworte) {
+            switch (AuswertungStichwortKategorie.classify(stichwort)) {
+                case FEUER -> feuer++;
+                case TH -> th++;
+                case CBRN -> cbrn++;
+                case SONSTIGES -> sonstiges++;
+            }
+        }
+        int einsaetze = stichworte.size();
 
         LocalDate uebungTo = today;
         if (uebungTo.isBefore(yearStart)) {
-            // gewähltes Jahr liegt in der Zukunft — keine Übungsdienste
             uebungTo = yearStart.minusDays(1);
         } else if (uebungTo.isAfter(yearEndExclusive.minusDays(1))) {
             uebungTo = yearEndExclusive.minusDays(1);
@@ -50,8 +63,8 @@ public class AuswertungService {
         int mitglieder = personalService.listPersons(unitId).size();
         int tauglichePa = countTauglichePaTraeger(unitId);
 
-        // Feuer / TH / CBRN / Sonstiges folgen später.
-        return new AuswertungOverviewStats(einsaetze, 0, 0, 0, 0, uebungsdienste, mitglieder, tauglichePa);
+        return new AuswertungOverviewStats(
+                einsaetze, feuer, th, cbrn, sonstiges, uebungsdienste, mitglieder, tauglichePa);
     }
 
     private int countTauglichePaTraeger(long unitId) {
