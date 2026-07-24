@@ -171,7 +171,9 @@ public class AuswertungController {
     }
 
     private Unit resolveUnit(Long unitId, AppUserDetails actor, Model model) {
-        Unit unit = unitService.resolveActiveUnit(unitId, actor);
+        Unit unit = unitService
+                .resolveActiveUnit(unitId, actor)
+                .orElseThrow(() -> new IllegalArgumentException("Keine gültige Einheit."));
         accessControlService.requireUnitAccess(actor, unit.getId());
         model.addAttribute("unitId", unit.getId());
         model.addAttribute("currentUnitName", unit.getName());
