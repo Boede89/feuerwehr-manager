@@ -6443,3 +6443,112 @@ span.required { color: var(--error); }
   align-items: center;
   gap: 8px;
 }
+
+/* ===== Auswertung – Übersicht ===== */
+.auswertung-overview {
+  margin-top: 16px;
+}
+
+.auswertung-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 0 0 18px;
+}
+
+.auswertung-filter-bar .berichte-filter-select {
+  width: auto;
+  min-width: 5.5rem;
+  height: 2.25rem;
+  min-height: 2.25rem;
+  margin: 0;
+  padding: 0 12px;
+  padding-right: 1.75rem;
+  font-size: var(--fs-sm);
+  line-height: 1.25;
+  box-sizing: border-box;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M3 4.5 6 8l3-3.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.625rem center;
+  background-size: 0.75rem;
+}
+
+.auswertung-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 960px) {
+  .auswertung-stat-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .auswertung-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.auswertung-stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--bg-card);
+  box-shadow: var(--schatten-sm, none);
+}
+
+.auswertung-stat-card__value {
+  font-size: 1.85rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.auswertung-stat-card__label {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.auswertung-stat-card--feuer .auswertung-stat-card__value,
+.auswertung-stat-card--feuer .auswertung-stat-card__label {
+  color: var(--rot, #dc2626);
+}
+
+.auswertung-stat-card--th .auswertung-stat-card__value,
+.auswertung-stat-card--th .auswertung-stat-card__label {
+  color: #ea8c1a;
+}
+
+.auswertung-stat-card--sonstiges .auswertung-stat-card__value,
+.auswertung-stat-card--sonstiges .auswertung-stat-card__label {
+  color: #3b82f6;
+}
+
+.auswertung-stat-card--uebung .auswertung-stat-card__value,
+.auswertung-stat-card--uebung .auswertung-stat-card__label {
+  color: var(--gruen, #16a34a);
+}
+
+[data-theme="dark"] .auswertung-stat-card--th .auswertung-stat-card__value,
+[data-theme="dark"] .auswertung-stat-card--th .auswertung-stat-card__label {
+  color: #f0b429;
+}
+
+[data-theme="dark"] .auswertung-stat-card--sonstiges .auswertung-stat-card__value,
+[data-theme="dark"] .auswertung-stat-card--sonstiges .auswertung-stat-card__label {
+  color: #60a5fa;
+}
