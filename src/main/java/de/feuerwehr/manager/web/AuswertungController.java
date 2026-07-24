@@ -1,6 +1,7 @@
 package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.auswertung.AuswertungBereich;
+import de.feuerwehr.manager.auswertung.AuswertungOverviewDetail;
 import de.feuerwehr.manager.auswertung.AuswertungService;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
@@ -38,6 +39,7 @@ public class AuswertungController {
             @RequestParam(name = "unit", required = false) Long unitId,
             @RequestParam(name = "bereich", required = false) String bereichKey,
             @RequestParam(name = "jahr", required = false) Integer jahr,
+            @RequestParam(name = "detail", required = false) String detailKey,
             Model model,
             RedirectAttributes redirectAttributes) {
         try {
@@ -66,7 +68,14 @@ public class AuswertungController {
             model.addAttribute("yearOptions", yearOptions);
 
             if (bereich == AuswertungBereich.UEBERSICHT) {
+                AuswertungOverviewDetail detail = AuswertungOverviewDetail.fromKey(detailKey);
                 model.addAttribute("overviewStats", auswertungService.overviewStats(unit.getId(), filterYear));
+                model.addAttribute("overviewDetail", detail);
+                if (detail != null) {
+                    model.addAttribute(
+                            "einsatzDetailRows",
+                            auswertungService.listEinsatzRows(unit.getId(), filterYear, detail));
+                }
             }
 
             return "auswertung/index";

@@ -24,6 +24,7 @@
     <form method="get" class="filter-bar auswertung-filter-bar" th:action="@{/auswertung}">
       <input type="hidden" name="unit" th:value="${unitId}"/>
       <input type="hidden" name="bereich" value=""/>
+      <input type="hidden" name="detail" th:if="${overviewDetail != null}" th:value="${overviewDetail.key()}"/>
       <label class="sr-only" for="auswertung-filter-year">Jahr</label>
       <select id="auswertung-filter-year" name="jahr" class="berichte-filter-select" aria-label="Jahr filtern"
               onchange="this.form.submit()">
@@ -33,26 +34,46 @@
     </form>
 
     <div class="auswertung-stat-grid" role="list">
-      <article class="auswertung-stat-card" role="listitem">
+      <a class="auswertung-stat-card auswertung-stat-card--clickable" role="listitem"
+         th:classappend="${overviewDetail != null and overviewDetail.key() == 'einsaetze'} ? ' auswertung-stat-card--active' : ''"
+         th:href="${overviewDetail != null and overviewDetail.key() == 'einsaetze'}
+           ? @{/auswertung(unit=${unitId}, jahr=${filterYear})}
+           : @{/auswertung(unit=${unitId}, jahr=${filterYear}, detail='einsaetze')}">
         <strong class="auswertung-stat-card__value" th:text="${overviewStats.einsaetze()}">0</strong>
         <span class="auswertung-stat-card__label">Einsätze</span>
-      </article>
-      <article class="auswertung-stat-card auswertung-stat-card--feuer" role="listitem">
+      </a>
+      <a class="auswertung-stat-card auswertung-stat-card--feuer auswertung-stat-card--clickable" role="listitem"
+         th:classappend="${overviewDetail != null and overviewDetail.key() == 'feuer'} ? ' auswertung-stat-card--active' : ''"
+         th:href="${overviewDetail != null and overviewDetail.key() == 'feuer'}
+           ? @{/auswertung(unit=${unitId}, jahr=${filterYear})}
+           : @{/auswertung(unit=${unitId}, jahr=${filterYear}, detail='feuer')}">
         <strong class="auswertung-stat-card__value" th:text="${overviewStats.feuer()}">0</strong>
         <span class="auswertung-stat-card__label">Feuer</span>
-      </article>
-      <article class="auswertung-stat-card auswertung-stat-card--th" role="listitem">
+      </a>
+      <a class="auswertung-stat-card auswertung-stat-card--th auswertung-stat-card--clickable" role="listitem"
+         th:classappend="${overviewDetail != null and overviewDetail.key() == 'th'} ? ' auswertung-stat-card--active' : ''"
+         th:href="${overviewDetail != null and overviewDetail.key() == 'th'}
+           ? @{/auswertung(unit=${unitId}, jahr=${filterYear})}
+           : @{/auswertung(unit=${unitId}, jahr=${filterYear}, detail='th')}">
         <strong class="auswertung-stat-card__value" th:text="${overviewStats.th()}">0</strong>
         <span class="auswertung-stat-card__label">TH</span>
-      </article>
-      <article class="auswertung-stat-card auswertung-stat-card--cbrn" role="listitem">
+      </a>
+      <a class="auswertung-stat-card auswertung-stat-card--cbrn auswertung-stat-card--clickable" role="listitem"
+         th:classappend="${overviewDetail != null and overviewDetail.key() == 'cbrn'} ? ' auswertung-stat-card--active' : ''"
+         th:href="${overviewDetail != null and overviewDetail.key() == 'cbrn'}
+           ? @{/auswertung(unit=${unitId}, jahr=${filterYear})}
+           : @{/auswertung(unit=${unitId}, jahr=${filterYear}, detail='cbrn')}">
         <strong class="auswertung-stat-card__value" th:text="${overviewStats.cbrn()}">0</strong>
         <span class="auswertung-stat-card__label">CBRN</span>
-      </article>
-      <article class="auswertung-stat-card auswertung-stat-card--sonstiges" role="listitem">
+      </a>
+      <a class="auswertung-stat-card auswertung-stat-card--sonstiges auswertung-stat-card--clickable" role="listitem"
+         th:classappend="${overviewDetail != null and overviewDetail.key() == 'sonstiges'} ? ' auswertung-stat-card--active' : ''"
+         th:href="${overviewDetail != null and overviewDetail.key() == 'sonstiges'}
+           ? @{/auswertung(unit=${unitId}, jahr=${filterYear})}
+           : @{/auswertung(unit=${unitId}, jahr=${filterYear}, detail='sonstiges')}">
         <strong class="auswertung-stat-card__value" th:text="${overviewStats.sonstiges()}">0</strong>
         <span class="auswertung-stat-card__label">Sonstiges</span>
-      </article>
+      </a>
       <article class="auswertung-stat-card auswertung-stat-card--uebung" role="listitem">
         <strong class="auswertung-stat-card__value" th:text="${overviewStats.uebungsdienste()}">0</strong>
         <span class="auswertung-stat-card__label">Übungsdienste</span>
@@ -65,6 +86,40 @@
         <strong class="auswertung-stat-card__value" th:text="${overviewStats.tauglichePaTraeger()}">0</strong>
         <span class="auswertung-stat-card__label">Taugliche PA-Träger</span>
       </article>
+    </div>
+
+    <div class="auswertung-detail" th:if="${overviewDetail != null}">
+      <div class="auswertung-detail__header">
+        <h3 th:text="${overviewDetail.label()}">Einsätze</h3>
+        <p class="hint" th:text="${#lists.size(einsatzDetailRows)} + ' Einträge'">0 Einträge</p>
+      </div>
+      <div class="table-wrap auswertung-detail__table-wrap" th:if="${!#lists.isEmpty(einsatzDetailRows)}">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Datum</th>
+              <th>Stichwort</th>
+              <th>Dauer (Std.)</th>
+              <th>Personal</th>
+              <th>ZF</th>
+              <th>GF</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr th:each="row : ${einsatzDetailRows}">
+              <td th:text="${#temporals.format(row.datum(), 'dd.MM.yyyy')}">01.01.2026</td>
+              <td th:text="${row.stichwort()}">F1</td>
+              <td th:text="${row.dauerStunden()}">1,5</td>
+              <td th:text="${row.personal()}">8</td>
+              <td th:text="${row.zf()}">1</td>
+              <td th:text="${row.gf()}">2</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="hint" th:if="${#lists.isEmpty(einsatzDetailRows)}" style="margin:0;">
+        Keine Einsätze für diese Auswahl im gewählten Jahr.
+      </p>
     </div>
   </section>
 
