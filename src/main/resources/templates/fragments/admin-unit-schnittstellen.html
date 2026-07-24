@@ -205,19 +205,17 @@
     <div class="card__header">Leitstellen-Mail (Alarmdepesche / Abschlussbericht)</div>
     <div class="card__body">
       <p class="hint">
-        Sobald ein Einsatz von DIVERA ankommt, startet der Abruf mit dem kurzen Intervall bis die Depeche vorliegt,
-        danach mit dem längeren Intervall bis zum Abschlussbericht.
-        Typ nur nach Mail-Zeit (Alarm ≈ Depeche, Ende ≈ Abschluss). Fehlt der Abschlussbericht, bleibt nur die Depeche.
-        Dateinamen: <strong>Depeche_TT-MM-JJJJ_HH-MM.pdf</strong> bzw. <strong>Abschlussbericht_… .pdf</strong>
-        (Datum/Uhrzeit = E-Mail-Eingang). PDFs lassen sich im Einsatzbericht mit „Anzeigen“ im Browser öffnen.
-        Der automatische Abruf endet nach den konfigurierten Wartezeiten.
+        <strong>Ablauf automatisch:</strong> Kommt ein Einsatz aus DIVERA, wird sofort das Postfach geprüft
+        und danach weiter abgefragt — zuerst häufig bis die <strong>Depeche</strong> am Bericht hängt,
+        danach seltener bis der <strong>Abschlussbericht</strong> da ist (oder die Wartezeit abläuft).
+        Voraussetzung: Abruf aktiviert und IMAP korrekt. Manuell geht’s zusätzlich unter „Jetzt abrufen“
+        bzw. im Einsatzbericht.
       </p>
       <p class="hint">
-        Typischer Betreff (Beispiel, muss nicht exakt so sein):
+        Typischer Betreff (Beispiel):
         <code>FWD:[Feuerwehr …] FAX image from:[+49 …]</code>
         — Filter z. B. nur <strong>FAX</strong>.
-        Zuordnung: Depeche nahe Alarmbeginn, Abschlussbericht nahe Einsatzende
-        (Ende darf etwas weiter abweichen). Liegt schon eine Depeche vor, ist die nächste Mail der Abschlussbericht.
+        Dateinamen: <strong>Depeche_TT-MM-JJJJ_HH-MM.pdf</strong> / <strong>Abschlussbericht_… .pdf</strong>.
       </p>
       <form method="post" th:action="@{/admin/unit/leitstellen-mail}" class="form-grid" id="form-leitstellen-mail">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
@@ -295,49 +293,58 @@
           <p class="hint">Sonst: Nähe zum Einsatzende. Ohne Abschlussbericht bleibt nur die Depeche.</p>
         </div>
         <div class="form-group">
-          <label for="leitstellenLookback">Lookback (Stunden)</label>
+          <label for="leitstellenLookback">Automatik: Mail-Suche zurück (Stunden)</label>
           <input id="leitstellenLookback" name="pollLookbackHours" type="number" min="1" max="720" class="field"
                  th:value="${leitstellenMail != null ? leitstellenMail.pollLookbackHours : 24}"/>
           <p class="hint">
-            Automatischer Abruf: so weit zurück Mails und Berichte berücksichtigen (Puffer).
-            Manueller Abruf (Einstellungen / Einsatzbericht) sucht bis zu 1 Jahr zurück —
-            am Einsatzbericht ab dem Einsatzdatum (inkl. Folgetag für Abschluss nach Mitternacht).
+            Nur für den <strong>automatischen</strong> Abruf nach DIVERA: Wie weit zurück im Postfach
+            nach PDFs gesucht wird (Standard 24 h reicht meist).
+            „Jetzt abrufen“ / Abruf im Einsatzbericht sucht unabhängig davon bis zu 1 Jahr / ab Einsatzdatum.
           </p>
         </div>
         <div class="form-group">
-          <label for="leitstellenMatchWindow">Zuordnungsfenster (Stunden)</label>
+          <label for="leitstellenMatchWindow">Zuordnung Depeche ↔ Alarm (Stunden)</label>
           <input id="leitstellenMatchWindow" name="matchWindowHours" type="number" min="1" max="72" class="field"
                  th:value="${leitstellenMail != null ? leitstellenMail.matchWindowHours : 12}"/>
           <p class="hint">
-            Max. Abstand Alarm↔Depeche bzw. Ende↔Abschluss. Abschlussberichte werden mindestens
-            36 Stunden nach Einsatzende akzeptiert (auch Folgetag / Einsatz über Mitternacht).
+            Wie weit darf die Depeche-Mail von der Alarmzeit abweichen, um noch zu diesem Einsatz zu gehören
+            (Standard 12 h). Abschlussberichte dürfen länger danach kommen (mind. 36 h nach Ende).
           </p>
         </div>
         <div class="form-group">
-          <label for="leitstellenDepescheInterval">Intervall bis Depeche (Sekunden)</label>
+          <label for="leitstellenDepescheInterval">Wie oft prüfen, bis Depeche da? (Sekunden)</label>
           <input id="leitstellenDepescheInterval" name="depeschePollIntervalSeconds" type="number" min="15" max="3600" class="field"
                  th:value="${leitstellenMail != null ? leitstellenMail.depeschePollIntervalSeconds : 60}"/>
-          <p class="hint">Nach DIVERA-Einsatz: so oft abrufen, bis die Depeche da ist (Standard 60).</p>
+          <p class="hint">
+            Nach dem Alarm: alle X Sekunden Postfach prüfen, bis die Depeche angehängt ist
+            (Standard 60 = jede Minute).
+          </p>
         </div>
         <div class="form-group">
-          <label for="leitstellenAbschlussInterval">Intervall bis Abschlussbericht (Sekunden)</label>
+          <label for="leitstellenAbschlussInterval">Wie oft prüfen, bis Abschluss da? (Sekunden)</label>
           <input id="leitstellenAbschlussInterval" name="abschlussPollIntervalSeconds" type="number" min="15" max="3600" class="field"
                  th:value="${leitstellenMail != null ? leitstellenMail.abschlussPollIntervalSeconds : 300}"/>
-          <p class="hint">Danach seltener abrufen, bis der Abschlussbericht da ist (Standard 300).</p>
+          <p class="hint">
+            Wenn die Depeche schon da ist: seltener prüfen, bis der Abschlussbericht kommt
+            (Standard 300 = alle 5 Minuten).
+          </p>
         </div>
         <div class="form-group">
-          <label for="leitstellenDepescheWait">Wartezeit Depeche (Stunden)</label>
+          <label for="leitstellenDepescheWait">Spätestens so lange auf Depeche warten (Stunden)</label>
           <input id="leitstellenDepescheWait" name="depescheWaitHours" type="number" min="1" max="168" class="field"
                  th:value="${leitstellenMail != null ? leitstellenMail.depescheWaitHours : 6}"/>
-          <p class="hint">Automatischer Abruf stoppt, wenn so lange nach Alarm keine Depeche kam (Standard 6).</p>
+          <p class="hint">
+            Kommt nach dem Alarm in dieser Zeit keine Depeche, stoppt der automatische Abruf für diesen Einsatz
+            (Standard 6 h). Später noch manuell nachholen möglich.
+          </p>
         </div>
         <div class="form-group">
-          <label for="leitstellenAbschlussWait">Wartezeit Abschlussbericht (Stunden)</label>
+          <label for="leitstellenAbschlussWait">Spätestens so lange auf Abschluss warten (Stunden)</label>
           <input id="leitstellenAbschlussWait" name="abschlussWaitHours" type="number" min="1" max="336" class="field"
                  th:value="${leitstellenMail != null ? leitstellenMail.abschlussWaitHours : 24}"/>
           <p class="hint">
-            Nach Einsatzende (bzw. nach Depeche) so lange auf den Abschlussbericht warten, dann Abruf beenden —
-            auch wenn nur die Depeche da ist (Standard 24).
+            Ab Einsatzende (sonst ab Depeche): so lange weiterprüfen. Danach stoppt die Automatik —
+            auch wenn nur die Depeche da ist (Standard 24 h). Manuell kann der Abschluss später nachgezogen werden.
           </p>
         </div>
         <div class="form-group form-group--full" th:if="${leitstellenMailLastPollAt != null}">
