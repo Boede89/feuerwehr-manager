@@ -125,6 +125,20 @@
     });
   }
 
+  function pctBarHtml(pct, label) {
+    var text = label || '—';
+    var width = 0;
+    if (text !== '—' && Number.isFinite(Number(pct))) {
+      width = Math.max(0, Math.min(100, Number(pct)));
+    }
+    return (
+      '<div class="auswertung-pct-bar" aria-label="' + esc(text) + '">' +
+        '<div class="auswertung-pct-bar__fill" style="width:' + width + '%"></div>' +
+        '<span class="auswertung-pct-bar__label">' + esc(text) + '</span>' +
+      '</div>'
+    );
+  }
+
   function renderTable() {
     var ordered = sortedRows();
     tbody.innerHTML = ordered.map(function (row) {
@@ -134,8 +148,8 @@
         ' data-row-index="' + originalIndex + '"' +
         ' aria-label="Details zu ' + esc(row.name || 'Person') + '">' +
         '<td><span class="auswertung-person-name">' + esc(row.name || '—') + '</span></td>' +
-        '<td>' + esc(row.dienstbeteiligung || '—') + '</td>' +
-        '<td>' + esc(row.einsatzbeteiligung || '—') + '</td>' +
+        '<td>' + pctBarHtml(row.dienstPct, row.dienstbeteiligung) + '</td>' +
+        '<td>' + pctBarHtml(row.einsatzPct, row.einsatzbeteiligung) + '</td>' +
         '</tr>'
       );
     }).join('');
@@ -178,5 +192,5 @@
   });
 
   updateSortButtons();
-  tbody.querySelectorAll('.auswertung-person-row').forEach(bindRow);
+  renderTable();
 })();

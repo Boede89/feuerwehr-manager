@@ -6778,6 +6778,44 @@ a.auswertung-stat-card {
   font-weight: 600;
 }
 
+.auswertung-pct-bar {
+  --auswertung-pct-fill: #0f766e;
+  --auswertung-pct-fill-end: #14b8a6;
+  position: relative;
+  display: block;
+  height: 1.55rem;
+  min-width: 5.75rem;
+  max-width: 10rem;
+  background: color-mix(in srgb, var(--auswertung-pct-fill) 12%, var(--bg-card, #fff));
+  border: 1px solid color-mix(in srgb, var(--auswertung-pct-fill) 22%, transparent);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.auswertung-pct-bar__fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--auswertung-pct-fill), var(--auswertung-pct-fill-end));
+  border-radius: inherit;
+  transition: width 0.25s ease;
+}
+
+.auswertung-pct-bar__label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #0f172a;
+  text-shadow:
+    0 0 2px rgba(255, 255, 255, 0.95),
+    0 0 6px rgba(255, 255, 255, 0.8);
+  pointer-events: none;
+}
+
 .auswertung-teilnahme-pa {
   display: inline-block;
   margin-left: 0.35rem;

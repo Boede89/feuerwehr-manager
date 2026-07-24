@@ -157,8 +157,29 @@ public class AtemschutzService {
                     type,
                     toFitnessView(latest, atemschutzSettingsService.warnDays(unitId, type), today));
         }
-        List<FitnessRecordView> recordViews = records.stream().map(this::toRecordView).toList();
+        List<FitnessRecordView> recordViews = collapseUebungRecords(records).stream()
+                .map(this::toRecordView)
+                .toList();
         return new CarrierDetailView(carrier, summaries, recordViews);
+    }
+
+    /**
+     * In der Nachweise-Tabelle nur den neuesten Übung/Einsatz-Eintrag zeigen;
+     * die vollständige PA-Historie steht in der Tabelle darunter.
+     */
+    private static List<AtemschutzFitnessRecord> collapseUebungRecords(List<AtemschutzFitnessRecord> records) {
+        List<AtemschutzFitnessRecord> result = new ArrayList<>(records.size());
+        boolean latestUebungAdded = false;
+        for (AtemschutzFitnessRecord record : records) {
+            if (record.getRecordType() == AtemschutzFitnessType.UEBUNG) {
+                if (latestUebungAdded) {
+                    continue;
+                }
+                latestUebungAdded = true;
+            }
+            result.add(record);
+        }
+        return result;
     }
 
     /**
