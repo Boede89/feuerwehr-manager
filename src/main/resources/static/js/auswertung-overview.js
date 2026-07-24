@@ -46,7 +46,7 @@
     return parts[2] + '.' + parts[1] + '.' + parts[0];
   }
 
-  function fillList(ul, items, emptyText) {
+  function fillList(ul, items, emptyText, itemClass) {
     if (!ul) {
       return;
     }
@@ -54,8 +54,9 @@
       ul.innerHTML = '<li class="auswertung-detail-modal__empty">' + esc(emptyText) + '</li>';
       return;
     }
+    var cls = itemClass ? ' class="' + esc(itemClass) + '"' : '';
     ul.innerHTML = items.map(function (item) {
-      return '<li>' + esc(item) + '</li>';
+      return '<li' + cls + '>' + esc(item) + '</li>';
     }).join('');
   }
 
@@ -84,12 +85,12 @@
     if (leitungEl) {
       leitungEl.textContent = row.leitung || '—';
     }
-    fillList(personenEl, row.personen, 'Keine Personen');
+    fillList(personenEl, row.personen, 'Keine Personen', 'auswertung-person-item');
     var pa = row.paTraeger || [];
     if (paSection) {
       if (pa.length) {
         paSection.hidden = false;
-        fillList(paEl, pa, '');
+        fillList(paEl, pa, '', 'auswertung-person-item');
       } else {
         paSection.hidden = true;
         if (paEl) {

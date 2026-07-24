@@ -6687,7 +6687,28 @@ a.auswertung-stat-card {
 .auswertung-detail-row:focus-visible,
 .auswertung-person-row:hover,
 .auswertung-person-row:focus-visible {
-  background: color-mix(in srgb, var(--primary, #b91c1c) 8%, transparent);
+  background: color-mix(in srgb, var(--primary, #b91c1c) 16%, transparent);
+  outline: none;
+}
+
+.auswertung-person-row:hover .auswertung-person-name,
+.auswertung-person-row:focus-visible .auswertung-person-name {
+  color: var(--primary, #b91c1c);
+  font-weight: 700;
+}
+
+.auswertung-person-item {
+  margin: 0 -6px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.auswertung-person-item:hover,
+.auswertung-person-item:focus-visible {
+  background: color-mix(in srgb, var(--primary, #b91c1c) 16%, transparent);
+  color: var(--primary, #b91c1c);
+  font-weight: 600;
   outline: none;
 }
 

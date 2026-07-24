@@ -128,7 +128,7 @@
         '<tr class="auswertung-person-row" tabindex="0" role="button"' +
         ' data-row-index="' + originalIndex + '"' +
         ' aria-label="Details zu ' + esc(row.name || 'Person') + '">' +
-        '<td>' + esc(row.name || '—') + '</td>' +
+        '<td><span class="auswertung-person-name">' + esc(row.name || '—') + '</span></td>' +
         '<td>' + esc(row.dienstbeteiligung || '—') + '</td>' +
         '<td>' + esc(row.einsatzbeteiligung || '—') + '</td>' +
         '</tr>'

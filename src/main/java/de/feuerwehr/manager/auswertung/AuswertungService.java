@@ -9,6 +9,7 @@ import de.feuerwehr.manager.berichte.IncidentReport;
 import de.feuerwehr.manager.berichte.IncidentReportPersonnel;
 import de.feuerwehr.manager.berichte.IncidentReportPersonnelRepository;
 import de.feuerwehr.manager.berichte.IncidentReportRepository;
+import de.feuerwehr.manager.berichte.IncidentReportStatus;
 import de.feuerwehr.manager.berichte.IncidentReportVehicle;
 import de.feuerwehr.manager.berichte.IncidentReportVehicleRepository;
 import de.feuerwehr.manager.personal.Person;
@@ -76,8 +77,7 @@ public class AuswertungService {
         long sonstigesMin = 0;
         long einsaetzeMin = 0;
 
-        List<IncidentReport> reports = incidentReportRepository.findByUnitIdAndYear(
-                unitId, yearStart, yearEndExclusive, includeTest);
+        List<IncidentReport> reports = listFreigegebeneEinsaetze(unitId, yearStart, yearEndExclusive, includeTest);
         for (IncidentReport report : reports) {
             long minutes = durationMinutes(report.getAlarmTime(), report.getEndTime());
             einsaetzeMin += minutes;
@@ -106,11 +106,8 @@ public class AuswertungService {
         long uebungMin = 0;
         LocalDateRange uebungRange = uebungDateRange(yearStart, yearEndExclusive, today);
         if (uebungRange != null) {
-            List<AttendanceReport> uebungen = attendanceReportRepository
-                    .findByUnitIdAndDateRange(unitId, uebungRange.from(), uebungRange.to(), includeTest)
-                    .stream()
-                    .filter(r -> r.getTerminCategory() == TermineCategory.DIENSTPLAN)
-                    .toList();
+            List<AttendanceReport> uebungen =
+                    listFreigegebeneUebungsdienste(unitId, uebungRange.from(), uebungRange.to(), includeTest);
             uebungsdienste = uebungen.size();
             for (AttendanceReport report : uebungen) {
                 uebungMin += durationMinutes(report.getStartTime(), report.getEndTime());
@@ -150,8 +147,9 @@ public class AuswertungService {
     }
 
     /**
-     * Personen-Auswertung: Dienstbeteiligung = Anteil an Übungsdiensten (bis heute),
-     * Einsatzbeteiligung = Anteil an Einsatzberichten im Jahr.
+     * Personen-Auswertung: Dienstbeteiligung = Anteil an freigegebenen Übungsdienst-Anwesenheitslisten
+     * (bis heute), Einsatzbeteiligung = Anteil an freigegebenen Einsatzberichten im Jahr.
+     * Entwürfe zählen nicht.
      */
     @Transactional(readOnly = true)
     public List<AuswertungPersonRow> listPersonRows(long unitId, int year) {
@@ -179,11 +177,8 @@ public class AuswertungService {
         int totalUebungen = 0;
         LocalDateRange uebungRange = uebungDateRange(yearStart, yearEndExclusive, LocalDate.now());
         if (uebungRange != null) {
-            List<AttendanceReport> uebungen = attendanceReportRepository
-                    .findByUnitIdAndDateRange(unitId, uebungRange.from(), uebungRange.to(), includeTest)
-                    .stream()
-                    .filter(r -> r.getTerminCategory() == TermineCategory.DIENSTPLAN)
-                    .toList();
+            List<AttendanceReport> uebungen =
+                    listFreigegebeneUebungsdienste(unitId, uebungRange.from(), uebungRange.to(), includeTest);
             totalUebungen = uebungen.size();
             for (AttendanceReport report : uebungen) {
                 LocalDate eventDate = report.getEventDate();
@@ -198,8 +193,8 @@ public class AuswertungService {
             }
         }
 
-        List<IncidentReport> einsaetze = incidentReportRepository.findByUnitIdAndYear(
-                unitId, yearStart, yearEndExclusive, includeTest);
+        List<IncidentReport> einsaetze =
+                listFreigegebeneEinsaetze(unitId, yearStart, yearEndExclusive, includeTest);
         int totalEinsaetze = einsaetze.size();
         if (!einsaetze.isEmpty()) {
             Map<Long, IncidentReport> einsatzById = new HashMap<>();
@@ -286,8 +281,7 @@ public class AuswertungService {
         boolean includeTest = testModeService.isEnabled();
         String returnUrl = buildReturnUrl(unitId, year, detail);
 
-        List<IncidentReport> reports = incidentReportRepository
-                .findByUnitIdAndYear(unitId, yearStart, yearEndExclusive, includeTest)
+        List<IncidentReport> reports = listFreigegebeneEinsaetze(unitId, yearStart, yearEndExclusive, includeTest)
                 .stream()
                 .filter(r -> detail.matches(AuswertungStichwortKategorie.classify(r.getStichwort())))
                 .toList();
@@ -387,11 +381,8 @@ public class AuswertungService {
         boolean includeTest = testModeService.isEnabled();
         String returnUrl = buildReturnUrl(unitId, year, detail);
 
-        List<AttendanceReport> reports = attendanceReportRepository
-                .findByUnitIdAndDateRange(unitId, range.from(), range.to(), includeTest)
-                .stream()
-                .filter(r -> r.getTerminCategory() == TermineCategory.DIENSTPLAN)
-                .toList();
+        List<AttendanceReport> reports =
+                listFreigegebeneUebungsdienste(unitId, range.from(), range.to(), includeTest);
         if (reports.isEmpty()) {
             return List.of();
         }
@@ -549,6 +540,29 @@ public class AuswertungService {
             return "—";
         }
         return value.trim();
+    }
+
+    /** Freigegebene und archivierte Einsatzberichte (keine Entwürfe). */
+    private List<IncidentReport> listFreigegebeneEinsaetze(
+            long unitId, LocalDate yearStart, LocalDate yearEndExclusive, boolean includeTest) {
+        return incidentReportRepository.findByUnitIdAndYear(unitId, yearStart, yearEndExclusive, includeTest)
+                .stream()
+                .filter(r -> isFreigegeben(r.getStatus()))
+                .toList();
+    }
+
+    /** Freigegebene Übungsdienst-Anwesenheitslisten (Kategorie DIENSTPLAN, keine Entwürfe). */
+    private List<AttendanceReport> listFreigegebeneUebungsdienste(
+            long unitId, LocalDate from, LocalDate to, boolean includeTest) {
+        return attendanceReportRepository.findByUnitIdAndDateRange(unitId, from, to, includeTest).stream()
+                .filter(r -> r.getTerminCategory() == TermineCategory.DIENSTPLAN)
+                .filter(r -> isFreigegeben(r.getStatus()))
+                .toList();
+    }
+
+    private static boolean isFreigegeben(IncidentReportStatus status) {
+        return status == IncidentReportStatus.FREIGEGEBEN
+                || status == IncidentReportStatus.ARCHIVIERT;
     }
 
     private int countTauglichePaTraeger(long unitId) {

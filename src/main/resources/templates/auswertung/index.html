@@ -236,7 +236,7 @@
                 tabindex="0" role="button"
                 th:attr="data-row-index=${iter.index}"
                 th:aria-label="|Details zu ${row.name()}|">
-              <td th:text="${row.name()}">Mustermann, Max</td>
+              <td><span class="auswertung-person-name" th:text="${row.name()}">Mustermann, Max</span></td>
               <td th:text="${row.dienstbeteiligung()}">80 %</td>
               <td th:text="${row.einsatzbeteiligung()}">50 %</td>
             </tr>
@@ -244,8 +244,9 @@
         </table>
       </div>
       <p class="hint" style="margin:12px 0 0;">
-        Dienstbeteiligung = Übungsdienste bis heute · Einsatzbeteiligung = Einsatzberichte im Jahr
-        · 100&nbsp;% = Teilnahme an allen.
+        Dienstbeteiligung = freigegebene Übungsdienst-Anwesenheitslisten bis heute
+        · Einsatzbeteiligung = freigegebene Einsatzberichte im Jahr
+        · Entwürfe zählen nicht · 100&nbsp;% = Teilnahme an allen.
       </p>
     </div>
     <div class="card" th:if="${#lists.isEmpty(personRows)}" style="margin-top:8px;">
