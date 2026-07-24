@@ -318,18 +318,30 @@
   }
 
   function deleteAttachment(wrap, attachmentId) {
-    fetch(apiBase(wrap) + '/' + attachmentId, {
+    var url = apiBase(wrap).replace('/anhaenge', '/anhaenge/' + attachmentId);
+    fetch(url, {
       method: 'DELETE',
       credentials: 'same-origin',
       headers: (function () {
-        var headers = {};
+        var headers = { 'Accept': 'application/json' };
         headers[getCsrfHeader()] = getCsrfToken();
         return headers;
       })()
     })
       .then(function (res) {
         if (!res.ok) {
-          throw new Error('Löschen fehlgeschlagen');
+          return res.text().then(function (text) {
+            var message = 'Löschen fehlgeschlagen';
+            try {
+              var body = JSON.parse(text);
+              message = body.message || body.error || message;
+            } catch (e) {
+              if (text) {
+                message = text;
+              }
+            }
+            throw new Error(message);
+          });
         }
         return load(wrap);
       })
