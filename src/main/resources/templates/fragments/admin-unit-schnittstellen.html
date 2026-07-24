@@ -201,7 +201,7 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" th:if="${isSuperAdmin}">
     <div class="card__header">Einsatz-App (Push)</div>
     <div class="card__body">
       <p class="hint" th:if="${!einsatzappModuleEnabled}">

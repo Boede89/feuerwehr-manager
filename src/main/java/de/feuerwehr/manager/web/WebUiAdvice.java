@@ -140,10 +140,14 @@ public class WebUiAdvice {
             activeUnitId = (Long) model.getAttribute("unitId");
         }
         try {
+            boolean superAdmin = user != null && user.getRole().isSuperAdmin();
             for (AppModule module : AppModule.values()) {
                 boolean enabled = activeUnitId != null && moduleSettingsService.isEnabled(module, activeUnitId);
                 String state;
-                if (activeUnitId == null) {
+                // Einsatz-App wird grundlegend überarbeitet — vorerst nur Superadmin
+                if (module == AppModule.EINSATZAPP && !superAdmin) {
+                    state = "hidden";
+                } else if (activeUnitId == null) {
                     state = module == AppModule.PERSONAL && module.implemented() ? "link" : "hidden";
                 } else if (!enabled) {
                     state = "hidden";

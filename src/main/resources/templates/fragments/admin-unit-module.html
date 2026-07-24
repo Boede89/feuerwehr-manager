@@ -9,13 +9,15 @@
       <form method="post" th:action="@{/admin/modules}">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="unit" th:value="${unitId}"/>
-        <div th:each="m : ${moduleDefs}" class="module-row">
+        <div th:each="m : ${moduleDefs}" class="module-row"
+             th:if="${m.key != 'einsatzapp' or isSuperAdmin}">
           <div class="module-row__info">
             <span class="module-row__icon" th:text="${m.icon}">📦</span>
             <div>
               <div class="module-row__label">
                 <span th:text="${m.label}">Modul</span>
                 <span class="text-subtle text-xs" th:if="${!m.implemented}"> · Demnächst</span>
+                <span class="text-subtle text-xs" th:if="${m.key == 'einsatzapp'}"> · nur Superadmin</span>
               </div>
               <div class="module-row__desc" th:text="${m.description}">Beschreibung</div>
             </div>

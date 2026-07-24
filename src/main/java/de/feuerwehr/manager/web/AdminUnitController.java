@@ -323,6 +323,9 @@ public class AdminUnitController {
             @RequestParam(required = false, defaultValue = "false") boolean pushEnabled,
             RedirectAttributes redirectAttributes) {
         return withUnit(actor, unit, redirectAttributes, "schnittstellen", () -> {
+            if (actor == null || !actor.getRole().isSuperAdmin()) {
+                throw new IllegalArgumentException("Einsatz-App ist derzeit nur für Superadmin verfügbar.");
+            }
             einsatzAppSettingsService.savePushEnabled(unit, pushEnabled);
             redirectAttributes.addFlashAttribute("message", "Einsatz-App-Einstellungen gespeichert.");
         });

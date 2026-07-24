@@ -41,7 +41,7 @@ public class EinsatzAppSettingsController {
             Model model,
             RedirectAttributes redirectAttributes) {
         try {
-            accessControlService.requireAdminLevel(actor);
+            accessControlService.requireSuperAdmin(actor);
             Unit unit = unitService
                     .resolveActiveUnit(unitId, actor)
                     .orElseThrow(() -> new IllegalArgumentException("Keine gültige Einheit."));
@@ -71,7 +71,7 @@ public class EinsatzAppSettingsController {
             @RequestParam(required = false, defaultValue = "false") boolean pushEnabled,
             RedirectAttributes redirectAttributes) {
         try {
-            accessControlService.requireAdminLevel(actor);
+            accessControlService.requireSuperAdmin(actor);
             accessControlService.requireUnitAccess(actor, unit);
             requireModuleEnabled(unit);
             einsatzAppSettingsService.savePushEnabled(unit, pushEnabled);
@@ -89,7 +89,7 @@ public class EinsatzAppSettingsController {
             @RequestParam("serviceAccountFile") MultipartFile serviceAccountFile,
             RedirectAttributes redirectAttributes) {
         try {
-            accessControlService.requireAdminLevel(actor);
+            accessControlService.requireSuperAdmin(actor);
             accessControlService.requireUnitAccess(actor, unit);
             requireModuleEnabled(unit);
             fcmConfigService.saveUploadedServiceAccount(serviceAccountFile);
@@ -109,7 +109,7 @@ public class EinsatzAppSettingsController {
             @RequestParam long unit,
             RedirectAttributes redirectAttributes) {
         try {
-            accessControlService.requireAdminLevel(actor);
+            accessControlService.requireSuperAdmin(actor);
             accessControlService.requireUnitAccess(actor, unit);
             requireModuleEnabled(unit);
             fcmConfigService.deleteUploadedServiceAccount();
@@ -127,7 +127,7 @@ public class EinsatzAppSettingsController {
             @RequestParam long unit,
             RedirectAttributes redirectAttributes) {
         try {
-            accessControlService.requireAdminLevel(actor);
+            accessControlService.requireSuperAdmin(actor);
             accessControlService.requireUnitAccess(actor, unit);
             requireModuleEnabled(unit);
             einsatzAppPushService.sendTestPush(unit);

@@ -37,6 +37,7 @@ public class EinsatzAppController {
             Model model,
             RedirectAttributes redirectAttributes) {
         try {
+            accessControlService.requireSuperAdmin(actor);
             Unit unit = resolveUnit(unitId, actor, model);
             requireModuleEnabled(unit.getId());
             requireEinsatzAppRead(actor, unit.getId());

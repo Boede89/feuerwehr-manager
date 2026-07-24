@@ -163,8 +163,13 @@ public class AdminPanelController {
                 .orElseThrow(() -> new IllegalArgumentException("Keine gültige Einheit ausgewählt."));
 
         Map<String, Boolean> updates = new LinkedHashMap<>();
+        boolean superAdmin = actor != null && actor.getRole().isSuperAdmin();
         for (AppModule module : AppModule.values()) {
             if (!module.implemented()) {
+                continue;
+            }
+            // Einsatz-App nur Superadmin — sonst bleibt der bestehende Modulstatus erhalten
+            if (module == AppModule.EINSATZAPP && !superAdmin) {
                 continue;
             }
             updates.put(module.key(), params.containsKey("module_" + module.key()));

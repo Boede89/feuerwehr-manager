@@ -22,9 +22,12 @@
   var leitungLabelEl = document.getElementById('adm-leitung-label');
   var leitungEl = document.getElementById('adm-leitung');
   var personenEl = document.getElementById('adm-personen');
+  var personenTitleEl = document.getElementById('adm-personen-title');
   var paSection = document.getElementById('adm-pa-section');
+  var paTitleEl = document.getElementById('adm-pa-title');
   var paEl = document.getElementById('adm-pa');
   var fahrzeugeEl = document.getElementById('adm-fahrzeuge');
+  var fahrzeugeTitleEl = document.getElementById('adm-fahrzeuge-title');
   var openBtn = document.getElementById('adm-open-report');
 
   function esc(text) {
@@ -60,6 +63,14 @@
     }).join('');
   }
 
+  function setSectionTitle(el, label, count) {
+    if (!el) {
+      return;
+    }
+    var n = Number.isFinite(count) ? count : 0;
+    el.textContent = label + ' (' + n + ')';
+  }
+
   function openModal(row) {
     if (!row) {
       return;
@@ -85,11 +96,14 @@
     if (leitungEl) {
       leitungEl.textContent = row.leitung || '—';
     }
-    fillList(personenEl, row.personen, 'Keine Personen', 'auswertung-person-item');
+    var personen = row.personen || [];
+    setSectionTitle(personenTitleEl, 'Personal', personen.length);
+    fillList(personenEl, personen, 'Keine Personen', 'auswertung-person-item');
     var pa = row.paTraeger || [];
     if (paSection) {
       if (pa.length) {
         paSection.hidden = false;
+        setSectionTitle(paTitleEl, 'PA-Träger', pa.length);
         fillList(paEl, pa, '', 'auswertung-person-item');
       } else {
         paSection.hidden = true;
@@ -98,7 +112,9 @@
         }
       }
     }
-    fillList(fahrzeugeEl, row.fahrzeuge, 'Keine Fahrzeuge');
+    var fahrzeuge = row.fahrzeuge || [];
+    setSectionTitle(fahrzeugeTitleEl, 'Fahrzeuge', fahrzeuge.length);
+    fillList(fahrzeugeEl, fahrzeuge, 'Keine Fahrzeuge');
     if (openBtn) {
       openBtn.href = row.viewUrl || '#';
       openBtn.textContent = row.openButtonLabel || 'Öffnen';
