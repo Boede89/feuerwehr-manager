@@ -84,7 +84,7 @@ public class LeitstellenMailSettingsService {
         settings.setDepescheKeywords(blankToDefault(depescheKeywords, "depesche,alarmdepesche"));
         settings.setAbschlussKeywords(blankToDefault(abschlussKeywords, "abschluss,abschlussbericht"));
         settings.setPollLookbackHours(
-                pollLookbackHours != null && pollLookbackHours > 0 ? Math.min(pollLookbackHours, 168) : 24);
+                pollLookbackHours != null && pollLookbackHours > 0 ? Math.min(pollLookbackHours, 720) : 24);
         settings.setMatchWindowHours(
                 matchWindowHours != null && matchWindowHours > 0 ? Math.min(matchWindowHours, 72) : 12);
         settings.setDepeschePollIntervalSeconds(clampInterval(depeschePollIntervalSeconds, 60));

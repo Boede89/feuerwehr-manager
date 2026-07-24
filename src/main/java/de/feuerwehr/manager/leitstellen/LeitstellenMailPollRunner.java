@@ -22,7 +22,11 @@ public class LeitstellenMailPollRunner {
     }
 
     public LeitstellenMailImportService.PollResult pollUnitAndRefresh(long unitId) {
-        LeitstellenMailImportService.PollResult result = importService.pollUnit(unitId);
+        return pollUnitAndRefresh(unitId, false);
+    }
+
+    public LeitstellenMailImportService.PollResult pollUnitAndRefresh(long unitId, boolean catchUp) {
+        LeitstellenMailImportService.PollResult result = importService.pollUnit(unitId, catchUp);
         try {
             sessionService.refreshAfterPoll(unitId);
         } catch (Exception e) {

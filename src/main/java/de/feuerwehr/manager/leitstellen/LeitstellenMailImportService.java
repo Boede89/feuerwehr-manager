@@ -26,6 +26,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class LeitstellenMailImportService {
 
     private static final ZoneId ZONE = ZoneId.of("Europe/Berlin");
+    /** Manueller Abruf: mindestens 30 Tage zurück (Catch-up für vorhandene Mails). */
+    private static final int MANUAL_CATCHUP_LOOKBACK_HOURS = 24 * 30;
+    /** Manueller Abruf: größeres Zuordnungsfenster, falls FAX etwas später kam. */
+    private static final int MANUAL_CATCHUP_MATCH_WINDOW_HOURS = 72;
 
     private final UnitLeitstellenMailSettingsRepository settingsRepository;
     private final LeitstellenMailImportRepository importRepository;
@@ -46,24 +50,24 @@ public class LeitstellenMailImportService {
 
     @Transactional
     public PollResult pollUnit(long unitId) {
-        UnitLeitstellenMailSettings settings = requireEnabledSettings(unitId, false);
+        return pollUnit(unitId, false);
+    }
+
+    /**
+     * @param catchUp true = manueller Abruf: längerer Lookback, kein Abbruch vor IMAP
+     */
+    @Transactional
+    public PollResult pollUnit(long unitId, boolean catchUp) {
+        UnitLeitstellenMailSettings settings = requireEnabledSettings(unitId);
         if (settings == null) {
             return disabledOrMissing(unitId);
         }
-        List<IncidentReport> candidates = loadCandidates(unitId, settings);
-        candidates = candidates.stream().filter(r -> !alreadyComplete(r.getId())).toList();
-        if (candidates.isEmpty()) {
-            return finish(
-                    settings,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    "Kein Abruf nötig: für alle Berichte im Lookback liegen Depeche und Abschlussbericht bereits vor "
-                            + "(oder es gibt keine passenden Berichte).");
-        }
-        return pollInternal(settings, candidates, null);
+        int lookbackHours = effectiveLookbackHours(settings, catchUp);
+        int matchWindowHours = effectiveMatchWindowHours(settings, catchUp);
+        List<IncidentReport> allInWindow = loadCandidates(unitId, lookbackHours);
+        List<IncidentReport> candidates =
+                allInWindow.stream().filter(r -> !alreadyComplete(r.getId())).toList();
+        return pollInternal(settings, candidates, null, lookbackHours, matchWindowHours, allInWindow.size(), catchUp);
     }
 
     /**
@@ -71,16 +75,9 @@ public class LeitstellenMailImportService {
      */
     @Transactional
     public PollResult pollForReport(long unitId, long reportId) {
-        UnitLeitstellenMailSettings settings = requireEnabledSettings(unitId, true);
+        UnitLeitstellenMailSettings settings = requireEnabledSettings(unitId);
         if (settings == null) {
-            UnitLeitstellenMailSettings raw = settingsRepository.findByUnitId(unitId).orElse(null);
-            if (raw == null || raw.getImapHost() == null || raw.getImapHost().isBlank()) {
-                return new PollResult(0, 0, 0, 0, 0, "Leitstellen-Mail ist nicht konfiguriert.");
-            }
-            if (!raw.isEnabled()) {
-                return new PollResult(0, 0, 0, 0, 0, "Leitstellen-Mail-Abruf ist deaktiviert.");
-            }
-            return new PollResult(0, 0, 0, 0, 0, "IMAP-Host fehlt.");
+            return disabledOrMissing(unitId);
         }
         IncidentReport report = incidentReportRepository
                 .findById(reportId)
@@ -99,7 +96,9 @@ public class LeitstellenMailImportService {
                     0,
                     "Depeche und Abschlussbericht sind bereits hinterlegt — kein Abruf nötig.");
         }
-        return pollInternal(settings, List.of(report), reportId);
+        int lookbackHours = effectiveLookbackHours(settings, true);
+        int matchWindowHours = effectiveMatchWindowHours(settings, true);
+        return pollInternal(settings, List.of(report), reportId, lookbackHours, matchWindowHours, 1, true);
     }
 
     public void testConnection(long unitId) {
@@ -117,11 +116,38 @@ public class LeitstellenMailImportService {
     }
 
     private PollResult pollInternal(
-            UnitLeitstellenMailSettings settings, List<IncidentReport> candidates, Long focusReportId) {
+            UnitLeitstellenMailSettings settings,
+            List<IncidentReport> candidates,
+            Long focusReportId,
+            int lookbackHours,
+            int matchWindowHours,
+            int reportsInWindow,
+            boolean catchUp) {
         long unitId = settings.getUnit().getId();
+        UnitLeitstellenMailSettings matchSettings = copyForMatch(settings, matchWindowHours);
         try {
-            List<LeitstellenImapClient.MailMessage> mails = imapClient.fetchRecentPdfs(settings);
+            List<LeitstellenImapClient.MailMessage> mails = imapClient.fetchRecentPdfs(settings, lookbackHours);
             int pdfCount = mails.stream().mapToInt(m -> m.pdfs().size()).sum();
+
+            if (candidates.isEmpty()) {
+                String reason = reportsInWindow == 0
+                        ? String.format(
+                                Locale.GERMAN,
+                                "Keine Einsatzberichte (Entwurf/freigegeben) in den letzten %d Tagen. "
+                                        + "Mails geprüft: %d mit %d PDF(s). Lookback in den Einstellungen erhöhen?",
+                                Math.max(1, (lookbackHours + 23) / 24),
+                                mails.size(),
+                                pdfCount)
+                        : String.format(
+                                Locale.GERMAN,
+                                "Für alle %d Berichte im Zeitraum liegen Depeche und Abschlussbericht bereits vor. "
+                                        + "Mails geprüft: %d mit %d PDF(s).",
+                                reportsInWindow,
+                                mails.size(),
+                                pdfCount);
+                return finish(settings, mails.size(), pdfCount, 0, 0, 0, reason);
+            }
+
             int imported = 0;
             int skipped = 0;
             int unmatched = 0;
@@ -135,7 +161,7 @@ public class LeitstellenMailImportService {
                         continue;
                     }
                     var match = matcher.match(
-                            settings,
+                            matchSettings,
                             mail,
                             pdf,
                             candidates,
@@ -166,15 +192,19 @@ public class LeitstellenMailImportService {
                 }
             }
             String focus = focusReportId != null ? " (nur dieser Einsatz)" : "";
+            String catchUpHint = catchUp ? " [Catch-up " + lookbackHours + "h]" : "";
             String msg = String.format(
                     Locale.GERMAN,
-                    "Abruf ok%s: %d Mail(s), %d PDF-Anhang/Anhänge gefunden, %d importiert, %d übersprungen, %d ohne Treffer.",
+                    "Abruf ok%s%s: %d Mail(s), %d PDF(s), %d importiert, %d übersprungen, %d ohne Treffer "
+                            + "(%d Berichte ohne vollständige Anhänge).",
                     focus,
+                    catchUpHint,
                     mails.size(),
                     pdfCount,
                     imported,
                     skipped,
-                    unmatched);
+                    unmatched,
+                    candidates.size());
             return finish(settings, mails.size(), pdfCount, imported, skipped, unmatched, msg);
         } catch (Exception e) {
             log.warn("Leitstellen-Mail Abruf unit={} fehlgeschlagen: {}", unitId, e.getMessage());
@@ -182,15 +212,40 @@ public class LeitstellenMailImportService {
         }
     }
 
-    private List<IncidentReport> loadCandidates(long unitId, UnitLeitstellenMailSettings settings) {
+    private List<IncidentReport> loadCandidates(long unitId, int lookbackHours) {
         LocalDate today = LocalDate.now(ZONE);
-        int lookbackDays = Math.max(1, (settings.getPollLookbackHours() + 23) / 24);
+        int lookbackDays = Math.max(1, (lookbackHours + 23) / 24);
         return incidentReportRepository.findCandidatesForLeitstellenMail(
                 unitId,
                 List.of(IncidentReportStatus.ENTWURF, IncidentReportStatus.FREIGEGEBEN),
-                today.minusDays(lookbackDays + 1L),
+                today.minusDays(lookbackDays),
                 today.plusDays(1),
                 testModeService.isEnabled());
+    }
+
+    private static int effectiveLookbackHours(UnitLeitstellenMailSettings settings, boolean catchUp) {
+        int configured = Math.max(1, settings.getPollLookbackHours());
+        if (catchUp) {
+            return Math.max(configured, MANUAL_CATCHUP_LOOKBACK_HOURS);
+        }
+        return configured;
+    }
+
+    private static int effectiveMatchWindowHours(UnitLeitstellenMailSettings settings, boolean catchUp) {
+        int configured = Math.max(1, settings.getMatchWindowHours());
+        if (catchUp) {
+            return Math.max(configured, MANUAL_CATCHUP_MATCH_WINDOW_HOURS);
+        }
+        return configured;
+    }
+
+    private static UnitLeitstellenMailSettings copyForMatch(
+            UnitLeitstellenMailSettings source, int matchWindowHours) {
+        UnitLeitstellenMailSettings copy = new UnitLeitstellenMailSettings();
+        copy.setDepescheKeywords(source.getDepescheKeywords());
+        copy.setAbschlussKeywords(source.getAbschlussKeywords());
+        copy.setMatchWindowHours(matchWindowHours);
+        return copy;
     }
 
     private boolean alreadyComplete(long reportId) {
@@ -207,13 +262,10 @@ public class LeitstellenMailImportService {
                 .isPresent();
     }
 
-    private UnitLeitstellenMailSettings requireEnabledSettings(long unitId, boolean allowDisabledMessage) {
+    private UnitLeitstellenMailSettings requireEnabledSettings(long unitId) {
         UnitLeitstellenMailSettings settings = settingsRepository.findByUnitId(unitId).orElse(null);
-        if (settings == null) {
+        if (settings == null || !settings.isEnabled()) {
             return null;
-        }
-        if (!settings.isEnabled()) {
-            return allowDisabledMessage ? null : null;
         }
         if (settings.getImapHost() == null || settings.getImapHost().isBlank()) {
             return null;

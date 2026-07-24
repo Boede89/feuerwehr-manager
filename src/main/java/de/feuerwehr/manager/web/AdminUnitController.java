@@ -419,7 +419,7 @@ public class AdminUnitController {
             @RequestParam long unit,
             RedirectAttributes redirectAttributes) {
         return withUnit(actor, unit, redirectAttributes, "schnittstellen", () -> {
-            var result = leitstellenMailPollRunner.pollUnitAndRefresh(unit);
+            var result = leitstellenMailPollRunner.pollUnitAndRefresh(unit, true);
             redirectAttributes.addFlashAttribute("message", result.message());
         });
     }

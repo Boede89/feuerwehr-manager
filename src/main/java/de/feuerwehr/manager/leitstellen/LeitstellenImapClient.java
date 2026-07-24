@@ -39,6 +39,11 @@ public class LeitstellenImapClient {
             List<PdfAttachment> pdfs) {}
 
     public List<MailMessage> fetchRecentPdfs(UnitLeitstellenMailSettings settings) throws MessagingException {
+        return fetchRecentPdfs(settings, settings.getPollLookbackHours());
+    }
+
+    public List<MailMessage> fetchRecentPdfs(UnitLeitstellenMailSettings settings, int lookbackHours)
+            throws MessagingException {
         if (settings.getImapHost() == null || settings.getImapHost().isBlank()) {
             throw new IllegalArgumentException("IMAP-Host fehlt.");
         }
@@ -58,8 +63,8 @@ public class LeitstellenImapClient {
                             : "INBOX";
             folder = store.getFolder(folderName);
             folder.open(Folder.READ_WRITE);
-            int lookbackHours = Math.max(1, settings.getPollLookbackHours());
-            Date since = Date.from(Instant.now().minusSeconds(lookbackHours * 3600L));
+            int hours = Math.max(1, lookbackHours);
+            Date since = Date.from(Instant.now().minusSeconds(hours * 3600L));
             SearchTerm term = new ReceivedDateTerm(ComparisonTerm.GE, since);
             Message[] messages = folder.search(term);
             UIDFolder uidFolder = folder instanceof UIDFolder uf ? uf : null;

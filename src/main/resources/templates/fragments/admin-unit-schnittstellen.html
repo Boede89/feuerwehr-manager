@@ -294,9 +294,11 @@
         </div>
         <div class="form-group">
           <label for="leitstellenLookback">Lookback (Stunden)</label>
-          <input id="leitstellenLookback" name="pollLookbackHours" type="number" min="1" max="168" class="field"
+          <input id="leitstellenLookback" name="pollLookbackHours" type="number" min="1" max="720" class="field"
                  th:value="${leitstellenMail != null ? leitstellenMail.pollLookbackHours : 24}"/>
-          <p class="hint">Wie weit zurück Mails berücksichtigt werden (Puffer für verspätete Zustellung).</p>
+          <p class="hint">
+            Wie weit zurück Mails und Berichte berücksichtigt werden (Puffer). Manueller Abruf nimmt mindestens 30 Tage.
+          </p>
         </div>
         <div class="form-group">
           <label for="leitstellenMatchWindow">Zuordnungsfenster (Stunden)</label>
