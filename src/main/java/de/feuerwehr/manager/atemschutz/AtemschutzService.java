@@ -1,5 +1,12 @@
 package de.feuerwehr.manager.atemschutz;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import de.feuerwehr.manager.berichte.AttendanceReport;
+import de.feuerwehr.manager.berichte.AttendanceReportRepository;
+import de.feuerwehr.manager.berichte.IncidentReport;
+import de.feuerwehr.manager.berichte.IncidentReportPersonnelRepository;
+import de.feuerwehr.manager.berichte.IncidentReportStatus;
 import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.personal.PersonCourseCompletionRepository;
 import de.feuerwehr.manager.personal.PersonalService;
@@ -9,6 +16,8 @@ import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.Period;
 import java.util.ArrayList;
@@ -42,6 +51,9 @@ public class AtemschutzService {
     private final AtemschutzSettingsService atemschutzSettingsService;
     private final UserRepository userRepository;
     private final TestModeService testModeService;
+    private final IncidentReportPersonnelRepository incidentReportPersonnelRepository;
+    private final AttendanceReportRepository attendanceReportRepository;
+    private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
     public int warnDays(long unitId) {
@@ -147,6 +159,93 @@ public class AtemschutzService {
         }
         List<FitnessRecordView> recordViews = records.stream().map(this::toRecordView).toList();
         return new CarrierDetailView(carrier, summaries, recordViews);
+    }
+
+    /**
+     * Einsätze und Anwesenheitslisten im Jahr, bei denen die Person PA getragen hat
+     * (nur freigegebene/archivierte Berichte).
+     */
+    @Transactional(readOnly = true)
+    public List<PaEinsatzRow> listPaEinsaetze(long unitId, long personId, int year, String returnUrl) {
+        LocalDate yearStart = LocalDate.of(year, 1, 1);
+        LocalDate yearEnd = LocalDate.of(year + 1, 1, 1);
+        boolean includeTest = testModeService.isEnabled();
+        List<IncidentReportStatus> statuses =
+                List.of(IncidentReportStatus.FREIGEGEBEN, IncidentReportStatus.ARCHIVIERT);
+
+        List<PaEinsatzRow> rows = new ArrayList<>();
+
+        for (IncidentReport report : incidentReportPersonnelRepository.findPaReportsByPersonAndYear(
+                personId, unitId, yearStart, yearEnd, statuses, includeTest)) {
+            String label = report.getStichwort() != null && !report.getStichwort().isBlank()
+                    ? report.getStichwort().trim()
+                    : "Einsatzbericht";
+            rows.add(new PaEinsatzRow(
+                    "einsatz",
+                    "Einsatz",
+                    report.getIncidentDate(),
+                    label,
+                    buildReportViewUrl("/berichte/einsatzberichte/" + report.getId(), unitId, returnUrl)));
+        }
+
+        for (AttendanceReport report :
+                attendanceReportRepository.findByUnitIdAndYear(unitId, yearStart, yearEnd, includeTest)) {
+            if (report.getStatus() != IncidentReportStatus.FREIGEGEBEN
+                    && report.getStatus() != IncidentReportStatus.ARCHIVIERT) {
+                continue;
+            }
+            if (!crewJsonContainsPaPerson(report.getCrewAssignmentsJson(), personId)) {
+                continue;
+            }
+            String label = report.getTitle() != null && !report.getTitle().isBlank()
+                    ? report.getTitle().trim()
+                    : "Anwesenheitsliste";
+            rows.add(new PaEinsatzRow(
+                    "anwesenheit",
+                    "Anwesenheitsliste",
+                    report.getEventDate(),
+                    label,
+                    buildReportViewUrl("/berichte/anwesenheitslisten/" + report.getId(), unitId, returnUrl)));
+        }
+
+        rows.sort(Comparator.comparing(PaEinsatzRow::date, Comparator.nullsLast(Comparator.naturalOrder()))
+                .reversed()
+                .thenComparing(PaEinsatzRow::label, String.CASE_INSENSITIVE_ORDER));
+        return rows;
+    }
+
+    private boolean crewJsonContainsPaPerson(String json, long personId) {
+        if (json == null || json.isBlank()) {
+            return false;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(json);
+            if (root == null || !root.isArray()) {
+                return false;
+            }
+            for (JsonNode assignment : root) {
+                JsonNode paIds = assignment.get("paPersonIds");
+                if (paIds == null || !paIds.isArray()) {
+                    continue;
+                }
+                for (JsonNode idNode : paIds) {
+                    if (idNode != null && idNode.isNumber() && idNode.longValue() == personId) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static String buildReportViewUrl(String path, long unitId, String returnUrl) {
+        String url = path + "?unit=" + unitId;
+        if (returnUrl != null && !returnUrl.isBlank()) {
+            url += "&returnUrl=" + URLEncoder.encode(returnUrl, StandardCharsets.UTF_8);
+        }
+        return url;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -702,4 +801,11 @@ public class AtemschutzService {
             String createdByDisplay,
             String sourceLabel,
             Long incidentReportId) {}
+
+    public record PaEinsatzRow(
+            String kind,
+            String kindLabel,
+            LocalDate date,
+            String label,
+            String viewUrl) {}
 }

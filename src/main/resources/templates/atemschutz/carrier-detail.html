@@ -115,6 +115,52 @@
     </div>
   </div>
 
+  <div class="card mt-md">
+    <div class="card__header card__header--toolbar">
+      <span>PA-Einsätze / Anwesenheitslisten</span>
+      <form method="get" class="filter-bar atemschutz-pa-year-filter"
+            th:action="@{/atemschutz/carriers/{id}(id=${carrier.id})}">
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <label class="sr-only" for="atemschutz-pa-year">Jahr</label>
+        <select id="atemschutz-pa-year" name="jahr" class="berichte-filter-select" aria-label="Jahr filtern"
+                onchange="this.form.submit()">
+          <option th:each="y : ${yearOptions}" th:value="${y}" th:text="${y}"
+                  th:selected="${y == filterYear}"></option>
+        </select>
+      </form>
+    </div>
+    <div class="card__body card__body--flush" th:if="${!#lists.isEmpty(paEinsaetze)}">
+      <table class="data-table" id="atemschutz-pa-einsaetze-table">
+        <thead>
+        <tr>
+          <th>Datum</th>
+          <th>Art</th>
+          <th>Bezeichnung</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="atemschutz-pa-row" th:each="row : ${paEinsaetze}"
+            tabindex="0" role="link"
+            th:attr="data-href=${row.viewUrl()}"
+            th:aria-label="|Bericht öffnen: ${row.label()}|">
+          <td th:text="${row.date() != null ? #temporals.format(row.date(), 'dd.MM.yyyy') : '—'}">01.01.2026</td>
+          <td th:text="${row.kindLabel()}">Einsatz</td>
+          <td th:text="${row.label()}">F1</td>
+        </tr>
+        </tbody>
+      </table>
+      <p class="hint" style="margin:12px 16px;">
+        Nur freigegebene Berichte · Klick öffnet den jeweiligen Bericht.
+      </p>
+    </div>
+    <div class="card__body" th:if="${#lists.isEmpty(paEinsaetze)}">
+      <p class="hint" style="margin:0;">
+        Keine PA-Einsätze oder Anwesenheitslisten mit PA im Jahr
+        <span th:text="${filterYear}">2026</span>.
+      </p>
+    </div>
+  </div>
+
   <div id="modal-add-record" class="modal-overlay" th:if="${canWrite}"
        th:attr="data-birthdate=${person.birthdate != null ? #temporals.format(person.birthdate, 'yyyy-MM-dd') : ''}">
     <div class="modal" role="dialog">

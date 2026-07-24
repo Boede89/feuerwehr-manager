@@ -3286,6 +3286,23 @@ span.required { color: var(--error); }
 #atemschutz-table tbody tr.member-row:nth-child(even) { background: transparent; }
 #atemschutz-table tbody tr.carrier-row.carrier-row--alt { background: var(--bg-card-hover); }
 #atemschutz-table tbody tr.carrier-row:hover { background: var(--rot-subtle); }
+.data-table tbody tr.atemschutz-pa-row {
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.data-table tbody tr.atemschutz-pa-row:hover,
+.data-table tbody tr.atemschutz-pa-row:focus-visible {
+  background: color-mix(in srgb, var(--primary, #b91c1c) 28%, transparent);
+  outline: none;
+}
+.atemschutz-pa-year-filter {
+  margin: 0;
+  padding: 0;
+  gap: 0.5rem;
+}
+.atemschutz-pa-year-filter .berichte-filter-select {
+  min-width: 5.5rem;
+}
 .data-row:nth-child(even) { background: var(--bg-card-hover); }
 .data-row:hover { background: var(--rot-subtle); }
 .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }

@@ -6,6 +6,20 @@
     });
   });
 
+  document.querySelectorAll('.atemschutz-pa-row[data-href]').forEach(function (row) {
+    function go() {
+      var href = row.getAttribute('data-href');
+      if (href) window.location.href = href;
+    }
+    row.addEventListener('click', go);
+    row.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        go();
+      }
+    });
+  });
+
   var modal = document.getElementById('modal-add-record');
   if (!modal) return;
 

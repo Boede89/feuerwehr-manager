@@ -22,6 +22,7 @@ import de.feuerwehr.manager.unit.UnitService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.EnumSet;
@@ -219,6 +220,7 @@ public class AtemschutzController {
             @AuthenticationPrincipal AppUserDetails actor,
             @PathVariable long id,
             @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "jahr", required = false) Integer jahr,
             Model model,
             RedirectAttributes redirectAttributes) {
         try {
@@ -229,6 +231,17 @@ public class AtemschutzController {
             accessControlService.requireUnitAccess(actor, carrier.getUnit().getId());
             Person person = carrier.getPerson();
             CarrierDetailView detail = atemschutzService.loadCarrierDetail(id);
+
+            int filterYear = jahr != null ? jahr : LocalDate.now().getYear();
+            int currentYear = LocalDate.now().getYear();
+            List<Integer> yearOptions = new ArrayList<>();
+            for (int y = currentYear; y >= currentYear - 10; y--) {
+                yearOptions.add(y);
+            }
+            String returnUrl = "/atemschutz/carriers/" + id + "?unit=" + unit.getId() + "&jahr=" + filterYear;
+            List<AtemschutzService.PaEinsatzRow> paEinsaetze = atemschutzService.listPaEinsaetze(
+                    unit.getId(), person.getId(), filterYear, returnUrl);
+
             model.addAttribute("carrier", carrier);
             model.addAttribute("person", person);
             model.addAttribute("detail", detail);
@@ -236,6 +249,9 @@ public class AtemschutzController {
             model.addAttribute("fitnessTypes", AtemschutzFitnessType.values());
             model.addAttribute("carrierStatuses", AtemschutzCarrierStatus.values());
             model.addAttribute("warnDays", atemschutzService.warnDays(unit.getId()));
+            model.addAttribute("filterYear", filterYear);
+            model.addAttribute("yearOptions", yearOptions);
+            model.addAttribute("paEinsaetze", paEinsaetze);
             return "atemschutz/carrier-detail";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
