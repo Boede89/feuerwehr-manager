@@ -105,6 +105,8 @@ class LeitstellenMailMatcherTest {
         assertEquals(17L, match.get().report().getId());
         assertEquals(LeitstellenMailKind.DEPESCHE, match.get().kind());
     }
+
+    private static UnitLeitstellenMailSettings baseSettings() {
         UnitLeitstellenMailSettings settings = new UnitLeitstellenMailSettings();
         settings.setMatchWindowHours(12);
         settings.setDepescheKeywords("depesche,alarmdepesche");
