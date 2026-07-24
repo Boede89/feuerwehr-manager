@@ -299,7 +299,9 @@
           <input id="leitstellenLookback" name="pollLookbackHours" type="number" min="1" max="720" class="field"
                  th:value="${leitstellenMail != null ? leitstellenMail.pollLookbackHours : 24}"/>
           <p class="hint">
-            Wie weit zurück Mails und Berichte berücksichtigt werden (Puffer). Manueller Abruf nimmt mindestens 30 Tage.
+            Automatischer Abruf: so weit zurück Mails und Berichte berücksichtigen (Puffer).
+            Manueller Abruf (Einstellungen / Einsatzbericht) sucht bis zu 1 Jahr zurück —
+            am Einsatzbericht ab dem Einsatzdatum.
           </p>
         </div>
         <div class="form-group">
@@ -352,8 +354,8 @@
                     formaction="/admin/unit/leitstellen-mail/poll">Jetzt abrufen</button>
           </div>
           <p class="hint">
-            Manueller Abruf prüft auch bereits bestehende und freigegebene Einsatzberichte und ergänzt fehlende Dateien.
-            Liegen Depeche und Abschlussbericht schon vor, passiert nichts.
+            Manueller Abruf prüft bis zu 1 Jahr zurück (auch freigegebene Berichte) und ergänzt fehlende Dateien.
+            Am Einsatzbericht wird ab dem Einsatzdatum gesucht. Liegen Depeche und Abschlussbericht schon vor, passiert nichts.
           </p>
         </div>
       </form>

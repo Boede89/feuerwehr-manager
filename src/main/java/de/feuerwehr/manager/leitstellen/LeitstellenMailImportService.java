@@ -26,8 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class LeitstellenMailImportService {
 
     private static final ZoneId ZONE = ZoneId.of("Europe/Berlin");
-    /** Manueller Abruf: mindestens 30 Tage zurück (Catch-up für vorhandene Mails). */
-    private static final int MANUAL_CATCHUP_LOOKBACK_HOURS = 24 * 30;
+    /** Manueller Abruf (Einstellungen): bis 1 Jahr zurück. */
+    private static final int MANUAL_CATCHUP_LOOKBACK_HOURS = 24 * 365;
     /** Manueller Abruf: größeres Zuordnungsfenster, falls FAX etwas später kam. */
     private static final int MANUAL_CATCHUP_MATCH_WINDOW_HOURS = 72;
 
@@ -99,7 +99,8 @@ public class LeitstellenMailImportService {
                     0,
                     "Depeche und Abschlussbericht sind bereits hinterlegt — kein Abruf nötig.");
         }
-        int lookbackHours = effectiveLookbackHours(settings, true);
+        // IMAP ab Einsatzdatum (max. 1 Jahr), nicht nur ab dem konfigurierten Kurz-Lookback
+        int lookbackHours = lookbackHoursForReport(report, settings);
         // Strenges Fenster: konfigurierter Wert, nicht das erweiterte Catch-up-Fenster
         int matchWindowHours = Math.max(1, settings.getMatchWindowHours());
         List<IncidentReport> neighbors = loadCandidates(unitId, lookbackHours);
@@ -205,7 +206,11 @@ public class LeitstellenMailImportService {
                 }
             }
             String focus = focusReportId != null ? " (nur dieser Einsatz)" : "";
-            String catchUpHint = catchUp ? " [Catch-up " + lookbackHours + "h]" : "";
+            String catchUpHint = "";
+            if (catchUp) {
+                int days = Math.max(1, (lookbackHours + 23) / 24);
+                catchUpHint = " [manuell, Lookback " + days + " Tag(e)]";
+            }
             String msg = String.format(
                     Locale.GERMAN,
                     "Abruf ok%s%s: %d Mail(s), %d PDF(s), %d importiert, %d übersprungen, %d ohne Treffer "
@@ -242,6 +247,20 @@ public class LeitstellenMailImportService {
             return Math.max(configured, MANUAL_CATCHUP_LOOKBACK_HOURS);
         }
         return configured;
+    }
+
+    /**
+     * Lookback vom Einsatzdatum (1 Tag Puffer) bis jetzt, maximal 1 Jahr.
+     * So werden Mails zum konkreten Einsatz gefunden, ohne unnötig das ganze Jahr zu laden,
+     * wenn der Einsatz erst vor wenigen Tagen war.
+     */
+    private static int lookbackHoursForReport(IncidentReport report, UnitLeitstellenMailSettings settings) {
+        LocalDate incidentDate = report.getIncidentDate() != null ? report.getIncidentDate() : LocalDate.now(ZONE);
+        Instant since = incidentDate.minusDays(1).atStartOfDay(ZONE).toInstant();
+        long hoursSince = Math.max(1L, java.time.Duration.between(since, Instant.now()).toHours() + 1);
+        int configured = Math.max(1, settings.getPollLookbackHours());
+        int needed = (int) Math.max(hoursSince, configured);
+        return Math.min(needed, MANUAL_CATCHUP_LOOKBACK_HOURS);
     }
 
     private static int effectiveMatchWindowHours(UnitLeitstellenMailSettings settings, boolean catchUp) {
