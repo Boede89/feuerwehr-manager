@@ -1,6 +1,7 @@
 package de.feuerwehr.manager.berichte;
 
 import de.feuerwehr.manager.config.StorageProperties;
+import de.feuerwehr.manager.leitstellen.LeitstellenAttachmentCleanup;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.user.UserRepository;
 import java.io.IOException;
@@ -40,6 +41,7 @@ public class EinsatzberichtAttachmentService {
     private final UserRepository userRepository;
     private final TestModeService testModeService;
     private final StorageProperties storageProperties;
+    private final LeitstellenAttachmentCleanup leitstellenImportCleanup;
 
     @Transactional(readOnly = true)
     public List<IncidentAttachmentDto> list(long unitId, long reportId) {
@@ -152,12 +154,14 @@ public class EinsatzberichtAttachmentService {
 
     @Transactional
     public void delete(long unitId, long reportId, long attachmentId) {
-        requireEditableReport(unitId, reportId);
+        IncidentReport report = requireDeletableAttachmentReport(unitId, reportId);
         IncidentReportAttachment attachment = attachmentRepository
                 .findByIdAndIncidentReportId(attachmentId, reportId)
                 .orElseThrow(() -> new IllegalArgumentException("Anhang nicht gefunden."));
+        String filename = attachment.getFilename();
         deleteStoredFile(reportId, attachment.getStoredName());
         attachmentRepository.delete(attachment);
+        leitstellenImportCleanup.onAttachmentDeleted(unitId, reportId, filename);
     }
 
     @Transactional
@@ -180,6 +184,19 @@ public class EinsatzberichtAttachmentService {
         }
         if (report.getStatus() != IncidentReportStatus.ENTWURF) {
             throw new IllegalArgumentException("Anhänge können nur bei Entwürfen bearbeitet werden.");
+        }
+        return report;
+    }
+
+    /** Löschen von Anhängen: Entwurf und freigegeben (z. B. falsche Leitstellen-PDFs). */
+    private IncidentReport requireDeletableAttachmentReport(long unitId, long reportId) {
+        IncidentReport report = requireReport(unitId, reportId);
+        if (testModeService.isEnabled() && !report.isTestData()) {
+            throw new IllegalArgumentException(
+                    "Produktiv-Einsatzberichte können im Testmodus nur angesehen werden.");
+        }
+        if (report.getStatus() == IncidentReportStatus.ARCHIVIERT) {
+            throw new IllegalArgumentException("Anhänge archivierter Berichte können nicht gelöscht werden.");
         }
         return report;
     }

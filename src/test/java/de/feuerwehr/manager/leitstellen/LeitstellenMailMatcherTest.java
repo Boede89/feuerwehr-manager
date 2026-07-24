@@ -54,7 +54,57 @@ class LeitstellenMailMatcherTest {
         assertEquals(LeitstellenMailKind.ABSCHLUSS, match.get().kind());
     }
 
-    private static UnitLeitstellenMailSettings baseSettings() {
+    @Test
+    void mailBelongsToEarlierEinsatzNotLaterOne() {
+        UnitLeitstellenMailSettings settings = baseSettings();
+        IncidentReport earlier = report();
+        earlier.setId(17L);
+        earlier.setIncidentDate(LocalDate.of(2026, 7, 17));
+        earlier.setAlarmTime(LocalTime.of(10, 0));
+        earlier.setEndTime(LocalTime.of(12, 0));
+
+        IncidentReport later = report();
+        later.setId(19L);
+        later.setIncidentDate(LocalDate.of(2026, 7, 19));
+        later.setAlarmTime(LocalTime.of(14, 30));
+        later.setEndTime(LocalTime.of(16, 0));
+
+        // Mail nahe Alarm des 17.7. — auch wenn der 17er schon „fertig“ ist, darf sie nicht dem 19er gehören
+        var mail = faxMail(Instant.parse("2026-07-17T08:10:00Z")); // 10:10 Berlin
+        Optional<LeitstellenMailMatcher.MatchResult> match = matcher.match(
+                settings,
+                mail,
+                pdf(),
+                List.of(earlier, later),
+                id -> id == 17L,
+                id -> id == 17L);
+
+        assertTrue(match.isEmpty());
+    }
+
+    @Test
+    void mailMatchesEarlierIncompleteEinsatz() {
+        UnitLeitstellenMailSettings settings = baseSettings();
+        IncidentReport earlier = report();
+        earlier.setId(17L);
+        earlier.setIncidentDate(LocalDate.of(2026, 7, 17));
+        earlier.setAlarmTime(LocalTime.of(10, 0));
+        earlier.setEndTime(LocalTime.of(12, 0));
+
+        IncidentReport later = report();
+        later.setId(19L);
+        later.setIncidentDate(LocalDate.of(2026, 7, 19));
+        later.setAlarmTime(LocalTime.of(14, 30));
+        later.setEndTime(LocalTime.of(16, 0));
+
+        var mail = faxMail(Instant.parse("2026-07-17T08:10:00Z"));
+        Optional<LeitstellenMailMatcher.MatchResult> match =
+                matcher.match(settings, mail, pdf(), List.of(earlier, later), id -> false, id -> false);
+
+        assertTrue(match.isPresent());
+        assertEquals(17L, match.get().report().getId());
+        assertEquals(LeitstellenMailKind.DEPESCHE, match.get().kind());
+    }
         UnitLeitstellenMailSettings settings = new UnitLeitstellenMailSettings();
         settings.setMatchWindowHours(12);
         settings.setDepescheKeywords("depesche,alarmdepesche");

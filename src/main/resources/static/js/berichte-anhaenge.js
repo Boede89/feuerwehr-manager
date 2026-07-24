@@ -69,8 +69,16 @@
     return wrap.dataset.readonly === 'true';
   }
 
+  function canDelete(wrap) {
+    if (wrap.dataset.allowDelete === 'true') {
+      return true;
+    }
+    return !isReadonly(wrap);
+  }
+
   function render(wrap, attachments) {
     var readonly = isReadonly(wrap);
+    var allowDelete = canDelete(wrap);
     var listHtml = attachments.length
       ? '<div class="incident-attachments-list">' + attachments.map(function (a) {
         return '<div class="incident-attachment-card">' +
@@ -80,7 +88,7 @@
             '<div class="incident-attachment-card__details">' + esc(fmtSize(a.fileSize)) + ' · ' + esc(fmtDate(a.createdAt)) + '</div>' +
           '</div>' +
           '<button type="button" class="btn btn--outline btn--sm" data-action="download" data-id="' + a.id + '" data-name="' + esc(a.filename) + '">↓ Download</button>' +
-          (readonly ? '' : '<button type="button" class="btn btn--danger btn--sm" data-action="delete" data-id="' + a.id + '">✕</button>') +
+          (allowDelete ? '<button type="button" class="btn btn--danger btn--sm" data-action="delete" data-id="' + a.id + '">✕</button>' : '') +
         '</div>';
       }).join('') + '</div>'
       : '<p class="incident-attachments-empty">Keine Anhänge vorhanden.</p>';

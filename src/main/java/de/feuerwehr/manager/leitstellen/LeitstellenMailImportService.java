@@ -65,13 +65,14 @@ public class LeitstellenMailImportService {
         int lookbackHours = effectiveLookbackHours(settings, catchUp);
         int matchWindowHours = effectiveMatchWindowHours(settings, catchUp);
         List<IncidentReport> allInWindow = loadCandidates(unitId, lookbackHours);
-        List<IncidentReport> candidates =
-                allInWindow.stream().filter(r -> !alreadyComplete(r.getId())).toList();
-        return pollInternal(settings, candidates, null, lookbackHours, matchWindowHours, allInWindow.size(), catchUp);
+        return pollInternal(
+                settings, allInWindow, null, lookbackHours, matchWindowHours, allInWindow.size(), catchUp);
     }
 
     /**
      * Einmaliger Abruf nur für einen Einsatzbericht (auch freigegeben), sofern Dateien fehlen.
+     * Zuordnung nur, wenn dieser Bericht unter allen Einsätzen im Zeitraum der beste Treffer ist
+     * (verhindert Zuordnung von Mails eines anderen Einsatzes).
      */
     @Transactional
     public PollResult pollForReport(long unitId, long reportId) {
@@ -97,8 +98,14 @@ public class LeitstellenMailImportService {
                     "Depeche und Abschlussbericht sind bereits hinterlegt — kein Abruf nötig.");
         }
         int lookbackHours = effectiveLookbackHours(settings, true);
-        int matchWindowHours = effectiveMatchWindowHours(settings, true);
-        return pollInternal(settings, List.of(report), reportId, lookbackHours, matchWindowHours, 1, true);
+        // Strenges Fenster: konfigurierter Wert, nicht das erweiterte Catch-up-Fenster
+        int matchWindowHours = Math.max(1, settings.getMatchWindowHours());
+        List<IncidentReport> neighbors = loadCandidates(unitId, lookbackHours);
+        if (neighbors.stream().noneMatch(r -> r.getId() == reportId)) {
+            neighbors = new java.util.ArrayList<>(neighbors);
+            neighbors.add(report);
+        }
+        return pollInternal(settings, neighbors, reportId, lookbackHours, matchWindowHours, neighbors.size(), true);
     }
 
     public void testConnection(long unitId) {
@@ -130,21 +137,24 @@ public class LeitstellenMailImportService {
             int pdfCount = mails.stream().mapToInt(m -> m.pdfs().size()).sum();
 
             if (candidates.isEmpty()) {
-                String reason = reportsInWindow == 0
-                        ? String.format(
-                                Locale.GERMAN,
-                                "Keine Einsatzberichte (Entwurf/freigegeben) in den letzten %d Tagen. "
-                                        + "Mails geprüft: %d mit %d PDF(s). Lookback in den Einstellungen erhöhen?",
-                                Math.max(1, (lookbackHours + 23) / 24),
-                                mails.size(),
-                                pdfCount)
-                        : String.format(
-                                Locale.GERMAN,
-                                "Für alle %d Berichte im Zeitraum liegen Depeche und Abschlussbericht bereits vor. "
-                                        + "Mails geprüft: %d mit %d PDF(s).",
-                                reportsInWindow,
-                                mails.size(),
-                                pdfCount);
+                String reason = String.format(
+                        Locale.GERMAN,
+                        "Keine Einsatzberichte (Entwurf/freigegeben) in den letzten %d Tagen. "
+                                + "Mails geprüft: %d mit %d PDF(s). Lookback in den Einstellungen erhöhen?",
+                        Math.max(1, (lookbackHours + 23) / 24),
+                        mails.size(),
+                        pdfCount);
+                return finish(settings, mails.size(), pdfCount, 0, 0, 0, reason);
+            }
+            long incompleteCount = candidates.stream().filter(r -> !alreadyComplete(r.getId())).count();
+            if (incompleteCount == 0) {
+                String reason = String.format(
+                        Locale.GERMAN,
+                        "Für alle %d Berichte im Zeitraum liegen Depeche und Abschlussbericht bereits vor. "
+                                + "Mails geprüft: %d mit %d PDF(s).",
+                        reportsInWindow,
+                        mails.size(),
+                        pdfCount);
                 return finish(settings, mails.size(), pdfCount, 0, 0, 0, reason);
             }
 
@@ -204,7 +214,7 @@ public class LeitstellenMailImportService {
                     imported,
                     skipped,
                     unmatched,
-                    candidates.size());
+                    incompleteCount);
             return finish(settings, mails.size(), pdfCount, imported, skipped, unmatched, msg);
         } catch (Exception e) {
             log.warn("Leitstellen-Mail Abruf unit={} fehlgeschlagen: {}", unitId, e.getMessage());

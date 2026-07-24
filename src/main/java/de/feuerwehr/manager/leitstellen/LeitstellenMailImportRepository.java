@@ -9,4 +9,7 @@ public interface LeitstellenMailImportRepository extends JpaRepository<Leitstell
     boolean existsByUnitIdAndMessageIdAndAttachmentName(long unitId, String messageId, String attachmentName);
 
     boolean existsByIncidentReportIdAndKind(long incidentReportId, LeitstellenMailKind kind);
+
+    java.util.Optional<LeitstellenMailImport> findByIncidentReportIdAndKind(
+            long incidentReportId, LeitstellenMailKind kind);
 }

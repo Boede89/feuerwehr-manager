@@ -60,27 +60,47 @@ public class LeitstellenMailMatcher {
         for (IncidentReport report : candidates) {
             boolean depescheDone = Boolean.TRUE.equals(hasDepesche.apply(report.getId()));
             boolean abschlussDone = Boolean.TRUE.equals(hasAbschluss.apply(report.getId()));
-            if (depescheDone && abschlussDone) {
+
+            // Besitz anhand der Zeit (unabhängig davon, ob Dateien schon da sind) —
+            // verhindert, dass Mails eines früheren Einsatzes einem späteren zugeordnet werden.
+            LeitstellenMailKind ownershipKind = decideKind(settings, haystack, report, mail, false);
+            int ownershipScore =
+                    scoreForKind(report, mail, haystack, ownershipKind, baseWindowHours, abschlussWindowHours, faxStyle);
+            if (ownershipScore <= 0) {
                 continue;
             }
 
-            LeitstellenMailKind kind = decideKind(settings, haystack, report, mail, depescheDone);
-            if (kind == LeitstellenMailKind.ABSCHLUSS && abschlussDone) {
+            LeitstellenMailKind attachKind = ownershipKind;
+            if (depescheDone && abschlussDone) {
+                // Nur zur Disambiguierung mitzählen, nicht anhängen
+                scored.add(new Scored(report, ownershipKind, ownershipScore, true));
                 continue;
             }
-            if (kind == LeitstellenMailKind.DEPESCHE && depescheDone) {
-                // Sollte durch decideKind nicht vorkommen, Absicherung
-                kind = LeitstellenMailKind.ABSCHLUSS;
-                if (abschlussDone) {
+            if (attachKind == LeitstellenMailKind.DEPESCHE && depescheDone) {
+                attachKind = LeitstellenMailKind.ABSCHLUSS;
+            }
+            if (attachKind == LeitstellenMailKind.ABSCHLUSS && abschlussDone) {
+                if (!depescheDone) {
+                    attachKind = LeitstellenMailKind.DEPESCHE;
+                    int depescheScore = scoreForKind(
+                            report, mail, haystack, LeitstellenMailKind.DEPESCHE, baseWindowHours, abschlussWindowHours, faxStyle);
+                    if (depescheScore <= 0) {
+                        scored.add(new Scored(report, ownershipKind, ownershipScore, true));
+                        continue;
+                    }
+                    ownershipScore = depescheScore;
+                } else {
+                    scored.add(new Scored(report, ownershipKind, ownershipScore, true));
                     continue;
                 }
             }
-
-            int score = scoreForKind(report, mail, haystack, kind, baseWindowHours, abschlussWindowHours, faxStyle);
-            if (score <= 0) {
+            int attachScore = scoreForKind(
+                    report, mail, haystack, attachKind, baseWindowHours, abschlussWindowHours, faxStyle);
+            if (attachScore <= 0) {
+                scored.add(new Scored(report, ownershipKind, ownershipScore, true));
                 continue;
             }
-            scored.add(new Scored(report, kind, score));
+            scored.add(new Scored(report, attachKind, Math.max(ownershipScore, attachScore), false));
         }
         if (scored.isEmpty()) {
             return Optional.empty();
@@ -90,6 +110,10 @@ public class LeitstellenMailMatcher {
                 .thenComparing(s -> bestTimeDistanceMinutes(s.report(), mail, s.kind()), Comparator.naturalOrder()));
 
         Scored best = scored.get(0);
+        // Anderer Einsatz ist zeitlich näher → dieser Mail-Anhang gehört nicht hierher
+        if (best.ownershipOnly()) {
+            return Optional.empty();
+        }
         int minScore = faxStyle ? 10 : 15;
         if (best.score() < minScore) {
             return Optional.empty();
@@ -300,5 +324,5 @@ public class LeitstellenMailMatcher {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    private record Scored(IncidentReport report, LeitstellenMailKind kind, int score) {}
+    private record Scored(IncidentReport report, LeitstellenMailKind kind, int score, boolean ownershipOnly) {}
 }
