@@ -160,7 +160,8 @@ public class AnwesenheitslisteService {
         String storedCrewJson = report.getCrewAssignmentsJson();
         if (storedCrewJson != null && !storedCrewJson.isBlank()) {
             List<CrewAssignment> assignments = einsatzberichtService.parseCrewAssignments(storedCrewJson);
-            if (!assignments.isEmpty()) {
+            // Nicht nur „JSON vorhanden“ — leere Fahrzeug-Hüllen ohne Personen zählen nicht.
+            if (hasAssignedPersons(assignments)) {
                 manualPoolPersonIds = expandPoolWithAssignedPersons(manualPoolPersonIds, assignments);
                 return einsatzberichtService.buildKraefteFahrzeugeStateForAnwesenheitWithAssignments(
                         unitId, assignments, manualPoolPersonIds, frozenDisplayNames);
@@ -688,69 +689,139 @@ public class AnwesenheitslisteService {
     }
 
     /**
-     * Anwesende Personen für Auswertung: wie im PDF (Slot „Anwesend“ + beteiligte Fahrzeuge).
-     * Reine Termin-Vorauswahl ohne echte Erfassung zählt als 0.
+     * Anwesende Personen für Auswertung.
+     * Quelle 1: Kräfte-JSON (Anwesend-Slot, Wache/Einsatzstelle, Fahrzeuge mit Besatzung).
+     * Quelle 2: Personal-Tabelle mit Status PRESENT (Fallback).
+     * Reine Termin-Zielgruppen-Vorauswahl ohne echte Erfassung zählt als 0.
      */
     @Transactional(readOnly = true)
     public AnwesenheitPresenceSummary presenceSummary(long unitId, long reportId) {
         AttendanceReport report = requireReport(unitId, reportId);
-        if (isLegacyTerminPersonnelPreload(report, unitId)) {
+        List<CrewAssignment> assignments =
+                einsatzberichtService.parseCrewAssignments(report.getCrewAssignmentsJson());
+
+        LinkedHashSet<Long> presentIds = new LinkedHashSet<>();
+        LinkedHashSet<Long> paIds = new LinkedHashSet<>();
+        LinkedHashSet<Long> vehicleIdsWithCrew = new LinkedHashSet<>();
+
+        if (hasAssignedPersons(assignments)) {
+            for (CrewAssignment assignment : assignments) {
+                long vehicleId = assignment.vehicleId();
+                List<Long> personIds =
+                        assignment.personIds() != null ? assignment.personIds() : List.of();
+                boolean countsAsPresent = vehicleId == IncidentCrewSupport.BETEILIGT_VEHICLE_ID
+                        || vehicleId == IncidentCrewSupport.EINSATZSTELLE_VEHICLE_ID
+                        || vehicleId == IncidentCrewSupport.WACHE_VEHICLE_ID
+                        || vehicleId > 0;
+                if (!countsAsPresent) {
+                    continue;
+                }
+                for (Long personId : personIds) {
+                    if (personId != null && personId != 0L) {
+                        presentIds.add(personId);
+                    }
+                }
+                if (assignment.paPersonIds() != null) {
+                    for (Long paId : assignment.paPersonIds()) {
+                        if (paId != null && paId != 0L) {
+                            paIds.add(paId);
+                        }
+                    }
+                }
+                if (vehicleId > 0 && !personIds.isEmpty()) {
+                    vehicleIdsWithCrew.add(vehicleId);
+                }
+            }
+        }
+
+        Map<Long, String> nameById = new LinkedHashMap<>();
+        if (presentIds.isEmpty()) {
+            if (isLegacyTerminPersonnelPreload(report, unitId)) {
+                return AnwesenheitPresenceSummary.empty();
+            }
+            for (AttendanceReportPersonnel row : listPersonnel(reportId)) {
+                if (row.getAttendanceStatus() != AttendancePersonStatus.PRESENT) {
+                    continue;
+                }
+                if (row.getPerson() == null) {
+                    continue;
+                }
+                long personId = row.getPerson().getId();
+                presentIds.add(personId);
+                if (row.getDisplayName() != null && !row.getDisplayName().isBlank()) {
+                    nameById.put(personId, row.getDisplayName().trim());
+                }
+            }
+        } else {
+            for (AttendanceReportPersonnel row : listPersonnel(reportId)) {
+                if (row.getPerson() == null) {
+                    continue;
+                }
+                if (row.getDisplayName() != null && !row.getDisplayName().isBlank()) {
+                    nameById.putIfAbsent(row.getPerson().getId(), row.getDisplayName().trim());
+                }
+            }
+        }
+
+        if (presentIds.isEmpty()) {
             return AnwesenheitPresenceSummary.empty();
         }
-        KraefteFahrzeugeState state = buildKraefteFahrzeugeState(unitId, reportId);
-        LinkedHashMap<Long, KraefteFahrzeugeState.KraeftePersonView> presentById = new LinkedHashMap<>();
-        addPresentPersons(state.beteiligt(), presentById);
-        for (KraefteFahrzeugeState.KraefteVehicleView vehicle : state.involvedVehicles()) {
-            addPresentPersons(vehicle, presentById);
+
+        Map<Long, Person> personById = new LinkedHashMap<>();
+        personRepository
+                .findActiveByIdIn(presentIds, includeTestReports())
+                .forEach(person -> personById.put(person.getId(), person));
+        for (Long personId : presentIds) {
+            if (!personById.containsKey(personId)) {
+                personRepository.findById(personId).ifPresent(person -> personById.put(personId, person));
+            }
         }
 
-        List<String> personen = presentById.values().stream()
-                .map(KraefteFahrzeugeState.KraeftePersonView::displayName)
-                .filter(name -> name != null && !name.isBlank())
-                .map(String::trim)
-                .sorted(String.CASE_INSENSITIVE_ORDER)
-                .toList();
-        List<String> paTraeger = presentById.values().stream()
-                .filter(KraefteFahrzeugeState.KraeftePersonView::usesPa)
-                .map(KraefteFahrzeugeState.KraeftePersonView::displayName)
-                .filter(name -> name != null && !name.isBlank())
-                .map(String::trim)
-                .sorted(String.CASE_INSENSITIVE_ORDER)
-                .toList();
-        List<String> fahrzeuge = state.involvedVehicles().stream()
-                .filter(v -> v.vehicleId() > 0 && !IncidentCrewSupport.isVirtualSlot(v.vehicleId()))
-                .map(KraefteFahrzeugeState.KraefteVehicleView::name)
-                .filter(name -> name != null && !name.isBlank())
-                .map(String::trim)
-                .distinct()
-                .sorted(String.CASE_INSENSITIVE_ORDER)
-                .toList();
-
+        List<String> personen = new ArrayList<>();
         int zf = 0;
         int gf = 0;
-        for (KraefteFahrzeugeState.KraeftePersonView person : presentById.values()) {
-            String tier = person.qualTier() != null ? person.qualTier().trim().toUpperCase() : "";
-            if ("ZF".equals(tier)) {
-                zf++;
-            } else if ("GF".equals(tier)) {
-                gf++;
+        for (Long personId : presentIds) {
+            Person person = personById.get(personId);
+            String name = nameById.get(personId);
+            if (name == null || name.isBlank()) {
+                name = person != null ? person.anwesenheitDisplayName() : ("#" + personId);
+            }
+            personen.add(name);
+            switch (Besatzungsstaerke.qualTier(person)) {
+                case ZF -> zf++;
+                case GF -> gf++;
+                default -> {
+                    // Mannschaft
+                }
             }
         }
-        return new AnwesenheitPresenceSummary(personen, paTraeger, fahrzeuge, zf, gf);
-    }
+        personen.sort(String.CASE_INSENSITIVE_ORDER);
 
-    private static void addPresentPersons(
-            KraefteFahrzeugeState.KraefteVehicleView vehicle,
-            Map<Long, KraefteFahrzeugeState.KraeftePersonView> presentById) {
-        if (vehicle == null || vehicle.crewPersons() == null) {
-            return;
+        List<String> paTraeger = paIds.stream()
+                .map(id -> {
+                    if (nameById.containsKey(id)) {
+                        return nameById.get(id);
+                    }
+                    Person person = personById.get(id);
+                    return person != null ? person.anwesenheitDisplayName() : null;
+                })
+                .filter(Objects::nonNull)
+                .filter(name -> !name.isBlank())
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .toList();
+
+        Map<Long, String> vehicleNameById = new LinkedHashMap<>();
+        for (de.feuerwehr.manager.technik.Vehicle vehicle :
+                einsatzberichtService.listVehiclesForForm(unitId)) {
+            vehicleNameById.put(vehicle.getId(), vehicle.getName());
         }
-        for (KraefteFahrzeugeState.KraeftePersonView person : vehicle.crewPersons()) {
-            if (person == null) {
-                continue;
-            }
-            presentById.putIfAbsent(person.id(), person);
-        }
+        List<String> fahrzeuge = vehicleIdsWithCrew.stream()
+                .map(id -> vehicleNameById.getOrDefault(id, "Fahrzeug #" + id))
+                .filter(name -> name != null && !name.isBlank())
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .toList();
+
+        return new AnwesenheitPresenceSummary(personen, paTraeger, fahrzeuge, zf, gf);
     }
 
     private static boolean hasAssignedPersons(List<CrewAssignment> assignments) {
@@ -762,7 +833,7 @@ public class AnwesenheitslisteService {
                 continue;
             }
             for (Long personId : assignment.personIds()) {
-                if (personId != null && personId > 0) {
+                if (personId != null && personId != 0L) {
                     return true;
                 }
             }
