@@ -1,29 +1,39 @@
 package de.feuerwehr.manager.auswertung;
 
 import de.feuerwehr.manager.atemschutz.AtemschutzService;
+import de.feuerwehr.manager.berichte.AnwesenheitslisteService;
 import de.feuerwehr.manager.berichte.AttendancePersonStatus;
 import de.feuerwehr.manager.berichte.AttendanceReport;
 import de.feuerwehr.manager.berichte.AttendanceReportPersonnel;
 import de.feuerwehr.manager.berichte.AttendanceReportPersonnelRepository;
 import de.feuerwehr.manager.berichte.AttendanceReportRepository;
 import de.feuerwehr.manager.berichte.Besatzungsstaerke;
+import de.feuerwehr.manager.berichte.IncidentCrewSupport;
 import de.feuerwehr.manager.berichte.IncidentReport;
 import de.feuerwehr.manager.berichte.IncidentReportPersonnel;
 import de.feuerwehr.manager.berichte.IncidentReportPersonnelRepository;
 import de.feuerwehr.manager.berichte.IncidentReportRepository;
+import de.feuerwehr.manager.berichte.IncidentReportVehicle;
+import de.feuerwehr.manager.berichte.IncidentReportVehicleRepository;
+import de.feuerwehr.manager.berichte.KraefteFahrzeugeState;
 import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.settings.AppModule;
 import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.termine.TermineCategory;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,10 +42,14 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AuswertungService {
 
+    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
+
     private final IncidentReportRepository incidentReportRepository;
     private final IncidentReportPersonnelRepository incidentReportPersonnelRepository;
+    private final IncidentReportVehicleRepository incidentReportVehicleRepository;
     private final AttendanceReportRepository attendanceReportRepository;
     private final AttendanceReportPersonnelRepository attendanceReportPersonnelRepository;
+    private final AnwesenheitslisteService anwesenheitslisteService;
     private final PersonalService personalService;
     private final AtemschutzService atemschutzService;
     private final ModuleSettingsService moduleSettingsService;
@@ -79,20 +93,23 @@ public class AuswertungService {
     }
 
     @Transactional(readOnly = true)
-    public List<AuswertungEinsatzRow> listDetailRows(long unitId, int year, AuswertungOverviewDetail detail) {
+    public List<AuswertungEinsatzRow> listDetailRows(
+            long unitId, int year, AuswertungOverviewDetail detail) {
         if (detail == null) {
             return List.of();
         }
         if (detail == AuswertungOverviewDetail.UEBUNGSDIENSTE) {
-            return listUebungsdienstRows(unitId, year);
+            return listUebungsdienstRows(unitId, year, detail);
         }
         return listEinsatzRows(unitId, year, detail);
     }
 
-    private List<AuswertungEinsatzRow> listEinsatzRows(long unitId, int year, AuswertungOverviewDetail detail) {
+    private List<AuswertungEinsatzRow> listEinsatzRows(
+            long unitId, int year, AuswertungOverviewDetail detail) {
         LocalDate yearStart = LocalDate.of(year, 1, 1);
         LocalDate yearEndExclusive = LocalDate.of(year + 1, 1, 1);
         boolean includeTest = testModeService.isEnabled();
+        String returnUrl = buildReturnUrl(unitId, year, detail);
 
         List<IncidentReport> reports = incidentReportRepository
                 .findByUnitIdAndYear(unitId, yearStart, yearEndExclusive, includeTest)
@@ -111,12 +128,45 @@ public class AuswertungService {
                     .computeIfAbsent(row.getIncidentReport().getId(), id -> new ArrayList<>())
                     .add(row);
         }
+        Map<Long, List<IncidentReportVehicle>> vehiclesByReport = new HashMap<>();
+        for (IncidentReportVehicle row :
+                incidentReportVehicleRepository.findByIncidentReportIdIn(reportIds)) {
+            vehiclesByReport
+                    .computeIfAbsent(row.getIncidentReport().getId(), id -> new ArrayList<>())
+                    .add(row);
+        }
 
         List<AuswertungEinsatzRow> rows = new ArrayList<>(reports.size());
         for (IncidentReport report : reports) {
             List<IncidentReportPersonnel> crew =
                     personnelByReport.getOrDefault(report.getId(), List.of());
-            int personal = crew.size();
+            List<String> personen = crew.stream()
+                    .map(this::personnelDisplayName)
+                    .sorted(String.CASE_INSENSITIVE_ORDER)
+                    .toList();
+            List<String> paTraeger = crew.stream()
+                    .filter(IncidentReportPersonnel::isUsesPa)
+                    .map(this::personnelDisplayName)
+                    .sorted(String.CASE_INSENSITIVE_ORDER)
+                    .toList();
+            List<String> fahrzeuge = vehiclesByReport.getOrDefault(report.getId(), List.of()).stream()
+                    .filter(IncidentReportVehicle::isInvolved)
+                    .map(IncidentReportVehicle::getVehicleName)
+                    .filter(name -> name != null && !name.isBlank())
+                    .map(String::trim)
+                    .distinct()
+                    .sorted(String.CASE_INSENSITIVE_ORDER)
+                    .toList();
+            if (fahrzeuge.isEmpty()) {
+                fahrzeuge = vehiclesByReport.getOrDefault(report.getId(), List.of()).stream()
+                        .map(IncidentReportVehicle::getVehicleName)
+                        .filter(name -> name != null && !name.isBlank())
+                        .map(String::trim)
+                        .distinct()
+                        .sorted(String.CASE_INSENSITIVE_ORDER)
+                        .toList();
+            }
+
             int zf = 0;
             int gf = 0;
             for (IncidentReportPersonnel member : crew) {
@@ -128,18 +178,29 @@ public class AuswertungService {
                     }
                 }
             }
+
             rows.add(new AuswertungEinsatzRow(
+                    report.getId(),
+                    "einsatz",
                     report.getIncidentDate(),
                     blankToDash(report.getStichwort()),
                     formatDauerStunden(report.getAlarmTime(), report.getEndTime()),
-                    personal,
+                    personen.size(),
                     zf,
-                    gf));
+                    gf,
+                    formatTime(report.getAlarmTime()),
+                    formatTime(report.getEndTime()),
+                    personen,
+                    paTraeger,
+                    fahrzeuge,
+                    buildViewUrl("/berichte/einsatzberichte/" + report.getId(), unitId, returnUrl),
+                    "Zum Einsatzbericht"));
         }
         return rows;
     }
 
-    private List<AuswertungEinsatzRow> listUebungsdienstRows(long unitId, int year) {
+    private List<AuswertungEinsatzRow> listUebungsdienstRows(
+            long unitId, int year, AuswertungOverviewDetail detail) {
         LocalDate yearStart = LocalDate.of(year, 1, 1);
         LocalDate yearEndExclusive = LocalDate.of(year + 1, 1, 1);
         LocalDateRange range = uebungDateRange(yearStart, yearEndExclusive, LocalDate.now());
@@ -147,6 +208,7 @@ public class AuswertungService {
             return List.of();
         }
         boolean includeTest = testModeService.isEnabled();
+        String returnUrl = buildReturnUrl(unitId, year, detail);
 
         List<AttendanceReport> reports = attendanceReportRepository
                 .findByUnitIdAndDateRange(unitId, range.from(), range.to(), includeTest)
@@ -172,7 +234,11 @@ public class AuswertungService {
         for (AttendanceReport report : reports) {
             List<AttendanceReportPersonnel> crew =
                     personnelByReport.getOrDefault(report.getId(), List.of());
-            int personal = crew.size();
+            List<String> personen = crew.stream()
+                    .map(this::attendanceDisplayName)
+                    .sorted(String.CASE_INSENSITIVE_ORDER)
+                    .toList();
+
             int zf = 0;
             int gf = 0;
             for (AttendanceReportPersonnel member : crew) {
@@ -184,15 +250,101 @@ public class AuswertungService {
                     }
                 }
             }
+
+            List<String> paTraeger = List.of();
+            List<String> fahrzeuge = List.of();
+            try {
+                KraefteFahrzeugeState state =
+                        anwesenheitslisteService.buildKraefteFahrzeugeState(unitId, report.getId());
+                Set<String> paNames = new LinkedHashSet<>();
+                Set<String> vehicleNames = new LinkedHashSet<>();
+                collectFromVehicle(state.beteiligt(), paNames, vehicleNames, false);
+                collectFromVehicle(state.einsatzstelle(), paNames, vehicleNames, false);
+                collectFromVehicle(state.wache(), paNames, vehicleNames, false);
+                for (KraefteFahrzeugeState.KraefteVehicleView vehicle : state.involvedVehicles()) {
+                    collectFromVehicle(vehicle, paNames, vehicleNames, true);
+                }
+                paTraeger = paNames.stream().sorted(String.CASE_INSENSITIVE_ORDER).toList();
+                fahrzeuge = vehicleNames.stream().sorted(String.CASE_INSENSITIVE_ORDER).toList();
+            } catch (RuntimeException ignored) {
+                // Listen bleiben leer
+            }
+
             rows.add(new AuswertungEinsatzRow(
+                    report.getId(),
+                    "uebung",
                     report.getEventDate(),
                     blankToDash(report.getTitle()),
                     formatDauerStunden(report.getStartTime(), report.getEndTime()),
-                    personal,
+                    personen.size(),
                     zf,
-                    gf));
+                    gf,
+                    formatTime(report.getStartTime()),
+                    formatTime(report.getEndTime()),
+                    personen,
+                    paTraeger,
+                    fahrzeuge,
+                    buildViewUrl("/berichte/anwesenheitslisten/" + report.getId(), unitId, returnUrl),
+                    "Zur Anwesenheitsliste"));
         }
         return rows;
+    }
+
+    private static void collectFromVehicle(
+            KraefteFahrzeugeState.KraefteVehicleView vehicle,
+            Set<String> paNames,
+            Set<String> vehicleNames,
+            boolean includeVehicleName) {
+        if (vehicle == null) {
+            return;
+        }
+        if (includeVehicleName
+                && vehicle.vehicleId() > 0
+                && !IncidentCrewSupport.isVirtualSlot(vehicle.vehicleId())
+                && vehicle.name() != null
+                && !vehicle.name().isBlank()) {
+            vehicleNames.add(vehicle.name().trim());
+        }
+        if (vehicle.crewPersons() == null) {
+            return;
+        }
+        for (KraefteFahrzeugeState.KraeftePersonView person : vehicle.crewPersons()) {
+            if (person.usesPa() && person.displayName() != null && !person.displayName().isBlank()) {
+                paNames.add(person.displayName().trim());
+            }
+        }
+    }
+
+    private String personnelDisplayName(IncidentReportPersonnel row) {
+        if (row.getDisplayName() != null && !row.getDisplayName().isBlank()) {
+            return row.getDisplayName().trim();
+        }
+        if (row.getPerson() != null) {
+            return row.getPerson().displayName();
+        }
+        return "Unbekannt";
+    }
+
+    private String attendanceDisplayName(AttendanceReportPersonnel row) {
+        if (row.getDisplayName() != null && !row.getDisplayName().isBlank()) {
+            return row.getDisplayName().trim();
+        }
+        if (row.getPerson() != null) {
+            return row.getPerson().displayName();
+        }
+        return "Unbekannt";
+    }
+
+    private static String buildReturnUrl(long unitId, int year, AuswertungOverviewDetail detail) {
+        return "/auswertung?unit=" + unitId + "&jahr=" + year + "&detail=" + detail.key();
+    }
+
+    private static String buildViewUrl(String path, long unitId, String returnUrl) {
+        return path
+                + "?unit="
+                + unitId
+                + "&returnUrl="
+                + URLEncoder.encode(returnUrl, StandardCharsets.UTF_8);
     }
 
     private static LocalDateRange uebungDateRange(LocalDate yearStart, LocalDate yearEndExclusive, LocalDate today) {
@@ -219,6 +371,10 @@ public class AuswertungService {
             return String.format(Locale.GERMAN, "%.0f", hours);
         }
         return String.format(Locale.GERMAN, "%.1f", hours);
+    }
+
+    private static String formatTime(LocalTime time) {
+        return time != null ? time.format(TIME_FMT) : "—";
     }
 
     private static String blankToDash(String value) {

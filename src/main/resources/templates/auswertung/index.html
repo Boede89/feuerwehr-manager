@@ -110,7 +110,10 @@
             </tr>
           </thead>
           <tbody>
-            <tr th:each="row : ${detailRows}">
+            <tr class="auswertung-detail-row" th:each="row, iter : ${detailRows}"
+                tabindex="0" role="button"
+                th:attr="data-row-index=${iter.index}"
+                th:aria-label="|Details zu ${row.stichwort()} am ${#temporals.format(row.datum(), 'dd.MM.yyyy')}|">
               <td th:text="${#temporals.format(row.datum(), 'dd.MM.yyyy')}">01.01.2026</td>
               <td th:text="${row.stichwort()}">F1</td>
               <td th:text="${row.dauerStunden()}">1,5</td>
@@ -125,6 +128,58 @@
         Keine Einträge für diese Auswahl im gewählten Jahr.
       </p>
     </div>
+
+    <div id="auswertung-detail-modal" class="incident-modal" style="display:none" aria-hidden="true"
+         th:if="${overviewDetail != null and !#lists.isEmpty(detailRows)}">
+      <div class="modal__backdrop" data-auswertung-modal-close></div>
+      <div class="modal__box" role="dialog" aria-modal="true" aria-labelledby="auswertung-detail-modal-title">
+        <div class="modal__header">
+          <h3 id="auswertung-detail-modal-title">Details</h3>
+          <button type="button" class="modal__close" data-auswertung-modal-close aria-label="Schließen">✕</button>
+        </div>
+        <div class="modal__body auswertung-detail-modal__body">
+          <dl class="auswertung-detail-modal__meta">
+            <div>
+              <dt>Stichwort</dt>
+              <dd id="adm-stichwort">—</dd>
+            </div>
+            <div>
+              <dt>Datum</dt>
+              <dd id="adm-datum">—</dd>
+            </div>
+            <div>
+              <dt>Alarmzeit</dt>
+              <dd id="adm-alarmzeit">—</dd>
+            </div>
+            <div>
+              <dt>Einsatzende</dt>
+              <dd id="adm-ende">—</dd>
+            </div>
+          </dl>
+          <section class="auswertung-detail-modal__section">
+            <h4>Personal</h4>
+            <ul id="adm-personen" class="auswertung-detail-modal__list"></ul>
+          </section>
+          <section class="auswertung-detail-modal__section" id="adm-pa-section" hidden>
+            <h4>PA-Träger</h4>
+            <ul id="adm-pa" class="auswertung-detail-modal__list"></ul>
+          </section>
+          <section class="auswertung-detail-modal__section">
+            <h4>Fahrzeuge</h4>
+            <ul id="adm-fahrzeuge" class="auswertung-detail-modal__list"></ul>
+          </section>
+        </div>
+        <div class="modal__footer">
+          <button type="button" class="btn btn-secondary" data-auswertung-modal-close>Schließen</button>
+          <a id="adm-open-report" class="btn btn-primary" href="#">Zum Einsatzbericht</a>
+        </div>
+      </div>
+    </div>
+
+    <div id="auswertung-detail-rows-data" hidden
+         th:if="${overviewDetail != null}"
+         th:attr="data-json=${detailRowsJson}"></div>
+    <script th:if="${overviewDetail != null}" th:src="@{/js/auswertung-overview.js}" defer></script>
   </section>
 
   <!-- Andere Bereiche: Platzhalter -->

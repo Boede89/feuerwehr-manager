@@ -1,6 +1,9 @@
 package de.feuerwehr.manager.web;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import de.feuerwehr.manager.auswertung.AuswertungBereich;
+import de.feuerwehr.manager.auswertung.AuswertungEinsatzRow;
 import de.feuerwehr.manager.auswertung.AuswertungOverviewDetail;
 import de.feuerwehr.manager.auswertung.AuswertungService;
 import de.feuerwehr.manager.security.AccessControlService;
@@ -32,6 +35,7 @@ public class AuswertungController {
     private final AccessControlService accessControlService;
     private final UserPermissionService userPermissionService;
     private final AuswertungService auswertungService;
+    private final ObjectMapper objectMapper;
 
     @GetMapping
     public String index(
@@ -72,8 +76,10 @@ public class AuswertungController {
                 model.addAttribute("overviewStats", auswertungService.overviewStats(unit.getId(), filterYear));
                 model.addAttribute("overviewDetail", detail);
                 if (detail != null) {
-                    model.addAttribute(
-                            "detailRows", auswertungService.listDetailRows(unit.getId(), filterYear, detail));
+                    List<AuswertungEinsatzRow> rows =
+                            auswertungService.listDetailRows(unit.getId(), filterYear, detail);
+                    model.addAttribute("detailRows", rows);
+                    model.addAttribute("detailRowsJson", toJson(rows));
                 }
             }
 
@@ -81,6 +87,14 @@ public class AuswertungController {
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return "redirect:/?unit=" + (unitId != null ? unitId : "");
+        }
+    }
+
+    private String toJson(List<AuswertungEinsatzRow> rows) {
+        try {
+            return objectMapper.writeValueAsString(rows);
+        } catch (JsonProcessingException e) {
+            return "[]";
         }
     }
 

@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.berichte;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,6 +17,15 @@ public interface IncidentReportVehicleRepository extends JpaRepository<IncidentR
             ORDER BY v.vehicleName
             """)
     List<IncidentReportVehicle> findByIncidentReportId(@Param("reportId") long reportId);
+
+    @Query("""
+            SELECT v FROM IncidentReportVehicle v
+            JOIN FETCH v.incidentReport
+            LEFT JOIN FETCH v.vehicle
+            WHERE v.incidentReport.id IN :reportIds
+            ORDER BY v.vehicleName
+            """)
+    List<IncidentReportVehicle> findByIncidentReportIdIn(@Param("reportIds") Collection<Long> reportIds);
 
     @Query("""
             SELECT v FROM IncidentReportVehicle v
