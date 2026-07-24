@@ -1,9 +1,7 @@
 package de.feuerwehr.manager.web;
 
-import de.feuerwehr.manager.atemschutz.AtemschutzService;
 import de.feuerwehr.manager.auswertung.AuswertungBereich;
-import de.feuerwehr.manager.auswertung.AuswertungOverviewStats;
-import de.feuerwehr.manager.personal.PersonalService;
+import de.feuerwehr.manager.auswertung.AuswertungService;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.UserPermissionService;
@@ -32,8 +30,7 @@ public class AuswertungController {
     private final ModuleSettingsService moduleSettingsService;
     private final AccessControlService accessControlService;
     private final UserPermissionService userPermissionService;
-    private final PersonalService personalService;
-    private final AtemschutzService atemschutzService;
+    private final AuswertungService auswertungService;
 
     @GetMapping
     public String index(
@@ -69,7 +66,7 @@ public class AuswertungController {
             model.addAttribute("yearOptions", yearOptions);
 
             if (bereich == AuswertungBereich.UEBERSICHT) {
-                model.addAttribute("overviewStats", buildOverviewStats(unit.getId()));
+                model.addAttribute("overviewStats", auswertungService.overviewStats(unit.getId(), filterYear));
             }
 
             return "auswertung/index";
@@ -77,21 +74,6 @@ public class AuswertungController {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return "redirect:/?unit=" + (unitId != null ? unitId : "");
         }
-    }
-
-    private AuswertungOverviewStats buildOverviewStats(long unitId) {
-        int mitglieder = personalService.listPersons(unitId).size();
-        int tauglichePa = 0;
-        try {
-            if (moduleSettingsService.isEnabled(AppModule.ATEMSCHUTZ, unitId)) {
-                tauglichePa = atemschutzService.listCarrierOverviews(unitId, "all").stats().tauglich();
-            }
-        } catch (RuntimeException ignored) {
-            // z. B. fehlende Rechte/Konfiguration — Karte bleibt bei 0
-            tauglichePa = 0;
-        }
-        // Einsatz-/Übungs-Zähllogik folgt später.
-        return new AuswertungOverviewStats(0, 0, 0, 0, 0, mitglieder, tauglichePa);
     }
 
     private Unit resolveUnit(Long unitId, AppUserDetails actor, Model model) {

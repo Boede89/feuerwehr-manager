@@ -43,6 +43,21 @@ public interface AttendanceReportRepository extends JpaRepository<AttendanceRepo
             @Param("includeTestReports") boolean includeTestReports);
 
     @Query("""
+            SELECT COUNT(r) FROM AttendanceReport r
+            WHERE r.unit.id = :unitId
+              AND r.eventDate >= :from
+              AND r.eventDate <= :to
+              AND r.terminCategory = :category
+              AND (r.testData = FALSE OR :includeTestReports = TRUE)
+            """)
+    long countByUnitIdAndDateRangeAndCategory(
+            @Param("unitId") long unitId,
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to,
+            @Param("category") TermineCategory category,
+            @Param("includeTestReports") boolean includeTestReports);
+
+    @Query("""
             SELECT r FROM AttendanceReport r
             LEFT JOIN FETCH r.createdByUser
             LEFT JOIN FETCH r.unitTermin

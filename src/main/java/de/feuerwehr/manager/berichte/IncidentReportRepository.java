@@ -55,6 +55,19 @@ public interface IncidentReportRepository extends JpaRepository<IncidentReport, 
             @Param("includeTestReports") boolean includeTestReports);
 
     @Query("""
+            SELECT COUNT(r) FROM IncidentReport r
+            WHERE r.unit.id = :unitId
+              AND r.incidentDate >= :yearStart
+              AND r.incidentDate < :yearEnd
+              AND (r.testData = FALSE OR :includeTestReports = TRUE)
+            """)
+    long countByUnitIdAndYear(
+            @Param("unitId") long unitId,
+            @Param("yearStart") LocalDate yearStart,
+            @Param("yearEnd") LocalDate yearEnd,
+            @Param("includeTestReports") boolean includeTestReports);
+
+    @Query("""
             SELECT r FROM IncidentReport r
             LEFT JOIN FETCH r.createdByUser
             WHERE r.unit.id = :unitId
