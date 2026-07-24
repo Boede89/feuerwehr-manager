@@ -54,6 +54,9 @@
        th:classappend="${activeNav == 'einsatzapp'} ? ' active' : ''"
        th:href="@{/einsatzapp(unit=${unitId})}">Einsatz-App</a>
     <span class="topnav__item topnav__item--soon" th:if="${navEinsatzapp == 'soon'}" title="Modul folgt später">Einsatz-App</span>
+    <a class="topnav__item" th:if="${navAuswertung == 'link'}"
+       th:classappend="${activeNav == 'auswertung'} ? ' active' : ''"
+       th:href="@{/auswertung(unit=${unitId})}">Auswertung</a>
     <span class="topnav__item topnav__item--soon" th:if="${navAuswertung == 'soon'}" title="Modul folgt später">Auswertung</span>
     <div class="topnav__spacer"></div>
     <a class="topnav__item" th:classappend="${activeNav == 'settings'} ? ' active' : ''"

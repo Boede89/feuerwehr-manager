@@ -8,7 +8,7 @@ public enum AppModule {
     BERICHTE("berichte", "Berichte", "Einsatz- und Dienstberichte", "📋", true),
     TERMINE("termine", "Termine", "Kalender und Terminplanung", "📅", true),
     EINSATZAPP("einsatzapp", "Einsatz-App", "Android-Alarmierung bei DIVERA-Einsätzen", "📱", true),
-    AUSWERTUNG("auswertung", "Auswertung", "Statistiken und Auswertungen", "📊", false);
+    AUSWERTUNG("auswertung", "Auswertung", "Statistiken und Auswertungen", "📊", true);
 
     private final String key;
     private final String label;

@@ -177,6 +177,9 @@ public class WebUiAdvice {
         if (path.startsWith("/termine")) {
             return "termine";
         }
+        if (path.startsWith("/auswertung")) {
+            return "auswertung";
+        }
         if (path.startsWith("/reservierungen")) {
             return "reservierungen";
         }

@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('Auswertung', ~{::main})}">
+<main class="auswertung-page">
+  <div class="page-header">
+    <div>
+      <h2>Auswertung</h2>
+      <p>Statistiken zu Einsätzen, Diensten und Beteiligung · <strong th:text="${currentUnitName}">—</strong></p>
+    </div>
+  </div>
+
+  <div th:replace="~{fragments/testmode-banner :: banner}"></div>
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
+
+  <nav class="tab-bar auswertung-tabs" aria-label="Auswertungsbereiche">
+    <a class="tab-btn" th:classappend="${bereich.key() == ''} ? ' tab-btn--active' : ''"
+       th:href="@{/auswertung(unit=${unitId}, jahr=${filter.year()}, von=${filter.from()}, bis=${filter.to()}, typ=${filter.typ().key()})}">Übersicht</a>
+    <a class="tab-btn" th:each="b : ${bereiche}"
+       th:classappend="${bereich == b} ? ' tab-btn--active' : ''"
+       th:href="@{/auswertung(unit=${unitId}, bereich=${b.key()}, jahr=${filter.year()}, von=${filter.from()}, bis=${filter.to()}, typ=${filter.typ().key()}, personId=${filter.personId()}, vehicleId=${filter.vehicleId()})}"
+       th:text="${b.label()}">Bereich</a>
+  </nav>
+
+  <form method="get" class="card auswertung-filter-card" th:action="@{/auswertung}">
+    <div class="card__body">
+      <input type="hidden" name="unit" th:value="${unitId}"/>
+      <input type="hidden" name="bereich" th:value="${bereich.key()}"/>
+      <div class="auswertung-filter-grid">
+        <label class="form-group">
+          <span>Jahr</span>
+          <select name="jahr" class="field" id="auswertung-jahr">
+            <option th:each="y : ${#numbers.sequence(currentYear, currentYear - 10)}"
+                    th:value="${y}" th:text="${y}" th:selected="${y == filter.year()}"></option>
+          </select>
+        </label>
+        <label class="form-group">
+          <span>Von</span>
+          <input type="date" name="von" class="field" th:value="${filter.from()}"/>
+        </label>
+        <label class="form-group">
+          <span>Bis</span>
+          <input type="date" name="bis" class="field" th:value="${filter.to()}"/>
+        </label>
+        <label class="form-group">
+          <span>Typ</span>
+          <select name="typ" class="field">
+            <option th:each="t : ${typFilters}" th:value="${t.key()}" th:text="${t.label()}"
+                    th:selected="${t == filter.typ()}"></option>
+          </select>
+        </label>
+        <label class="form-group" th:if="${bereich.key() == 'personen' or bereich.key() == ''}">
+          <span>Person</span>
+          <select name="personId" class="field">
+            <option value="">Alle Personen</option>
+            <option th:each="p : ${personOptions}" th:value="${p.id()}" th:text="${p.name()}"
+                    th:selected="${filter.personId() != null and filter.personId() == p.id()}"></option>
+          </select>
+        </label>
+        <label class="form-group">
+          <span>Fahrzeug</span>
+          <select name="vehicleId" class="field">
+            <option value="">Alle Fahrzeuge</option>
+            <option th:each="v : ${vehicleOptions}" th:value="${v.id()}" th:text="${v.name()}"
+                    th:selected="${filter.vehicleId() != null and filter.vehicleId() == v.id()}"></option>
+          </select>
+        </label>
+        <label class="form-group" th:if="${filter.typ().key() == 'uebungen' or filter.typ().key() == 'beides'}">
+          <span>Thema (Übung)</span>
+          <select name="thema" class="field">
+            <option value="">Alle Themen</option>
+            <option th:each="t : ${themaOptions}" th:value="${t}" th:text="${t}"
+                    th:selected="${filter.thema() == t}"></option>
+          </select>
+        </label>
+        <label class="form-group" th:if="${filter.typ().key() == 'einsaetze' or filter.typ().key() == 'beides'}">
+          <span>Stichwort</span>
+          <select name="stichwort" class="field">
+            <option value="">Alle Stichworte</option>
+            <option th:each="s : ${stichwortOptions}" th:value="${s}" th:text="${s}"
+                    th:selected="${filter.stichwort() == s}"></option>
+          </select>
+        </label>
+        <label class="form-group">
+          <span>Uhrzeit von</span>
+          <input type="time" name="zeitVon" class="field"
+                 th:value="${filter.timeFrom() != null} ? ${#temporals.format(filter.timeFrom(), 'HH:mm')} : ''"/>
+        </label>
+        <label class="form-group">
+          <span>Uhrzeit bis</span>
+          <input type="time" name="zeitBis" class="field"
+                 th:value="${filter.timeTo() != null} ? ${#temporals.format(filter.timeTo(), 'HH:mm')} : ''"/>
+        </label>
+      </div>
+      <div class="auswertung-filter-actions">
+        <button type="submit" class="btn btn--primary">Filter anwenden</button>
+        <a class="btn btn--outline"
+           th:href="@{/auswertung(unit=${unitId}, bereich=${bereich.key()}, jahr=${currentYear})}">Zurücksetzen</a>
+      </div>
+    </div>
+  </form>
+
+  <!-- Übersicht -->
+  <th:block th:if="${bereich.key() == '' and overview != null}">
+    <div class="kpi-grid auswertung-kpi-grid">
+      <div class="kpi-card">
+        <span class="kpi-card__label">Einsätze</span>
+        <strong class="kpi-card__value" th:text="${overview.anzahlEinsaetze()}">0</strong>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-card__label">Übungen / Dienste</span>
+        <strong class="kpi-card__value" th:text="${overview.anzahlUebungen()}">0</strong>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-card__label">Sonstiges</span>
+        <strong class="kpi-card__value" th:text="${overview.anzahlSonstiges()}">0</strong>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-card__label">Aktive Personen</span>
+        <strong class="kpi-card__value" th:text="${overview.aktivePersonen()}">0</strong>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-card__label">Gesamtstunden</span>
+        <strong class="kpi-card__value" th:text="|${#numbers.formatDecimal(overview.gesamtStunden(), 1, 1)} h|">0 h</strong>
+      </div>
+    </div>
+
+    <div class="auswertung-hub-grid">
+      <a class="auswertung-hub-card" th:each="b : ${bereiche}"
+         th:href="@{/auswertung(unit=${unitId}, bereich=${b.key()}, jahr=${filter.year()}, von=${filter.from()}, bis=${filter.to()}, typ=${filter.typ().key()})}">
+        <h3 th:text="${b.label()}">Bereich</h3>
+        <p th:text="${b.description()}">Beschreibung</p>
+      </a>
+    </div>
+
+    <div class="auswertung-charts-grid">
+      <div class="card">
+        <div class="card__header">Top Teilnahmen</div>
+        <div class="card__body">
+          <canvas id="chart-top-personen" height="220"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card__header">Verteilung nach Typ</div>
+        <div class="card__body">
+          <canvas id="chart-typ" height="220"></canvas>
+        </div>
+      </div>
+    </div>
+  </th:block>
+
+  <!-- Personen -->
+  <th:block th:if="${bereich.key() == 'personen'}">
+    <div class="kpi-grid auswertung-kpi-grid">
+      <div class="kpi-card">
+        <span class="kpi-card__label">Personen mit Teilnahme</span>
+        <strong class="kpi-card__value" th:text="${personRows != null ? #lists.size(personRows) : 0}">0</strong>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-card__label">Gesamtstunden</span>
+        <strong class="kpi-card__value" th:text="|${#numbers.formatDecimal(gesamtStundenPersonen, 1, 1)} h|">0 h</strong>
+      </div>
+    </div>
+
+    <div class="card" th:if="${personRows != null and !personRows.isEmpty()}">
+      <div class="card__header">Personen-Ranking</div>
+      <div class="card__body card__body--flush">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+            <tr>
+              <th>Person</th>
+              <th>Einsätze</th>
+              <th>Übungen</th>
+              <th>Sonstiges</th>
+              <th>Teilnahmen</th>
+              <th>Stunden</th>
+              <th>Masch. / EF</th>
+              <th>Quote</th>
+              <th>Letzte Teilnahme</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="row : ${personRows}">
+              <td>
+                <a th:href="@{/auswertung(unit=${unitId}, bereich='personen', jahr=${filter.year()}, von=${filter.from()}, bis=${filter.to()}, typ=${filter.typ().key()}, personId=${row.personId()})}"
+                   th:text="${row.displayName()}">Name</a>
+              </td>
+              <td th:text="${row.einsaetze()}">0</td>
+              <td th:text="${row.uebungen()}">0</td>
+              <td th:text="${row.sonstiges()}">0</td>
+              <td><strong th:text="${row.teilnahmen()}">0</strong></td>
+              <td th:text="|${#numbers.formatDecimal(row.stunden(), 1, 1)} h|">0 h</td>
+              <td th:text="|${row.alsMaschinist()} / ${row.alsEinheitsfuehrer()}|">0 / 0</td>
+              <td th:text="|${#numbers.formatDecimal(row.quotePercent(), 1, 1)} %|">0 %</td>
+              <td th:text="${row.letzteTeilnahme()}">—</td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <p class="hint" th:if="${personRows == null or personRows.isEmpty()}">Keine Personendaten für den gewählten Zeitraum.</p>
+
+    <div class="card mt-md" th:if="${personRows != null and !personRows.isEmpty()}">
+      <div class="card__header">Top 12 nach Teilnahmen</div>
+      <div class="card__body">
+        <canvas id="chart-top-personen" height="260"></canvas>
+      </div>
+    </div>
+
+    <div class="card mt-md" th:if="${filter.personId() != null and personRows != null and !personRows.isEmpty()}">
+      <div class="card__header">Fahrzeugverteilung</div>
+      <div class="card__body">
+        <div class="auswertung-chip-list">
+                <span class="auswertung-chip" th:each="f : ${personRows[0].fahrzeuge()}"
+                      th:text="|${f.label()}: ${#numbers.formatDecimal(f.value(), 0, 0)}|">LF 20: 3</span>
+          <span class="hint" th:if="${#lists.isEmpty(personRows[0].fahrzeuge())}">Keine Fahrzeugzuordnung erfasst.</span>
+        </div>
+      </div>
+    </div>
+  </th:block>
+
+  <!-- Einsätze / Dienste -->
+  <th:block th:if="${bereich.key() == 'einsaetze' and eventSummary != null}">
+    <div class="kpi-grid auswertung-kpi-grid">
+      <div class="kpi-card">
+        <span class="kpi-card__label">Ereignisse</span>
+        <strong class="kpi-card__value" th:text="${eventSummary.anzahlGesamt()}">0</strong>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-card__label">Gesamtstunden</span>
+        <strong class="kpi-card__value" th:text="|${#numbers.formatDecimal(eventSummary.gesamtStunden(), 1, 1)} h|">0 h</strong>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-card__label">Ø Personen</span>
+        <strong class="kpi-card__value" th:text="${#numbers.formatDecimal(eventSummary.durchschnittPersonen(), 1, 1)}">0</strong>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-card__label">Einsätze / Übungen / Sonstiges</span>
+        <strong class="kpi-card__value"
+                th:text="|${eventSummary.anzahlEinsaetze()} / ${eventSummary.anzahlUebungen()} / ${eventSummary.anzahlSonstiges()}|">0 / 0 / 0</strong>
+      </div>
+    </div>
+    <div class="auswertung-charts-grid">
+      <div class="card">
+        <div class="card__header">Verteilung</div>
+        <div class="card__body"><canvas id="chart-typ" height="240"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card__header">Top-Stichworte</div>
+        <div class="card__body"><canvas id="chart-stichworte" height="240"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card__header">Top-Themen (Übungen)</div>
+        <div class="card__body"><canvas id="chart-themen" height="240"></canvas></div>
+      </div>
+    </div>
+  </th:block>
+
+  <!-- Fahrzeuge -->
+  <th:block th:if="${bereich.key() == 'fahrzeuge'}">
+    <div class="card" th:if="${vehicleRows != null and !vehicleRows.isEmpty()}">
+      <div class="card__header">Fahrzeugstatistik</div>
+      <div class="card__body card__body--flush">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+            <tr>
+              <th>Fahrzeug</th>
+              <th>Einsätze</th>
+              <th>Übungen</th>
+              <th>Sonstiges</th>
+              <th>Gesamt</th>
+              <th>Ø Besatzung</th>
+              <th>Masch. / EF</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="row : ${vehicleRows}">
+              <td th:text="${row.vehicleName()}">LF</td>
+              <td th:text="${row.einsaetze()}">0</td>
+              <td th:text="${row.uebungen()}">0</td>
+              <td th:text="${row.sonstiges()}">0</td>
+              <td><strong th:text="${row.gesamt()}">0</strong></td>
+              <td th:text="${#numbers.formatDecimal(row.durchschnittBesatzung(), 1, 1)}">0</td>
+              <td th:text="|${row.alsMaschinistEinsaetze()} / ${row.alsEfEinsaetze()}|">0 / 0</td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <p class="hint" th:if="${vehicleRows == null or vehicleRows.isEmpty()}">Keine Fahrzeugdaten für den gewählten Zeitraum.</p>
+    <div class="card mt-md" th:if="${vehicleRows != null and !vehicleRows.isEmpty()}">
+      <div class="card__header">Fahrzeuge nach Einsätzen</div>
+      <div class="card__body"><canvas id="chart-fahrzeuge" height="260"></canvas></div>
+    </div>
+  </th:block>
+
+  <!-- Geräte -->
+  <th:block th:if="${bereich.key() == 'geraete'}">
+    <div class="card" th:if="${equipmentRows != null and !equipmentRows.isEmpty()}">
+      <div class="card__header">Eingesetzte Geräte</div>
+      <div class="card__body card__body--flush">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+            <tr>
+              <th>Gerät</th>
+              <th>Kategorie</th>
+              <th>Anzahl</th>
+              <th>Fahrzeuge</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="row : ${equipmentRows}">
+              <td th:text="${row.equipmentName()}">Gerät</td>
+              <td th:text="${row.categoryName()}">—</td>
+              <td><strong th:text="${row.anzahl()}">0</strong></td>
+              <td>
+                <th:block th:each="v, iter : ${row.vehicles()}">
+                  <span th:text="|${v.label()} (${#numbers.formatDecimal(v.value(), 0, 0)})|"></span>
+                  <span th:if="${!iter.last}">, </span>
+                </th:block>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <p class="hint" th:if="${equipmentRows == null or equipmentRows.isEmpty()}">Keine Gerätedaten für den gewählten Zeitraum.</p>
+    <div class="card mt-md" th:if="${equipmentRows != null and !equipmentRows.isEmpty()}">
+      <div class="card__header">Häufigste Geräte</div>
+      <div class="card__body"><canvas id="chart-geraete" height="260"></canvas></div>
+    </div>
+  </th:block>
+
+  <script id="auswertung-chart-data" type="application/json" th:utext="${chartDataJson}">{}</script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+  <script th:src="@{/js/auswertung.js}" defer></script>
+</main>
+</html>

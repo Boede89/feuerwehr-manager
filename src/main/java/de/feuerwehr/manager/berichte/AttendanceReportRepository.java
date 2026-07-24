@@ -30,6 +30,22 @@ public interface AttendanceReportRepository extends JpaRepository<AttendanceRepo
             SELECT r FROM AttendanceReport r
             LEFT JOIN FETCH r.createdByUser
             LEFT JOIN FETCH r.unitTermin
+            WHERE r.unit.id = :unitId
+              AND r.eventDate >= :from
+              AND r.eventDate <= :to
+              AND (r.testData = FALSE OR :includeTestReports = TRUE)
+            ORDER BY r.eventDate DESC, r.id DESC
+            """)
+    List<AttendanceReport> findByUnitIdAndDateRange(
+            @Param("unitId") long unitId,
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to,
+            @Param("includeTestReports") boolean includeTestReports);
+
+    @Query("""
+            SELECT r FROM AttendanceReport r
+            LEFT JOIN FETCH r.createdByUser
+            LEFT JOIN FETCH r.unitTermin
             WHERE r.id = :id AND r.unit.id = :unitId
               AND (r.testData = FALSE OR :includeTestReports = TRUE)
             """)

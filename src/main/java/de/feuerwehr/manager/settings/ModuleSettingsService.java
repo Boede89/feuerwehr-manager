@@ -24,7 +24,7 @@ public class ModuleSettingsService {
         Map<String, Boolean> raw = readRaw(unitId);
         Map<AppModule, Boolean> result = new EnumMap<>(AppModule.class);
         for (AppModule module : AppModule.values()) {
-            result.put(module, raw.getOrDefault(module.key(), module == AppModule.PERSONAL));
+            result.put(module, raw.getOrDefault(module.key(), module == AppModule.PERSONAL || module == AppModule.AUSWERTUNG));
         }
         return result;
     }
@@ -80,7 +80,7 @@ public class ModuleSettingsService {
     private static Map<String, Boolean> defaultRaw() {
         Map<String, Boolean> defaults = new LinkedHashMap<>();
         for (AppModule module : AppModule.values()) {
-            defaults.put(module.key(), module == AppModule.PERSONAL);
+            defaults.put(module.key(), module == AppModule.PERSONAL || module == AppModule.AUSWERTUNG);
         }
         return defaults;
     }
