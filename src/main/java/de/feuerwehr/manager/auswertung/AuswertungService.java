@@ -21,6 +21,7 @@ import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.termine.TermineCategory;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import de.feuerwehr.manager.util.PersonMembership;
 import de.feuerwehr.manager.util.YearFilterSupport;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -113,7 +114,9 @@ public class AuswertungService {
             }
         }
 
-        int mitglieder = personalService.listPersons(unitId).size();
+        int mitglieder = (int) personalService.listPersons(unitId).stream()
+                .filter(de.feuerwehr.manager.util.PersonMembership::isCurrentlyMember)
+                .count();
         int tauglichePa = countTauglichePaTraeger(unitId);
 
         return new AuswertungOverviewStats(
@@ -171,6 +174,7 @@ public class AuswertungService {
         boolean includeTest = testModeService.isEnabled();
 
         List<Person> persons = personalService.listPersons(unitId).stream()
+                .filter(p -> PersonMembership.wasMemberDuringYear(p, year))
                 .sorted(Comparator.comparing(
                                 (Person p) -> p.getLastName() != null ? p.getLastName() : "",
                                 String.CASE_INSENSITIVE_ORDER)
@@ -242,12 +246,15 @@ public class AuswertungService {
         List<AuswertungPersonRow> rows = new ArrayList<>(persons.size());
         for (Person person : persons) {
             LocalDate entryDate = person.getEntryDate();
-            int totalUebungen = countEventsOnOrAfter(uebungen, AttendanceReport::getEventDate, entryDate);
-            int totalEinsaetze = countEventsOnOrAfter(einsaetze, IncidentReport::getIncidentDate, entryDate);
+            LocalDate exitDate = person.getExitDate();
+            int totalUebungen = countEventsInMembership(uebungen, AttendanceReport::getEventDate, entryDate, exitDate);
+            int totalEinsaetze =
+                    countEventsInMembership(einsaetze, IncidentReport::getIncidentDate, entryDate, exitDate);
 
-            List<DatedTeilnahme> dienste = filterTeilnahmen(diensteByPerson.get(person.getId()), entryDate);
+            List<DatedTeilnahme> dienste =
+                    filterTeilnahmen(diensteByPerson.get(person.getId()), entryDate, exitDate);
             List<DatedTeilnahme> einsatzTeilnahmen =
-                    filterTeilnahmen(einsaetzeByPerson.get(person.getId()), entryDate);
+                    filterTeilnahmen(einsaetzeByPerson.get(person.getId()), entryDate, exitDate);
             int dienst = dienste.size();
             int einsatz = einsatzTeilnahmen.size();
             double dienstPct = totalUebungen > 0 ? (dienst * 100.0) / totalUebungen : 0;
@@ -267,30 +274,34 @@ public class AuswertungService {
         return rows;
     }
 
-    private static <T> int countEventsOnOrAfter(
-            List<T> events, java.util.function.Function<T, LocalDate> dateGetter, LocalDate entryDate) {
+    private static <T> int countEventsInMembership(
+            List<T> events,
+            java.util.function.Function<T, LocalDate> dateGetter,
+            LocalDate entryDate,
+            LocalDate exitDate) {
         if (events == null || events.isEmpty()) {
             return 0;
         }
         int count = 0;
         for (T event : events) {
-            if (YearFilterSupport.isOnOrAfterEntry(dateGetter.apply(event), entryDate)) {
+            if (YearFilterSupport.isWithinMembership(dateGetter.apply(event), entryDate, exitDate)) {
                 count++;
             }
         }
         return count;
     }
 
-    private static List<DatedTeilnahme> filterTeilnahmen(List<DatedTeilnahme> items, LocalDate entryDate) {
+    private static List<DatedTeilnahme> filterTeilnahmen(
+            List<DatedTeilnahme> items, LocalDate entryDate, LocalDate exitDate) {
         if (items == null || items.isEmpty()) {
             return List.of();
         }
-        if (entryDate == null) {
+        if (entryDate == null && exitDate == null) {
             return items;
         }
         List<DatedTeilnahme> filtered = new ArrayList<>();
         for (DatedTeilnahme item : items) {
-            if (YearFilterSupport.isOnOrAfterEntry(item.date(), entryDate)) {
+            if (YearFilterSupport.isWithinMembership(item.date(), entryDate, exitDate)) {
                 filtered.add(item);
             }
         }

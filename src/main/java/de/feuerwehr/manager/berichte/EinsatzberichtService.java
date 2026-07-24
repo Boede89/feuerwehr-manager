@@ -133,7 +133,7 @@ public class EinsatzberichtService {
 
     @Transactional(readOnly = true)
     public List<Person> listPersonsForForm(long unitId) {
-        return personalService.listPersons(unitId);
+        return personalService.listSelectablePersons(unitId);
     }
 
     public List<Vehicle> listVehiclesForForm(long unitId) {
@@ -1160,7 +1160,7 @@ public class EinsatzberichtService {
         if (commanderName == null) {
             return;
         }
-        listPersonsForForm(unitId).stream()
+        personalService.listPersons(unitId).stream()
                 .filter(p -> commanderName.equalsIgnoreCase(p.anwesenheitDisplayName()))
                 .findFirst()
                 .ifPresent(report::setCommanderPerson);

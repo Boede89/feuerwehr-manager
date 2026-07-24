@@ -16,6 +16,7 @@ import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
+import de.feuerwehr.manager.util.PersonMembership;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
@@ -110,10 +111,13 @@ public class AtemschutzService {
                     summaries,
                     tauglichkeit));
         }
-        List<CarrierOverview> activeCarriers =
-                all.stream().filter(row -> row.carrier().getStatus() == AtemschutzCarrierStatus.ACTIVE).toList();
-        CarrierListStats stats = computeStats(activeCarriers);
-        CarrierListStats statsAll = computeStats(all);
+        List<CarrierOverview> statsCarriers = all.stream()
+                .filter(AtemschutzService::countsForAtemschutzStats)
+                .toList();
+        CarrierListStats stats = computeStats(statsCarriers);
+        CarrierListStats statsAll = computeStats(all.stream()
+                .filter(row -> PersonMembership.isCurrentlyMember(row.carrier().getPerson()))
+                .toList());
         List<CarrierOverview> filtered = applyFilter(all, filter);
         return new CarrierListResult(
                 filtered,
@@ -121,6 +125,17 @@ public class AtemschutzService {
                 statsAll,
                 atemschutzSettingsService.agtCourseName(unitId),
                 atemschutzSettingsService.isAgtCourseConfigured(unitId));
+    }
+
+    /** Ausgetretene bleiben in der Liste, zählen aber nicht für Kennzahlen/Warnungen. */
+    private static boolean countsForAtemschutzStats(CarrierOverview row) {
+        if (row == null || row.carrier() == null) {
+            return false;
+        }
+        if (row.carrier().getStatus() != AtemschutzCarrierStatus.ACTIVE) {
+            return false;
+        }
+        return PersonMembership.isCurrentlyMember(row.carrier().getPerson());
     }
 
     @Transactional(readOnly = true)
@@ -700,23 +715,26 @@ public class AtemschutzService {
         if (filter == null || filter.isBlank() || "all".equalsIgnoreCase(filter)) {
             return carriers;
         }
+        List<CarrierOverview> activeMembers = carriers.stream()
+                .filter(AtemschutzService::countsForAtemschutzStats)
+                .toList();
         if ("tauglich".equalsIgnoreCase(filter)) {
-            return carriers.stream()
+            return activeMembers.stream()
                     .filter(row -> row.tauglichkeit() == CarrierTauglichkeitStatus.TAUGLICH)
                     .toList();
         }
         if ("warnung".equalsIgnoreCase(filter)) {
-            return carriers.stream()
+            return activeMembers.stream()
                     .filter(row -> row.tauglichkeit() == CarrierTauglichkeitStatus.WARNUNG)
                     .toList();
         }
         if ("uebung_abgelaufen".equalsIgnoreCase(filter) || "uebungabgelaufen".equalsIgnoreCase(filter)) {
-            return carriers.stream()
+            return activeMembers.stream()
                     .filter(row -> row.tauglichkeit() == CarrierTauglichkeitStatus.UEBUNG_ABGELAUFEN)
                     .toList();
         }
         if ("nicht_tauglich".equalsIgnoreCase(filter) || "nichttauglich".equalsIgnoreCase(filter)) {
-            return carriers.stream()
+            return activeMembers.stream()
                     .filter(row -> row.tauglichkeit() == CarrierTauglichkeitStatus.NICHT_TAUGLICH)
                     .toList();
         }
@@ -743,6 +761,9 @@ public class AtemschutzService {
         List<UebungPlanRow> matches = new ArrayList<>();
         for (CarrierOverview row : allCarriers.carriers()) {
             if (row.carrier().getStatus() != AtemschutzCarrierStatus.ACTIVE) {
+                continue;
+            }
+            if (!PersonMembership.isCurrentlyMember(row.carrier().getPerson())) {
                 continue;
             }
             AtemschutzPlanStatus planStatus = computePlanStatus(row.summaries());

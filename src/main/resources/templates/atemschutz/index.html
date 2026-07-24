@@ -99,36 +99,44 @@
         </thead>
         <tbody>
         <tr th:each="row : ${carriers}" class="carrier-row member-row" role="link" tabindex="0"
+            th:with="exited=${!T(de.feuerwehr.manager.util.PersonMembership).isCurrentlyMember(row.carrier.person)}"
             th:attr="data-search=${row.carrier.person.lastName + ' ' + row.carrier.person.firstName},
                      data-status=${row.carrier.status.name()},
-                     data-tauglichkeit=${row.tauglichkeit.name()},
+                     data-tauglichkeit=${exited ? 'AUSGETRETEN' : row.tauglichkeit.name()},
                      data-carrier-id=${row.carrier.id},
                      data-href=@{/atemschutz/carriers/{id}(id=${row.carrier.id},unit=${unitId})}">
           <td th:if="${canWrite}" class="atemschutz-select-col" onclick="event.stopPropagation();">
             <input type="checkbox" class="atemschutz-row-select" th:value="${row.carrier.id}"
+                   th:disabled="${exited}"
                    th:attr="data-birthdate=${row.carrier.person.birthdate != null ? #temporals.format(row.carrier.person.birthdate, 'yyyy-MM-dd') : ''}"
                    aria-label="Auswählen"/>
           </td>
           <td>
             <strong th:text="${row.carrier.person.displayName()}">Name</strong>
+            <span class="text-muted text-xs" th:if="${exited}"> · ausgetreten</span>
           </td>
           <td>
-            <span class="text-muted text-sm" th:text="${row.carrier.status.label()}">Aktiv</span>
+            <span class="text-muted text-sm" th:if="${exited}">Ausgetreten</span>
+            <span class="text-muted text-sm" th:unless="${exited}" th:text="${row.carrier.status.label()}">Aktiv</span>
           </td>
           <td>
-            <span th:class="${row.tauglichkeit.badgeClass()}"
+            <span th:if="${exited}" class="badge badge--muted">—</span>
+            <span th:unless="${exited}" th:class="${row.tauglichkeit.badgeClass()}"
                   th:text="${row.tauglichkeit.label()}">—</span>
           </td>
           <td>
-            <div th:replace="~{fragments/atemschutz-fitness-badge :: validityDate(${row.g26})}"></div>
+            <span th:if="${exited}" class="text-muted">—</span>
+            <div th:unless="${exited}" th:replace="~{fragments/atemschutz-fitness-badge :: validityDate(${row.g26})}"></div>
           </td>
           <td>
-            <th:block th:with="view=${row.summaries.get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).UEBUNG)}">
+            <span th:if="${exited}" class="text-muted">—</span>
+            <th:block th:unless="${exited}" th:with="view=${row.summaries.get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).UEBUNG)}">
               <div th:replace="~{fragments/atemschutz-fitness-badge :: validityDate(${view})}"></div>
             </th:block>
           </td>
           <td>
-            <th:block th:with="view=${row.summaries.get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).STRECKEN)}">
+            <span th:if="${exited}" class="text-muted">—</span>
+            <th:block th:unless="${exited}" th:with="view=${row.summaries.get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).STRECKEN)}">
               <div th:replace="~{fragments/atemschutz-fitness-badge :: validityDate(${view})}"></div>
             </th:block>
           </td>

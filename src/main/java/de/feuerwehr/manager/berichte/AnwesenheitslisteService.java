@@ -77,7 +77,7 @@ public class AnwesenheitslisteService {
 
     @Transactional(readOnly = true)
     public String buildUnitPersonsJson(long unitId) {
-        List<Map<String, Object>> items = personalService.listPersons(unitId).stream()
+        List<Map<String, Object>> items = personalService.listSelectablePersons(unitId).stream()
                 .map(person -> {
                     Map<String, Object> item = new LinkedHashMap<>();
                     item.put("id", person.getId());

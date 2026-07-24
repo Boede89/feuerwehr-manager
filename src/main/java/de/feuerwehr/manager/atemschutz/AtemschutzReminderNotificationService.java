@@ -78,6 +78,8 @@ public class AtemschutzReminderNotificationService {
                 .carriers()
                 .stream()
                 .filter(row -> row.carrier().getStatus() == AtemschutzCarrierStatus.ACTIVE)
+                .filter(row -> de.feuerwehr.manager.util.PersonMembership.isCurrentlyMember(
+                        row.carrier().getPerson()))
                 .toList();
         for (CarrierOverview overview : carriers) {
             for (AtemschutzNotificationCategory category : AtemschutzNotificationCategory.values()) {

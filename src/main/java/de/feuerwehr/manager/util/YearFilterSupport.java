@@ -78,6 +78,22 @@ public final class YearFilterSupport {
         return !eventDate.isBefore(entryDate);
     }
 
+    /** True, wenn {@code eventDate} am oder vor dem Austrittsdatum liegt (null = immer true). */
+    public static boolean isOnOrBeforeExit(LocalDate eventDate, LocalDate exitDate) {
+        if (exitDate == null) {
+            return true;
+        }
+        if (eventDate == null) {
+            return false;
+        }
+        return !eventDate.isAfter(exitDate);
+    }
+
+    /** Termin liegt in der Mitgliedschaft (Eintritt inklusiv, Austritt inklusiv). */
+    public static boolean isWithinMembership(LocalDate eventDate, LocalDate entryDate, LocalDate exitDate) {
+        return isOnOrAfterEntry(eventDate, entryDate) && isOnOrBeforeExit(eventDate, exitDate);
+    }
+
     public static List<Integer> asMutableList(List<Integer> years) {
         return new ArrayList<>(Objects.requireNonNullElse(years, List.of()));
     }

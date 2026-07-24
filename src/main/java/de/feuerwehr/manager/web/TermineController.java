@@ -294,7 +294,7 @@ public class TermineController {
     }
 
     private void addTerminFormModel(long unitId, Model model) {
-        model.addAttribute("unitPersons", personalService.listPersons(unitId));
+        model.addAttribute("unitPersons", personalService.listSelectablePersons(unitId));
         model.addAttribute("unitPersonGroups", personalGroupService.listGroups(unitId));
     }
 

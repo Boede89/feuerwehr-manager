@@ -242,6 +242,8 @@ public class StreckePlanungService {
 
         return atemschutzService.listCarrierOverviews(unitId, "all").carriers().stream()
                 .filter(row -> row.carrier().getStatus() == AtemschutzCarrierStatus.ACTIVE)
+                .filter(row -> de.feuerwehr.manager.util.PersonMembership.isCurrentlyMember(
+                        row.carrier().getPerson()))
                 .filter(row -> !assignedCarrierIds.containsKey(row.carrier().getId()))
                 .sorted(Comparator.comparing(row -> validUntil(row, AtemschutzFitnessType.STRECKEN),
                         Comparator.nullsLast(Comparator.naturalOrder())))

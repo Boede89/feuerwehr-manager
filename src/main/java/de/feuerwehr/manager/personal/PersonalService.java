@@ -10,6 +10,7 @@ import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserManagementService;
 import de.feuerwehr.manager.user.UserRepository;
+import de.feuerwehr.manager.util.PersonMembership;
 import jakarta.servlet.http.HttpServletRequest;
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -62,6 +63,17 @@ public class PersonalService {
                 Person::getProductionSourceId,
                 Person::getId,
                 Comparator.comparing(Person::getLastName).thenComparing(Person::getFirstName));
+    }
+
+    /**
+     * Personen für neue Zuordnungen (Kräfte, Termine, Auswahlfelder): nur aktuelle Mitglieder
+     * (Eintritt/Austritt). Bereits gespeicherte Zuordnungen bleiben unberührt.
+     */
+    @Transactional(readOnly = true)
+    public List<Person> listSelectablePersons(long unitId) {
+        return listPersons(unitId).stream()
+                .filter(PersonMembership::isCurrentlyMember)
+                .toList();
     }
 
     public Person requirePerson(long personId) {

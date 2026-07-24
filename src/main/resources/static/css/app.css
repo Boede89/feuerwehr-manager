@@ -689,6 +689,12 @@ input:focus, select:focus, textarea:focus {
   margin-bottom: 0;
 }
 
+/* display:flex überschreibt sonst das HTML-Attribut hidden */
+.form-group[hidden],
+.login-password-options[hidden] {
+  display: none !important;
+}
+
 .form-group label {
   margin: 0;
   font-size: var(--fs-xs);

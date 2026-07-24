@@ -339,6 +339,8 @@ public class PersonalMemberService {
         person.setNotes(blankToNull(notes));
         if (exitDate != null) {
             person.setStatus(PersonStatus.INACTIVE);
+        } else if (person.getStatus() == PersonStatus.INACTIVE) {
+            person.setStatus(PersonStatus.ACTIVE);
         }
         personRepository.save(person);
     }

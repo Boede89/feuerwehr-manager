@@ -65,7 +65,7 @@ public class BerichteSettingsController {
             model.addAttribute(
                     "selectedPersonnelStatusIds", berichteSettingsService.parsePersonnelStatusIds(settings));
             addEmailSettingsModel(model, unit.getId(), berichteTab);
-            model.addAttribute("unitPersons", personalService.listPersons(unit.getId()));
+            model.addAttribute("unitPersons", personalService.listSelectablePersons(unit.getId()));
             return "settings/berichte";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
