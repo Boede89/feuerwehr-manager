@@ -75,7 +75,8 @@ feuerwehr:
     alarm-poll-initial-delay-ms: ${FEUERWEHR_EINSATZAPP_ALARM_POLL_INITIAL_DELAY_MS:60000}
   leitstellen-mail:
     poll-enabled: ${FEUERWEHR_LEITSTELLEN_MAIL_POLL_ENABLED:true}
-    poll-interval-ms: ${FEUERWEHR_LEITSTELLEN_MAIL_POLL_INTERVAL_MS:120000}
+    # Scheduler-Tick (Sessions mit eigenem Intervall entscheiden, wann wirklich abgerufen wird)
+    poll-tick-ms: ${FEUERWEHR_LEITSTELLEN_MAIL_POLL_TICK_MS:15000}
     poll-initial-delay-ms: ${FEUERWEHR_LEITSTELLEN_MAIL_POLL_INITIAL_DELAY_MS:60000}
   fcm:
     enabled: ${FEUERWEHR_FCM_ENABLED:false}

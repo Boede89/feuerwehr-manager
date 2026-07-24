@@ -4636,6 +4636,18 @@ span.required { color: var(--error); }
   margin-bottom: 16px;
 }
 
+.einsatzbericht-form-page .incident-attachments-leitstelle {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.einsatzbericht-form-page .incident-attachments-leitstelle .hint {
+  margin: 0;
+}
+
 .einsatzbericht-form-page .incident-attachment-card {
   display: flex;
   align-items: center;

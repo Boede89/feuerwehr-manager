@@ -207,7 +207,8 @@
       <p class="hint">
         Ruft PDF-Anhänge aus einem IMAP-Postfach ab und hängt sie an passende Einsatzberichte als
         <strong>Depeche.pdf</strong> bzw. <strong>Abschlussbericht.pdf</strong> an.
-        Der Abruf wiederholt sich automatisch (Puffer), bis eine Zuordnung möglich ist.
+        Sobald ein Einsatz von DIVERA ankommt, startet der Abruf mit dem kurzen Intervall bis die Depeche vorliegt,
+        danach mit dem längeren Intervall bis zum Abschlussbericht.
       </p>
       <p class="hint">
         Typischer Betreff (Beispiel, muss nicht exakt so sein):
@@ -303,6 +304,18 @@
                  th:value="${leitstellenMail != null ? leitstellenMail.matchWindowHours : 12}"/>
           <p class="hint">Max. Abstand zwischen Alarmzeit und Mail-Eingang (wichtig bei FAX-Betreff ohne Einsatzdaten).</p>
         </div>
+        <div class="form-group">
+          <label for="leitstellenDepescheInterval">Intervall bis Depeche (Sekunden)</label>
+          <input id="leitstellenDepescheInterval" name="depeschePollIntervalSeconds" type="number" min="15" max="3600" class="field"
+                 th:value="${leitstellenMail != null ? leitstellenMail.depeschePollIntervalSeconds : 60}"/>
+          <p class="hint">Nach DIVERA-Einsatz: so oft abrufen, bis die Depeche da ist (Standard 60).</p>
+        </div>
+        <div class="form-group">
+          <label for="leitstellenAbschlussInterval">Intervall bis Abschlussbericht (Sekunden)</label>
+          <input id="leitstellenAbschlussInterval" name="abschlussPollIntervalSeconds" type="number" min="15" max="3600" class="field"
+                 th:value="${leitstellenMail != null ? leitstellenMail.abschlussPollIntervalSeconds : 300}"/>
+          <p class="hint">Danach seltener abrufen, bis der Abschlussbericht da ist (Standard 300).</p>
+        </div>
         <div class="form-group form-group--full" th:if="${leitstellenMailLastPollAt != null}">
           <p class="hint">
             Letzter Abruf:
@@ -319,6 +332,10 @@
             <button type="submit" class="btn btn--outline btn--sm"
                     formaction="/admin/unit/leitstellen-mail/poll">Jetzt abrufen</button>
           </div>
+          <p class="hint">
+            Manueller Abruf prüft auch bereits bestehende und freigegebene Einsatzberichte und ergänzt fehlende Dateien.
+            Liegen Depeche und Abschlussbericht schon vor, passiert nichts.
+          </p>
         </div>
       </form>
     </div>

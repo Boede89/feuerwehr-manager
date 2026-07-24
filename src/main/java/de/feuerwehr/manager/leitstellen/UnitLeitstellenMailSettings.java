@@ -69,6 +69,14 @@ public class UnitLeitstellenMailSettings {
     @Column(name = "match_window_hours", nullable = false)
     private int matchWindowHours = 12;
 
+    /** Kurzes Intervall, bis die Alarmdepesche vorliegt (nach DIVERA-Einsatz). */
+    @Column(name = "depesche_poll_interval_seconds", nullable = false)
+    private int depeschePollIntervalSeconds = 60;
+
+    /** Längeres Intervall, bis der Abschlussbericht vorliegt. */
+    @Column(name = "abschluss_poll_interval_seconds", nullable = false)
+    private int abschlussPollIntervalSeconds = 300;
+
     @Column(name = "last_poll_at")
     private Instant lastPollAt;
 

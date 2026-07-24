@@ -3,6 +3,7 @@ package de.feuerwehr.manager.web;
 import de.feuerwehr.manager.divera.DiveraMappingService;
 import de.feuerwehr.manager.einsatzapp.EinsatzAppSettingsService;
 import de.feuerwehr.manager.leitstellen.LeitstellenMailImportService;
+import de.feuerwehr.manager.leitstellen.LeitstellenMailPollRunner;
 import de.feuerwehr.manager.leitstellen.LeitstellenMailSettingsService;
 import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.technik.UnitVehicleTypeService;
@@ -51,6 +52,7 @@ public class AdminUnitController {
     private final EinsatzAppSettingsService einsatzAppSettingsService;
     private final LeitstellenMailSettingsService leitstellenMailSettingsService;
     private final LeitstellenMailImportService leitstellenMailImportService;
+    private final LeitstellenMailPollRunner leitstellenMailPollRunner;
 
     @PostMapping("/config")
     public String saveConfig(
@@ -375,6 +377,8 @@ public class AdminUnitController {
             @RequestParam(required = false) String abschlussKeywords,
             @RequestParam(required = false) Integer pollLookbackHours,
             @RequestParam(required = false) Integer matchWindowHours,
+            @RequestParam(required = false) Integer depeschePollIntervalSeconds,
+            @RequestParam(required = false) Integer abschlussPollIntervalSeconds,
             RedirectAttributes redirectAttributes) {
         return withUnit(actor, unit, redirectAttributes, "schnittstellen", () -> {
             leitstellenMailSettingsService.save(
@@ -391,7 +395,9 @@ public class AdminUnitController {
                     depescheKeywords,
                     abschlussKeywords,
                     pollLookbackHours,
-                    matchWindowHours);
+                    matchWindowHours,
+                    depeschePollIntervalSeconds,
+                    abschlussPollIntervalSeconds);
             redirectAttributes.addFlashAttribute("message", "Leitstellen-Mail-Einstellungen gespeichert.");
         });
     }
@@ -413,7 +419,7 @@ public class AdminUnitController {
             @RequestParam long unit,
             RedirectAttributes redirectAttributes) {
         return withUnit(actor, unit, redirectAttributes, "schnittstellen", () -> {
-            var result = leitstellenMailImportService.pollUnit(unit);
+            var result = leitstellenMailPollRunner.pollUnitAndRefresh(unit);
             redirectAttributes.addFlashAttribute("message", result.message());
         });
     }

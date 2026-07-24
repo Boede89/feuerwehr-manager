@@ -14,6 +14,7 @@ import de.feuerwehr.manager.divera.DiveraMappingService;
 import de.feuerwehr.manager.divera.DiveraService;
 import de.feuerwehr.manager.unit.UnitDiveraSettings;
 import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
+import de.feuerwehr.manager.leitstellen.LeitstellenMailPollSessionService;
 import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.personal.PersonRepository;
 import de.feuerwehr.manager.personal.PersonalService;
@@ -82,6 +83,7 @@ public class EinsatzberichtService {
     private final IncidentReportChangeRepository incidentReportChangeRepository;
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final LeitstellenMailPollSessionService leitstellenMailPollSessionService;
 
     public List<IncidentReport> listByUnit(long unitId) {
         return incidentReportRepository.findByUnitIdOrderByDateDesc(unitId, includeTestReports());
@@ -863,6 +865,7 @@ public class EinsatzberichtService {
         report.setCreatedByName("DIVERA");
         IncidentReport saved = incidentReportRepository.save(report);
         importDiveraPersonnel(saved, details, unitId);
+        leitstellenMailPollSessionService.startAfterDiveraCreate(unitId, saved.getId());
         return true;
     }
 

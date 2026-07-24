@@ -3,6 +3,8 @@ package de.feuerwehr.manager.web;
 import de.feuerwehr.manager.berichte.EinsatzberichtAttachmentService;
 import de.feuerwehr.manager.berichte.EinsatzberichtAttachmentService.DownloadFile;
 import de.feuerwehr.manager.berichte.IncidentAttachmentDto;
+import de.feuerwehr.manager.leitstellen.LeitstellenMailImportService;
+import de.feuerwehr.manager.leitstellen.LeitstellenMailPollRunner;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.UserPermissionService;
@@ -35,6 +37,7 @@ public class EinsatzberichtAttachmentController {
     private final AccessControlService accessControlService;
     private final UserPermissionService userPermissionService;
     private final EinsatzberichtAttachmentService attachmentService;
+    private final LeitstellenMailPollRunner leitstellenMailPollRunner;
 
     @GetMapping("/{id}/anhaenge")
     public List<IncidentAttachmentDto> list(
@@ -87,6 +90,17 @@ public class EinsatzberichtAttachmentController {
         requireModuleEnabled(unit);
         requireBerichteWrite(actor, unit);
         attachmentService.delete(unit, id, aid);
+    }
+
+    @PostMapping("/{id}/leitstellen-abruf")
+    public LeitstellenMailImportService.PollResult leitstellenAbruf(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @PathVariable long id) {
+        long unit = resolveUnit(unitId, actor);
+        requireModuleEnabled(unit);
+        requireBerichteWrite(actor, unit);
+        return leitstellenMailPollRunner.pollReportAndRefresh(unit, id);
     }
 
     private long resolveUnit(Long unitId, AppUserDetails actor) {

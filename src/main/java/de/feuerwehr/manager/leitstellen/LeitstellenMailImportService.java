@@ -2,6 +2,7 @@ package de.feuerwehr.manager.leitstellen;
 
 import de.feuerwehr.manager.berichte.EinsatzberichtAttachmentService;
 import de.feuerwehr.manager.berichte.IncidentReport;
+import de.feuerwehr.manager.berichte.IncidentReportAttachmentRepository;
 import de.feuerwehr.manager.berichte.IncidentReportRepository;
 import de.feuerwehr.manager.berichte.IncidentReportStatus;
 import de.feuerwehr.manager.settings.TestModeService;
@@ -29,35 +30,98 @@ public class LeitstellenMailImportService {
     private final UnitLeitstellenMailSettingsRepository settingsRepository;
     private final LeitstellenMailImportRepository importRepository;
     private final IncidentReportRepository incidentReportRepository;
+    private final IncidentReportAttachmentRepository attachmentRepository;
     private final EinsatzberichtAttachmentService attachmentService;
     private final LeitstellenImapClient imapClient;
     private final LeitstellenMailMatcher matcher;
     private final TestModeService testModeService;
 
-    public record PollResult(int fetchedMails, int importedAttachments, int skipped, int unmatched, String message) {}
+    public record PollResult(
+            int fetchedMails,
+            int pdfAttachmentsFound,
+            int importedAttachments,
+            int skipped,
+            int unmatched,
+            String message) {}
 
     @Transactional
     public PollResult pollUnit(long unitId) {
+        UnitLeitstellenMailSettings settings = requireEnabledSettings(unitId, false);
+        if (settings == null) {
+            return disabledOrMissing(unitId);
+        }
+        List<IncidentReport> candidates = loadCandidates(unitId, settings);
+        candidates = candidates.stream().filter(r -> !alreadyComplete(r.getId())).toList();
+        if (candidates.isEmpty()) {
+            return finish(
+                    settings,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    "Kein Abruf nötig: für alle Berichte im Lookback liegen Depeche und Abschlussbericht bereits vor "
+                            + "(oder es gibt keine passenden Berichte).");
+        }
+        return pollInternal(settings, candidates, null);
+    }
+
+    /**
+     * Einmaliger Abruf nur für einen Einsatzbericht (auch freigegeben), sofern Dateien fehlen.
+     */
+    @Transactional
+    public PollResult pollForReport(long unitId, long reportId) {
+        UnitLeitstellenMailSettings settings = requireEnabledSettings(unitId, true);
+        if (settings == null) {
+            UnitLeitstellenMailSettings raw = settingsRepository.findByUnitId(unitId).orElse(null);
+            if (raw == null || raw.getImapHost() == null || raw.getImapHost().isBlank()) {
+                return new PollResult(0, 0, 0, 0, 0, "Leitstellen-Mail ist nicht konfiguriert.");
+            }
+            if (!raw.isEnabled()) {
+                return new PollResult(0, 0, 0, 0, 0, "Leitstellen-Mail-Abruf ist deaktiviert.");
+            }
+            return new PollResult(0, 0, 0, 0, 0, "IMAP-Host fehlt.");
+        }
+        IncidentReport report = incidentReportRepository
+                .findById(reportId)
+                .filter(r -> r.getUnit() != null && r.getUnit().getId() == unitId)
+                .orElseThrow(() -> new IllegalArgumentException("Einsatzbericht nicht gefunden."));
+        if (report.getStatus() == IncidentReportStatus.ARCHIVIERT) {
+            return finish(settings, 0, 0, 0, 0, 0, "Archivierte Berichte werden nicht ergänzt.");
+        }
+        if (alreadyComplete(reportId)) {
+            return finish(
+                    settings,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    "Depeche und Abschlussbericht sind bereits hinterlegt — kein Abruf nötig.");
+        }
+        return pollInternal(settings, List.of(report), reportId);
+    }
+
+    public void testConnection(long unitId) {
         UnitLeitstellenMailSettings settings = settingsRepository
                 .findByUnitId(unitId)
                 .orElseThrow(() -> new IllegalArgumentException("Leitstellen-Mail ist nicht konfiguriert."));
-        if (!settings.isEnabled()) {
-            return finish(settings, 0, 0, 0, 0, "Abruf deaktiviert.");
-        }
         if (settings.getImapHost() == null || settings.getImapHost().isBlank()) {
-            return finish(settings, 0, 0, 0, 0, "IMAP-Host fehlt.");
+            throw new IllegalArgumentException("IMAP-Host fehlt.");
         }
         try {
-            List<LeitstellenImapClient.MailMessage> mails = imapClient.fetchRecentPdfs(settings);
-            LocalDate today = LocalDate.now(ZONE);
-            int lookbackDays = Math.max(1, (settings.getPollLookbackHours() + 23) / 24);
-            List<IncidentReport> candidates = incidentReportRepository.findCandidatesForLeitstellenMail(
-                    unitId,
-                    List.of(IncidentReportStatus.ENTWURF, IncidentReportStatus.FREIGEGEBEN),
-                    today.minusDays(lookbackDays + 1L),
-                    today.plusDays(1),
-                    testModeService.isEnabled());
+            imapClient.testConnection(settings);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("IMAP-Verbindung fehlgeschlagen: " + e.getMessage(), e);
+        }
+    }
 
+    private PollResult pollInternal(
+            UnitLeitstellenMailSettings settings, List<IncidentReport> candidates, Long focusReportId) {
+        long unitId = settings.getUnit().getId();
+        try {
+            List<LeitstellenImapClient.MailMessage> mails = imapClient.fetchRecentPdfs(settings);
+            int pdfCount = mails.stream().mapToInt(m -> m.pdfs().size()).sum();
             int imported = 0;
             int skipped = 0;
             int unmatched = 0;
@@ -75,48 +139,97 @@ public class LeitstellenMailImportService {
                             mail,
                             pdf,
                             candidates,
-                            reportId -> importRepository.existsByIncidentReportIdAndKind(
-                                    reportId, LeitstellenMailKind.DEPESCHE),
-                            reportId -> importRepository.existsByIncidentReportIdAndKind(
-                                    reportId, LeitstellenMailKind.ABSCHLUSS));
+                            reportId -> hasKind(reportId, LeitstellenMailKind.DEPESCHE),
+                            reportId -> hasKind(reportId, LeitstellenMailKind.ABSCHLUSS));
                     if (match.isEmpty()) {
                         unmatched++;
                         continue;
                     }
                     LeitstellenMailMatcher.MatchResult hit = match.get();
+                    if (focusReportId != null && hit.report().getId() != focusReportId) {
+                        unmatched++;
+                        continue;
+                    }
+                    if (alreadyComplete(hit.report().getId())) {
+                        skipped++;
+                        continue;
+                    }
                     LeitstellenMailKind kind = hit.kind();
+                    if (hasKind(hit.report().getId(), kind)) {
+                        skipped++;
+                        continue;
+                    }
                     attachmentService.storeSystemPdf(
                             unitId, hit.report().getId(), kind.storedFilename(), pdf.content());
                     saveImport(settings.getUnit(), hit.report(), mail, pdf, sha, kind);
                     imported++;
                 }
             }
+            String focus = focusReportId != null ? " (nur dieser Einsatz)" : "";
             String msg = String.format(
                     Locale.GERMAN,
-                    "Abruf ok: %d Mail(s), %d Anhang/Anhänge importiert, %d übersprungen, %d ohne Treffer (werden erneut versucht).",
+                    "Abruf ok%s: %d Mail(s), %d PDF-Anhang/Anhänge gefunden, %d importiert, %d übersprungen, %d ohne Treffer.",
+                    focus,
                     mails.size(),
+                    pdfCount,
                     imported,
                     skipped,
                     unmatched);
-            return finish(settings, mails.size(), imported, skipped, unmatched, msg);
+            return finish(settings, mails.size(), pdfCount, imported, skipped, unmatched, msg);
         } catch (Exception e) {
             log.warn("Leitstellen-Mail Abruf unit={} fehlgeschlagen: {}", unitId, e.getMessage());
-            return finish(settings, 0, 0, 0, 0, "Abruf fehlgeschlagen: " + e.getMessage());
+            return finish(settings, 0, 0, 0, 0, 0, "Abruf fehlgeschlagen: " + e.getMessage());
         }
     }
 
-    public void testConnection(long unitId) {
-        UnitLeitstellenMailSettings settings = settingsRepository
-                .findByUnitId(unitId)
-                .orElseThrow(() -> new IllegalArgumentException("Leitstellen-Mail ist nicht konfiguriert."));
+    private List<IncidentReport> loadCandidates(long unitId, UnitLeitstellenMailSettings settings) {
+        LocalDate today = LocalDate.now(ZONE);
+        int lookbackDays = Math.max(1, (settings.getPollLookbackHours() + 23) / 24);
+        return incidentReportRepository.findCandidatesForLeitstellenMail(
+                unitId,
+                List.of(IncidentReportStatus.ENTWURF, IncidentReportStatus.FREIGEGEBEN),
+                today.minusDays(lookbackDays + 1L),
+                today.plusDays(1),
+                testModeService.isEnabled());
+    }
+
+    private boolean alreadyComplete(long reportId) {
+        return hasKind(reportId, LeitstellenMailKind.DEPESCHE)
+                && hasKind(reportId, LeitstellenMailKind.ABSCHLUSS);
+    }
+
+    private boolean hasKind(long reportId, LeitstellenMailKind kind) {
+        if (importRepository.existsByIncidentReportIdAndKind(reportId, kind)) {
+            return true;
+        }
+        return attachmentRepository
+                .findFirstByIncidentReportIdAndFilenameIgnoreCase(reportId, kind.storedFilename())
+                .isPresent();
+    }
+
+    private UnitLeitstellenMailSettings requireEnabledSettings(long unitId, boolean allowDisabledMessage) {
+        UnitLeitstellenMailSettings settings = settingsRepository.findByUnitId(unitId).orElse(null);
+        if (settings == null) {
+            return null;
+        }
+        if (!settings.isEnabled()) {
+            return allowDisabledMessage ? null : null;
+        }
         if (settings.getImapHost() == null || settings.getImapHost().isBlank()) {
-            throw new IllegalArgumentException("IMAP-Host fehlt.");
+            return null;
         }
-        try {
-            imapClient.testConnection(settings);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("IMAP-Verbindung fehlgeschlagen: " + e.getMessage(), e);
+        return settings;
+    }
+
+    private PollResult disabledOrMissing(long unitId) {
+        UnitLeitstellenMailSettings settings = settingsRepository.findByUnitId(unitId).orElse(null);
+        if (settings == null) {
+            return new PollResult(0, 0, 0, 0, 0, "Leitstellen-Mail ist nicht konfiguriert.");
         }
+        if (!settings.isEnabled()) {
+            return finish(settings, 0, 0, 0, 0, 0, "Abruf deaktiviert.");
+        }
+        return finish(settings, 0, 0, 0, 0, 0, "IMAP-Host fehlt.");
     }
 
     private void saveImport(
@@ -142,6 +255,7 @@ public class LeitstellenMailImportService {
     private PollResult finish(
             UnitLeitstellenMailSettings settings,
             int fetched,
+            int pdfs,
             int imported,
             int skipped,
             int unmatched,
@@ -150,7 +264,7 @@ public class LeitstellenMailImportService {
         settings.setLastPollMessage(trimMessage(message));
         settings.setUpdatedAt(Instant.now());
         settingsRepository.save(settings);
-        return new PollResult(fetched, imported, skipped, unmatched, message);
+        return new PollResult(fetched, pdfs, imported, skipped, unmatched, message);
     }
 
     private static String sha256(byte[] content) {

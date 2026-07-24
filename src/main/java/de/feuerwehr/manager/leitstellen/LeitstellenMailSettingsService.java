@@ -37,6 +37,8 @@ public class LeitstellenMailSettingsService {
             settings.setAbschlussKeywords("abschluss,abschlussbericht");
             settings.setPollLookbackHours(24);
             settings.setMatchWindowHours(12);
+            settings.setDepeschePollIntervalSeconds(60);
+            settings.setAbschlussPollIntervalSeconds(300);
             settings.setUpdatedAt(Instant.now());
             return settingsRepository.save(settings);
         });
@@ -57,7 +59,9 @@ public class LeitstellenMailSettingsService {
             String depescheKeywords,
             String abschlussKeywords,
             Integer pollLookbackHours,
-            Integer matchWindowHours) {
+            Integer matchWindowHours,
+            Integer depeschePollIntervalSeconds,
+            Integer abschlussPollIntervalSeconds) {
         UnitLeitstellenMailSettings settings = getOrCreate(unitId);
         settings.setEnabled(enabled);
         settings.setImapHost(blankToNull(imapHost));
@@ -83,8 +87,18 @@ public class LeitstellenMailSettingsService {
                 pollLookbackHours != null && pollLookbackHours > 0 ? Math.min(pollLookbackHours, 168) : 24);
         settings.setMatchWindowHours(
                 matchWindowHours != null && matchWindowHours > 0 ? Math.min(matchWindowHours, 72) : 12);
+        settings.setDepeschePollIntervalSeconds(clampInterval(depeschePollIntervalSeconds, 60));
+        settings.setAbschlussPollIntervalSeconds(clampInterval(abschlussPollIntervalSeconds, 300));
         settings.setUpdatedAt(Instant.now());
         return settingsRepository.save(settings);
+    }
+
+    /** 15 s … 1 h */
+    private static int clampInterval(Integer seconds, int defaultSeconds) {
+        if (seconds == null || seconds <= 0) {
+            return defaultSeconds;
+        }
+        return Math.min(3600, Math.max(15, seconds));
     }
 
     @Transactional(readOnly = true)

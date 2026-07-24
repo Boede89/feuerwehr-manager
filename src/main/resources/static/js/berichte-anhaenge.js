@@ -94,7 +94,18 @@
       '</div>' +
       '<div class="incident-attachment-progress" id="attach-progress">Wird hochgeladen …</div>';
 
-    wrap.innerHTML = listHtml + uploadHtml;
+    var leitstelleHtml = '';
+    if (wrap.dataset.leitstellenAbruf === 'true') {
+      leitstelleHtml =
+        '<div class="incident-attachments-leitstelle">' +
+          '<button type="button" class="btn btn--outline btn--sm" data-action="leitstellen-abruf" id="leitstellen-abruf-btn">' +
+            'Datenabruf Leitstelle' +
+          '</button>' +
+          '<p class="hint" id="leitstellen-abruf-result" hidden></p>' +
+        '</div>';
+    }
+
+    wrap.innerHTML = leitstelleHtml + listHtml + uploadHtml;
 
     wrap.querySelectorAll('[data-action="download"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -115,9 +126,79 @@
       });
     });
 
+    var leitstellenBtn = wrap.querySelector('[data-action="leitstellen-abruf"]');
+    if (leitstellenBtn) {
+      leitstellenBtn.addEventListener('click', function () {
+        runLeitstellenAbruf(wrap);
+      });
+    }
+
     if (!readonly) {
       bindUpload(wrap);
     }
+  }
+
+  function leitstellenAbrufUrl(wrap) {
+    var prefix = wrap.dataset.apiBase
+      || (window.BerichteApiBase ? window.BerichteApiBase.path() : '/berichte/einsatzberichte');
+    return prefix + '/' + wrap.dataset.reportId + '/leitstellen-abruf?unit=' + wrap.dataset.unitId;
+  }
+
+  function runLeitstellenAbruf(wrap) {
+    var btn = document.getElementById('leitstellen-abruf-btn');
+    var resultEl = document.getElementById('leitstellen-abruf-result');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Abruf läuft …';
+    }
+    if (resultEl) {
+      resultEl.hidden = false;
+      resultEl.textContent = 'Postfach wird abgefragt …';
+    }
+    fetch(leitstellenAbrufUrl(wrap), {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: (function () {
+        var headers = { 'Accept': 'application/json' };
+        headers[getCsrfHeader()] = getCsrfToken();
+        return headers;
+      })()
+    })
+      .then(function (res) {
+        if (!res.ok) {
+          return res.text().then(function (text) {
+            var message = 'Abruf fehlgeschlagen';
+            try {
+              var body = JSON.parse(text);
+              message = body.message || body.error || message;
+            } catch (e) {
+              if (text) {
+                message = text;
+              }
+            }
+            throw new Error(message);
+          });
+        }
+        return res.json();
+      })
+      .then(function (result) {
+        if (resultEl) {
+          resultEl.textContent = result.message || 'Abruf abgeschlossen.';
+        }
+        return load(wrap, true);
+      })
+      .catch(function (err) {
+        if (resultEl) {
+          resultEl.hidden = false;
+          resultEl.textContent = err.message || 'Abruf fehlgeschlagen';
+        } else {
+          alert(err.message || 'Abruf fehlgeschlagen');
+        }
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Datenabruf Leitstelle';
+        }
+      });
   }
 
   function bindUpload(wrap) {
@@ -249,12 +330,19 @@
       });
   }
 
-  function load(wrap) {
+  function load(wrap, keepLeitstellenMessage) {
     if (!wrap) {
       wrap = document.getElementById('incident-attachments-wrap');
     }
     if (!wrap || !wrap.dataset.reportId) {
       return Promise.resolve();
+    }
+    var previousMsg = '';
+    if (keepLeitstellenMessage) {
+      var prev = document.getElementById('leitstellen-abruf-result');
+      if (prev && !prev.hidden) {
+        previousMsg = prev.textContent || '';
+      }
     }
     wrap.innerHTML = '<p class="incident-attachments-empty">Anhänge werden geladen …</p>';
     return fetch(apiBase(wrap), { credentials: 'same-origin' })
@@ -266,6 +354,13 @@
       })
       .then(function (attachments) {
         render(wrap, attachments);
+        if (previousMsg) {
+          var resultEl = document.getElementById('leitstellen-abruf-result');
+          if (resultEl) {
+            resultEl.hidden = false;
+            resultEl.textContent = previousMsg;
+          }
+        }
       })
       .catch(function (err) {
         wrap.innerHTML = '<p class="incident-attachments-empty">' + esc(err.message) + '</p>';
