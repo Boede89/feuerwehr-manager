@@ -166,18 +166,22 @@
               <dd id="adm-leitung">—</dd>
             </div>
           </dl>
-          <section class="auswertung-detail-modal__section">
-            <h4 id="adm-personen-title">Personal</h4>
-            <ul id="adm-personen" class="auswertung-detail-modal__list"></ul>
-          </section>
-          <section class="auswertung-detail-modal__section" id="adm-pa-section" hidden>
-            <h4 id="adm-pa-title">PA-Träger</h4>
-            <ul id="adm-pa" class="auswertung-detail-modal__list"></ul>
-          </section>
-          <section class="auswertung-detail-modal__section">
-            <h4 id="adm-fahrzeuge-title">Fahrzeuge</h4>
-            <ul id="adm-fahrzeuge" class="auswertung-detail-modal__list"></ul>
-          </section>
+          <div class="auswertung-detail-columns">
+            <div class="auswertung-detail-columns__left">
+              <section class="auswertung-detail-modal__section">
+                <h4 id="adm-personen-title">Personal</h4>
+                <ul id="adm-personen" class="auswertung-detail-modal__list"></ul>
+              </section>
+              <section class="auswertung-detail-modal__section" id="adm-pa-section" hidden>
+                <h4 id="adm-pa-title">PA-Träger</h4>
+                <ul id="adm-pa" class="auswertung-detail-modal__list"></ul>
+              </section>
+            </div>
+            <section class="auswertung-detail-modal__section">
+              <h4 id="adm-fahrzeuge-title">Fahrzeuge</h4>
+              <ul id="adm-fahrzeuge" class="auswertung-detail-modal__list"></ul>
+            </section>
+          </div>
         </div>
         <div class="modal__footer">
           <button type="button" class="btn btn-secondary" data-auswertung-modal-close>Schließen</button>
