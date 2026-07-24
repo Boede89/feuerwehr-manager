@@ -95,6 +95,7 @@
             '<div class="incident-attachment-card__details">' + esc(fmtSize(a.fileSize)) + ' · ' + esc(fmtDate(a.createdAt)) + '</div>' +
           '</div>' +
           '<button type="button" class="btn btn--outline btn--sm" data-action="download" data-id="' + a.id + '" data-name="' + esc(a.filename) + '">↓ Download</button>' +
+          (allowDelete ? '<button type="button" class="btn btn--outline btn--sm" data-action="rename" data-id="' + a.id + '" data-name="' + esc(a.filename) + '">Umbenennen</button>' : '') +
           (allowDelete ? '<button type="button" class="btn btn--danger btn--sm" data-action="delete" data-id="' + a.id + '">✕</button>' : '') +
         '</div>';
       }).join('') + '</div>'
@@ -125,6 +126,12 @@
     wrap.querySelectorAll('[data-action="download"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         downloadAttachment(wrap, btn.dataset.id, btn.dataset.name);
+      });
+    });
+
+    wrap.querySelectorAll('[data-action="rename"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        renameAttachment(wrap, btn.dataset.id, btn.dataset.name);
       });
     });
 
@@ -321,6 +328,53 @@
         if (dropZone) {
           dropZone.style.opacity = '1';
         }
+      });
+  }
+
+  function renameAttachment(wrap, attachmentId, currentName) {
+    var next = window.prompt('Neuer Dateiname:', currentName || '');
+    if (next == null) {
+      return;
+    }
+    next = String(next).trim();
+    if (!next) {
+      alert('Bitte einen Dateinamen angeben.');
+      return;
+    }
+    if (next === currentName) {
+      return;
+    }
+    var url = apiBase(wrap).replace('/anhaenge', '/anhaenge/' + attachmentId);
+    url += (url.indexOf('?') >= 0 ? '&' : '?') + 'filename=' + encodeURIComponent(next);
+
+    fetch(url, {
+      method: 'PATCH',
+      credentials: 'same-origin',
+      headers: (function () {
+        var headers = { 'Accept': 'application/json' };
+        headers[getCsrfHeader()] = getCsrfToken();
+        return headers;
+      })()
+    })
+      .then(function (res) {
+        if (!res.ok) {
+          return res.text().then(function (text) {
+            var message = 'Umbenennen fehlgeschlagen';
+            try {
+              var body = JSON.parse(text);
+              message = body.message || body.error || message;
+            } catch (e) {
+              if (text) {
+                message = text;
+              }
+            }
+            throw new Error(message);
+          });
+        }
+        return load(wrap);
+      })
+      .catch(function (err) {
+        alert(err.message || 'Umbenennen fehlgeschlagen');
       });
   }
 

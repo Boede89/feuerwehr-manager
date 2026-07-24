@@ -20,6 +20,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -90,6 +91,19 @@ public class EinsatzberichtAttachmentController {
         requireModuleEnabled(unit);
         requireBerichteWrite(actor, unit);
         attachmentService.delete(unit, id, aid);
+    }
+
+    @PatchMapping("/{id}/anhaenge/{aid}")
+    public IncidentAttachmentDto rename(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @PathVariable long id,
+            @PathVariable long aid,
+            @RequestParam String filename) {
+        long unit = resolveUnit(unitId, actor);
+        requireModuleEnabled(unit);
+        requireBerichteWrite(actor, unit);
+        return attachmentService.rename(unit, id, aid, filename);
     }
 
     @PostMapping("/{id}/leitstellen-abruf")

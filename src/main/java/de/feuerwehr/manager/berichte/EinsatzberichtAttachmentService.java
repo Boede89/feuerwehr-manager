@@ -154,7 +154,7 @@ public class EinsatzberichtAttachmentService {
 
     @Transactional
     public void delete(long unitId, long reportId, long attachmentId) {
-        IncidentReport report = requireMutableAttachmentReport(unitId, reportId);
+        requireMutableAttachmentReport(unitId, reportId);
         IncidentReportAttachment attachment = attachmentRepository
                 .findByIdAndIncidentReportId(attachmentId, reportId)
                 .orElseThrow(() -> new IllegalArgumentException("Anhang nicht gefunden."));
@@ -162,6 +162,34 @@ public class EinsatzberichtAttachmentService {
         deleteStoredFile(reportId, attachment.getStoredName());
         attachmentRepository.delete(attachment);
         leitstellenImportCleanup.onAttachmentDeleted(unitId, reportId, filename);
+    }
+
+    @Transactional
+    public IncidentAttachmentDto rename(long unitId, long reportId, long attachmentId, String newFilenameRaw) {
+        requireMutableAttachmentReport(unitId, reportId);
+        IncidentReportAttachment attachment = attachmentRepository
+                .findByIdAndIncidentReportId(attachmentId, reportId)
+                .orElseThrow(() -> new IllegalArgumentException("Anhang nicht gefunden."));
+        String newFilename = sanitizeFilename(newFilenameRaw);
+        if (newFilename.isBlank() || "datei".equals(newFilename)) {
+            throw new IllegalArgumentException("Bitte einen gültigen Dateinamen angeben.");
+        }
+        if (newFilename.equalsIgnoreCase(attachment.getFilename())) {
+            return IncidentAttachmentDto.from(attachment);
+        }
+        attachmentRepository
+                .findFirstByIncidentReportIdAndFilenameIgnoreCase(reportId, newFilename)
+                .ifPresent(other -> {
+                    if (!other.getId().equals(attachment.getId())) {
+                        throw new IllegalArgumentException(
+                                "Ein Anhang mit dem Namen \"" + newFilename + "\" existiert bereits.");
+                    }
+                });
+        String oldFilename = attachment.getFilename();
+        attachment.setFilename(newFilename);
+        IncidentReportAttachment saved = attachmentRepository.save(attachment);
+        leitstellenImportCleanup.onAttachmentRenamed(unitId, reportId, oldFilename, newFilename);
+        return IncidentAttachmentDto.from(saved);
     }
 
     @Transactional
