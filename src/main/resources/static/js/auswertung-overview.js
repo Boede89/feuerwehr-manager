@@ -19,6 +19,8 @@
   var datumEl = document.getElementById('adm-datum');
   var alarmEl = document.getElementById('adm-alarmzeit');
   var endeEl = document.getElementById('adm-ende');
+  var leitungLabelEl = document.getElementById('adm-leitung-label');
+  var leitungEl = document.getElementById('adm-leitung');
   var personenEl = document.getElementById('adm-personen');
   var paSection = document.getElementById('adm-pa-section');
   var paEl = document.getElementById('adm-pa');
@@ -75,6 +77,12 @@
     }
     if (endeEl) {
       endeEl.textContent = row.einsatzende || '—';
+    }
+    if (leitungLabelEl) {
+      leitungLabelEl.textContent = row.leitungLabel || (row.kind === 'uebung' ? 'Ausbilder' : 'Einsatzleiter');
+    }
+    if (leitungEl) {
+      leitungEl.textContent = row.leitung || '—';
     }
     fillList(personenEl, row.personen, 'Keine Personen');
     var pa = row.paTraeger || [];

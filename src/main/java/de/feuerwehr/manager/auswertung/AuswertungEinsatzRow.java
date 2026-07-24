@@ -15,6 +15,8 @@ public record AuswertungEinsatzRow(
         int gf,
         String alarmzeit,
         String einsatzende,
+        String leitungLabel,
+        String leitung,
         List<String> personen,
         List<String> paTraeger,
         List<String> fahrzeuge,

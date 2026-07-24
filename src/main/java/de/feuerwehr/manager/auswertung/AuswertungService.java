@@ -11,11 +11,15 @@ import de.feuerwehr.manager.berichte.IncidentReportPersonnelRepository;
 import de.feuerwehr.manager.berichte.IncidentReportRepository;
 import de.feuerwehr.manager.berichte.IncidentReportVehicle;
 import de.feuerwehr.manager.berichte.IncidentReportVehicleRepository;
+import de.feuerwehr.manager.personal.Person;
+import de.feuerwehr.manager.personal.PersonRepository;
 import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.settings.AppModule;
 import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.termine.TermineCategory;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -24,9 +28,11 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,9 +49,11 @@ public class AuswertungService {
     private final AttendanceReportRepository attendanceReportRepository;
     private final AnwesenheitslisteService anwesenheitslisteService;
     private final PersonalService personalService;
+    private final PersonRepository personRepository;
     private final AtemschutzService atemschutzService;
     private final ModuleSettingsService moduleSettingsService;
     private final TestModeService testModeService;
+    private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
     public AuswertungOverviewStats overviewStats(long unitId, int year) {
@@ -223,6 +231,8 @@ public class AuswertungService {
                     gf,
                     formatTime(report.getAlarmTime()),
                     formatTime(report.getEndTime()),
+                    "Einsatzleiter",
+                    resolveEinsatzleiter(report),
                     personen,
                     paTraeger,
                     fahrzeuge,
@@ -267,6 +277,8 @@ public class AuswertungService {
                     presence.gf(),
                     formatTime(report.getStartTime()),
                     formatTime(report.getEndTime()),
+                    "Ausbilder",
+                    resolveAusbilder(report),
                     presence.personen(),
                     presence.paTraeger(),
                     presence.fahrzeuge(),
@@ -274,6 +286,57 @@ public class AuswertungService {
                     "Zur Anwesenheitsliste"));
         }
         return rows;
+    }
+
+    private static String resolveEinsatzleiter(IncidentReport report) {
+        if (report.getCommanderPerson() != null) {
+            String name = report.getCommanderPerson().displayName();
+            if (name != null && !name.isBlank()) {
+                return name.trim();
+            }
+        }
+        if (report.getIncidentCommander() != null && !report.getIncidentCommander().isBlank()) {
+            return report.getIncidentCommander().trim();
+        }
+        return "—";
+    }
+
+    private String resolveAusbilder(AttendanceReport report) {
+        if (report.getInstructorResponsible() != null && !report.getInstructorResponsible().isBlank()) {
+            return report.getInstructorResponsible().trim();
+        }
+        List<Long> ids = parseInstructorPersonIds(report.getInstructorPersonIdsJson());
+        if (ids.isEmpty()) {
+            return "—";
+        }
+        Map<Long, Person> byId = new LinkedHashMap<>();
+        personRepository.findAllById(ids).forEach(person -> byId.put(person.getId(), person));
+        List<String> names = new ArrayList<>();
+        for (Long id : ids) {
+            Person person = byId.get(id);
+            if (person != null) {
+                names.add(person.anwesenheitDisplayName());
+            }
+        }
+        if (names.isEmpty()) {
+            return "—";
+        }
+        names.sort(String.CASE_INSENSITIVE_ORDER);
+        return String.join(", ", names);
+    }
+
+    private List<Long> parseInstructorPersonIds(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            List<Long> ids = objectMapper.readValue(json, new TypeReference<>() {});
+            return ids != null
+                    ? ids.stream().filter(Objects::nonNull).distinct().toList()
+                    : List.of();
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 
     private String personnelDisplayName(IncidentReportPersonnel row) {
