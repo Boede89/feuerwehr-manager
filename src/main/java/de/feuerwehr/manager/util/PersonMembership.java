@@ -5,18 +5,27 @@ import java.time.LocalDate;
 
 /**
  * Mitgliedschaft anhand Eintritts-/Austrittsdatum.
- * Ohne Datum: uneingeschränkt. Austritt gilt inklusiv (am Austrittstag noch Mitglied).
+ * Archiv: sobald ein Austrittsdatum gesetzt ist. Historische Auswertung: Austritt inklusiv.
  */
 public final class PersonMembership {
 
     private PersonMembership() {}
 
-    /** Aktuelles Mitglied (heute innerhalb Eintritt–Austritt). */
-    public static boolean isCurrentlyMember(Person person) {
-        return isMemberOn(person, LocalDate.now());
+    /** Im Archiv (Austrittsdatum hinterlegt). */
+    public static boolean isArchived(Person person) {
+        return person != null && person.getExitDate() != null;
     }
 
-    /** Mitgliedschaft am angegebenen Tag. */
+    /** Aktives Mitglied der Einheit (kein Austrittsdatum, Eintritt nicht in der Zukunft). */
+    public static boolean isCurrentlyMember(Person person) {
+        if (person == null || isArchived(person)) {
+            return false;
+        }
+        LocalDate entry = person.getEntryDate();
+        return entry == null || !LocalDate.now().isBefore(entry);
+    }
+
+    /** Mitgliedschaft am angegebenen Tag (für Historie; Austritt inklusiv). */
     public static boolean isMemberOn(Person person, LocalDate date) {
         if (person == null || date == null) {
             return false;

@@ -25,11 +25,30 @@
   <div th:if="${personalTab == 'mitglieder'}" class="personal-module-panel">
     <div class="card">
       <div class="card__header card__header--toolbar">
-        <span th:text="'Alle Mitglieder (' + ${personCount} + ')'">Alle Mitglieder</span>
+        <div class="personal-members-heading">
+          <label class="toolbar-toggle personal-archive-toggle" for="personal-archive-toggle"
+                 title="Zwischen aktiven Mitgliedern und Archiv wechseln">
+            <span class="toolbar-toggle__label" th:classappend="${membersView != 'archiv'} ? ' toolbar-toggle__label--active' : ''">Aktiv</span>
+            <span class="toggle-switch toggle-switch--toolbar">
+              <input type="checkbox" id="personal-archive-toggle"
+                     th:checked="${membersView == 'archiv'}"
+                     th:attr="data-aktiv-url=@{/personal(unit=${unitId}, tab='mitglieder', view='aktiv')},
+                              data-archiv-url=@{/personal(unit=${unitId}, tab='mitglieder', view='archiv')}"
+                     aria-label="Archiv anzeigen"/>
+              <span class="toggle-switch__track"></span>
+            </span>
+            <span class="toolbar-toggle__label" th:classappend="${membersView == 'archiv'} ? ' toolbar-toggle__label--active' : ''">Archiv</span>
+          </label>
+          <span th:if="${membersView != 'archiv'}"
+                th:text="'Aktive Mitglieder (' + ${personCount} + ')'">Aktive Mitglieder (0)</span>
+          <span th:if="${membersView == 'archiv'}"
+                th:text="'Archiv (' + ${personCount} + ')'">Archiv (0)</span>
+        </div>
         <div class="toolbar-actions">
           <input type="search" class="field personal-search-field" id="personal-search"
                  placeholder="Suchen…" maxlength="100" autocomplete="off" aria-label="Mitglieder suchen"/>
-          <a class="btn btn--primary btn--sm" th:href="@{/personal/new(unit=${unitId})}">+ Neue Person</a>
+          <a class="btn btn--primary btn--sm" th:if="${membersView != 'archiv'}"
+             th:href="@{/personal/new(unit=${unitId})}">+ Neue Person</a>
         </div>
       </div>
       <div class="card__body card__body--flush" th:if="${!#lists.isEmpty(persons)}">
@@ -39,7 +58,7 @@
             <th>Name</th>
             <th>Pers.-Nr.</th>
             <th>Eintrittsdatum</th>
-            <th>Status</th>
+            <th th:text="${membersView == 'archiv'} ? 'Austrittsdatum' : 'Status'">Status</th>
           </tr>
           </thead>
           <tbody>
@@ -62,8 +81,13 @@
           </tbody>
         </table>
       </div>
-      <div class="card__body" th:if="${#lists.isEmpty(persons)}">
-        <p class="hint" style="margin:0;">Noch keine Mitglieder erfasst. Klicken Sie auf <strong>+ Neue Person</strong>.</p>
+      <div class="card__body" th:if="${#lists.isEmpty(persons) and membersView != 'archiv'}">
+        <p class="hint" style="margin:0;">Noch keine aktiven Mitglieder erfasst. Klicken Sie auf <strong>+ Neue Person</strong>.</p>
+      </div>
+      <div class="card__body" th:if="${#lists.isEmpty(persons) and membersView == 'archiv'}">
+        <p class="hint" style="margin:0;">
+          Das Archiv ist leer. Mitglieder mit Austrittsdatum erscheinen hier automatisch.
+        </p>
       </div>
     </div>
     <script th:src="@{/js/personal-list.js}"></script>

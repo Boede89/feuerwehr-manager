@@ -1,5 +1,6 @@
 (function () {
   var search = document.getElementById('personal-search');
+  var archiveToggle = document.getElementById('personal-archive-toggle');
 
   function rows() {
     return Array.prototype.slice.call(document.querySelectorAll('.member-row'));
@@ -24,7 +25,20 @@
     });
   });
 
-  if (!search) return;
+  if (archiveToggle) {
+    archiveToggle.addEventListener('change', function () {
+      var url = archiveToggle.checked
+        ? archiveToggle.getAttribute('data-archiv-url')
+        : archiveToggle.getAttribute('data-aktiv-url');
+      if (url) {
+        window.location.assign(url);
+      }
+    });
+  }
+
+  if (!search) {
+    return;
+  }
 
   function filter() {
     var q = search.value.trim().toLowerCase();

@@ -24,10 +24,12 @@ import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
+import de.feuerwehr.manager.util.PersonMembership;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDate;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -71,13 +73,39 @@ public class PersonalController {
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
             @RequestParam(name = "tab", defaultValue = "mitglieder") String tab,
+            @RequestParam(name = "view", required = false) String membersViewParam,
             Model model) {
         Unit unit = resolveUnit(unitId, actor, model);
         String personalTab = normalizePersonalTab(tab);
         model.addAttribute("personalTab", personalTab);
-        var persons = personalService.listPersons(unit.getId());
-        model.addAttribute("persons", persons);
-        model.addAttribute("personCount", persons.size());
+
+        List<Person> allPersons = personalService.listPersons(unit.getId());
+        List<Person> activePersons = allPersons.stream()
+                .filter(PersonMembership::isCurrentlyMember)
+                .toList();
+        List<Person> archivedPersons = allPersons.stream()
+                .filter(PersonMembership::isArchived)
+                .sorted(Comparator.comparing(Person::getExitDate, Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(Person::getLastName, String.CASE_INSENSITIVE_ORDER)
+                        .thenComparing(Person::getFirstName, String.CASE_INSENSITIVE_ORDER))
+                .toList();
+
+        boolean archiveView = "archiv".equalsIgnoreCase(membersViewParam);
+        String membersView = archiveView ? "archiv" : "aktiv";
+        model.addAttribute("membersView", membersView);
+        model.addAttribute("activePersonCount", activePersons.size());
+        model.addAttribute("archivedPersonCount", archivedPersons.size());
+
+        if ("mitglieder".equals(personalTab)) {
+            List<Person> shown = archiveView ? archivedPersons : activePersons;
+            model.addAttribute("persons", shown);
+            model.addAttribute("personCount", shown.size());
+        } else {
+            // Gruppen-/Ausbilder-Auswahl: nur aktive Mitglieder
+            model.addAttribute("persons", activePersons);
+            model.addAttribute("personCount", activePersons.size());
+        }
+
         if ("gruppen".equals(personalTab)) {
             List<PersonGroup> groups = personalGroupService.listGroups(unit.getId());
             model.addAttribute("groups", groups);

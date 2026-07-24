@@ -3226,6 +3226,23 @@ span.required { color: var(--error); }
 .p-empty { padding: 1rem; }
 .personal-search-field { width: 200px; margin: 0; }
 .personal-module-tabs { margin-bottom: var(--space-md, 1rem); }
+
+.personal-members-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.personal-archive-toggle {
+  flex-shrink: 0;
+}
+
+.personal-archive-toggle .toolbar-toggle__label--active {
+  color: var(--text);
+  font-weight: 600;
+}
 .modal--wide { max-width: 640px; }
 .member-picker {
   max-height: 280px;
