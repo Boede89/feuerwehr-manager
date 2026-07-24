@@ -2,4 +2,5 @@ package de.feuerwehr.manager.berichte;
 
 import java.util.List;
 
-public record GeraetewartmitteilungListResponse(List<GeraetewartmitteilungListItemView> items) {}
+public record GeraetewartmitteilungListResponse(
+        List<GeraetewartmitteilungListItemView> items, List<Integer> years) {}

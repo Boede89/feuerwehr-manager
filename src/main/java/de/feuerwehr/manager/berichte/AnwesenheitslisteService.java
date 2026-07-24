@@ -57,7 +57,10 @@ public class AnwesenheitslisteService {
         List<AttendanceReport> reports = attendanceReportRepository.findByUnitIdAndYear(
                 unitId, yearStart, yearEnd, includeTestReports());
         List<AnwesenheitslisteListItemView> items = reports.stream().map(this::toListItem).toList();
-        return new AnwesenheitslisteListResponse(items);
+        return new AnwesenheitslisteListResponse(
+                items,
+                de.feuerwehr.manager.util.YearFilterSupport.descendingYears(
+                        attendanceReportRepository.findDistinctYearsByUnitId(unitId, includeTestReports())));
     }
 
     @Transactional(readOnly = true)

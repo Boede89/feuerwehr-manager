@@ -49,7 +49,10 @@ public class GeraetewartmitteilungService {
                 .stream()
                 .map(this::toListItem)
                 .toList();
-        return new GeraetewartmitteilungListResponse(items);
+        return new GeraetewartmitteilungListResponse(
+                items,
+                de.feuerwehr.manager.util.YearFilterSupport.descendingYears(
+                        reportRepository.findDistinctYearsByUnitId(unitId, includeTestReports())));
     }
 
     @Transactional(readOnly = true)

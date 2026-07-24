@@ -321,6 +321,9 @@
         return res.json();
       })
       .then(function (data) {
+        if (applyYearOptions(data.years)) {
+          return loadList();
+        }
         allItems = data.items || [];
         stichworte = data.stichworte || [];
         fillStichwortFilter();
@@ -525,18 +528,8 @@
     var stichwortSel = document.getElementById('filter-stichwort');
     var statusSel = document.getElementById('filter-status');
 
-    if (yearSel) {
-      var curYear = new Date().getFullYear();
-      yearSel.innerHTML = '';
-      for (var y = curYear; y >= curYear - 10; y--) {
-        var opt = document.createElement('option');
-        opt.value = y;
-        opt.textContent = y;
-        if (y === filters.year) {
-          opt.selected = true;
-        }
-        yearSel.appendChild(opt);
-      }
+    if (yearSel && yearSel.dataset.bound !== 'true') {
+      yearSel.dataset.bound = 'true';
       yearSel.addEventListener('change', function () {
         filters.year = Number(yearSel.value);
         filters.stichwort = '';
@@ -561,6 +554,35 @@
         renderTable();
       });
     }
+  }
+
+  function applyYearOptions(years) {
+    var yearSel = document.getElementById('filter-year');
+    if (!yearSel) {
+      return false;
+    }
+    var list = Array.isArray(years) && years.length
+      ? years.map(Number).filter(function (y) { return Number.isFinite(y); })
+      : [new Date().getFullYear()];
+    var prev = Number(filters.year);
+    var selected = list.indexOf(prev) >= 0 ? prev : list[0];
+    yearSel.innerHTML = '';
+    list.forEach(function (y) {
+      var opt = document.createElement('option');
+      opt.value = String(y);
+      opt.textContent = String(y);
+      if (y === selected) {
+        opt.selected = true;
+      }
+      yearSel.appendChild(opt);
+    });
+    if (selected !== prev) {
+      filters.year = selected;
+      persistFilters();
+      return true;
+    }
+    filters.year = selected;
+    return false;
   }
 
   document.getElementById('btn-close-modal')?.addEventListener('click', closeModal);

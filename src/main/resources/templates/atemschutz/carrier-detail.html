@@ -123,7 +123,7 @@
         <input type="hidden" name="unit" th:value="${unitId}"/>
         <label class="sr-only" for="atemschutz-pa-year">Jahr</label>
         <select id="atemschutz-pa-year" name="jahr" class="berichte-filter-select" aria-label="Jahr filtern"
-                onchange="this.form.submit()">
+                data-year-filter-submit>
           <option th:each="y : ${yearOptions}" th:value="${y}" th:text="${y}"
                   th:selected="${y == filterYear}"></option>
         </select>

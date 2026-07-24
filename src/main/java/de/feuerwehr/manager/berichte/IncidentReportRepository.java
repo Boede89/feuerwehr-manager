@@ -154,6 +154,29 @@ public interface IncidentReportRepository extends JpaRepository<IncidentReport, 
             @Param("unitId") long unitId, @Param("includeTestReports") boolean includeTestReports);
 
     @Query("""
+            SELECT DISTINCT YEAR(r.incidentDate) FROM IncidentReport r
+            WHERE r.unit.id = :unitId
+              AND r.incidentDate IS NOT NULL
+              AND (r.testData = FALSE OR :includeTestReports = TRUE)
+            ORDER BY YEAR(r.incidentDate) DESC
+            """)
+    List<Integer> findDistinctYearsByUnitId(
+            @Param("unitId") long unitId, @Param("includeTestReports") boolean includeTestReports);
+
+    @Query("""
+            SELECT DISTINCT YEAR(r.incidentDate) FROM IncidentReport r
+            WHERE r.unit.id = :unitId
+              AND r.incidentDate IS NOT NULL
+              AND r.status IN :statuses
+              AND (r.testData = FALSE OR :includeTestReports = TRUE)
+            ORDER BY YEAR(r.incidentDate) DESC
+            """)
+    List<Integer> findDistinctYearsByUnitIdAndStatuses(
+            @Param("unitId") long unitId,
+            @Param("statuses") List<IncidentReportStatus> statuses,
+            @Param("includeTestReports") boolean includeTestReports);
+
+    @Query("""
             SELECT r FROM IncidentReport r
             WHERE r.unit.id = :unitId AND r.diveraAlarmId = :diveraAlarmId
               AND (r.testData = FALSE OR :includeTestReports = TRUE)

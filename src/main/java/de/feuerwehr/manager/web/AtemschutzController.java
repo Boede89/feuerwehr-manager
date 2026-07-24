@@ -232,12 +232,8 @@ public class AtemschutzController {
             Person person = carrier.getPerson();
             CarrierDetailView detail = atemschutzService.loadCarrierDetail(id);
 
-            int filterYear = jahr != null ? jahr : LocalDate.now().getYear();
-            int currentYear = LocalDate.now().getYear();
-            List<Integer> yearOptions = new ArrayList<>();
-            for (int y = currentYear; y >= currentYear - 10; y--) {
-                yearOptions.add(y);
-            }
+            List<Integer> yearOptions = atemschutzService.listPaEinsatzYears(unit.getId(), person.getId());
+            int filterYear = de.feuerwehr.manager.util.YearFilterSupport.resolveSelected(jahr, yearOptions);
             String returnUrl = "/atemschutz/carriers/" + id + "?unit=" + unit.getId() + "&jahr=" + filterYear;
             List<AtemschutzService.PaEinsatzRow> paEinsaetze = atemschutzService.listPaEinsaetze(
                     unit.getId(), person.getId(), filterYear, returnUrl);

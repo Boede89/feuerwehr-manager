@@ -117,4 +117,29 @@ public interface AttendanceReportRepository extends JpaRepository<AttendanceRepo
             @Param("category") TermineCategory category,
             @Param("includeNullCategory") boolean includeNullCategory,
             @Param("includeTestReports") boolean includeTestReports);
+
+    @Query("""
+            SELECT DISTINCT YEAR(r.eventDate) FROM AttendanceReport r
+            WHERE r.unit.id = :unitId
+              AND r.eventDate IS NOT NULL
+              AND (r.testData = FALSE OR :includeTestReports = TRUE)
+            ORDER BY YEAR(r.eventDate) DESC
+            """)
+    List<Integer> findDistinctYearsByUnitId(
+            @Param("unitId") long unitId, @Param("includeTestReports") boolean includeTestReports);
+
+    @Query("""
+            SELECT DISTINCT YEAR(r.eventDate) FROM AttendanceReport r
+            WHERE r.unit.id = :unitId
+              AND r.eventDate IS NOT NULL
+              AND r.terminCategory = :category
+              AND r.status IN :statuses
+              AND (r.testData = FALSE OR :includeTestReports = TRUE)
+            ORDER BY YEAR(r.eventDate) DESC
+            """)
+    List<Integer> findDistinctYearsByUnitIdCategoryAndStatuses(
+            @Param("unitId") long unitId,
+            @Param("category") TermineCategory category,
+            @Param("statuses") List<IncidentReportStatus> statuses,
+            @Param("includeTestReports") boolean includeTestReports);
 }

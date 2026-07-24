@@ -118,7 +118,11 @@ public class EinsatzberichtService {
                 stichworte.add(stichwort);
             }
         }
-        return new EinsatzberichtListResponse(items, List.copyOf(stichworte));
+        return new EinsatzberichtListResponse(
+                items,
+                List.copyOf(stichworte),
+                de.feuerwehr.manager.util.YearFilterSupport.descendingYears(
+                        incidentReportRepository.findDistinctYearsByUnitId(unitId, includeTestReports())));
     }
 
     @Transactional(readOnly = true)

@@ -39,7 +39,10 @@ public class MaengelberichtService {
                 .stream()
                 .map(this::toListItem)
                 .toList();
-        return new MaengelberichtListResponse(items);
+        return new MaengelberichtListResponse(
+                items,
+                de.feuerwehr.manager.util.YearFilterSupport.descendingYears(
+                        reportRepository.findDistinctYearsByUnitId(unitId, includeTestReports())));
     }
 
     @Transactional(readOnly = true)

@@ -232,7 +232,7 @@
   }
 
   function loadList() {
-    fetch('/berichte/maengelberichte/list?unit=' + encodeURIComponent(unitId) +
+    return fetch('/berichte/maengelberichte/list?unit=' + encodeURIComponent(unitId) +
       '&year=' + encodeURIComponent(filters.year), { credentials: 'same-origin' })
       .then(function (res) {
         if (!res.ok) {
@@ -241,6 +241,9 @@
         return res.json();
       })
       .then(function (data) {
+        if (applyYearOptions(data.years)) {
+          return loadList();
+        }
         allItems = data.items || [];
         renderTable();
       })
@@ -252,21 +255,41 @@
       });
   }
 
-  function initYearFilter() {
+  function applyYearOptions(years) {
     var select = document.getElementById('filter-year-maengel');
     if (!select) {
-      return;
+      return false;
     }
-    var currentYear = new Date().getFullYear();
-    for (var y = currentYear + 1; y >= currentYear - 5; y--) {
+    var list = Array.isArray(years) && years.length
+      ? years.map(Number).filter(function (y) { return Number.isFinite(y); })
+      : [new Date().getFullYear()];
+    var prev = Number(filters.year);
+    var selected = list.indexOf(prev) >= 0 ? prev : list[0];
+    select.innerHTML = '';
+    list.forEach(function (y) {
       var opt = document.createElement('option');
       opt.value = String(y);
       opt.textContent = String(y);
-      if (y === filters.year) {
+      if (y === selected) {
         opt.selected = true;
       }
       select.appendChild(opt);
+    });
+    if (selected !== prev) {
+      filters.year = selected;
+      persistFilters();
+      return true;
     }
+    filters.year = selected;
+    return false;
+  }
+
+  function initYearFilter() {
+    var select = document.getElementById('filter-year-maengel');
+    if (!select || select.dataset.bound === 'true') {
+      return;
+    }
+    select.dataset.bound = 'true';
     select.addEventListener('change', function () {
       filters.year = Number(select.value);
       persistFilters();

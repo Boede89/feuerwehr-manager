@@ -21,6 +21,7 @@ import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.termine.TermineCategory;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import de.feuerwehr.manager.util.YearFilterSupport;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -145,9 +146,23 @@ public class AuswertungService {
     }
 
     /**
+     * Jahre mit freigegebenen/archivierten Einsätzen oder Übungsdiensten (absteigend).
+     */
+    @Transactional(readOnly = true)
+    public List<Integer> availableYears(long unitId) {
+        boolean includeTest = testModeService.isEnabled();
+        List<IncidentReportStatus> statuses =
+                List.of(IncidentReportStatus.FREIGEGEBEN, IncidentReportStatus.ARCHIVIERT);
+        return YearFilterSupport.mergeDescending(
+                incidentReportRepository.findDistinctYearsByUnitIdAndStatuses(unitId, statuses, includeTest),
+                attendanceReportRepository.findDistinctYearsByUnitIdCategoryAndStatuses(
+                        unitId, TermineCategory.DIENSTPLAN, statuses, includeTest));
+    }
+
+    /**
      * Personen-Auswertung: Dienstbeteiligung = Anteil an freigegebenen Übungsdienst-Anwesenheitslisten
      * (bis heute), Einsatzbeteiligung = Anteil an freigegebenen Einsatzberichten im Jahr.
-     * Entwürfe zählen nicht.
+     * Entwürfe zählen nicht. Eintrittsdatum: nur Termine ab Eintritt; ohne Eintrittsdatum alle Termine.
      */
     @Transactional(readOnly = true)
     public List<AuswertungPersonRow> listPersonRows(long unitId, int year) {
@@ -167,37 +182,31 @@ public class AuswertungService {
             return List.of();
         }
 
-        Map<Long, Integer> dienstCountByPerson = new HashMap<>();
-        Map<Long, Integer> einsatzCountByPerson = new HashMap<>();
-        Map<Long, List<DatedTeilnahme>> diensteByPerson = new HashMap<>();
-        Map<Long, List<DatedTeilnahme>> einsaetzeByPerson = new HashMap<>();
-
-        int totalUebungen = 0;
+        List<AttendanceReport> uebungen = List.of();
         LocalDateRange uebungRange = uebungDateRange(yearStart, yearEndExclusive, LocalDate.now());
         if (uebungRange != null) {
-            List<AttendanceReport> uebungen =
-                    listFreigegebeneUebungsdienste(unitId, uebungRange.from(), uebungRange.to(), includeTest);
-            totalUebungen = uebungen.size();
-            for (AttendanceReport report : uebungen) {
-                LocalDate eventDate = report.getEventDate();
-                String label = report.getTitle() != null && !report.getTitle().isBlank()
-                        ? report.getTitle().trim()
-                        : "Übungsdienst";
-                AnwesenheitslisteService.AnwesenheitPersonIds ids =
-                        anwesenheitslisteService.presentAndPaPersonIds(unitId, report.getId());
-                for (Long personId : ids.presentIds()) {
-                    boolean pa = ids.paIds().contains(personId);
-                    dienstCountByPerson.merge(personId, 1, Integer::sum);
-                    diensteByPerson
-                            .computeIfAbsent(personId, id -> new ArrayList<>())
-                            .add(new DatedTeilnahme(eventDate, label, pa));
-                }
+            uebungen = listFreigegebeneUebungsdienste(unitId, uebungRange.from(), uebungRange.to(), includeTest);
+        }
+
+        Map<Long, List<DatedTeilnahme>> diensteByPerson = new HashMap<>();
+        for (AttendanceReport report : uebungen) {
+            LocalDate eventDate = report.getEventDate();
+            String label = report.getTitle() != null && !report.getTitle().isBlank()
+                    ? report.getTitle().trim()
+                    : "Übungsdienst";
+            AnwesenheitslisteService.AnwesenheitPersonIds ids =
+                    anwesenheitslisteService.presentAndPaPersonIds(unitId, report.getId());
+            for (Long personId : ids.presentIds()) {
+                boolean pa = ids.paIds().contains(personId);
+                diensteByPerson
+                        .computeIfAbsent(personId, id -> new ArrayList<>())
+                        .add(new DatedTeilnahme(eventDate, label, pa));
             }
         }
 
         List<IncidentReport> einsaetze =
                 listFreigegebeneEinsaetze(unitId, yearStart, yearEndExclusive, includeTest);
-        int totalEinsaetze = einsaetze.size();
+        Map<Long, List<DatedTeilnahme>> einsaetzeByPerson = new HashMap<>();
         if (!einsaetze.isEmpty()) {
             Map<Long, IncidentReport> einsatzById = new HashMap<>();
             for (IncidentReport report : einsaetze) {
@@ -223,9 +232,6 @@ public class AuswertungService {
                         einsatzTeilnahmeByPerson.computeIfAbsent(personId, id -> new HashMap<>());
                 DatedTeilnahme existing = byReport.get(reportId);
                 boolean pa = row.isUsesPa() || (existing != null && existing.pa());
-                if (existing == null) {
-                    einsatzCountByPerson.merge(personId, 1, Integer::sum);
-                }
                 byReport.put(reportId, new DatedTeilnahme(report.getIncidentDate(), label, pa));
             }
             for (Map.Entry<Long, Map<Long, DatedTeilnahme>> entry : einsatzTeilnahmeByPerson.entrySet()) {
@@ -235,8 +241,15 @@ public class AuswertungService {
 
         List<AuswertungPersonRow> rows = new ArrayList<>(persons.size());
         for (Person person : persons) {
-            int dienst = dienstCountByPerson.getOrDefault(person.getId(), 0);
-            int einsatz = einsatzCountByPerson.getOrDefault(person.getId(), 0);
+            LocalDate entryDate = person.getEntryDate();
+            int totalUebungen = countEventsOnOrAfter(uebungen, AttendanceReport::getEventDate, entryDate);
+            int totalEinsaetze = countEventsOnOrAfter(einsaetze, IncidentReport::getIncidentDate, entryDate);
+
+            List<DatedTeilnahme> dienste = filterTeilnahmen(diensteByPerson.get(person.getId()), entryDate);
+            List<DatedTeilnahme> einsatzTeilnahmen =
+                    filterTeilnahmen(einsaetzeByPerson.get(person.getId()), entryDate);
+            int dienst = dienste.size();
+            int einsatz = einsatzTeilnahmen.size();
             double dienstPct = totalUebungen > 0 ? (dienst * 100.0) / totalUebungen : 0;
             double einsatzPct = totalEinsaetze > 0 ? (einsatz * 100.0) / totalEinsaetze : 0;
             rows.add(new AuswertungPersonRow(
@@ -248,10 +261,40 @@ public class AuswertungService {
                     einsatzPct,
                     formatBeteiligungQuote(dienst, totalUebungen),
                     formatBeteiligungQuote(einsatz, totalEinsaetze),
-                    toTeilnahmeList(diensteByPerson.get(person.getId())),
-                    toTeilnahmeList(einsaetzeByPerson.get(person.getId()))));
+                    toTeilnahmeList(dienste),
+                    toTeilnahmeList(einsatzTeilnahmen)));
         }
         return rows;
+    }
+
+    private static <T> int countEventsOnOrAfter(
+            List<T> events, java.util.function.Function<T, LocalDate> dateGetter, LocalDate entryDate) {
+        if (events == null || events.isEmpty()) {
+            return 0;
+        }
+        int count = 0;
+        for (T event : events) {
+            if (YearFilterSupport.isOnOrAfterEntry(dateGetter.apply(event), entryDate)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static List<DatedTeilnahme> filterTeilnahmen(List<DatedTeilnahme> items, LocalDate entryDate) {
+        if (items == null || items.isEmpty()) {
+            return List.of();
+        }
+        if (entryDate == null) {
+            return items;
+        }
+        List<DatedTeilnahme> filtered = new ArrayList<>();
+        for (DatedTeilnahme item : items) {
+            if (YearFilterSupport.isOnOrAfterEntry(item.date(), entryDate)) {
+                filtered.add(item);
+            }
+        }
+        return filtered;
     }
 
     private static List<AuswertungPersonTeilnahme> toTeilnahmeList(List<DatedTeilnahme> items) {

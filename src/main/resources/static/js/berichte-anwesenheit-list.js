@@ -511,6 +511,9 @@
         return res.json();
       })
       .then(function (data) {
+        if (applyYearOptions(data.years)) {
+          return loadList();
+        }
         allItems = data.items || [];
         renderTable();
       })
@@ -521,24 +524,43 @@
       });
   }
 
+  function applyYearOptions(years) {
+    var yearSel = document.getElementById('filter-year-anwesenheit');
+    if (!yearSel) {
+      return false;
+    }
+    var list = Array.isArray(years) && years.length
+      ? years.map(Number).filter(function (y) { return Number.isFinite(y); })
+      : [new Date().getFullYear()];
+    var prev = Number(filters.year);
+    var selected = list.indexOf(prev) >= 0 ? prev : list[0];
+    yearSel.innerHTML = '';
+    list.forEach(function (y) {
+      var opt = document.createElement('option');
+      opt.value = String(y);
+      opt.textContent = String(y);
+      if (y === selected) {
+        opt.selected = true;
+      }
+      yearSel.appendChild(opt);
+    });
+    if (selected !== prev) {
+      filters.year = selected;
+      persistFilters();
+      return true;
+    }
+    filters.year = selected;
+    return false;
+  }
+
   function initFilters() {
     var yearSel = document.getElementById('filter-year-anwesenheit');
     var zeitraumSel = document.getElementById('filter-zeitraum-anwesenheit');
     var categorySel = document.getElementById('filter-category-anwesenheit');
     var statusSel = document.getElementById('filter-status-anwesenheit');
 
-    if (yearSel) {
-      var curYear = new Date().getFullYear();
-      yearSel.innerHTML = '';
-      for (var y = curYear; y >= curYear - 10; y--) {
-        var opt = document.createElement('option');
-        opt.value = y;
-        opt.textContent = y;
-        if (y === filters.year) {
-          opt.selected = true;
-        }
-        yearSel.appendChild(opt);
-      }
+    if (yearSel && yearSel.dataset.bound !== 'true') {
+      yearSel.dataset.bound = 'true';
       yearSel.addEventListener('change', function () {
         filters.year = Number(yearSel.value);
         persistFilters();

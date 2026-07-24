@@ -39,6 +39,16 @@ public interface EquipmentMaintenanceReportRepository extends JpaRepository<Equi
             @Param("unitId") long unitId,
             @Param("includeTestReports") boolean includeTestReports);
 
+    @Query("""
+            SELECT DISTINCT YEAR(r.eventDate) FROM EquipmentMaintenanceReport r
+            WHERE r.unit.id = :unitId
+              AND r.eventDate IS NOT NULL
+              AND (r.testData = FALSE OR :includeTestReports = TRUE)
+            ORDER BY YEAR(r.eventDate) DESC
+            """)
+    List<Integer> findDistinctYearsByUnitId(
+            @Param("unitId") long unitId, @Param("includeTestReports") boolean includeTestReports);
+
     @Modifying
     @Query("DELETE FROM EquipmentMaintenanceReport r WHERE r.testData = true")
     void deleteAllByTestDataTrue();

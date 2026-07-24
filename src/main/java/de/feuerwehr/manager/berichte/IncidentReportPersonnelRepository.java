@@ -52,6 +52,23 @@ public interface IncidentReportPersonnelRepository extends JpaRepository<Inciden
             @Param("statuses") Collection<IncidentReportStatus> statuses,
             @Param("includeTestReports") boolean includeTestReports);
 
+    @Query("""
+            SELECT DISTINCT YEAR(r.incidentDate) FROM IncidentReportPersonnel p
+            JOIN p.incidentReport r
+            WHERE p.person.id = :personId
+              AND p.usesPa = TRUE
+              AND r.unit.id = :unitId
+              AND r.incidentDate IS NOT NULL
+              AND r.status IN :statuses
+              AND (r.testData = FALSE OR :includeTestReports = TRUE)
+            ORDER BY YEAR(r.incidentDate) DESC
+            """)
+    List<Integer> findDistinctPaYearsByPerson(
+            @Param("personId") long personId,
+            @Param("unitId") long unitId,
+            @Param("statuses") Collection<IncidentReportStatus> statuses,
+            @Param("includeTestReports") boolean includeTestReports);
+
     @Modifying
     @Query("DELETE FROM IncidentReportPersonnel p WHERE p.incidentReport.id = :reportId")
     void deleteByIncidentReportId(@Param("reportId") long reportId);

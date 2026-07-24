@@ -12,10 +12,9 @@ import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.UserPermissionService;
 import de.feuerwehr.manager.settings.AppModule;
 import de.feuerwehr.manager.settings.ModuleSettingsService;
+import de.feuerwehr.manager.util.YearFilterSupport;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
-import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -53,12 +52,8 @@ public class AuswertungController {
             requireRead(actor, unit.getId());
 
             AuswertungBereich bereich = AuswertungBereich.fromKey(bereichKey);
-            int filterYear = jahr != null ? jahr : LocalDate.now().getYear();
-            int currentYear = LocalDate.now().getYear();
-            List<Integer> yearOptions = new ArrayList<>();
-            for (int y = currentYear; y >= currentYear - 10; y--) {
-                yearOptions.add(y);
-            }
+            List<Integer> yearOptions = auswertungService.availableYears(unit.getId());
+            int filterYear = YearFilterSupport.resolveSelected(jahr, yearOptions);
 
             model.addAttribute("bereich", bereich);
             model.addAttribute(

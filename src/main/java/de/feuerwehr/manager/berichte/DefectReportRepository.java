@@ -41,6 +41,16 @@ public interface DefectReportRepository extends JpaRepository<DefectReport, Long
             @Param("unitId") long unitId,
             @Param("includeTestReports") boolean includeTestReports);
 
+    @Query("""
+            SELECT DISTINCT YEAR(r.aufgenommenAm) FROM DefectReport r
+            WHERE r.unit.id = :unitId
+              AND r.aufgenommenAm IS NOT NULL
+              AND (r.testData = FALSE OR :includeTestReports = TRUE)
+            ORDER BY YEAR(r.aufgenommenAm) DESC
+            """)
+    List<Integer> findDistinctYearsByUnitId(
+            @Param("unitId") long unitId, @Param("includeTestReports") boolean includeTestReports);
+
     @Modifying
     @Query("DELETE FROM DefectReport r WHERE r.testData = true")
     void deleteAllByTestDataTrue();

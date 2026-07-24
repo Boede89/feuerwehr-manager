@@ -235,6 +235,34 @@ public class AtemschutzService {
         return rows;
     }
 
+    @Transactional(readOnly = true)
+    public List<Integer> listPaEinsatzYears(long unitId, long personId) {
+        boolean includeTest = testModeService.isEnabled();
+        List<IncidentReportStatus> statuses =
+                List.of(IncidentReportStatus.FREIGEGEBEN, IncidentReportStatus.ARCHIVIERT);
+        Set<Integer> years = new HashSet<>(incidentReportPersonnelRepository.findDistinctPaYearsByPerson(
+                personId, unitId, statuses, includeTest));
+        for (Integer year : attendanceReportRepository.findDistinctYearsByUnitId(unitId, includeTest)) {
+            if (year == null || years.contains(year)) {
+                continue;
+            }
+            LocalDate yearStart = LocalDate.of(year, 1, 1);
+            LocalDate yearEnd = yearStart.plusYears(1);
+            for (AttendanceReport report :
+                    attendanceReportRepository.findByUnitIdAndYear(unitId, yearStart, yearEnd, includeTest)) {
+                if (report.getStatus() != IncidentReportStatus.FREIGEGEBEN
+                        && report.getStatus() != IncidentReportStatus.ARCHIVIERT) {
+                    continue;
+                }
+                if (crewJsonContainsPaPerson(report.getCrewAssignmentsJson(), personId)) {
+                    years.add(year);
+                    break;
+                }
+            }
+        }
+        return de.feuerwehr.manager.util.YearFilterSupport.descendingYears(years);
+    }
+
     private boolean crewJsonContainsPaPerson(String json, long personId) {
         if (json == null || json.isBlank()) {
             return false;
