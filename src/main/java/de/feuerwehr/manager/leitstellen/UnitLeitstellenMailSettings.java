@@ -55,13 +55,13 @@ public class UnitLeitstellenMailSettings {
     private String fromFilter;
 
     @Column(name = "subject_filter", length = 255)
-    private String subjectFilter;
+    private String subjectFilter = "FAX";
 
     @Column(name = "depesche_keywords", nullable = false, length = 512)
-    private String depescheKeywords = "depesche,alarmdepesche,alarm";
+    private String depescheKeywords = "depesche,alarmdepesche";
 
     @Column(name = "abschluss_keywords", nullable = false, length = 512)
-    private String abschlussKeywords = "abschluss,abschlussbericht,endebericht";
+    private String abschlussKeywords = "abschluss,abschlussbericht";
 
     @Column(name = "poll_lookback_hours", nullable = false)
     private int pollLookbackHours = 24;

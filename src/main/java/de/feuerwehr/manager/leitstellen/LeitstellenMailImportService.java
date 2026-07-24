@@ -70,13 +70,21 @@ public class LeitstellenMailImportService {
                         skipped++;
                         continue;
                     }
-                    var match = matcher.match(settings, mail, pdf, candidates);
+                    var match = matcher.match(
+                            settings,
+                            mail,
+                            pdf,
+                            candidates,
+                            reportId -> importRepository.existsByIncidentReportIdAndKind(
+                                    reportId, LeitstellenMailKind.DEPESCHE),
+                            reportId -> importRepository.existsByIncidentReportIdAndKind(
+                                    reportId, LeitstellenMailKind.ABSCHLUSS));
                     if (match.isEmpty()) {
                         unmatched++;
                         continue;
                     }
                     LeitstellenMailMatcher.MatchResult hit = match.get();
-                    LeitstellenMailKind kind = refineKind(settings, hit.report().getId(), mail, pdf);
+                    LeitstellenMailKind kind = hit.kind();
                     attachmentService.storeSystemPdf(
                             unitId, hit.report().getId(), kind.storedFilename(), pdf.content());
                     saveImport(settings.getUnit(), hit.report(), mail, pdf, sha, kind);
@@ -109,29 +117,6 @@ public class LeitstellenMailImportService {
         } catch (Exception e) {
             throw new IllegalArgumentException("IMAP-Verbindung fehlgeschlagen: " + e.getMessage(), e);
         }
-    }
-
-    private LeitstellenMailKind refineKind(
-            UnitLeitstellenMailSettings settings,
-            long reportId,
-            LeitstellenImapClient.MailMessage mail,
-            LeitstellenImapClient.PdfAttachment pdf) {
-        String haystack = (nullToEmpty(mail.subject()) + " " + nullToEmpty(pdf.filename())).toLowerCase(Locale.GERMAN);
-        boolean explicitAbschluss = containsKeyword(haystack, settings.getAbschlussKeywords());
-        boolean explicitDepesche = containsKeyword(haystack, settings.getDepescheKeywords());
-        if (explicitAbschluss && !explicitDepesche) {
-            return LeitstellenMailKind.ABSCHLUSS;
-        }
-        if (explicitDepesche && !explicitAbschluss) {
-            return LeitstellenMailKind.DEPESCHE;
-        }
-        boolean hasDepesche = importRepository.existsByIncidentReportIdAndKind(reportId, LeitstellenMailKind.DEPESCHE);
-        boolean hasAbschluss =
-                importRepository.existsByIncidentReportIdAndKind(reportId, LeitstellenMailKind.ABSCHLUSS);
-        if (hasDepesche && !hasAbschluss) {
-            return LeitstellenMailKind.ABSCHLUSS;
-        }
-        return LeitstellenMailKind.DEPESCHE;
     }
 
     private void saveImport(
@@ -175,23 +160,6 @@ public class LeitstellenMailImportService {
         } catch (Exception e) {
             return HexFormat.of().formatHex(Integer.toHexString(content.length).getBytes(StandardCharsets.UTF_8));
         }
-    }
-
-    private static boolean containsKeyword(String haystack, String keywordsCsv) {
-        if (keywordsCsv == null || keywordsCsv.isBlank()) {
-            return false;
-        }
-        for (String raw : keywordsCsv.split(",")) {
-            String keyword = raw.trim().toLowerCase(Locale.GERMAN);
-            if (!keyword.isBlank() && haystack.contains(keyword)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static String nullToEmpty(String value) {
-        return value == null ? "" : value;
     }
 
     private static String trimMessage(String message) {

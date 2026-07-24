@@ -32,8 +32,9 @@ public class LeitstellenMailSettingsService {
             settings.setImapEncryption("SSL");
             settings.setImapFolder("INBOX");
             settings.setImapPort(993);
-            settings.setDepescheKeywords("depesche,alarmdepesche,alarm");
-            settings.setAbschlussKeywords("abschluss,abschlussbericht,endebericht");
+            settings.setSubjectFilter("FAX");
+            settings.setDepescheKeywords("depesche,alarmdepesche");
+            settings.setAbschlussKeywords("abschluss,abschlussbericht");
             settings.setPollLookbackHours(24);
             settings.setMatchWindowHours(12);
             settings.setUpdatedAt(Instant.now());
@@ -70,11 +71,14 @@ public class LeitstellenMailSettingsService {
         settings.setImapFolder(
                 imapFolder != null && !imapFolder.isBlank() ? imapFolder.trim() : "INBOX");
         settings.setFromFilter(blankToNull(fromFilter));
-        settings.setSubjectFilter(blankToNull(subjectFilter));
-        settings.setDepescheKeywords(
-                blankToDefault(depescheKeywords, "depesche,alarmdepesche,alarm"));
-        settings.setAbschlussKeywords(
-                blankToDefault(abschlussKeywords, "abschluss,abschlussbericht,endebericht"));
+        // Leerer String = Filter absichtlich aus; null aus Formular = Default FAX nur bei Neuanlage
+        if (subjectFilter != null) {
+            settings.setSubjectFilter(blankToNull(subjectFilter));
+        } else if (settings.getSubjectFilter() == null) {
+            settings.setSubjectFilter("FAX");
+        }
+        settings.setDepescheKeywords(blankToDefault(depescheKeywords, "depesche,alarmdepesche"));
+        settings.setAbschlussKeywords(blankToDefault(abschlussKeywords, "abschluss,abschlussbericht"));
         settings.setPollLookbackHours(
                 pollLookbackHours != null && pollLookbackHours > 0 ? Math.min(pollLookbackHours, 168) : 24);
         settings.setMatchWindowHours(

@@ -205,10 +205,16 @@
     <div class="card__header">Leitstellen-Mail (Alarmdepesche / Abschlussbericht)</div>
     <div class="card__body">
       <p class="hint">
-        Ruft PDF-Anhänge aus einem IMAP-Postfach ab und hängt sie automatisch an passende Einsatzberichte
-        als <strong>Depeche.pdf</strong> bzw. <strong>Abschlussbericht.pdf</strong> an.
-        Der Abruf läuft im Hintergrund und wiederholt sich, bis eine Zuordnung möglich ist
-        (Puffer, falls die Mail nach dem DIVERA-Alarm noch nicht da ist).
+        Ruft PDF-Anhänge aus einem IMAP-Postfach ab und hängt sie an passende Einsatzberichte als
+        <strong>Depeche.pdf</strong> bzw. <strong>Abschlussbericht.pdf</strong> an.
+        Der Abruf wiederholt sich automatisch (Puffer), bis eine Zuordnung möglich ist.
+      </p>
+      <p class="hint">
+        Typischer Betreff (Beispiel, muss nicht exakt so sein):
+        <code>FWD:[Feuerwehr …] FAX image from:[+49 …]</code>
+        — deshalb reicht oft ein lockerer Filter wie <strong>FAX</strong>.
+        Wenn Depeche und Abschluss denselben Betreff haben, gilt: erstes passendes PDF = Depeche,
+        zweites = Abschlussbericht (bezogen auf denselben Einsatz).
       </p>
       <form method="post" th:action="@{/admin/unit/leitstellen-mail}" class="form-grid" id="form-leitstellen-mail">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
@@ -263,24 +269,27 @@
         <div class="form-group">
           <label for="leitstellenFromFilter">Absender-Filter (optional)</label>
           <input id="leitstellenFromFilter" name="fromFilter" type="text" maxlength="255" class="field"
-                 placeholder="Teil der Absender-Adresse"
+                 placeholder="Teil der Absender-Adresse — muss nicht exakt sein"
                  th:value="${leitstellenMail != null ? leitstellenMail.fromFilter : ''}"/>
         </div>
         <div class="form-group">
           <label for="leitstellenSubjectFilter">Betreff-Filter (optional)</label>
           <input id="leitstellenSubjectFilter" name="subjectFilter" type="text" maxlength="255" class="field"
-                 placeholder="Muss im Betreff vorkommen"
-                 th:value="${leitstellenMail != null ? leitstellenMail.subjectFilter : ''}"/>
+                 placeholder="z. B. FAX — Teilstring, kein exakter Betreff nötig"
+                 th:value="${leitstellenMail != null ? leitstellenMail.subjectFilter : 'FAX'}"/>
+          <p class="hint">Nur Teilstring nötig (Groß/Klein egal). Leer = alle Mails mit PDF.</p>
         </div>
         <div class="form-group">
-          <label for="leitstellenDepescheKeywords">Stichworte Depeche</label>
+          <label for="leitstellenDepescheKeywords">Stichworte Depeche (optional)</label>
           <input id="leitstellenDepescheKeywords" name="depescheKeywords" type="text" maxlength="512" class="field"
-                 th:value="${leitstellenMail != null ? leitstellenMail.depescheKeywords : 'depesche,alarmdepesche,alarm'}"/>
+                 th:value="${leitstellenMail != null ? leitstellenMail.depescheKeywords : 'depesche,alarmdepesche'}"/>
+          <p class="hint">Falls im Betreff/Dateiname erkennbar. Sonst: erstes PDF zum Einsatz = Depeche.</p>
         </div>
         <div class="form-group">
-          <label for="leitstellenAbschlussKeywords">Stichworte Abschlussbericht</label>
+          <label for="leitstellenAbschlussKeywords">Stichworte Abschlussbericht (optional)</label>
           <input id="leitstellenAbschlussKeywords" name="abschlussKeywords" type="text" maxlength="512" class="field"
-                 th:value="${leitstellenMail != null ? leitstellenMail.abschlussKeywords : 'abschluss,abschlussbericht,endebericht'}"/>
+                 th:value="${leitstellenMail != null ? leitstellenMail.abschlussKeywords : 'abschluss,abschlussbericht'}"/>
+          <p class="hint">Sonst: zweites PDF zum gleichen Einsatz = Abschlussbericht.</p>
         </div>
         <div class="form-group">
           <label for="leitstellenLookback">Lookback (Stunden)</label>
@@ -292,7 +301,7 @@
           <label for="leitstellenMatchWindow">Zuordnungsfenster (Stunden)</label>
           <input id="leitstellenMatchWindow" name="matchWindowHours" type="number" min="1" max="72" class="field"
                  th:value="${leitstellenMail != null ? leitstellenMail.matchWindowHours : 12}"/>
-          <p class="hint">Max. Abstand zwischen Alarmzeit und Mail-Eingang für die Zuordnung.</p>
+          <p class="hint">Max. Abstand zwischen Alarmzeit und Mail-Eingang (wichtig bei FAX-Betreff ohne Einsatzdaten).</p>
         </div>
         <div class="form-group form-group--full" th:if="${leitstellenMailLastPollAt != null}">
           <p class="hint">
