@@ -143,6 +143,7 @@
               input.value = delivery;
               form.appendChild(input);
             }
+            form.dataset.confirmSubmitting = 'true';
             if (typeof form.requestSubmit === 'function') {
               form.requestSubmit();
             } else {

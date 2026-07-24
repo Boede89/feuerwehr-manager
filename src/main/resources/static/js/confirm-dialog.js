@@ -611,6 +611,10 @@
 
         form = e.target.closest('form[data-testmode-email-prompt]');
         if (form && isTestMode() && form.dataset.confirmSubmitting !== 'true') {
+          // Bereits gewählt (z. B. Speichern & Freigeben) — keine zweite Abfrage
+          if (form.querySelector('input[name="testModeEmailDelivery"]')) {
+            return;
+          }
           e.preventDefault();
           e.stopImmediatePropagation();
           window.FwConfirm.askTestModeEmail().then(function (result) {

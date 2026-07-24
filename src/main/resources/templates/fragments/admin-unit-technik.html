@@ -632,7 +632,8 @@
         <h3 id="modal-fill-title">Checkliste ausfüllen</h3>
         <button type="button" class="modal__close" data-close-modal>✕</button>
       </div>
-      <form method="post" th:action="@{/admin/unit/checklists}" id="form-checklist-fill">
+      <form method="post" th:action="@{/admin/unit/checklists}" id="form-checklist-fill"
+            data-testmode-email-prompt="true">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="unit" th:value="${unitId}"/>
         <input type="hidden" name="vehicleId" th:value="${selectedVehicleId}"/>
