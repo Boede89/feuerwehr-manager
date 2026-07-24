@@ -4,6 +4,7 @@ import de.feuerwehr.manager.divera.DiveraAlarmsResponse;
 import de.feuerwehr.manager.divera.DiveraImportResult;
 import de.feuerwehr.manager.divera.DiveraImportService;
 import de.feuerwehr.manager.divera.DiveraService;
+import de.feuerwehr.manager.leitstellen.LeitstellenMailPollRunner;
 import de.feuerwehr.manager.mail.SmtpMailService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.print.CupsPrintService;
@@ -41,6 +42,7 @@ public class AdminIntegrationsRestController {
     private final DiveraImportService diveraImportService;
     private final UserRepository userRepository;
     private final UnitPrintSettingsService unitPrintSettingsService;
+    private final LeitstellenMailPollRunner leitstellenMailPollRunner;
 
     @GetMapping("/unit/print/printers")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'UNIT_ADMIN')")
@@ -175,6 +177,36 @@ public class AdminIntegrationsRestController {
             return ActionResultDto.success(result.message(), result.imported(), result.skipped());
         } catch (IllegalArgumentException e) {
             return ActionResultDto.failure(e.getMessage());
+        }
+    }
+
+    @PostMapping("/unit/leitstellen-mail/poll")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'UNIT_ADMIN')")
+    @ResponseBody
+    public java.util.Map<String, Object> pollLeitstellenMail(
+            @AuthenticationPrincipal AppUserDetails actor, @RequestParam long unit) {
+        try {
+            unitService
+                    .resolveActiveUnit(unit, actor)
+                    .orElseThrow(() -> new IllegalArgumentException("Keine gültige Einheit."));
+            var result = leitstellenMailPollRunner.pollUnitAndRefresh(unit, true);
+            java.util.Map<String, Object> body = new java.util.LinkedHashMap<>();
+            boolean failed = result.message() != null && result.message().startsWith("Abruf fehlgeschlagen");
+            body.put("ok", !failed);
+            body.put("message", result.message());
+            body.put("fetchedMails", result.fetchedMails());
+            body.put("pdfAttachmentsFound", result.pdfAttachmentsFound());
+            body.put("importedAttachments", result.importedAttachments());
+            body.put("skipped", result.skipped());
+            body.put("unmatched", result.unmatched());
+            body.put("imports", result.imports());
+            return body;
+        } catch (IllegalArgumentException e) {
+            java.util.Map<String, Object> body = new java.util.LinkedHashMap<>();
+            body.put("ok", false);
+            body.put("message", e.getMessage());
+            body.put("imports", List.of());
+            return body;
         }
     }
 

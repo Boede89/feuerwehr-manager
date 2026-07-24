@@ -12,6 +12,8 @@ import java.security.MessageDigest;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
@@ -26,6 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class LeitstellenMailImportService {
 
     private static final ZoneId ZONE = ZoneId.of("Europe/Berlin");
+    private static final DateTimeFormatter INCIDENT_DATE_FMT =
+            DateTimeFormatter.ofPattern("dd.MM.yyyy");
     /** Manueller Abruf (Einstellungen): bis 1 Jahr zurück. */
     private static final int MANUAL_CATCHUP_LOOKBACK_HOURS = 24 * 365;
     /** Manueller Abruf: größeres Zuordnungsfenster, falls FAX etwas später kam. */
@@ -40,13 +44,41 @@ public class LeitstellenMailImportService {
     private final LeitstellenMailMatcher matcher;
     private final TestModeService testModeService;
 
+    public record ImportedAttachment(
+            long reportId,
+            String incidentNumber,
+            String incidentDate,
+            String stichwort,
+            String kind,
+            String storedFilename,
+            String sourceFilename) {}
+
     public record PollResult(
             int fetchedMails,
             int pdfAttachmentsFound,
             int importedAttachments,
             int skipped,
             int unmatched,
-            String message) {}
+            String message,
+            List<ImportedAttachment> imports) {
+
+        public PollResult(
+                int fetchedMails,
+                int pdfAttachmentsFound,
+                int importedAttachments,
+                int skipped,
+                int unmatched,
+                String message) {
+            this(
+                    fetchedMails,
+                    pdfAttachmentsFound,
+                    importedAttachments,
+                    skipped,
+                    unmatched,
+                    message,
+                    List.of());
+        }
+    }
 
     @Transactional
     public PollResult pollUnit(long unitId) {
@@ -164,6 +196,7 @@ public class LeitstellenMailImportService {
             int imported = 0;
             int skipped = 0;
             int unmatched = 0;
+            List<ImportedAttachment> importedItems = new ArrayList<>();
             for (LeitstellenImapClient.MailMessage mail : mails) {
                 for (LeitstellenImapClient.PdfAttachment pdf : mail.pdfs()) {
                     String sha = sha256(pdf.content());
@@ -202,6 +235,7 @@ public class LeitstellenMailImportService {
                     attachmentService.storeSystemPdf(
                             unitId, hit.report().getId(), displayName, pdf.content());
                     saveImport(settings.getUnit(), hit.report(), mail, pdf, sha, kind, displayName);
+                    importedItems.add(toImportedItem(hit.report(), kind, displayName, pdf.filename()));
                     imported++;
                 }
             }
@@ -223,7 +257,7 @@ public class LeitstellenMailImportService {
                     skipped,
                     unmatched,
                     incompleteCount);
-            return finish(settings, mails.size(), pdfCount, imported, skipped, unmatched, msg);
+            return finish(settings, mails.size(), pdfCount, imported, skipped, unmatched, msg, importedItems);
         } catch (Exception e) {
             log.warn("Leitstellen-Mail Abruf unit={} fehlgeschlagen: {}", unitId, e.getMessage());
             return finish(settings, 0, 0, 0, 0, 0, "Abruf fehlgeschlagen: " + e.getMessage());
@@ -349,6 +383,22 @@ public class LeitstellenMailImportService {
         importRepository.save(row);
     }
 
+    private static ImportedAttachment toImportedItem(
+            IncidentReport report, LeitstellenMailKind kind, String storedFilename, String sourceFilename) {
+        String number = report.getIncidentNumber() != null && !report.getIncidentNumber().isBlank()
+                ? report.getIncidentNumber().trim()
+                : "—";
+        String date = report.getIncidentDate() != null
+                ? INCIDENT_DATE_FMT.format(report.getIncidentDate())
+                : "—";
+        String stichwort = report.getStichwort() != null && !report.getStichwort().isBlank()
+                ? report.getStichwort().trim()
+                : "—";
+        String source = sourceFilename != null && !sourceFilename.isBlank() ? sourceFilename.trim() : "—";
+        return new ImportedAttachment(
+                report.getId(), number, date, stichwort, kind.baseName(), storedFilename, source);
+    }
+
     private PollResult finish(
             UnitLeitstellenMailSettings settings,
             int fetched,
@@ -357,11 +407,30 @@ public class LeitstellenMailImportService {
             int skipped,
             int unmatched,
             String message) {
+        return finish(settings, fetched, pdfs, imported, skipped, unmatched, message, List.of());
+    }
+
+    private PollResult finish(
+            UnitLeitstellenMailSettings settings,
+            int fetched,
+            int pdfs,
+            int imported,
+            int skipped,
+            int unmatched,
+            String message,
+            List<ImportedAttachment> imports) {
         settings.setLastPollAt(Instant.now());
         settings.setLastPollMessage(trimMessage(message));
         settings.setUpdatedAt(Instant.now());
         settingsRepository.save(settings);
-        return new PollResult(fetched, pdfs, imported, skipped, unmatched, message);
+        return new PollResult(
+                fetched,
+                pdfs,
+                imported,
+                skipped,
+                unmatched,
+                message,
+                imports == null ? List.of() : List.copyOf(imports));
     }
 
     private static String sha256(byte[] content) {

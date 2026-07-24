@@ -363,4 +363,82 @@
         if (btn) btn.disabled = false;
       });
   });
+
+  function escHtml(text) {
+    var div = document.createElement('div');
+    div.textContent = text == null ? '' : String(text);
+    return div.innerHTML;
+  }
+
+  function openLeitstellenPollModal(data) {
+    var summary = document.getElementById('leitstellen-poll-summary');
+    var tbody = document.getElementById('leitstellen-poll-tbody');
+    var tableWrap = document.getElementById('leitstellen-poll-table-wrap');
+    var empty = document.getElementById('leitstellen-poll-empty');
+    var modal = document.getElementById('modal-leitstellen-poll-result');
+    if (!summary || !tbody || !modal) {
+      showResult(data);
+      return;
+    }
+    summary.textContent = data.message || 'Abruf abgeschlossen.';
+    var imports = Array.isArray(data.imports) ? data.imports : [];
+    tbody.innerHTML = '';
+    var unitId = getUnitId();
+    imports.forEach(function (item) {
+      var reportLabel = item.incidentNumber || '—';
+      var href =
+        unitId && item.reportId
+          ? '/berichte/einsatzberichte/' + encodeURIComponent(item.reportId) + '/bearbeiten?unit=' + encodeURIComponent(unitId)
+          : '';
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td>' + escHtml(reportLabel) + '</td>' +
+        '<td>' + escHtml(item.incidentDate || '—') + '</td>' +
+        '<td>' + escHtml(item.stichwort || '—') + '</td>' +
+        '<td>' + escHtml(item.kind || '—') + '</td>' +
+        '<td title="' + escHtml(item.sourceFilename || '') + '">' + escHtml(item.storedFilename || '—') + '</td>' +
+        '<td>' +
+        (href
+          ? '<a class="btn btn--outline btn--sm" href="' + href + '" target="_blank" rel="noopener">Öffnen</a>'
+          : '') +
+        '</td>';
+      tbody.appendChild(tr);
+    });
+    if (tableWrap) tableWrap.hidden = imports.length === 0;
+    if (empty) empty.hidden = imports.length > 0;
+    modal.classList.add('active');
+    document.body.classList.add('modal-open');
+    if (typeof window.toast === 'function') {
+      var toastMsg =
+        data.ok === false
+          ? data.message || 'Abruf fehlgeschlagen'
+          : imports.length
+            ? imports.length + ' Datei(en) angehängt'
+            : data.message || 'Abruf abgeschlossen';
+      window.toast(toastMsg, data.ok === false ? 'error' : 'success');
+    }
+  }
+
+  document.getElementById('btn-leitstellen-poll')?.addEventListener('click', function () {
+    var unitId = getUnitId();
+    if (!unitId) return;
+    var btn = document.getElementById('btn-leitstellen-poll');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Abruf läuft…';
+    }
+    postJson('/admin/rest/unit/leitstellen-mail/poll', { unit: String(unitId) })
+      .then(function (res) {
+        openLeitstellenPollModal(res.data || { ok: false, message: 'Keine Antwort', imports: [] });
+      })
+      .catch(function () {
+        openLeitstellenPollModal({ ok: false, message: 'Abruf fehlgeschlagen', imports: [] });
+      })
+      .finally(function () {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Jetzt abrufen';
+        }
+      });
+  });
 })();

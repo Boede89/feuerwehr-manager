@@ -353,15 +353,48 @@
             <button type="submit" class="btn btn--primary btn--sm">Speichern</button>
             <button type="submit" class="btn btn--outline btn--sm"
                     formaction="/admin/unit/leitstellen-mail/test">Verbindung testen</button>
-            <button type="submit" class="btn btn--outline btn--sm"
-                    formaction="/admin/unit/leitstellen-mail/poll">Jetzt abrufen</button>
+            <button type="button" class="btn btn--outline btn--sm" id="btn-leitstellen-poll">
+              Jetzt abrufen
+            </button>
           </div>
           <p class="hint">
             Manueller Abruf prüft bis zu 1 Jahr zurück (auch freigegebene Berichte) und ergänzt fehlende Dateien.
             Am Einsatzbericht wird ab dem Einsatzdatum gesucht. Liegen Depeche und Abschlussbericht schon vor, passiert nichts.
+            Nach dem Abruf erscheint eine Übersicht der neu angelegten Anhänge.
           </p>
         </div>
       </form>
+
+      <div id="modal-leitstellen-poll-result" class="modal-overlay">
+        <div class="modal modal--wide" role="dialog" aria-labelledby="modal-leitstellen-poll-title">
+          <div class="modal__header">
+            <h3 id="modal-leitstellen-poll-title">Leitstellen-Abruf</h3>
+            <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
+          </div>
+          <div class="modal__body">
+            <p class="hint" id="leitstellen-poll-summary">—</p>
+            <div class="table-wrapper" id="leitstellen-poll-table-wrap" hidden>
+              <table class="table">
+                <thead>
+                <tr>
+                  <th>Einsatz</th>
+                  <th>Datum</th>
+                  <th>Stichwort</th>
+                  <th>Typ</th>
+                  <th>Datei</th>
+                  <th></th>
+                </tr>
+                </thead>
+                <tbody id="leitstellen-poll-tbody"></tbody>
+              </table>
+            </div>
+            <p class="hint" id="leitstellen-poll-empty" hidden>Es wurden keine neuen Dateien angehängt.</p>
+          </div>
+          <div class="modal__footer">
+            <button type="button" class="btn btn--primary" data-close-modal>Schließen</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
