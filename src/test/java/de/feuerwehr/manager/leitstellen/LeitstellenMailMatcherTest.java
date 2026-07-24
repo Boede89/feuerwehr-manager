@@ -190,6 +190,24 @@ class LeitstellenMailMatcherTest {
         assertEquals(LeitstellenMailKind.ABSCHLUSS, match.get().kind());
     }
 
+    @Test
+    void abschlussFourMinutesAfterShortLateNightEinsatz() {
+        // Alarm 23:50, Ende 23:56 (6.6.), Abschluss 00:00 (7.6.) — früher fälschlich als 2. Depeche verworfen
+        UnitLeitstellenMailSettings settings = baseSettings();
+        IncidentReport report = new IncidentReport();
+        report.setId(6L);
+        report.setIncidentDate(LocalDate.of(2026, 6, 6));
+        report.setAlarmTime(LocalTime.of(23, 50));
+        report.setEndTime(LocalTime.of(23, 56));
+
+        var mail = faxMail(Instant.parse("2026-06-06T22:00:00Z")); // 7.6. 00:00 Berlin
+        Optional<LeitstellenMailMatcher.MatchResult> match =
+                matcher.match(settings, mail, pdf(), List.of(report), id -> true, id -> false);
+
+        assertTrue(match.isPresent());
+        assertEquals(LeitstellenMailKind.ABSCHLUSS, match.get().kind());
+    }
+
     private static UnitLeitstellenMailSettings baseSettings() {
         UnitLeitstellenMailSettings settings = new UnitLeitstellenMailSettings();
         settings.setMatchWindowHours(12);
