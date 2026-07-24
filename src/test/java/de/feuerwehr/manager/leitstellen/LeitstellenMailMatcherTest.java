@@ -138,6 +138,58 @@ class LeitstellenMailMatcherTest {
         assertEquals(LeitstellenMailKind.ABSCHLUSS, match.get().kind());
     }
 
+    @Test
+    void abschlussExactlyAtMidnightNextDayWhenDepescheExists() {
+        UnitLeitstellenMailSettings settings = baseSettings();
+        IncidentReport report = new IncidentReport();
+        report.setId(3L);
+        report.setIncidentDate(LocalDate.of(2026, 6, 6));
+        report.setAlarmTime(LocalTime.of(22, 10));
+        report.setEndTime(LocalTime.of(23, 40));
+
+        // 7. Juni 2026 00:00 Europe/Berlin
+        var mail = faxMail(Instant.parse("2026-06-06T22:00:00Z"));
+        Optional<LeitstellenMailMatcher.MatchResult> match =
+                matcher.match(settings, mail, pdf(), List.of(report), id -> true, id -> false);
+
+        assertTrue(match.isPresent());
+        assertEquals(LeitstellenMailKind.ABSCHLUSS, match.get().kind());
+    }
+
+    @Test
+    void abschlussAtMidnightWithEndTimeMidnightOvernight() {
+        UnitLeitstellenMailSettings settings = baseSettings();
+        IncidentReport report = new IncidentReport();
+        report.setId(4L);
+        report.setIncidentDate(LocalDate.of(2026, 6, 6));
+        report.setAlarmTime(LocalTime.of(21, 0));
+        report.setEndTime(LocalTime.MIDNIGHT); // 00:00 → Folgetag
+
+        var mail = faxMail(Instant.parse("2026-06-06T22:00:00Z")); // 00:00 Berlin
+        Optional<LeitstellenMailMatcher.MatchResult> match =
+                matcher.match(settings, mail, pdf(), List.of(report), id -> true, id -> false);
+
+        assertTrue(match.isPresent());
+        assertEquals(LeitstellenMailKind.ABSCHLUSS, match.get().kind());
+    }
+
+    @Test
+    void abschlussNextDayWithoutEndTimeWhenDepescheExists() {
+        UnitLeitstellenMailSettings settings = baseSettings();
+        IncidentReport report = new IncidentReport();
+        report.setId(5L);
+        report.setIncidentDate(LocalDate.of(2026, 6, 6));
+        report.setAlarmTime(LocalTime.of(20, 0));
+        report.setEndTime(null);
+
+        var mail = faxMail(Instant.parse("2026-06-06T22:00:00Z"));
+        Optional<LeitstellenMailMatcher.MatchResult> match =
+                matcher.match(settings, mail, pdf(), List.of(report), id -> true, id -> false);
+
+        assertTrue(match.isPresent());
+        assertEquals(LeitstellenMailKind.ABSCHLUSS, match.get().kind());
+    }
+
     private static UnitLeitstellenMailSettings baseSettings() {
         UnitLeitstellenMailSettings settings = new UnitLeitstellenMailSettings();
         settings.setMatchWindowHours(12);

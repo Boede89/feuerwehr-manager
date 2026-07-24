@@ -17,9 +17,9 @@ import org.springframework.stereotype.Component;
 
 /**
  * Zuordnung Leitstellen-FAX → Einsatzbericht.
- * Typ nur nach Mail-Zeit / Stichworten: Nähe Alarm = Depeche, Nähe Ende = Abschluss.
- * Abschluss darf auch am Folgetag kommen (Einsatz über Mitternacht / späterer FAX).
- * Keine Zwangszuordnung „zweite Datei = Abschluss“ (gleiche Depeche darf nicht doppelt landen).
+ * Typ nach Stichworten bzw. Nähe zu Alarmbeginn / Einsatzende.
+ * Liegt die Depeche schon vor, zählt eine spätere Mail (v. a. nach Ende / am Folgetag) als Abschluss —
+ * auch genau um 0:00 Uhr.
  */
 @Component
 public class LeitstellenMailMatcher {
@@ -64,7 +64,8 @@ public class LeitstellenMailMatcher {
             boolean depescheDone = Boolean.TRUE.equals(hasDepesche.apply(report.getId()));
             boolean abschlussDone = Boolean.TRUE.equals(hasAbschluss.apply(report.getId()));
 
-            LeitstellenMailKind kind = decideKind(settings, haystack, report, mail);
+            LeitstellenMailKind kind = decideKind(
+                    settings, haystack, report, mail, depescheDone, abschlussDone);
             int score = scoreForKind(report, mail, haystack, kind, baseWindowHours, abschlussWindowHours, faxStyle);
             if (score <= 0) {
                 continue;
@@ -112,13 +113,17 @@ public class LeitstellenMailMatcher {
     }
 
     /**
-     * Typ ausschließlich nach Stichworten bzw. Nähe zu Alarmbeginn / Einsatzende.
+     * Typ nach Stichworten, Einsatzende und Mail-Zeit.
+     * Wichtig: Mail nach Ende bzw. am Folgetag / zweite Mail wenn Depeche schon da → Abschluss
+     * (auch genau 00:00 Uhr).
      */
     private LeitstellenMailKind decideKind(
             UnitLeitstellenMailSettings settings,
             String haystack,
             IncidentReport report,
-            LeitstellenImapClient.MailMessage mail) {
+            LeitstellenImapClient.MailMessage mail,
+            boolean depescheDone,
+            boolean abschlussDone) {
         if (containsAnyKeyword(haystack, settings.getAbschlussKeywords())
                 && !containsAnyKeyword(haystack, settings.getDepescheKeywords())) {
             return LeitstellenMailKind.ABSCHLUSS;
@@ -131,18 +136,43 @@ public class LeitstellenMailMatcher {
         Instant alarm = alarmInstant(report);
         Instant end = endInstant(report);
         Instant received = mail.receivedAt();
+
+        // Nach (oder knapp vor) Einsatzende → immer Abschluss, auch 00:00
+        if (end != null && received != null && !received.isBefore(end.minus(Duration.ofMinutes(5)))) {
+            return LeitstellenMailKind.ABSCHLUSS;
+        }
+
+        // Depeche schon da: spätere FAX-Mail ist der Abschluss (nicht als 2. Depeche verwerfen)
+        if (depescheDone && !abschlussDone && received != null) {
+            if (isNextCalendarDay(report, received)) {
+                return LeitstellenMailKind.ABSCHLUSS;
+            }
+            if (alarm != null && !received.isBefore(alarm) && Duration.between(alarm, received).toMinutes() >= 15) {
+                return LeitstellenMailKind.ABSCHLUSS;
+            }
+        }
+
         if (alarm != null && end != null && received != null) {
             long toAlarm = Math.abs(Duration.between(alarm, received).toMinutes());
             long toEnd = Math.abs(Duration.between(end, received).toMinutes());
-            if (toEnd + 15 < toAlarm) {
+            if (toEnd <= toAlarm) {
                 return LeitstellenMailKind.ABSCHLUSS;
             }
             return LeitstellenMailKind.DEPESCHE;
         }
-        if (end != null && received != null && !received.isBefore(end.minus(Duration.ofMinutes(5)))) {
+        // Kein Ende gesetzt, Mail am Folgetag → Abschluss
+        if (end == null && received != null && isNextCalendarDay(report, received)) {
             return LeitstellenMailKind.ABSCHLUSS;
         }
         return LeitstellenMailKind.DEPESCHE;
+    }
+
+    private static boolean isNextCalendarDay(IncidentReport report, Instant received) {
+        if (report.getIncidentDate() == null || received == null) {
+            return false;
+        }
+        LocalDate mailDate = received.atZone(ZONE).toLocalDate();
+        return mailDate.isAfter(report.getIncidentDate());
     }
 
     private static int scoreForKind(
@@ -268,7 +298,10 @@ public class LeitstellenMailMatcher {
             return null;
         }
         LocalDateTime end = LocalDateTime.of(report.getIncidentDate(), report.getEndTime());
-        if (report.getAlarmTime() != null && report.getEndTime().isBefore(report.getAlarmTime())) {
+        // Ende vor Alarm oder genau 00:00 → Einsatz ging über Mitternacht / Ende am Folgetag
+        if (report.getAlarmTime() != null
+                && (report.getEndTime().isBefore(report.getAlarmTime())
+                        || report.getEndTime().equals(LocalTime.MIDNIGHT))) {
             end = end.plusDays(1);
         }
         return end.atZone(ZONE).toInstant();
