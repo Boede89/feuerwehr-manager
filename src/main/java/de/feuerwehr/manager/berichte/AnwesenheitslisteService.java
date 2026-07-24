@@ -824,6 +824,48 @@ public class AnwesenheitslisteService {
         return new AnwesenheitPresenceSummary(personen, paTraeger, fahrzeuge, zf, gf);
     }
 
+    /** IDs der anwesenden Personen (gleiche Regeln wie {@link #presenceSummary}). */
+    @Transactional(readOnly = true)
+    public Set<Long> presentPersonIds(long unitId, long reportId) {
+        AttendanceReport report = requireReport(unitId, reportId);
+        List<CrewAssignment> assignments =
+                einsatzberichtService.parseCrewAssignments(report.getCrewAssignmentsJson());
+        LinkedHashSet<Long> presentIds = new LinkedHashSet<>();
+        if (hasAssignedPersons(assignments)) {
+            for (CrewAssignment assignment : assignments) {
+                long vehicleId = assignment.vehicleId();
+                List<Long> personIds =
+                        assignment.personIds() != null ? assignment.personIds() : List.of();
+                boolean countsAsPresent = vehicleId == IncidentCrewSupport.BETEILIGT_VEHICLE_ID
+                        || vehicleId == IncidentCrewSupport.EINSATZSTELLE_VEHICLE_ID
+                        || vehicleId == IncidentCrewSupport.WACHE_VEHICLE_ID
+                        || vehicleId > 0;
+                if (!countsAsPresent) {
+                    continue;
+                }
+                for (Long personId : personIds) {
+                    if (personId != null && personId != 0L) {
+                        presentIds.add(personId);
+                    }
+                }
+            }
+        }
+        if (presentIds.isEmpty()) {
+            if (isLegacyTerminPersonnelPreload(report, unitId)) {
+                return Set.of();
+            }
+            for (AttendanceReportPersonnel row : listPersonnel(reportId)) {
+                if (row.getAttendanceStatus() != AttendancePersonStatus.PRESENT) {
+                    continue;
+                }
+                if (row.getPerson() != null) {
+                    presentIds.add(row.getPerson().getId());
+                }
+            }
+        }
+        return presentIds;
+    }
+
     private static boolean hasAssignedPersons(List<CrewAssignment> assignments) {
         if (assignments == null || assignments.isEmpty()) {
             return false;

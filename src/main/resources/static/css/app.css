@@ -6684,9 +6684,15 @@ a.auswertung-stat-card {
 }
 
 .auswertung-detail-row:hover,
-.auswertung-detail-row:focus-visible {
+.auswertung-detail-row:focus-visible,
+.auswertung-person-row:hover,
+.auswertung-person-row:focus-visible {
   background: color-mix(in srgb, var(--primary, #b91c1c) 8%, transparent);
   outline: none;
+}
+
+.auswertung-person-row {
+  cursor: pointer;
 }
 
 .auswertung-detail-modal__body {

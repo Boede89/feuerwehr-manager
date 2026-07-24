@@ -27,6 +27,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -143,6 +144,89 @@ public class AuswertungService {
             return listUebungsdienstRows(unitId, year, detail);
         }
         return listEinsatzRows(unitId, year, detail);
+    }
+
+    /**
+     * Personen-Auswertung: Dienstbeteiligung = Anteil an Übungsdiensten (bis heute),
+     * Einsatzbeteiligung = Anteil an Einsatzberichten im Jahr.
+     */
+    @Transactional(readOnly = true)
+    public List<AuswertungPersonRow> listPersonRows(long unitId, int year) {
+        LocalDate yearStart = LocalDate.of(year, 1, 1);
+        LocalDate yearEndExclusive = LocalDate.of(year + 1, 1, 1);
+        boolean includeTest = testModeService.isEnabled();
+
+        List<Person> persons = personalService.listPersons(unitId).stream()
+                .sorted(Comparator.comparing(
+                                (Person p) -> p.getLastName() != null ? p.getLastName() : "",
+                                String.CASE_INSENSITIVE_ORDER)
+                        .thenComparing(
+                                p -> p.getFirstName() != null ? p.getFirstName() : "",
+                                String.CASE_INSENSITIVE_ORDER))
+                .toList();
+        if (persons.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, Integer> dienstCountByPerson = new HashMap<>();
+        Map<Long, Integer> einsatzCountByPerson = new HashMap<>();
+
+        int totalUebungen = 0;
+        LocalDateRange uebungRange = uebungDateRange(yearStart, yearEndExclusive, LocalDate.now());
+        if (uebungRange != null) {
+            List<AttendanceReport> uebungen = attendanceReportRepository
+                    .findByUnitIdAndDateRange(unitId, uebungRange.from(), uebungRange.to(), includeTest)
+                    .stream()
+                    .filter(r -> r.getTerminCategory() == TermineCategory.DIENSTPLAN)
+                    .toList();
+            totalUebungen = uebungen.size();
+            for (AttendanceReport report : uebungen) {
+                for (Long personId : anwesenheitslisteService.presentPersonIds(unitId, report.getId())) {
+                    dienstCountByPerson.merge(personId, 1, Integer::sum);
+                }
+            }
+        }
+
+        List<IncidentReport> einsaetze = incidentReportRepository.findByUnitIdAndYear(
+                unitId, yearStart, yearEndExclusive, includeTest);
+        int totalEinsaetze = einsaetze.size();
+        if (!einsaetze.isEmpty()) {
+            List<Long> reportIds = einsaetze.stream().map(IncidentReport::getId).toList();
+            for (IncidentReportPersonnel row :
+                    incidentReportPersonnelRepository.findByIncidentReportIdIn(reportIds)) {
+                if (row.getPerson() == null) {
+                    continue;
+                }
+                einsatzCountByPerson.merge(row.getPerson().getId(), 1, Integer::sum);
+            }
+        }
+
+        List<AuswertungPersonRow> rows = new ArrayList<>(persons.size());
+        for (Person person : persons) {
+            int dienst = dienstCountByPerson.getOrDefault(person.getId(), 0);
+            int einsatz = einsatzCountByPerson.getOrDefault(person.getId(), 0);
+            double dienstPct = totalUebungen > 0 ? (dienst * 100.0) / totalUebungen : 0;
+            double einsatzPct = totalEinsaetze > 0 ? (einsatz * 100.0) / totalEinsaetze : 0;
+            rows.add(new AuswertungPersonRow(
+                    person.getId(),
+                    person.anwesenheitDisplayName(),
+                    formatBeteiligungPct(dienst, totalUebungen),
+                    formatBeteiligungPct(einsatz, totalEinsaetze),
+                    dienstPct,
+                    einsatzPct));
+        }
+        return rows;
+    }
+
+    private static String formatBeteiligungPct(int attended, int total) {
+        if (total <= 0) {
+            return "—";
+        }
+        double pct = attended * 100.0 / total;
+        if (Math.abs(pct - Math.rint(pct)) < 0.05) {
+            return String.format(Locale.GERMAN, "%.0f %%", pct);
+        }
+        return String.format(Locale.GERMAN, "%.1f %%", pct);
     }
 
     private List<AuswertungEinsatzRow> listEinsatzRows(

@@ -192,11 +192,99 @@
     <script th:if="${overviewDetail != null}" th:src="@{/js/auswertung-overview.js}" defer></script>
   </section>
 
+  <!-- Personen -->
+  <section th:if="${bereich.key() == 'personen'}" class="auswertung-personen">
+    <form method="get" class="filter-bar auswertung-filter-bar" th:action="@{/auswertung}">
+      <input type="hidden" name="unit" th:value="${unitId}"/>
+      <input type="hidden" name="bereich" value="personen"/>
+      <label class="sr-only" for="auswertung-personen-year">Jahr</label>
+      <select id="auswertung-personen-year" name="jahr" class="berichte-filter-select" aria-label="Jahr filtern"
+              onchange="this.form.submit()">
+        <option th:each="y : ${yearOptions}" th:value="${y}" th:text="${y}"
+                th:selected="${y == filterYear}"></option>
+      </select>
+    </form>
+
+    <div class="auswertung-detail" th:if="${!#lists.isEmpty(personRows)}">
+      <div class="auswertung-detail__header">
+        <h3>Mitglieder</h3>
+        <p class="hint" th:text="${#lists.size(personRows)} + ' Personen'">0 Personen</p>
+      </div>
+      <div class="table-wrap auswertung-detail__table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Dienstbeteiligung</th>
+              <th>Einsatzbeteiligung</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="auswertung-person-row" th:each="row, iter : ${personRows}"
+                tabindex="0" role="button"
+                th:attr="data-row-index=${iter.index}"
+                th:aria-label="|Details zu ${row.name()}|">
+              <td th:text="${row.name()}">Mustermann, Max</td>
+              <td th:text="${row.dienstbeteiligung()}">80 %</td>
+              <td th:text="${row.einsatzbeteiligung()}">50 %</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="hint" style="margin:12px 0 0;">
+        Dienstbeteiligung = Übungsdienste bis heute · Einsatzbeteiligung = Einsatzberichte im Jahr
+        · 100&nbsp;% = Teilnahme an allen.
+      </p>
+    </div>
+    <div class="card" th:if="${#lists.isEmpty(personRows)}" style="margin-top:8px;">
+      <div class="card__body">
+        <p class="hint" style="margin:0;">Keine Mitglieder in dieser Einheit.</p>
+      </div>
+    </div>
+
+    <div id="auswertung-person-modal" class="incident-modal" style="display:none" aria-hidden="true"
+         th:if="${!#lists.isEmpty(personRows)}">
+      <div class="modal__backdrop" data-auswertung-person-modal-close></div>
+      <div class="modal__box" role="dialog" aria-modal="true" aria-labelledby="auswertung-person-modal-title">
+        <div class="modal__header">
+          <h3 id="auswertung-person-modal-title">Person</h3>
+          <button type="button" class="modal__close" data-auswertung-person-modal-close aria-label="Schließen">✕</button>
+        </div>
+        <div class="modal__body">
+          <dl class="auswertung-detail-modal__meta">
+            <div>
+              <dt>Name</dt>
+              <dd id="apm-name">—</dd>
+            </div>
+            <div>
+              <dt>Dienstbeteiligung</dt>
+              <dd id="apm-dienst">—</dd>
+            </div>
+            <div>
+              <dt>Einsatzbeteiligung</dt>
+              <dd id="apm-einsatz">—</dd>
+            </div>
+          </dl>
+          <p class="hint" style="margin:16px 0 0;">Weitere Details folgen.</p>
+        </div>
+        <div class="modal__footer">
+          <button type="button" class="btn btn-secondary" data-auswertung-person-modal-close>Schließen</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="auswertung-person-rows-data" hidden
+         th:if="${!#lists.isEmpty(personRows)}"
+         th:attr="data-json=${personRowsJson}"></div>
+    <script th:if="${!#lists.isEmpty(personRows)}" th:src="@{/js/auswertung-personen.js}" defer></script>
+  </section>
+
   <!-- Andere Bereiche: Platzhalter -->
-  <div class="card" style="margin-top:16px;" th:unless="${bereich.key() == ''}">
+  <div class="card" style="margin-top:16px;"
+       th:if="${bereich.key() != '' and bereich.key() != 'personen'}">
     <div class="card__body">
       <p class="hint" style="margin:0;">
-        Bereich <strong th:text="${bereich.label()}">Personen</strong> — Inhalt folgt.
+        Bereich <strong th:text="${bereich.label()}">Einsätze</strong> — Inhalt folgt.
       </p>
     </div>
   </div>

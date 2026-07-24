@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import de.feuerwehr.manager.auswertung.AuswertungBereich;
 import de.feuerwehr.manager.auswertung.AuswertungEinsatzRow;
 import de.feuerwehr.manager.auswertung.AuswertungOverviewDetail;
+import de.feuerwehr.manager.auswertung.AuswertungPersonRow;
 import de.feuerwehr.manager.auswertung.AuswertungService;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
@@ -81,6 +82,11 @@ public class AuswertungController {
                     model.addAttribute("detailRows", rows);
                     model.addAttribute("detailRowsJson", toJson(rows));
                 }
+            } else if (bereich == AuswertungBereich.PERSONEN) {
+                List<AuswertungPersonRow> personRows =
+                        auswertungService.listPersonRows(unit.getId(), filterYear);
+                model.addAttribute("personRows", personRows);
+                model.addAttribute("personRowsJson", toJson(personRows));
             }
 
             return "auswertung/index";
@@ -90,9 +96,9 @@ public class AuswertungController {
         }
     }
 
-    private String toJson(List<AuswertungEinsatzRow> rows) {
+    private String toJson(Object value) {
         try {
-            return objectMapper.writeValueAsString(rows);
+            return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException e) {
             return "[]";
         }
