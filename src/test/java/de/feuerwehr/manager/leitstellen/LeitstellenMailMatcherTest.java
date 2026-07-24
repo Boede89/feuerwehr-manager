@@ -29,20 +29,7 @@ class LeitstellenMailMatcherTest {
     }
 
     @Test
-    void secondFaxIsAbschlussWhenDepescheExists() {
-        UnitLeitstellenMailSettings settings = baseSettings();
-        IncidentReport report = report();
-
-        var mail = faxMail(Instant.parse("2026-07-24T14:20:00Z")); // nach Ende 16:00 Berlin ≈ 14:00 UTC
-        Optional<LeitstellenMailMatcher.MatchResult> match =
-                matcher.match(settings, mail, pdf(), List.of(report), id -> true, id -> false);
-
-        assertTrue(match.isPresent());
-        assertEquals(LeitstellenMailKind.ABSCHLUSS, match.get().kind());
-    }
-
-    @Test
-    void faxNearEndWithoutDepescheIsAbschlussByTime() {
+    void faxNearEndIsAbschlussByTime() {
         UnitLeitstellenMailSettings settings = baseSettings();
         IncidentReport report = report();
 
@@ -52,6 +39,18 @@ class LeitstellenMailMatcherTest {
 
         assertTrue(match.isPresent());
         assertEquals(LeitstellenMailKind.ABSCHLUSS, match.get().kind());
+    }
+
+    @Test
+    void sameNearAlarmMailNotForcedToAbschlussWhenDepescheExists() {
+        UnitLeitstellenMailSettings settings = baseSettings();
+        IncidentReport report = report();
+
+        var mail = faxMail(Instant.parse("2026-07-24T12:40:00Z"));
+        Optional<LeitstellenMailMatcher.MatchResult> match =
+                matcher.match(settings, mail, pdf(), List.of(report), id -> true, id -> false);
+
+        assertTrue(match.isEmpty());
     }
 
     @Test
@@ -69,8 +68,7 @@ class LeitstellenMailMatcherTest {
         later.setAlarmTime(LocalTime.of(14, 30));
         later.setEndTime(LocalTime.of(16, 0));
 
-        // Mail nahe Alarm des 17.7. — auch wenn der 17er schon „fertig“ ist, darf sie nicht dem 19er gehören
-        var mail = faxMail(Instant.parse("2026-07-17T08:10:00Z")); // 10:10 Berlin
+        var mail = faxMail(Instant.parse("2026-07-17T08:10:00Z"));
         Optional<LeitstellenMailMatcher.MatchResult> match = matcher.match(
                 settings,
                 mail,

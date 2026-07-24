@@ -77,6 +77,14 @@ public class UnitLeitstellenMailSettings {
     @Column(name = "abschluss_poll_interval_seconds", nullable = false)
     private int abschlussPollIntervalSeconds = 300;
 
+    /** Max. Stunden nach Alarm, in denen auf die Depeche gewartet wird. */
+    @Column(name = "depesche_wait_hours", nullable = false)
+    private int depescheWaitHours = 6;
+
+    /** Max. Stunden nach Einsatzende (bzw. nach Depeche), in denen auf den Abschlussbericht gewartet wird. */
+    @Column(name = "abschluss_wait_hours", nullable = false)
+    private int abschlussWaitHours = 24;
+
     @Column(name = "last_poll_at")
     private Instant lastPollAt;
 

@@ -39,6 +39,8 @@ public class LeitstellenMailSettingsService {
             settings.setMatchWindowHours(12);
             settings.setDepeschePollIntervalSeconds(60);
             settings.setAbschlussPollIntervalSeconds(300);
+            settings.setDepescheWaitHours(6);
+            settings.setAbschlussWaitHours(24);
             settings.setUpdatedAt(Instant.now());
             return settingsRepository.save(settings);
         });
@@ -61,7 +63,9 @@ public class LeitstellenMailSettingsService {
             Integer pollLookbackHours,
             Integer matchWindowHours,
             Integer depeschePollIntervalSeconds,
-            Integer abschlussPollIntervalSeconds) {
+            Integer abschlussPollIntervalSeconds,
+            Integer depescheWaitHours,
+            Integer abschlussWaitHours) {
         UnitLeitstellenMailSettings settings = getOrCreate(unitId);
         settings.setEnabled(enabled);
         settings.setImapHost(blankToNull(imapHost));
@@ -75,7 +79,6 @@ public class LeitstellenMailSettingsService {
         settings.setImapFolder(
                 imapFolder != null && !imapFolder.isBlank() ? imapFolder.trim() : "INBOX");
         settings.setFromFilter(blankToNull(fromFilter));
-        // Leerer String = Filter absichtlich aus; null aus Formular = Default FAX nur bei Neuanlage
         if (subjectFilter != null) {
             settings.setSubjectFilter(blankToNull(subjectFilter));
         } else if (settings.getSubjectFilter() == null) {
@@ -89,6 +92,8 @@ public class LeitstellenMailSettingsService {
                 matchWindowHours != null && matchWindowHours > 0 ? Math.min(matchWindowHours, 72) : 12);
         settings.setDepeschePollIntervalSeconds(clampInterval(depeschePollIntervalSeconds, 60));
         settings.setAbschlussPollIntervalSeconds(clampInterval(abschlussPollIntervalSeconds, 300));
+        settings.setDepescheWaitHours(clampHours(depescheWaitHours, 6, 168));
+        settings.setAbschlussWaitHours(clampHours(abschlussWaitHours, 24, 336));
         settings.setUpdatedAt(Instant.now());
         return settingsRepository.save(settings);
     }
@@ -99,6 +104,13 @@ public class LeitstellenMailSettingsService {
             return defaultSeconds;
         }
         return Math.min(3600, Math.max(15, seconds));
+    }
+
+    private static int clampHours(Integer hours, int defaultHours, int maxHours) {
+        if (hours == null || hours <= 0) {
+            return defaultHours;
+        }
+        return Math.min(maxHours, Math.max(1, hours));
     }
 
     @Transactional(readOnly = true)

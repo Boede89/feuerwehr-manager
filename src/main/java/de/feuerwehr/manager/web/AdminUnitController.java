@@ -379,6 +379,8 @@ public class AdminUnitController {
             @RequestParam(required = false) Integer matchWindowHours,
             @RequestParam(required = false) Integer depeschePollIntervalSeconds,
             @RequestParam(required = false) Integer abschlussPollIntervalSeconds,
+            @RequestParam(required = false) Integer depescheWaitHours,
+            @RequestParam(required = false) Integer abschlussWaitHours,
             RedirectAttributes redirectAttributes) {
         return withUnit(actor, unit, redirectAttributes, "schnittstellen", () -> {
             leitstellenMailSettingsService.save(
@@ -397,7 +399,9 @@ public class AdminUnitController {
                     pollLookbackHours,
                     matchWindowHours,
                     depeschePollIntervalSeconds,
-                    abschlussPollIntervalSeconds);
+                    abschlussPollIntervalSeconds,
+                    depescheWaitHours,
+                    abschlussWaitHours);
             redirectAttributes.addFlashAttribute("message", "Leitstellen-Mail-Einstellungen gespeichert.");
         });
     }

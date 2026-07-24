@@ -17,8 +17,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Zuordnung Leitstellen-FAX → Einsatzbericht.
- * Depeche nahe Alarmbeginn, Abschlussbericht nahe Einsatzende (größeres Zeitfenster).
- * Liegt schon eine Depeche vor, ist die nächste Mail der Abschlussbericht.
+ * Typ nur nach Mail-Zeit / Stichworten: Nähe Alarm = Depeche, Nähe Ende = Abschluss.
+ * Keine Zwangszuordnung „zweite Datei = Abschluss“ (gleiche Depeche darf nicht doppelt landen).
  */
 @Component
 public class LeitstellenMailMatcher {
@@ -53,7 +53,6 @@ public class LeitstellenMailMatcher {
                         + nullToEmpty(pdf.filename()));
         boolean faxStyle = haystack.contains("fax");
         int baseWindowHours = Math.max(1, settings.getMatchWindowHours());
-        // Abschlussfax oft später/weiter vom Ende entfernt als Depeche vom Beginn
         int abschlussWindowHours = Math.max(baseWindowHours, (int) Math.ceil(baseWindowHours * 1.5));
 
         List<Scored> scored = new ArrayList<>();
@@ -61,46 +60,25 @@ public class LeitstellenMailMatcher {
             boolean depescheDone = Boolean.TRUE.equals(hasDepesche.apply(report.getId()));
             boolean abschlussDone = Boolean.TRUE.equals(hasAbschluss.apply(report.getId()));
 
-            // Besitz anhand der Zeit (unabhängig davon, ob Dateien schon da sind) —
-            // verhindert, dass Mails eines früheren Einsatzes einem späteren zugeordnet werden.
-            LeitstellenMailKind ownershipKind = decideKind(settings, haystack, report, mail, false);
-            int ownershipScore =
-                    scoreForKind(report, mail, haystack, ownershipKind, baseWindowHours, abschlussWindowHours, faxStyle);
-            if (ownershipScore <= 0) {
+            LeitstellenMailKind kind = decideKind(settings, haystack, report, mail);
+            int score = scoreForKind(report, mail, haystack, kind, baseWindowHours, abschlussWindowHours, faxStyle);
+            if (score <= 0) {
                 continue;
             }
 
-            LeitstellenMailKind attachKind = ownershipKind;
+            boolean alreadyHasKind =
+                    (kind == LeitstellenMailKind.DEPESCHE && depescheDone)
+                            || (kind == LeitstellenMailKind.ABSCHLUSS && abschlussDone);
             if (depescheDone && abschlussDone) {
-                // Nur zur Disambiguierung mitzählen, nicht anhängen
-                scored.add(new Scored(report, ownershipKind, ownershipScore, true));
+                scored.add(new Scored(report, kind, score, true));
                 continue;
             }
-            if (attachKind == LeitstellenMailKind.DEPESCHE && depescheDone) {
-                attachKind = LeitstellenMailKind.ABSCHLUSS;
-            }
-            if (attachKind == LeitstellenMailKind.ABSCHLUSS && abschlussDone) {
-                if (!depescheDone) {
-                    attachKind = LeitstellenMailKind.DEPESCHE;
-                    int depescheScore = scoreForKind(
-                            report, mail, haystack, LeitstellenMailKind.DEPESCHE, baseWindowHours, abschlussWindowHours, faxStyle);
-                    if (depescheScore <= 0) {
-                        scored.add(new Scored(report, ownershipKind, ownershipScore, true));
-                        continue;
-                    }
-                    ownershipScore = depescheScore;
-                } else {
-                    scored.add(new Scored(report, ownershipKind, ownershipScore, true));
-                    continue;
-                }
-            }
-            int attachScore = scoreForKind(
-                    report, mail, haystack, attachKind, baseWindowHours, abschlussWindowHours, faxStyle);
-            if (attachScore <= 0) {
-                scored.add(new Scored(report, ownershipKind, ownershipScore, true));
+            if (alreadyHasKind) {
+                // Mail gehört zu diesem Einsatz, Datei dieses Typs ist schon da → nicht erneut anhängen
+                scored.add(new Scored(report, kind, score, true));
                 continue;
             }
-            scored.add(new Scored(report, attachKind, Math.max(ownershipScore, attachScore), false));
+            scored.add(new Scored(report, kind, score, false));
         }
         if (scored.isEmpty()) {
             return Optional.empty();
@@ -110,7 +88,6 @@ public class LeitstellenMailMatcher {
                 .thenComparing(s -> bestTimeDistanceMinutes(s.report(), mail, s.kind()), Comparator.naturalOrder()));
 
         Scored best = scored.get(0);
-        // Anderer Einsatz ist zeitlich näher → dieser Mail-Anhang gehört nicht hierher
         if (best.ownershipOnly()) {
             return Optional.empty();
         }
@@ -131,19 +108,13 @@ public class LeitstellenMailMatcher {
     }
 
     /**
-     * 1) Depeche schon da → nur noch Abschluss möglich.
-     * 2) Explizite Stichworte im Betreff/Dateiname.
-     * 3) Zeitnähe: näher am Alarmbeginn = Depeche, näher am Einsatzende = Abschluss.
+     * Typ ausschließlich nach Stichworten bzw. Nähe zu Alarmbeginn / Einsatzende.
      */
     private LeitstellenMailKind decideKind(
             UnitLeitstellenMailSettings settings,
             String haystack,
             IncidentReport report,
-            LeitstellenImapClient.MailMessage mail,
-            boolean depescheDone) {
-        if (depescheDone) {
-            return LeitstellenMailKind.ABSCHLUSS;
-        }
+            LeitstellenImapClient.MailMessage mail) {
         if (containsAnyKeyword(haystack, settings.getAbschlussKeywords())
                 && !containsAnyKeyword(haystack, settings.getDepescheKeywords())) {
             return LeitstellenMailKind.ABSCHLUSS;
@@ -159,13 +130,12 @@ public class LeitstellenMailMatcher {
         if (alarm != null && end != null && received != null) {
             long toAlarm = Math.abs(Duration.between(alarm, received).toMinutes());
             long toEnd = Math.abs(Duration.between(end, received).toMinutes());
-            // Bei Unentschieden: eher Depeche (kommt zuerst)
-            if (toEnd + 10 < toAlarm) {
+            if (toEnd + 15 < toAlarm) {
                 return LeitstellenMailKind.ABSCHLUSS;
             }
             return LeitstellenMailKind.DEPESCHE;
         }
-        if (end != null && alarm != null && received != null && !received.isBefore(end.minus(Duration.ofMinutes(5)))) {
+        if (end != null && received != null && !received.isBefore(end.minus(Duration.ofMinutes(5)))) {
             return LeitstellenMailKind.ABSCHLUSS;
         }
         return LeitstellenMailKind.DEPESCHE;
@@ -181,12 +151,11 @@ public class LeitstellenMailMatcher {
             boolean faxStyle) {
         int score = textBonus(report, haystack);
         Instant anchor = kind == LeitstellenMailKind.ABSCHLUSS ? endInstant(report) : alarmInstant(report);
-        // Fallback: ohne Ende trotzdem über Alarm zuordenbar (weiteres Fenster)
         if (anchor == null && kind == LeitstellenMailKind.ABSCHLUSS) {
             anchor = alarmInstant(report);
         }
         if (anchor == null || mail.receivedAt() == null) {
-            if (report.getIncidentDate() != null) {
+            if (report.getIncidentDate() != null && mail.receivedAt() != null) {
                 LocalDate mailDate = mail.receivedAt().atZone(ZONE).toLocalDate();
                 long days = Math.abs(Duration.between(
                                 report.getIncidentDate().atStartOfDay(ZONE).toInstant(),
@@ -215,7 +184,6 @@ public class LeitstellenMailMatcher {
         if (absMinutes > windowMinutes) {
             return 0;
         }
-        // Näher am Anker = besser
         int proximity = Math.max(8, 60 - (int) (absMinutes / (kind == LeitstellenMailKind.ABSCHLUSS ? 12 : 6)));
         score += proximity;
         if (minutes >= -10) {
@@ -288,7 +256,6 @@ public class LeitstellenMailMatcher {
             return null;
         }
         LocalDateTime end = LocalDateTime.of(report.getIncidentDate(), report.getEndTime());
-        // Mitternacht-Überlauf: Ende vor Alarm → Folgetag
         if (report.getAlarmTime() != null && report.getEndTime().isBefore(report.getAlarmTime())) {
             end = end.plusDays(1);
         }
