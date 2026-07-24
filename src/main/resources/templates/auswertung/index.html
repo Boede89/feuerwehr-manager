@@ -15,14 +15,52 @@
   <nav class="tab-bar auswertung-tabs" aria-label="Auswertungsbereiche">
     <a class="tab-btn" th:each="b : ${bereiche}"
        th:classappend="${bereich == b} ? ' tab-btn--active' : ''"
-       th:href="@{/auswertung(unit=${unitId}, bereich=${b.key()})}"
+       th:href="@{/auswertung(unit=${unitId}, bereich=${b.key()}, jahr=${filterYear})}"
        th:text="${b.label()}">Bereich</a>
   </nav>
 
-  <div class="card" style="margin-top:16px;">
+  <!-- Übersicht -->
+  <section th:if="${bereich.key() == ''}" class="auswertung-overview">
+    <form method="get" class="filter-bar auswertung-filter-bar" th:action="@{/auswertung}">
+      <input type="hidden" name="unit" th:value="${unitId}"/>
+      <input type="hidden" name="bereich" value=""/>
+      <label class="sr-only" for="auswertung-filter-year">Jahr</label>
+      <select id="auswertung-filter-year" name="jahr" class="berichte-filter-select" aria-label="Jahr filtern"
+              onchange="this.form.submit()">
+        <option th:each="y : ${yearOptions}" th:value="${y}" th:text="${y}"
+                th:selected="${y == filterYear}"></option>
+      </select>
+    </form>
+
+    <div class="auswertung-stat-grid" role="list">
+      <article class="auswertung-stat-card" role="listitem">
+        <strong class="auswertung-stat-card__value" th:text="${overviewStats.einsaetze()}">0</strong>
+        <span class="auswertung-stat-card__label">Einsätze</span>
+      </article>
+      <article class="auswertung-stat-card auswertung-stat-card--feuer" role="listitem">
+        <strong class="auswertung-stat-card__value" th:text="${overviewStats.feuer()}">0</strong>
+        <span class="auswertung-stat-card__label">Feuer</span>
+      </article>
+      <article class="auswertung-stat-card auswertung-stat-card--th" role="listitem">
+        <strong class="auswertung-stat-card__value" th:text="${overviewStats.th()}">0</strong>
+        <span class="auswertung-stat-card__label">TH</span>
+      </article>
+      <article class="auswertung-stat-card auswertung-stat-card--sonstiges" role="listitem">
+        <strong class="auswertung-stat-card__value" th:text="${overviewStats.sonstiges()}">0</strong>
+        <span class="auswertung-stat-card__label">Sonstiges</span>
+      </article>
+      <article class="auswertung-stat-card auswertung-stat-card--uebung" role="listitem">
+        <strong class="auswertung-stat-card__value" th:text="${overviewStats.uebungsdienste()}">0</strong>
+        <span class="auswertung-stat-card__label">Übungsdienste</span>
+      </article>
+    </div>
+  </section>
+
+  <!-- Andere Bereiche: Platzhalter -->
+  <div class="card" style="margin-top:16px;" th:unless="${bereich.key() == ''}">
     <div class="card__body">
       <p class="hint" style="margin:0;">
-        Bereich <strong th:text="${bereich.label()}">Übersicht</strong> — Inhalt folgt.
+        Bereich <strong th:text="${bereich.label()}">Personen</strong> — Inhalt folgt.
       </p>
     </div>
   </div>
