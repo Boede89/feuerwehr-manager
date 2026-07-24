@@ -104,6 +104,40 @@ class LeitstellenMailMatcherTest {
         assertEquals(LeitstellenMailKind.DEPESCHE, match.get().kind());
     }
 
+    @Test
+    void overnightEinsatzAbschlussNextMorning() {
+        UnitLeitstellenMailSettings settings = baseSettings();
+        IncidentReport report = new IncidentReport();
+        report.setId(2L);
+        report.setIncidentDate(LocalDate.of(2026, 7, 24));
+        report.setAlarmTime(LocalTime.of(22, 15));
+        report.setEndTime(LocalTime.of(1, 40)); // nach Mitternacht → Folgetag
+
+        // Abschluss am nächsten Vormittag (Berlin 09:20)
+        var mail = faxMail(Instant.parse("2026-07-25T07:20:00Z"));
+        Optional<LeitstellenMailMatcher.MatchResult> match =
+                matcher.match(settings, mail, pdf(), List.of(report), id -> true, id -> false);
+
+        assertTrue(match.isPresent());
+        assertEquals(LeitstellenMailKind.ABSCHLUSS, match.get().kind());
+    }
+
+    @Test
+    void abschlussSameEveningButMailNextAfternoonStillMatches() {
+        UnitLeitstellenMailSettings settings = baseSettings();
+        IncidentReport report = report();
+        report.setAlarmTime(LocalTime.of(20, 0));
+        report.setEndTime(LocalTime.of(22, 30));
+
+        // ~15 h nach Ende — innerhalb 36-h-Abschlussfenster
+        var mail = faxMail(Instant.parse("2026-07-25T11:30:00Z")); // 13:30 Berlin
+        Optional<LeitstellenMailMatcher.MatchResult> match =
+                matcher.match(settings, mail, pdf(), List.of(report), id -> true, id -> false);
+
+        assertTrue(match.isPresent());
+        assertEquals(LeitstellenMailKind.ABSCHLUSS, match.get().kind());
+    }
+
     private static UnitLeitstellenMailSettings baseSettings() {
         UnitLeitstellenMailSettings settings = new UnitLeitstellenMailSettings();
         settings.setMatchWindowHours(12);

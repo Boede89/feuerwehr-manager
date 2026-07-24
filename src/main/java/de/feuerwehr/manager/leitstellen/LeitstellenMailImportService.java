@@ -250,9 +250,8 @@ public class LeitstellenMailImportService {
     }
 
     /**
-     * Lookback vom Einsatzdatum (1 Tag Puffer) bis jetzt, maximal 1 Jahr.
-     * So werden Mails zum konkreten Einsatz gefunden, ohne unnötig das ganze Jahr zu laden,
-     * wenn der Einsatz erst vor wenigen Tagen war.
+     * Lookback vom Tag vor dem Einsatz bis jetzt (max. 1 Jahr).
+     * Damit sind Mails am Folgetag (Abschluss nach Mitternacht) enthalten, sobald sie im Postfach liegen.
      */
     private static int lookbackHoursForReport(IncidentReport report, UnitLeitstellenMailSettings settings) {
         LocalDate incidentDate = report.getIncidentDate() != null ? report.getIncidentDate() : LocalDate.now(ZONE);

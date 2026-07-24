@@ -18,12 +18,15 @@ import org.springframework.stereotype.Component;
 /**
  * Zuordnung Leitstellen-FAX → Einsatzbericht.
  * Typ nur nach Mail-Zeit / Stichworten: Nähe Alarm = Depeche, Nähe Ende = Abschluss.
+ * Abschluss darf auch am Folgetag kommen (Einsatz über Mitternacht / späterer FAX).
  * Keine Zwangszuordnung „zweite Datei = Abschluss“ (gleiche Depeche darf nicht doppelt landen).
  */
 @Component
 public class LeitstellenMailMatcher {
 
     private static final ZoneId ZONE = ZoneId.of("Europe/Berlin");
+    /** Mindestfenster nach Einsatzende für Abschlussbericht (inkl. Folgetag). */
+    private static final int ABSCHLUSS_MIN_WINDOW_HOURS = 36;
 
     public record MatchResult(IncidentReport report, LeitstellenMailKind kind, int score) {}
 
@@ -53,7 +56,8 @@ public class LeitstellenMailMatcher {
                         + nullToEmpty(pdf.filename()));
         boolean faxStyle = haystack.contains("fax");
         int baseWindowHours = Math.max(1, settings.getMatchWindowHours());
-        int abschlussWindowHours = Math.max(baseWindowHours, (int) Math.ceil(baseWindowHours * 1.5));
+        int abschlussWindowHours = Math.max(
+                ABSCHLUSS_MIN_WINDOW_HOURS, (int) Math.ceil(baseWindowHours * 1.5));
 
         List<Scored> scored = new ArrayList<>();
         for (IncidentReport report : candidates) {
@@ -178,12 +182,20 @@ public class LeitstellenMailMatcher {
         }
 
         long minutes = Duration.between(anchor, mail.receivedAt()).toMinutes();
-        long absMinutes = Math.abs(minutes);
         long windowMinutes = (kind == LeitstellenMailKind.ABSCHLUSS ? abschlussWindowHours : depescheWindowHours)
                 * 60L;
-        if (absMinutes > windowMinutes) {
-            return 0;
+        if (kind == LeitstellenMailKind.ABSCHLUSS) {
+            // Abschluss kommt nach dem Ende — früh vor dem Ende ablehnen, Folgetag erlauben
+            if (minutes < -30 || minutes > windowMinutes) {
+                return 0;
+            }
+        } else {
+            long absMinutes = Math.abs(minutes);
+            if (absMinutes > windowMinutes) {
+                return 0;
+            }
         }
+        long absMinutes = Math.abs(minutes);
         int proximity = Math.max(8, 60 - (int) (absMinutes / (kind == LeitstellenMailKind.ABSCHLUSS ? 12 : 6)));
         score += proximity;
         if (minutes >= -10) {

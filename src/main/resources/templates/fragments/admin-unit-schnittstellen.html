@@ -301,14 +301,17 @@
           <p class="hint">
             Automatischer Abruf: so weit zurück Mails und Berichte berücksichtigen (Puffer).
             Manueller Abruf (Einstellungen / Einsatzbericht) sucht bis zu 1 Jahr zurück —
-            am Einsatzbericht ab dem Einsatzdatum.
+            am Einsatzbericht ab dem Einsatzdatum (inkl. Folgetag für Abschluss nach Mitternacht).
           </p>
         </div>
         <div class="form-group">
           <label for="leitstellenMatchWindow">Zuordnungsfenster (Stunden)</label>
           <input id="leitstellenMatchWindow" name="matchWindowHours" type="number" min="1" max="72" class="field"
                  th:value="${leitstellenMail != null ? leitstellenMail.matchWindowHours : 12}"/>
-          <p class="hint">Max. Abstand zwischen Alarm-/Endezeit und Mail-Eingang.</p>
+          <p class="hint">
+            Max. Abstand Alarm↔Depeche bzw. Ende↔Abschluss. Abschlussberichte werden mindestens
+            36 Stunden nach Einsatzende akzeptiert (auch Folgetag / Einsatz über Mitternacht).
+          </p>
         </div>
         <div class="form-group">
           <label for="leitstellenDepescheInterval">Intervall bis Depeche (Sekunden)</label>
