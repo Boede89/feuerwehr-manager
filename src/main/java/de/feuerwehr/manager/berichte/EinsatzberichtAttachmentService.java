@@ -66,14 +66,62 @@ public class EinsatzberichtAttachmentService {
                     "Dateityp '" + mimeType + "' ist nicht erlaubt. Erlaubt: Bilder (JPEG/PNG/GIF/WebP), PDF, Word (docx), ODT, Text.");
         }
 
+        try {
+            return storeBytes(report, filename, mimeType, file.getBytes(), userId, false);
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Datei konnte nicht gelesen werden: " + e.getMessage());
+        }
+    }
+
+    /**
+     * System-Import (z. B. Leitstellen-Mail): ersetzt ggf. vorhandenen Anhang mit gleichem Anzeigenamen.
+     * Erlaubt bei Entwurf und freigegebenem Bericht.
+     */
+    @Transactional
+    public IncidentAttachmentDto storeSystemPdf(
+            long unitId, long reportId, String displayFilename, byte[] content) {
+        IncidentReport report = requireReport(unitId, reportId);
+        if (report.getStatus() == IncidentReportStatus.ARCHIVIERT) {
+            throw new IllegalArgumentException("Anhänge können nicht an archivierte Berichte gehängt werden.");
+        }
+        if (content == null || content.length == 0) {
+            throw new IllegalArgumentException("Keine Datei im Request gefunden.");
+        }
+        if (content.length > MAX_ATTACHMENT_SIZE) {
+            throw new IllegalArgumentException("Datei zu groß (max. 20 MB).");
+        }
+        String filename = sanitizeFilename(displayFilename);
+        if (!filename.toLowerCase(Locale.ROOT).endsWith(".pdf")) {
+            filename = filename + ".pdf";
+        }
+        return storeBytes(report, filename, MediaType.APPLICATION_PDF_VALUE, content, null, true);
+    }
+
+    private IncidentAttachmentDto storeBytes(
+            IncidentReport report,
+            String filename,
+            String mimeType,
+            byte[] content,
+            Long userId,
+            boolean replaceSameFilename) {
+        long reportId = report.getId();
         String extension = extensionOf(filename);
         String storedName = UUID.randomUUID() + "." + extension;
         Path target = attachmentPath(reportId).resolve(storedName);
         try {
             Files.createDirectories(target.getParent());
-            file.transferTo(target);
+            Files.write(target, content);
         } catch (IOException e) {
             throw new IllegalArgumentException("Datei konnte nicht gespeichert werden: " + e.getMessage());
+        }
+
+        if (replaceSameFilename) {
+            attachmentRepository
+                    .findFirstByIncidentReportIdAndFilenameIgnoreCase(reportId, filename)
+                    .ifPresent(existing -> {
+                        deleteStoredFile(reportId, existing.getStoredName());
+                        attachmentRepository.delete(existing);
+                    });
         }
 
         IncidentReportAttachment attachment = new IncidentReportAttachment();
@@ -81,7 +129,7 @@ public class EinsatzberichtAttachmentService {
         attachment.setFilename(filename);
         attachment.setStoredName(storedName);
         attachment.setMimeType(mimeType);
-        attachment.setFileSize(file.getSize());
+        attachment.setFileSize(content.length);
         if (userId != null) {
             userRepository.findById(userId).ifPresent(attachment::setUploadedByUser);
         }

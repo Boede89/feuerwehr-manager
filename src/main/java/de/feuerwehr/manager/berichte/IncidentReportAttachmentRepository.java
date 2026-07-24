@@ -10,5 +10,8 @@ public interface IncidentReportAttachmentRepository extends JpaRepository<Incide
 
     Optional<IncidentReportAttachment> findByIdAndIncidentReportId(long id, long incidentReportId);
 
+    Optional<IncidentReportAttachment> findFirstByIncidentReportIdAndFilenameIgnoreCase(
+            long incidentReportId, String filename);
+
     void deleteByIncidentReportId(long incidentReportId);
 }

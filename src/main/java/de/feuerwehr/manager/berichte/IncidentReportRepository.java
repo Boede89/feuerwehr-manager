@@ -188,6 +188,22 @@ public interface IncidentReportRepository extends JpaRepository<IncidentReport, 
 
     @Query("""
             SELECT r FROM IncidentReport r
+            WHERE r.unit.id = :unitId
+              AND r.status IN :statuses
+              AND r.incidentDate >= :fromDate
+              AND r.incidentDate <= :toDate
+              AND (r.testData = FALSE OR :includeTestReports = TRUE)
+            ORDER BY r.incidentDate DESC, r.id DESC
+            """)
+    List<IncidentReport> findCandidatesForLeitstellenMail(
+            @Param("unitId") long unitId,
+            @Param("statuses") List<IncidentReportStatus> statuses,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            @Param("includeTestReports") boolean includeTestReports);
+
+    @Query("""
+            SELECT r FROM IncidentReport r
             WHERE r.productionSourceId = :productionSourceId
             """)
     Optional<IncidentReport> findByProductionSourceId(@Param("productionSourceId") long productionSourceId);

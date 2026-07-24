@@ -24,6 +24,8 @@ import de.feuerwehr.manager.divera.DiveraIntegrationSupport;
 import de.feuerwehr.manager.divera.DiveraMappingService;
 import de.feuerwehr.manager.einsatzapp.EinsatzAppSettingsService;
 import de.feuerwehr.manager.einsatzapp.FcmConfigService;
+import de.feuerwehr.manager.leitstellen.LeitstellenMailSettingsService;
+import de.feuerwehr.manager.leitstellen.UnitLeitstellenMailSettings;
 import de.feuerwehr.manager.settings.GlobalSettingsService;
 import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
 import de.feuerwehr.manager.unit.UnitRole;
@@ -57,6 +59,7 @@ public class AdminUnitViewService {
     private final UnitPrintSettingsService unitPrintSettingsService;
     private final EinsatzAppSettingsService einsatzAppSettingsService;
     private final FcmConfigService fcmConfigService;
+    private final LeitstellenMailSettingsService leitstellenMailSettingsService;
 
     public void populateKonfiguration(Model model, Unit unit) {
         model.addAttribute("unit", unit);
@@ -94,6 +97,7 @@ public class AdminUnitViewService {
         String appBase = globalSettingsService.get().getAppUrl();
         model.addAttribute("appBaseUrl", appBase != null ? appBase : "");
         populateDivera(model, unitId);
+        populateLeitstellenMail(model, unitId);
         populatePrint(model, unitId);
         populateEinsatzapp(model, unitId);
         model.addAttribute("diveraRecipientGroups", diveraMappingService.listRecipientGroups(unitId));
@@ -175,6 +179,27 @@ public class AdminUnitViewService {
                 eq.getName(),
                 cat != null ? cat.getId() : null,
                 cat != null ? cat.getName() : null);
+    }
+
+    private void populateLeitstellenMail(Model model, long unitId) {
+        Optional<UnitLeitstellenMailSettings> opt = leitstellenMailSettingsService.findByUnitId(unitId);
+        if (opt.isPresent()) {
+            UnitLeitstellenMailSettings s = opt.get();
+            model.addAttribute("leitstellenMail", s);
+            model.addAttribute(
+                    "leitstellenMailPasswordConfigured",
+                    s.getImapPassword() != null && !s.getImapPassword().isBlank());
+            if (s.getLastPollAt() != null) {
+                model.addAttribute(
+                        "leitstellenMailLastPollAt",
+                        s.getLastPollAt()
+                                .atZone(java.time.ZoneId.of("Europe/Berlin"))
+                                .format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")));
+            }
+        } else {
+            model.addAttribute("leitstellenMail", null);
+            model.addAttribute("leitstellenMailPasswordConfigured", false);
+        }
     }
 
     private void populateDivera(Model model, long unitId) {

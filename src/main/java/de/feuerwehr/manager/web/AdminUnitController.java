@@ -2,6 +2,8 @@ package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.divera.DiveraMappingService;
 import de.feuerwehr.manager.einsatzapp.EinsatzAppSettingsService;
+import de.feuerwehr.manager.leitstellen.LeitstellenMailImportService;
+import de.feuerwehr.manager.leitstellen.LeitstellenMailSettingsService;
 import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.technik.UnitVehicleTypeService;
 import de.feuerwehr.manager.technik.VehicleChecklistService;
@@ -47,6 +49,8 @@ public class AdminUnitController {
     private final DiveraMappingService diveraMappingService;
     private final UnitPrintSettingsService unitPrintSettingsService;
     private final EinsatzAppSettingsService einsatzAppSettingsService;
+    private final LeitstellenMailSettingsService leitstellenMailSettingsService;
+    private final LeitstellenMailImportService leitstellenMailImportService;
 
     @PostMapping("/config")
     public String saveConfig(
@@ -351,6 +355,66 @@ public class AdminUnitController {
             }
             diveraSettingsRepository.save(settings);
             redirectAttributes.addFlashAttribute("message", "Divera-Einstellungen gespeichert.");
+        });
+    }
+
+    @PostMapping("/leitstellen-mail")
+    public String saveLeitstellenMail(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam(required = false, defaultValue = "false") boolean enabled,
+            @RequestParam(required = false) String imapHost,
+            @RequestParam(required = false) Integer imapPort,
+            @RequestParam(required = false) String imapUsername,
+            @RequestParam(required = false) String imapPassword,
+            @RequestParam(required = false) String imapEncryption,
+            @RequestParam(required = false) String imapFolder,
+            @RequestParam(required = false) String fromFilter,
+            @RequestParam(required = false) String subjectFilter,
+            @RequestParam(required = false) String depescheKeywords,
+            @RequestParam(required = false) String abschlussKeywords,
+            @RequestParam(required = false) Integer pollLookbackHours,
+            @RequestParam(required = false) Integer matchWindowHours,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(actor, unit, redirectAttributes, "schnittstellen", () -> {
+            leitstellenMailSettingsService.save(
+                    unit,
+                    enabled,
+                    imapHost,
+                    imapPort,
+                    imapUsername,
+                    imapPassword,
+                    imapEncryption,
+                    imapFolder,
+                    fromFilter,
+                    subjectFilter,
+                    depescheKeywords,
+                    abschlussKeywords,
+                    pollLookbackHours,
+                    matchWindowHours);
+            redirectAttributes.addFlashAttribute("message", "Leitstellen-Mail-Einstellungen gespeichert.");
+        });
+    }
+
+    @PostMapping("/leitstellen-mail/test")
+    public String testLeitstellenMail(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(actor, unit, redirectAttributes, "schnittstellen", () -> {
+            leitstellenMailImportService.testConnection(unit);
+            redirectAttributes.addFlashAttribute("message", "IMAP-Verbindung erfolgreich.");
+        });
+    }
+
+    @PostMapping("/leitstellen-mail/poll")
+    public String pollLeitstellenMail(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(actor, unit, redirectAttributes, "schnittstellen", () -> {
+            var result = leitstellenMailImportService.pollUnit(unit);
+            redirectAttributes.addFlashAttribute("message", result.message());
         });
     }
 
