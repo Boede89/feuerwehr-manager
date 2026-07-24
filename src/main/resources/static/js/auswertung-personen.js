@@ -45,7 +45,11 @@
     ul.innerHTML = items.map(function (item) {
       var date = item && item.date ? item.date : '—';
       var label = item && item.label ? item.label : '—';
-      return '<li><span class="auswertung-teilnahme-date">' + esc(date) + '</span> · ' + esc(label) + '</li>';
+      var pa = item && item.usesPa
+        ? ' <span class="auswertung-teilnahme-pa" title="PA getragen">PA</span>'
+        : '';
+      return '<li><span class="auswertung-teilnahme-date">' + esc(date) + '</span> · '
+        + esc(label) + pa + '</li>';
     }).join('');
   }
 

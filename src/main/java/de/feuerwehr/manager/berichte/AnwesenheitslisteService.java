@@ -827,10 +827,20 @@ public class AnwesenheitslisteService {
     /** IDs der anwesenden Personen (gleiche Regeln wie {@link #presenceSummary}). */
     @Transactional(readOnly = true)
     public Set<Long> presentPersonIds(long unitId, long reportId) {
+        return presentAndPaPersonIds(unitId, reportId).presentIds();
+    }
+
+    /**
+     * Anwesende und PA-Träger-IDs (PA aus Kräfte-JSON {@code paPersonIds}).
+     * Gleiche Anwesenheitsregeln wie {@link #presentPersonIds}.
+     */
+    @Transactional(readOnly = true)
+    public AnwesenheitPersonIds presentAndPaPersonIds(long unitId, long reportId) {
         AttendanceReport report = requireReport(unitId, reportId);
         List<CrewAssignment> assignments =
                 einsatzberichtService.parseCrewAssignments(report.getCrewAssignmentsJson());
         LinkedHashSet<Long> presentIds = new LinkedHashSet<>();
+        LinkedHashSet<Long> paIds = new LinkedHashSet<>();
         if (hasAssignedPersons(assignments)) {
             for (CrewAssignment assignment : assignments) {
                 long vehicleId = assignment.vehicleId();
@@ -848,11 +858,18 @@ public class AnwesenheitslisteService {
                         presentIds.add(personId);
                     }
                 }
+                if (assignment.paPersonIds() != null) {
+                    for (Long paId : assignment.paPersonIds()) {
+                        if (paId != null && paId != 0L) {
+                            paIds.add(paId);
+                        }
+                    }
+                }
             }
         }
         if (presentIds.isEmpty()) {
             if (isLegacyTerminPersonnelPreload(report, unitId)) {
-                return Set.of();
+                return new AnwesenheitPersonIds(Set.of(), Set.of());
             }
             for (AttendanceReportPersonnel row : listPersonnel(reportId)) {
                 if (row.getAttendanceStatus() != AttendancePersonStatus.PRESENT) {
@@ -863,8 +880,10 @@ public class AnwesenheitslisteService {
                 }
             }
         }
-        return presentIds;
+        return new AnwesenheitPersonIds(presentIds, paIds);
     }
+
+    public record AnwesenheitPersonIds(Set<Long> presentIds, Set<Long> paIds) {}
 
     private static boolean hasAssignedPersons(List<CrewAssignment> assignments) {
         if (assignments == null || assignments.isEmpty()) {

@@ -6758,6 +6758,34 @@ a.auswertung-stat-card {
   font-weight: 600;
 }
 
+.auswertung-teilnahme-pa {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+  color: var(--primary, #b91c1c);
+  background: color-mix(in srgb, var(--primary, #b91c1c) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary, #b91c1c) 28%, transparent);
+}
+
+.auswertung-person-modal__body {
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 16px 20px;
+}
+
+.auswertung-teilnahmen-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px 24px;
+  align-items: start;
+}
+
 .auswertung-detail-modal__body {
   display: flex;
   flex-direction: column;
@@ -6802,7 +6830,8 @@ a.auswertung-stat-card {
 }
 
 @media (max-width: 640px) {
-  .auswertung-detail-modal__meta {
+  .auswertung-detail-modal__meta,
+  .auswertung-teilnahmen-grid {
     grid-template-columns: 1fr;
   }
 }

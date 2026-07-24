@@ -263,7 +263,7 @@
           <h3 id="auswertung-person-modal-title">Person</h3>
           <button type="button" class="modal__close" data-auswertung-person-modal-close aria-label="Schließen">✕</button>
         </div>
-        <div class="modal__body auswertung-detail-modal__body">
+        <div class="modal__body auswertung-detail-modal__body auswertung-person-modal__body">
           <dl class="auswertung-detail-modal__meta">
             <div>
               <dt>Name</dt>
@@ -278,14 +278,16 @@
               <dd id="apm-einsatz">—</dd>
             </div>
           </dl>
-          <section class="auswertung-detail-modal__section">
-            <h4>Dienste</h4>
-            <ul id="apm-dienste" class="auswertung-detail-modal__list"></ul>
-          </section>
-          <section class="auswertung-detail-modal__section">
-            <h4>Einsätze</h4>
-            <ul id="apm-einsaetze" class="auswertung-detail-modal__list"></ul>
-          </section>
+          <div class="auswertung-teilnahmen-grid">
+            <section class="auswertung-detail-modal__section">
+              <h4>Dienste</h4>
+              <ul id="apm-dienste" class="auswertung-detail-modal__list"></ul>
+            </section>
+            <section class="auswertung-detail-modal__section">
+              <h4>Einsätze</h4>
+              <ul id="apm-einsaetze" class="auswertung-detail-modal__list"></ul>
+            </section>
+          </div>
         </div>
         <div class="modal__footer">
           <button type="button" class="btn btn-secondary" data-auswertung-person-modal-close>Schließen</button>

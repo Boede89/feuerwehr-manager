@@ -30,13 +30,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -185,10 +183,14 @@ public class AuswertungService {
                 String label = report.getTitle() != null && !report.getTitle().isBlank()
                         ? report.getTitle().trim()
                         : "Übungsdienst";
-                DatedTeilnahme teilnahme = new DatedTeilnahme(eventDate, label);
-                for (Long personId : anwesenheitslisteService.presentPersonIds(unitId, report.getId())) {
+                AnwesenheitslisteService.AnwesenheitPersonIds ids =
+                        anwesenheitslisteService.presentAndPaPersonIds(unitId, report.getId());
+                for (Long personId : ids.presentIds()) {
+                    boolean usesPa = ids.paIds().contains(personId);
                     dienstCountByPerson.merge(personId, 1, Integer::sum);
-                    diensteByPerson.computeIfAbsent(personId, id -> new ArrayList<>()).add(teilnahme);
+                    diensteByPerson
+                            .computeIfAbsent(personId, id -> new ArrayList<>())
+                            .add(new DatedTeilnahme(eventDate, label, usesPa));
                 }
             }
         }
@@ -201,7 +203,7 @@ public class AuswertungService {
             for (IncidentReport report : einsaetze) {
                 einsatzById.put(report.getId(), report);
             }
-            Map<Long, Set<Long>> einsatzIdsByPerson = new HashMap<>();
+            Map<Long, Map<Long, DatedTeilnahme>> einsatzTeilnahmeByPerson = new HashMap<>();
             List<Long> reportIds = einsaetze.stream().map(IncidentReport::getId).toList();
             for (IncidentReportPersonnel row :
                     incidentReportPersonnelRepository.findByIncidentReportIdIn(reportIds)) {
@@ -210,10 +212,6 @@ public class AuswertungService {
                 }
                 long personId = row.getPerson().getId();
                 long reportId = row.getIncidentReport().getId();
-                Set<Long> seen = einsatzIdsByPerson.computeIfAbsent(personId, id -> new HashSet<>());
-                if (!seen.add(reportId)) {
-                    continue;
-                }
                 IncidentReport report = einsatzById.get(reportId);
                 if (report == null) {
                     continue;
@@ -221,10 +219,17 @@ public class AuswertungService {
                 String label = report.getStichwort() != null && !report.getStichwort().isBlank()
                         ? report.getStichwort().trim()
                         : "Einsatz";
-                einsatzCountByPerson.merge(personId, 1, Integer::sum);
-                einsaetzeByPerson
-                        .computeIfAbsent(personId, id -> new ArrayList<>())
-                        .add(new DatedTeilnahme(report.getIncidentDate(), label));
+                Map<Long, DatedTeilnahme> byReport =
+                        einsatzTeilnahmeByPerson.computeIfAbsent(personId, id -> new HashMap<>());
+                DatedTeilnahme existing = byReport.get(reportId);
+                boolean usesPa = row.isUsesPa() || (existing != null && existing.usesPa());
+                if (existing == null) {
+                    einsatzCountByPerson.merge(personId, 1, Integer::sum);
+                }
+                byReport.put(reportId, new DatedTeilnahme(report.getIncidentDate(), label, usesPa));
+            }
+            for (Map.Entry<Long, Map<Long, DatedTeilnahme>> entry : einsatzTeilnahmeByPerson.entrySet()) {
+                einsaetzeByPerson.put(entry.getKey(), new ArrayList<>(entry.getValue().values()));
             }
         }
 
@@ -257,11 +262,12 @@ public class AuswertungService {
                         .reversed())
                 .map(t -> new AuswertungPersonTeilnahme(
                         t.date() != null ? t.date().format(DATE_FMT) : "—",
-                        t.label()))
+                        t.label(),
+                        t.usesPa()))
                 .toList();
     }
 
-    private record DatedTeilnahme(LocalDate date, String label) {}
+    private record DatedTeilnahme(LocalDate date, String label, boolean usesPa) {}
 
     private static String formatBeteiligungPct(int attended, int total) {
         if (total <= 0) {
