@@ -142,16 +142,31 @@ public class LeitstellenMailPollSessionService {
     }
 
     private void runPollAfterCommit(long unitId) {
-        Runnable poll = () -> pollRunner.pollUnitAndRefresh(unitId);
+        Runnable poll = () -> {
+            try {
+                pollRunner.pollUnitAndRefresh(unitId);
+            } catch (Exception e) {
+                log.warn(
+                        "[Leitstellen-Mail] Sofort-Abruf nach DIVERA unit={} fehlgeschlagen: {}",
+                        unitId,
+                        e.getMessage());
+            }
+        };
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    Thread.ofVirtual().name("leitstellen-poll-" + unitId).start(poll);
+                    startBackgroundPoll(unitId, poll);
                 }
             });
         } else {
-            Thread.ofVirtual().name("leitstellen-poll-" + unitId).start(poll);
+            startBackgroundPoll(unitId, poll);
         }
+    }
+
+    private static void startBackgroundPoll(long unitId, Runnable poll) {
+        Thread t = new Thread(poll, "leitstellen-poll-" + unitId);
+        t.setDaemon(true);
+        t.start();
     }
 }
