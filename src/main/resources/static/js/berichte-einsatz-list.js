@@ -13,33 +13,65 @@
   var csrfToken = root.dataset.csrfToken || '';
   var csrfHeader = root.dataset.csrfHeader || 'X-XSRF-TOKEN';
 
-  var filters = window.BerichteListFilters
-    ? window.BerichteListFilters.load(unitId, 'einsatz', {
-      year: Number(root.dataset.filterYear) || new Date().getFullYear(),
-      stichwort: '',
-      status: ''
-    })
-    : {
-      year: Number(root.dataset.filterYear) || new Date().getFullYear(),
-      stichwort: '',
-      status: ''
+  var FILTER_STORAGE_PREFIX = 'feuerwehr.berichte.filters.';
+
+  function loadStoredFilters(tab, defaults) {
+    if (window.BerichteListFilters && typeof window.BerichteListFilters.load === 'function') {
+      return window.BerichteListFilters.load(unitId, tab, defaults);
+    }
+    var base = Object.assign({}, defaults || {});
+    try {
+      var raw = sessionStorage.getItem(FILTER_STORAGE_PREFIX + String(unitId || '') + '.' + tab);
+      if (!raw) {
+        return base;
+      }
+      var parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') {
+        return base;
+      }
+      Object.keys(parsed).forEach(function (key) {
+        base[key] = parsed[key];
+      });
+      return base;
+    } catch (e) {
+      return base;
+    }
+  }
+
+  function persistFilters() {
+    var payload = {
+      year: filters.year,
+      stichwort: filters.stichwort,
+      status: filters.status
     };
+    if (window.BerichteListFilters && typeof window.BerichteListFilters.save === 'function') {
+      window.BerichteListFilters.save(unitId, 'einsatz', payload);
+      return;
+    }
+    try {
+      sessionStorage.setItem(FILTER_STORAGE_PREFIX + String(unitId || '') + '.einsatz', JSON.stringify(payload));
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  var filters = loadStoredFilters('einsatz', {
+    year: Number(root.dataset.filterYear) || new Date().getFullYear(),
+    stichwort: '',
+    status: ''
+  });
   filters.year = Number(filters.year) || new Date().getFullYear();
-  filters.stichwort = filters.stichwort || '';
-  filters.status = filters.status || '';
+  if (filters.stichwort == null) {
+    filters.stichwort = '';
+  }
+  if (filters.status == null) {
+    filters.status = '';
+  }
 
   var allItems = [];
   var stichworte = [];
 
-  function persistFilters() {
-    if (window.BerichteListFilters) {
-      window.BerichteListFilters.save(unitId, 'einsatz', {
-        year: filters.year,
-        stichwort: filters.stichwort,
-        status: filters.status
-      });
-    }
-  }
+  persistFilters();
 
   function esc(text) {
     var div = document.createElement('div');

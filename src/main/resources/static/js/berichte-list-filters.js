@@ -36,7 +36,12 @@
       if (!parsed || typeof parsed !== 'object') {
         return base;
       }
-      return Object.assign(base, parsed);
+      Object.keys(parsed).forEach(function (key) {
+        if (Object.prototype.hasOwnProperty.call(parsed, key)) {
+          base[key] = parsed[key];
+        }
+      });
+      return base;
     } catch (e) {
       return base;
     }
@@ -90,10 +95,16 @@
   }
 
   window.BerichteListFilters = {
+    PREFIX: PREFIX,
+    storageKey: storageKey,
     load: load,
     save: save,
     clearAll: clearAll
   };
 
-  document.addEventListener('DOMContentLoaded', bindClearOnLeave);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindClearOnLeave);
+  } else {
+    bindClearOnLeave();
+  }
 })();

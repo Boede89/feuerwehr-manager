@@ -11,19 +11,51 @@
   var isAdmin = root.dataset.isAdmin === 'true';
   var csrfToken = root.dataset.csrfToken || '';
   var csrfParam = root.dataset.csrfParam || '_csrf';
-  var filters = window.BerichteListFilters
-    ? window.BerichteListFilters.load(unitId, 'geraetewart', {
-      year: Number(root.dataset.filterYear) || new Date().getFullYear()
-    })
-    : { year: Number(root.dataset.filterYear) || new Date().getFullYear() };
+  var FILTER_STORAGE_PREFIX = 'feuerwehr.berichte.filters.';
+
+  function loadStoredFilters(tab, defaults) {
+    if (window.BerichteListFilters && typeof window.BerichteListFilters.load === 'function') {
+      return window.BerichteListFilters.load(unitId, tab, defaults);
+    }
+    var base = Object.assign({}, defaults || {});
+    try {
+      var raw = sessionStorage.getItem(FILTER_STORAGE_PREFIX + String(unitId || '') + '.' + tab);
+      if (!raw) {
+        return base;
+      }
+      var parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') {
+        return base;
+      }
+      Object.keys(parsed).forEach(function (key) {
+        base[key] = parsed[key];
+      });
+      return base;
+    } catch (e) {
+      return base;
+    }
+  }
+
+  function persistFilters() {
+    var payload = { year: filters.year };
+    if (window.BerichteListFilters && typeof window.BerichteListFilters.save === 'function') {
+      window.BerichteListFilters.save(unitId, 'geraetewart', payload);
+      return;
+    }
+    try {
+      sessionStorage.setItem(FILTER_STORAGE_PREFIX + String(unitId || '') + '.geraetewart', JSON.stringify(payload));
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  var filters = loadStoredFilters('geraetewart', {
+    year: Number(root.dataset.filterYear) || new Date().getFullYear()
+  });
   filters.year = Number(filters.year) || new Date().getFullYear();
   var allItems = [];
 
-  function persistFilters() {
-    if (window.BerichteListFilters) {
-      window.BerichteListFilters.save(unitId, 'geraetewart', { year: filters.year });
-    }
-  }
+  persistFilters();
 
   function esc(text) {
     var div = document.createElement('div');
