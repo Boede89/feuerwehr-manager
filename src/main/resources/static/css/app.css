@@ -6687,7 +6687,7 @@ a.auswertung-stat-card {
 .auswertung-detail-row:focus-visible,
 .auswertung-person-row:hover,
 .auswertung-person-row:focus-visible {
-  background: color-mix(in srgb, var(--primary, #b91c1c) 16%, transparent);
+  background: color-mix(in srgb, var(--primary, #b91c1c) 28%, transparent);
   outline: none;
 }
 
@@ -6700,7 +6700,7 @@ a.auswertung-stat-card {
 
 .auswertung-person-item:hover,
 .auswertung-person-item:focus-visible {
-  background: color-mix(in srgb, var(--primary, #b91c1c) 16%, transparent);
+  background: color-mix(in srgb, var(--primary, #b91c1c) 28%, transparent);
   outline: none;
 }
 
@@ -6712,7 +6712,7 @@ a.auswertung-stat-card {
 }
 
 .auswertung-detail-modal__list li:not(.auswertung-detail-modal__empty):hover {
-  background: color-mix(in srgb, var(--primary, #b91c1c) 16%, transparent);
+  background: color-mix(in srgb, var(--primary, #b91c1c) 28%, transparent);
 }
 
 .auswertung-person-row {
@@ -6770,9 +6770,9 @@ a.auswertung-stat-card {
   font-weight: 700;
   letter-spacing: 0.02em;
   vertical-align: middle;
-  color: var(--primary, #b91c1c);
-  background: color-mix(in srgb, var(--primary, #b91c1c) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--primary, #b91c1c) 28%, transparent);
+  color: #fff;
+  background: var(--primary, #b91c1c);
+  border: 1px solid #fff;
 }
 
 .auswertung-person-modal__body {
