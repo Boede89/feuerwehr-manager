@@ -197,9 +197,10 @@ public class LeitstellenMailImportService {
                         skipped++;
                         continue;
                     }
+                    String displayName = kind.storedFilename(mail.receivedAt());
                     attachmentService.storeSystemPdf(
-                            unitId, hit.report().getId(), kind.storedFilename(), pdf.content());
-                    saveImport(settings.getUnit(), hit.report(), mail, pdf, sha, kind);
+                            unitId, hit.report().getId(), displayName, pdf.content());
+                    saveImport(settings.getUnit(), hit.report(), mail, pdf, sha, kind, displayName);
                     imported++;
                 }
             }
@@ -266,10 +267,8 @@ public class LeitstellenMailImportService {
     }
 
     private boolean hasKind(long reportId, LeitstellenMailKind kind) {
-        // Nur echte Anhänge zählen — verwaiste Import-Zeilen (ohne PDF) dürfen Abruf nicht blockieren
-        return attachmentRepository
-                .findFirstByIncidentReportIdAndFilenameIgnoreCase(reportId, kind.storedFilename())
-                .isPresent();
+        return attachmentRepository.findByIncidentReportIdOrderByCreatedAtAsc(reportId).stream()
+                .anyMatch(a -> kind.matchesFilename(a.getFilename()));
     }
 
     /** Entfernt Import-Einträge, deren PDF am Bericht fehlt (z. B. nach manuellem Löschen vor Cleanup-Fix). */
@@ -278,10 +277,11 @@ public class LeitstellenMailImportService {
             if (row.getIncidentReport() == null || row.getKind() == null) {
                 continue;
             }
+            long reportId = row.getIncidentReport().getId();
             boolean filePresent = attachmentRepository
-                    .findFirstByIncidentReportIdAndFilenameIgnoreCase(
-                            row.getIncidentReport().getId(), row.getKind().storedFilename())
-                    .isPresent();
+                    .findByIncidentReportIdOrderByCreatedAtAsc(reportId)
+                    .stream()
+                    .anyMatch(a -> row.getKind().matchesFilename(a.getFilename()));
             if (!filePresent) {
                 importRepository.delete(row);
             }
@@ -316,7 +316,8 @@ public class LeitstellenMailImportService {
             LeitstellenImapClient.MailMessage mail,
             LeitstellenImapClient.PdfAttachment pdf,
             String sha,
-            LeitstellenMailKind kind) {
+            LeitstellenMailKind kind,
+            String storedFilename) {
         LeitstellenMailImport row = new LeitstellenMailImport();
         row.setUnit(unit);
         row.setIncidentReport(report);
@@ -325,7 +326,7 @@ public class LeitstellenMailImportService {
         row.setAttachmentName(pdf.filename());
         row.setAttachmentSha256(sha);
         row.setKind(kind);
-        row.setStoredFilename(kind.storedFilename());
+        row.setStoredFilename(storedFilename);
         row.setCreatedAt(Instant.now());
         importRepository.save(row);
     }

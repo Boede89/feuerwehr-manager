@@ -76,7 +76,7 @@ public class EinsatzberichtAttachmentService {
     }
 
     /**
-     * System-Import (z. B. Leitstellen-Mail): ersetzt ggf. vorhandenen Anhang mit gleichem Anzeigenamen.
+     * System-Import (z. B. Leitstellen-Mail): ersetzt ggf. vorhandene Dateien desselben Typs (Depeche/Abschluss).
      * Erlaubt bei Entwurf und freigegebenem Bericht.
      */
     @Transactional
@@ -96,7 +96,19 @@ public class EinsatzberichtAttachmentService {
         if (!filename.toLowerCase(Locale.ROOT).endsWith(".pdf")) {
             filename = filename + ".pdf";
         }
-        return storeBytes(report, filename, MediaType.APPLICATION_PDF_VALUE, content, null, true);
+        // Vorhandene Leitstellen-Dateien desselben Typs ersetzen (auch mit Zeitstempel im Namen)
+        de.feuerwehr.manager.leitstellen.LeitstellenMailKind.fromFilename(filename)
+                .ifPresent(kind -> attachmentRepository
+                        .findByIncidentReportIdOrderByCreatedAtAsc(reportId)
+                        .stream()
+                        .filter(a -> kind.matchesFilename(a.getFilename()))
+                        .forEach(existing -> {
+                            String oldName = existing.getFilename();
+                            deleteStoredFile(reportId, existing.getStoredName());
+                            attachmentRepository.delete(existing);
+                            leitstellenImportCleanup.onAttachmentDeleted(unitId, reportId, oldName);
+                        }));
+        return storeBytes(report, filename, MediaType.APPLICATION_PDF_VALUE, content, null, false);
     }
 
     private IncidentAttachmentDto storeBytes(

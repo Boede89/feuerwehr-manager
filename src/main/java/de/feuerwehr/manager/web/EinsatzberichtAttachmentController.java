@@ -3,7 +3,6 @@ package de.feuerwehr.manager.web;
 import de.feuerwehr.manager.berichte.EinsatzberichtAttachmentService;
 import de.feuerwehr.manager.berichte.EinsatzberichtAttachmentService.DownloadFile;
 import de.feuerwehr.manager.berichte.IncidentAttachmentDto;
-import de.feuerwehr.manager.leitstellen.LeitstellenMailImportService;
 import de.feuerwehr.manager.leitstellen.LeitstellenMailPollRunner;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
@@ -76,6 +75,25 @@ public class EinsatzberichtAttachmentController {
         String safeName = file.filename().replace("\"", "'");
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + safeName + "\"")
+                .contentType(MediaType.parseMediaType(file.mimeType()))
+                .contentLength(file.fileSize())
+                .body(file.resource());
+    }
+
+    @GetMapping("/{id}/anhaenge/{aid}/view")
+    public ResponseEntity<org.springframework.core.io.Resource> view(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @PathVariable long id,
+            @PathVariable long aid) {
+        long unit = resolveUnit(unitId, actor);
+        requireModuleEnabled(unit);
+        requireBerichteRead(actor, unit);
+        DownloadFile file = attachmentService.download(unit, id, aid);
+        String safeName = file.filename().replace("\"", "'");
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + safeName + "\"")
+                .header(HttpHeaders.CACHE_CONTROL, "private, max-age=300")
                 .contentType(MediaType.parseMediaType(file.mimeType()))
                 .contentLength(file.fileSize())
                 .body(file.resource());

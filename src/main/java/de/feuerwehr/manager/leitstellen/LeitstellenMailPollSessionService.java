@@ -167,9 +167,8 @@ public class LeitstellenMailPollSessionService {
     }
 
     private boolean hasKind(long reportId, LeitstellenMailKind kind) {
-        return attachmentRepository
-                .findFirstByIncidentReportIdAndFilenameIgnoreCase(reportId, kind.storedFilename())
-                .isPresent();
+        return attachmentRepository.findByIncidentReportIdOrderByCreatedAtAsc(reportId).stream()
+                .anyMatch(a -> kind.matchesFilename(a.getFilename()));
     }
 
     private static Instant alarmInstant(IncidentReport report) {

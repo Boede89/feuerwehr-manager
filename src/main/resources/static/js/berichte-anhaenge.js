@@ -40,6 +40,13 @@
     });
   }
 
+  function isViewable(mime) {
+    if (!mime) {
+      return false;
+    }
+    return mime === 'application/pdf' || mime.indexOf('image/') === 0;
+  }
+
   function fileIcon(mime) {
     if (!mime) {
       return '📎';
@@ -88,12 +95,14 @@
     var allowUpload = canUpload(wrap);
     var listHtml = attachments.length
       ? '<div class="incident-attachments-list">' + attachments.map(function (a) {
+        var canView = isViewable(a.mimeType);
         return '<div class="incident-attachment-card">' +
           '<span class="incident-attachment-card__icon">' + fileIcon(a.mimeType) + '</span>' +
           '<div class="incident-attachment-card__meta">' +
             '<div class="incident-attachment-card__name" title="' + esc(a.filename) + '">' + esc(a.filename) + '</div>' +
             '<div class="incident-attachment-card__details">' + esc(fmtSize(a.fileSize)) + ' · ' + esc(fmtDate(a.createdAt)) + '</div>' +
           '</div>' +
+          (canView ? '<button type="button" class="btn btn--outline btn--sm" data-action="view" data-id="' + a.id + '">Anzeigen</button>' : '') +
           '<button type="button" class="btn btn--outline btn--sm" data-action="download" data-id="' + a.id + '" data-name="' + esc(a.filename) + '">↓ Download</button>' +
           (allowDelete ? '<button type="button" class="btn btn--outline btn--sm" data-action="rename" data-id="' + a.id + '" data-name="' + esc(a.filename) + '">Umbenennen</button>' : '') +
           (allowDelete ? '<button type="button" class="btn btn--danger btn--sm" data-action="delete" data-id="' + a.id + '">✕</button>' : '') +
@@ -122,6 +131,12 @@
     }
 
     wrap.innerHTML = leitstelleHtml + listHtml + uploadHtml;
+
+    wrap.querySelectorAll('[data-action="view"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        viewAttachment(wrap, btn.dataset.id);
+      });
+    });
 
     wrap.querySelectorAll('[data-action="download"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -255,6 +270,11 @@
       }
       fileInput.value = '';
     });
+  }
+
+  function viewAttachment(wrap, attachmentId) {
+    var url = apiBase(wrap).replace('/anhaenge', '/anhaenge/' + attachmentId + '/view');
+    window.open(url, '_blank', 'noopener,noreferrer');
   }
 
   function downloadAttachment(wrap, attachmentId, filename) {
