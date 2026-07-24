@@ -97,7 +97,58 @@
     }
   }
 
-  function syncHiddenJson() {
+  /**
+   * Übernimmt noch nicht per „Hinzufügen“ bestätigte Entwürfe aus den Textareas
+   * als berichtsbezogene Custom-Geräte (ohne Kategorie, ohne Stammdaten am Fahrzeug).
+   */
+  function flushPendingCustomInputs() {
+    var wrap = document.getElementById('incident-deployed-equipment');
+    if (!wrap || isReadonly()) {
+      return false;
+    }
+    var changed = false;
+    wrap.querySelectorAll('.incident-deployed-equipment-custom-add__input').forEach(function (input) {
+      var vehicleId = Number(input.dataset.vehicleId);
+      if (isNaN(vehicleId) || vehicleId <= 0) {
+        var card = input.closest('.incident-deployed-vehicle-card');
+        vehicleId = card ? Number(card.dataset.vehicleId) : NaN;
+      }
+      if (isNaN(vehicleId) || vehicleId <= 0) {
+        return;
+      }
+      var names = parseCustomEquipmentNames(input.value);
+      if (names.length === 0) {
+        return;
+      }
+      ensureVehicleMaps(vehicleId);
+      var existing = customByVehicle[vehicleId];
+      var existingKeys = {};
+      existing.forEach(function (item) {
+        if (item && item.name) {
+          existingKeys[String(item.name).toLocaleLowerCase('de')] = true;
+        }
+      });
+      names.forEach(function (name) {
+        var key = name.toLocaleLowerCase('de');
+        if (existingKeys[key]) {
+          return;
+        }
+        existingKeys[key] = true;
+        existing.push({
+          name: name,
+          categoryName: null
+        });
+        changed = true;
+      });
+      input.value = '';
+    });
+    return changed;
+  }
+
+  function syncHiddenJson(options) {
+    if (options && options.flushPending) {
+      flushPendingCustomInputs();
+    }
     var hidden = hiddenField();
     if (!hidden) {
       return;
@@ -604,12 +655,14 @@
     var input = document.createElement('textarea');
     input.className = 'field incident-deployed-equipment-custom-add__input';
     input.rows = 2;
+    input.dataset.vehicleId = String(vehicle.vehicleId);
     input.placeholder = 'Geräte manuell eingeben (eines pro Zeile oder mit Komma) …';
     input.setAttribute('aria-label', 'Geräte manuell eingeben');
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'btn btn--outline btn--sm';
     btn.textContent = 'Hinzufügen';
+    btn.title = 'Mit Kategorie zum Bericht hinzufügen (nicht in die Fahrzeug-Stammdaten)';
     btn.addEventListener('click', function () {
       var names = parseCustomEquipmentNames(input.value);
       if (names.length === 0) {
@@ -621,8 +674,20 @@
           return;
         }
         ensureVehicleMaps(vehicle.vehicleId);
+        var existing = customByVehicle[vehicle.vehicleId];
+        var existingKeys = {};
+        existing.forEach(function (item) {
+          if (item && item.name) {
+            existingKeys[String(item.name).toLocaleLowerCase('de')] = true;
+          }
+        });
         assignments.forEach(function (item) {
-          customByVehicle[vehicle.vehicleId].push({
+          var key = String(item.name).toLocaleLowerCase('de');
+          if (existingKeys[key]) {
+            return;
+          }
+          existingKeys[key] = true;
+          existing.push({
             name: item.name,
             categoryName: item.categoryName
           });
@@ -644,6 +709,8 @@
   }
 
   function renderCards(vehicles) {
+    // Offene Eingaben zuerst in den Bericht übernehmen, bevor die DOM-Zeilen neu gebaut werden.
+    flushPendingCustomInputs();
     var wrap = document.getElementById('incident-deployed-equipment');
     var empty = document.getElementById('deployed-equipment-empty');
     var noVehicles = document.getElementById('deployed-equipment-no-vehicles');
@@ -750,6 +817,7 @@
       viewHint.textContent = 'Keine eingesetzten Geräte erfasst.';
       wrap.appendChild(viewHint);
     }
+    syncHiddenJson();
   }
 
   function render() {
@@ -760,6 +828,8 @@
     }
     var vehicleIds = involvedVehicleIds();
     if (vehicleIds.length === 0) {
+      flushPendingCustomInputs();
+      syncHiddenJson();
       wrap.textContent = '';
       if (noVehicles) {
         noVehicles.hidden = shouldShowAllVehicles();
@@ -783,6 +853,8 @@
       renderCards(equipmentCache[cacheKey]);
       return;
     }
+    flushPendingCustomInputs();
+    syncHiddenJson();
     wrap.innerHTML = '<p class="hint">Geräte werden geladen …</p>';
     var apiBase = window.BerichteApiBase ? window.BerichteApiBase.path() : '/berichte/einsatzberichte';
     var url = apiBase + '/vehicle-equipment?unit=' + encodeURIComponent(unitId())
@@ -807,6 +879,8 @@
 
   window.BerichteGeraete = {
     onTabShow: function () {
+      flushPendingCustomInputs();
+      syncHiddenJson();
       loadSelectionFromHidden();
       render();
     },
@@ -819,6 +893,8 @@
       syncHiddenJson();
     },
     refresh: function () {
+      flushPendingCustomInputs();
+      syncHiddenJson();
       loadSelectionFromHidden();
       equipmentCache = {};
       render();
@@ -828,7 +904,7 @@
       render();
     },
     sync: function () {
-      syncHiddenJson();
+      syncHiddenJson({ flushPending: true });
     },
     syncInvolvementHighlight: syncInvolvementHighlight
   };
@@ -841,7 +917,9 @@
     var form = document.getElementById('einsatzbericht-form') || document.getElementById('geraetewart-form')
       || document.getElementById('anwesenheitsliste-form');
     if (form) {
-      form.addEventListener('submit', syncHiddenJson);
+      form.addEventListener('submit', function () {
+        syncHiddenJson({ flushPending: true });
+      });
     }
   });
 })();
