@@ -27,16 +27,6 @@ public enum AuswertungBereich {
         };
     }
 
-    public String description() {
-        return switch (this) {
-            case UEBERSICHT -> "Kennzahlen und Einstieg";
-            case PERSONEN -> "Teilnahmen, Stunden, Maschinist/EF, letzte Teilnahme";
-            case EINSAETZE -> "Anzahl, Stunden, Stichworte, Durchschnittsstärke";
-            case FAHRZEUGE -> "Einsätze und Übungen je Fahrzeug, Besatzung";
-            case GERAETE -> "Welche Geräte wie oft eingesetzt wurden";
-        };
-    }
-
     public static AuswertungBereich fromKey(String key) {
         if (key == null || key.isBlank()) {
             return UEBERSICHT;
