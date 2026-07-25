@@ -111,7 +111,7 @@
     var text = resolveWebhookUrlForCopy();
     if (!text || text.indexOf('<DEIN_SECRET>') >= 0) {
       notify(
-        'Bitte Webhook-Secret eintragen und speichern (und ggf. App-URL unter Global → Konfiguration).',
+        'Bitte zuerst ein Webhook-Secret hinterlegen (und ggf. App-URL unter Global → Konfiguration).',
         'warning'
       );
       if (el) {
@@ -217,6 +217,18 @@
   reopenModalIfRequested('divera-recipient-groups', 'modal-divera-recipient-groups');
   reopenModalIfRequested('divera-status-ids', 'modal-divera-status-ids');
   reopenModalIfRequested('leitstellen-mail', 'modal-leitstellen-mail');
+
+  document.querySelectorAll('[data-open-modal="modal-divera-access-key"], [data-open-modal="modal-divera-webhook-secret"]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var modalId = btn.getAttribute('data-open-modal');
+      var modal = document.getElementById(modalId);
+      if (!modal) return;
+      var input = modal.querySelector('input[type="password"]');
+      if (input) {
+        input.value = '';
+      }
+    });
+  });
 
   if (window.location.hash) {
     var anchor = document.querySelector(window.location.hash);

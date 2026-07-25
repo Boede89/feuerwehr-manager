@@ -704,6 +704,14 @@ input:focus, select:focus, textarea:focus {
   letter-spacing: 0;
 }
 
+.form-group .label {
+  display: block;
+  margin: 0;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
 .form-group input,
 .form-group select,
 .form-group textarea {
@@ -3212,6 +3220,26 @@ span.required { color: var(--error); }
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.secret-field-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.65rem;
+}
+
+.config-status-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.config-status-label--ok {
+  color: var(--gruen, #15803d);
+}
+
+.config-status-label--fail {
+  color: var(--rot, #b91c1c);
 }
 
 .leitstellen-mail-actions .inline-form {

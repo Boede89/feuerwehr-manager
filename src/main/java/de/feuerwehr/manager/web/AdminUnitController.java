@@ -345,18 +345,37 @@ public class AdminUnitController {
             @RequestParam(required = false) String webhookSecret,
             RedirectAttributes redirectAttributes) {
         return withUnit(actor, unit, redirectAttributes, "schnittstellen", () -> {
+            Unit unitEntity = unitService
+                    .findById(unit)
+                    .orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden."));
             UnitDiveraSettings settings = diveraSettingsRepository
                     .findByUnitId(unit)
-                    .orElseThrow(() -> new IllegalArgumentException("Keine Divera-Einstellungen für diese Einheit."));
+                    .orElseGet(() -> {
+                        UnitDiveraSettings created = new UnitDiveraSettings();
+                        created.setUnit(unitEntity);
+                        created.setApiBaseUrl("https://app.divera247.com");
+                        created.setAccessKey("");
+                        return created;
+                    });
             settings.setApiBaseUrl("https://app.divera247.com");
+            boolean keySaved = false;
+            boolean secretSaved = false;
             if (accessKey != null && !accessKey.isBlank()) {
                 settings.setAccessKey(accessKey.trim().replaceAll("[\\r\\n\\t\\v]+", ""));
+                keySaved = true;
             }
             if (webhookSecret != null && !webhookSecret.isBlank()) {
                 settings.setWebhookSecret(webhookSecret.trim());
+                secretSaved = true;
             }
             diveraSettingsRepository.save(settings);
-            redirectAttributes.addFlashAttribute("message", "Divera-Einstellungen gespeichert.");
+            if (keySaved && !secretSaved) {
+                redirectAttributes.addFlashAttribute("message", "DIVERA Access Key gespeichert.");
+            } else if (secretSaved && !keySaved) {
+                redirectAttributes.addFlashAttribute("message", "DIVERA Webhook-Secret gespeichert.");
+            } else {
+                redirectAttributes.addFlashAttribute("message", "Divera-Einstellungen gespeichert.");
+            }
         });
     }
 
