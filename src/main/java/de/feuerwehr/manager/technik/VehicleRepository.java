@@ -15,6 +15,9 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
 
     long countByUnitIdAndVehicleType(long unitId, String vehicleType);
 
+    @Query("SELECT v.id FROM Vehicle v WHERE v.id = :root OR v.productionSourceId = :root")
+    List<Long> findFamilyIds(@Param("root") long root);
+
     @Query("SELECT v FROM Vehicle v WHERE v.productionSourceId = :sourceId")
     Optional<Vehicle> findShadowByProductionSourceId(@Param("sourceId") long sourceId);
 

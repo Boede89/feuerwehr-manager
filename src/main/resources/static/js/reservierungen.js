@@ -116,6 +116,20 @@
     if (!value) {
       return null;
     }
+    // datetime-local liefert "YYYY-MM-DDTHH:mm" ohne Zeitzone – explizit als lokale Zeit lesen
+    var m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(String(value).trim());
+    if (m) {
+      var local = new Date(
+        Number(m[1]),
+        Number(m[2]) - 1,
+        Number(m[3]),
+        Number(m[4]),
+        Number(m[5]),
+        Number(m[6] || 0),
+        0
+      );
+      return isNaN(local.getTime()) ? null : local.toISOString();
+    }
     var d = new Date(value);
     return isNaN(d.getTime()) ? null : d.toISOString();
   }
@@ -238,9 +252,10 @@
   function handleProcessResult(data, retry) {
     if (data.code === 'CONFLICTS') {
       var list = describeConflicts(data.conflicts);
-      var confirmMsg = (data.message || 'Konflikte vorhanden.')
-        + '\n\nBestehende genehmigte Reservierungen:\n' + list
-        + '\n\nKonfliktierende Reservierungen stornieren und trotzdem genehmigen?';
+      var confirmMsg = (data.message || 'Fahrzeug/Raum ist bereits belegt.')
+        + '\n\nBestehende genehmigte Reservierungen:\n' + (list || '—')
+        + '\n\nKonfliktierende Reservierungen stornieren und trotzdem genehmigen?'
+        + '\n(Termine in DIVERA/Google werden dabei ebenfalls entfernt; Antragsteller erhalten eine Storno-Mail.)';
       if (window.confirm(confirmMsg)) {
         var ids = (data.conflicts || []).map(function (c) { return c.id; });
         retry('approve_with_conflict_resolution', false, ids);
@@ -345,12 +360,16 @@
       if (!row || !canWrite) {
         return;
       }
-      if (!window.confirm('Reservierung wirklich löschen?')) {
+      var confirmMsg = 'Reservierung wirklich löschen?\n\n'
+        + 'Falls vorhanden, wird der Termin auch aus DIVERA und dem Google-Kalender entfernt.\n'
+        + 'Der Antragsteller erhält eine E-Mail, dass die Reservierung storniert wurde.';
+      if (!window.confirm(confirmMsg)) {
         return;
       }
       btn.disabled = true;
       deleteReservation(row.dataset.kind, row.dataset.id).then(function (data) {
         if (data.ok) {
+          notify(data.message || 'Reservierung gelöscht.', 'success');
           window.location.reload();
         } else {
           notify(data.message || 'Löschen fehlgeschlagen.', 'error');

@@ -94,20 +94,41 @@ public class ReservierungenNotificationService {
                 rejectionReason);
     }
 
-    public void notifyRequesterCancelled(long unitId, String email, String resourceLabel, String resourceName) {
+    public void notifyRequesterCancelled(
+            long unitId,
+            String email,
+            String resourceLabel,
+            String resourceName,
+            String reason,
+            String location,
+            Instant startAt,
+            Instant endAt,
+            String introMessage) {
         if (!unitMailService.canSendForUnit(unitId) || email == null || email.isBlank()) {
             return;
         }
-        unitMailService.sendHtmlMail(
-                unitId,
-                email,
-                "Reservierung storniert – " + resourceName,
-                wrapHtml(
-                        "Reservierung storniert",
-                        """
-                        <p>Ihre genehmigte Reservierung für <strong>%s %s</strong> wurde wegen eines Konflikts storniert.</p>
-                        """
-                                .formatted(escape(resourceLabel), escape(resourceName))));
+        String subject = "Reservierung storniert – " + resourceName;
+        String body = """
+                <p style="color:#b91c1c;font-weight:700;">%s</p>
+                <table style="width:100%%;border-collapse:collapse;margin-top:12px;">
+                  <tr><td style="padding:6px 0;font-weight:600;">%s</td><td>%s</td></tr>
+                  <tr><td style="padding:6px 0;font-weight:600;">Grund</td><td>%s</td></tr>
+                  <tr><td style="padding:6px 0;font-weight:600;">Ort</td><td>%s</td></tr>
+                  <tr><td style="padding:6px 0;font-weight:600;">Zeitraum</td><td>%s – %s</td></tr>
+                </table>
+                <p style="margin-top:14px;color:#64748b;font-size:13px;">
+                  Ein ggf. angelegter Termin in DIVERA bzw. im Google-Kalender wurde entfernt.
+                </p>
+                """
+                .formatted(
+                        escape(introMessage != null ? introMessage : "Ihre Reservierung wurde storniert."),
+                        escape(resourceLabel),
+                        escape(resourceName),
+                        escape(blankToDash(reason)),
+                        escape(blankToDash(location)),
+                        startAt != null ? DISPLAY.format(startAt) : "—",
+                        endAt != null ? DISPLAY.format(endAt) : "—");
+        unitMailService.sendHtmlMail(unitId, email, subject, wrapHtml(subject, body));
     }
 
     private void sendDecisionMail(

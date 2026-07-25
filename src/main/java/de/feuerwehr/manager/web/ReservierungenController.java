@@ -204,7 +204,8 @@ public class ReservierungenController {
             requireWrite(actor, unitId);
             accessControlService.requireUnitAccess(actor, unitId);
             reservierungenService.deleteVehicleReservation(unitId, id);
-            return ActionResultDto.success("Reservierung gelöscht.");
+            return ActionResultDto.success(
+                    "Reservierung gelöscht. Termin in DIVERA/Google (falls vorhanden) entfernt; Antragsteller benachrichtigt.");
         } catch (IllegalArgumentException e) {
             return ActionResultDto.failure(e.getMessage());
         }
@@ -221,7 +222,8 @@ public class ReservierungenController {
             requireWrite(actor, unitId);
             accessControlService.requireUnitAccess(actor, unitId);
             reservierungenService.deleteRoomReservation(unitId, id);
-            return ActionResultDto.success("Reservierung gelöscht.");
+            return ActionResultDto.success(
+                    "Reservierung gelöscht. Termin in DIVERA/Google (falls vorhanden) entfernt; Antragsteller benachrichtigt.");
         } catch (IllegalArgumentException e) {
             return ActionResultDto.failure(e.getMessage());
         }

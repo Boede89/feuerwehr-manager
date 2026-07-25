@@ -13,6 +13,9 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
 
     Optional<Room> findByIdAndUnitId(long id, long unitId);
 
+    @Query("SELECT r.id FROM Room r WHERE r.id = :root OR r.productionSourceId = :root")
+    List<Long> findFamilyIds(@Param("root") long root);
+
     @Query("SELECT r FROM Room r WHERE r.productionSourceId = :sourceId")
     Optional<Room> findShadowByProductionSourceId(@Param("sourceId") long sourceId);
 

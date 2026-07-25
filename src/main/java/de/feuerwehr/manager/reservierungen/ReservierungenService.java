@@ -192,8 +192,29 @@ public class ReservierungenService {
                 .findById(reservationId)
                 .filter(r -> r.getUnit().getId().equals(unitId))
                 .orElseThrow(() -> new IllegalArgumentException("Reservierung nicht gefunden."));
+        ReservationStatus status = reservation.getStatus();
+        String email = reservation.getRequesterEmail();
+        String vehicleName = reservation.getVehicle().getName();
+        String reason = reservation.getReason();
+        String location = reservation.getLocation();
+        Instant startAt = reservation.getStartAt();
+        Instant endAt = reservation.getEndAt();
         cleanupVehicleReservation(reservation);
         vehicleReservationRepository.delete(reservation);
+        if (status == ReservationStatus.APPROVED || status == ReservationStatus.PENDING) {
+            notificationService.notifyRequesterCancelled(
+                    unitId,
+                    email,
+                    "Fahrzeug",
+                    vehicleName,
+                    reason,
+                    location,
+                    startAt,
+                    endAt,
+                    status == ReservationStatus.APPROVED
+                            ? "Ihre genehmigte Fahrzeugreservierung wurde storniert und gelöscht."
+                            : "Ihr Antrag auf eine Fahrzeugreservierung wurde gelöscht.");
+        }
     }
 
     @Transactional
@@ -202,8 +223,29 @@ public class ReservierungenService {
                 .findById(reservationId)
                 .filter(r -> r.getUnit().getId().equals(unitId))
                 .orElseThrow(() -> new IllegalArgumentException("Reservierung nicht gefunden."));
+        ReservationStatus status = reservation.getStatus();
+        String email = reservation.getRequesterEmail();
+        String roomName = reservation.getRoom().getName();
+        String reason = reservation.getReason();
+        String location = reservation.getLocation();
+        Instant startAt = reservation.getStartAt();
+        Instant endAt = reservation.getEndAt();
         cleanupRoomReservation(reservation);
         roomReservationRepository.delete(reservation);
+        if (status == ReservationStatus.APPROVED || status == ReservationStatus.PENDING) {
+            notificationService.notifyRequesterCancelled(
+                    unitId,
+                    email,
+                    "Raum",
+                    roomName,
+                    reason,
+                    location,
+                    startAt,
+                    endAt,
+                    status == ReservationStatus.APPROVED
+                            ? "Ihre genehmigte Raumreservierung wurde storniert und gelöscht."
+                            : "Ihr Antrag auf eine Raumreservierung wurde gelöscht.");
+        }
     }
 
     private List<String> approveVehicle(VehicleReservation reservation, long actorUserId, ProcessReservationRequest request) {
@@ -212,7 +254,7 @@ public class ReservierungenService {
                 reservation.getVehicle().getId(), reservation.getStartAt(), reservation.getEndAt(), reservation.getId());
         if (!conflicts.isEmpty() && !"approve_with_conflict_resolution".equals(normalizeAction(request.action()))) {
             throw new ReservationConflictException(
-                    "Konflikte vorhanden – Genehmigung mit Konfliktlösung erforderlich.", conflicts);
+                    "Das Fahrzeug ist in diesem Zeitraum bereits genehmigt belegt.", conflicts);
         }
         LoeschfahrzeugWarningView warning = conflictService.checkLoeschfahrzeugWarning(
                 unitId, reservation.getVehicle().getId(), reservation.getStartAt(), reservation.getEndAt(), reservation.getId());
@@ -220,6 +262,12 @@ public class ReservierungenService {
             throw new LoeschfahrzeugWarningException(warning);
         }
         if ("approve_with_conflict_resolution".equals(normalizeAction(request.action()))) {
+            // Konflikte erneut laden, falls zwischenzeitlich geändert
+            conflicts = conflictService.vehicleConflicts(
+                    reservation.getVehicle().getId(),
+                    reservation.getStartAt(),
+                    reservation.getEndAt(),
+                    reservation.getId());
             cancelVehicleConflicts(unitId, conflicts, request.conflictIds());
         }
         reservation.setStatus(ReservationStatus.APPROVED);
@@ -237,9 +285,14 @@ public class ReservierungenService {
                 reservation.getRoom().getId(), reservation.getStartAt(), reservation.getEndAt(), reservation.getId());
         if (!conflicts.isEmpty() && !"approve_with_conflict_resolution".equals(normalizeAction(request.action()))) {
             throw new ReservationConflictException(
-                    "Konflikte vorhanden – Genehmigung mit Konfliktlösung erforderlich.", conflicts);
+                    "Der Raum ist in diesem Zeitraum bereits genehmigt belegt.", conflicts);
         }
         if ("approve_with_conflict_resolution".equals(normalizeAction(request.action()))) {
+            conflicts = conflictService.roomConflicts(
+                    reservation.getRoom().getId(),
+                    reservation.getStartAt(),
+                    reservation.getEndAt(),
+                    reservation.getId());
             cancelRoomConflicts(unitId, conflicts, request.conflictIds());
         }
         reservation.setStatus(ReservationStatus.APPROVED);
@@ -284,7 +337,15 @@ public class ReservierungenService {
             vehicleReservationRepository.save(existing);
             cleanupVehicleReservation(existing);
             notificationService.notifyRequesterCancelled(
-                    unitId, existing.getRequesterEmail(), "Fahrzeug", existing.getVehicle().getName());
+                    unitId,
+                    existing.getRequesterEmail(),
+                    "Fahrzeug",
+                    existing.getVehicle().getName(),
+                    existing.getReason(),
+                    existing.getLocation(),
+                    existing.getStartAt(),
+                    existing.getEndAt(),
+                    "Ihre genehmigte Fahrzeugreservierung wurde wegen eines Konflikts storniert.");
         }
     }
 
@@ -301,7 +362,15 @@ public class ReservierungenService {
             roomReservationRepository.save(existing);
             cleanupRoomReservation(existing);
             notificationService.notifyRequesterCancelled(
-                    unitId, existing.getRequesterEmail(), "Raum", existing.getRoom().getName());
+                    unitId,
+                    existing.getRequesterEmail(),
+                    "Raum",
+                    existing.getRoom().getName(),
+                    existing.getReason(),
+                    existing.getLocation(),
+                    existing.getStartAt(),
+                    existing.getEndAt(),
+                    "Ihre genehmigte Raumreservierung wurde wegen eines Konflikts storniert.");
         }
     }
 
@@ -384,13 +453,19 @@ public class ReservierungenService {
 
     private void cleanupVehicleReservation(VehicleReservation reservation) {
         long unitId = reservation.getUnit().getId();
-        diveraSyncService.deleteEvent(unitId, reservation.getDiveraEventId(), null);
+        Long actorUserId = reservation.getApprovedByUser() != null
+                ? reservation.getApprovedByUser().getId()
+                : (reservation.getRequesterUser() != null ? reservation.getRequesterUser().getId() : null);
+        diveraSyncService.deleteEvent(unitId, reservation.getDiveraEventId(), actorUserId);
         googleCalendarService.deleteReservationCalendarEvent(ReservationKind.VEHICLE, reservation.getId());
     }
 
     private void cleanupRoomReservation(RoomReservation reservation) {
         long unitId = reservation.getUnit().getId();
-        diveraSyncService.deleteEvent(unitId, reservation.getDiveraEventId(), null);
+        Long actorUserId = reservation.getApprovedByUser() != null
+                ? reservation.getApprovedByUser().getId()
+                : (reservation.getRequesterUser() != null ? reservation.getRequesterUser().getId() : null);
+        diveraSyncService.deleteEvent(unitId, reservation.getDiveraEventId(), actorUserId);
         googleCalendarService.deleteReservationCalendarEvent(ReservationKind.ROOM, reservation.getId());
     }
 
