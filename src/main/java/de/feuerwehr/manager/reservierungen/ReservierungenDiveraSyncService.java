@@ -79,6 +79,9 @@ public class ReservierungenDiveraSyncService {
             Long actorUserId) {
         Optional<DiveraCredentials> credentials = resolveCredentials(unitId, actorUserId);
         if (credentials.isEmpty()) {
+            log.warn(
+                    "DIVERA-Sync übersprungen (Reservierung {}): kein Access Key (Einheit oder Genehmiger).",
+                    reservationId);
             return Optional.empty();
         }
         DiveraCredentials cred = credentials.get();
@@ -86,6 +89,7 @@ public class ReservierungenDiveraSyncService {
         boolean useGroups = groupIds != null && !groupIds.isEmpty();
         event.put("notification_type", useGroups ? 3 : 2);
         event.put("title", resourceName + " - " + (reason != null ? reason : "Reservierung"));
+        event.put("text", reason != null ? reason : "Reservierung");
         event.put("ts_start", startAt.getEpochSecond());
         event.put("ts_end", endAt.getEpochSecond());
         if (location != null && !location.isBlank()) {
@@ -105,10 +109,21 @@ public class ReservierungenDiveraSyncService {
         DiveraApiClient.DiveraMutationResult result =
                 diveraApiClient.createEvent(cred.apiBaseUrl(), cred.accessKey(), body);
         if (!result.success()) {
-            log.warn("Divera-Reservierung {} konnte nicht übertragen werden: {}", reservationId, result.message());
+            log.warn(
+                    "Divera-Reservierung {} konnte nicht übertragen werden: {} – {}",
+                    reservationId,
+                    result.message(),
+                    result.body());
             return Optional.empty();
         }
-        return parseEventId(result.body());
+        Optional<Long> eventId = parseEventId(result.body());
+        if (eventId.isEmpty()) {
+            log.warn(
+                    "DIVERA-Event angelegt, aber ID nicht lesbar (Reservierung {}). Body={}",
+                    reservationId,
+                    result.body());
+        }
+        return eventId;
     }
 
     private Optional<Long> parseEventId(String body) {
@@ -117,14 +132,13 @@ public class ReservierungenDiveraSyncService {
         }
         try {
             JsonNode root = objectMapper.readTree(body);
-            JsonNode data = root.path("data");
-            if (data.isObject()) {
-                long id = data.path("id").asLong(0);
-                if (id > 0) {
-                    return Optional.of(id);
-                }
+            long id = root.path("data").path("id").asLong(0);
+            if (id <= 0) {
+                id = root.path("data").path("Event").path("id").asLong(0);
             }
-            long id = root.path("id").asLong(0);
+            if (id <= 0) {
+                id = root.path("id").asLong(0);
+            }
             return id > 0 ? Optional.of(id) : Optional.empty();
         } catch (Exception e) {
             return Optional.empty();

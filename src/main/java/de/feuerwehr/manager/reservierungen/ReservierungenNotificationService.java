@@ -1,8 +1,10 @@
 package de.feuerwehr.manager.reservierungen;
 
 import de.feuerwehr.manager.mail.UnitMailService;
+import de.feuerwehr.manager.settings.GlobalSettingsService;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashSet;
@@ -24,6 +26,7 @@ public class ReservierungenNotificationService {
     private final UnitMailService unitMailService;
     private final UserRepository userRepository;
     private final ReservierungenSettingsService settingsService;
+    private final GlobalSettingsService globalSettingsService;
 
     public void notifyAdminsNewVehicleReservation(long unitId, VehicleReservation reservation) {
         UnitReservierungenSettings settings = settingsService.ensureSettings(unitId);
@@ -32,6 +35,7 @@ public class ReservierungenNotificationService {
                 settingsService.vehicleNotificationRecipients(settings),
                 "Neue Fahrzeugreservierung – " + reservation.getVehicle().getName(),
                 buildNewRequestHtml(
+                        unitId,
                         "Fahrzeug",
                         reservation.getVehicle().getName(),
                         reservation.getRequesterName(),
@@ -49,6 +53,7 @@ public class ReservierungenNotificationService {
                 settingsService.roomNotificationRecipients(settings),
                 "Neue Raumreservierung – " + reservation.getRoom().getName(),
                 buildNewRequestHtml(
+                        unitId,
                         "Raum",
                         reservation.getRoom().getName(),
                         reservation.getRequesterName(),
@@ -59,23 +64,94 @@ public class ReservierungenNotificationService {
                         reservation.getEndAt()));
     }
 
-    public void notifyRequesterApproved(String email, String resourceLabel, String resourceName) {
-        sendSimple(email, "Reservierung genehmigt – " + resourceName, """
-                <p>Ihre Reservierung für <strong>%s %s</strong> wurde genehmigt.</p>
-                """.formatted(escape(resourceLabel), escape(resourceName)));
+    public void notifyRequesterDecision(
+            long unitId, VehicleReservation reservation, boolean approved, String rejectionReason) {
+        sendDecisionMail(
+                unitId,
+                reservation.getRequesterEmail(),
+                approved,
+                "Fahrzeug",
+                reservation.getVehicle().getName(),
+                reservation.getReason(),
+                reservation.getLocation(),
+                reservation.getStartAt(),
+                reservation.getEndAt(),
+                rejectionReason);
     }
 
-    public void notifyRequesterRejected(String email, String resourceLabel, String resourceName, String reason) {
-        sendSimple(email, "Reservierung abgelehnt – " + resourceName, """
-                <p>Ihre Reservierung für <strong>%s %s</strong> wurde abgelehnt.</p>
-                <p><strong>Begründung:</strong> %s</p>
-                """.formatted(escape(resourceLabel), escape(resourceName), escape(reason != null ? reason : "—")));
+    public void notifyRequesterDecision(
+            long unitId, RoomReservation reservation, boolean approved, String rejectionReason) {
+        sendDecisionMail(
+                unitId,
+                reservation.getRequesterEmail(),
+                approved,
+                "Raum",
+                reservation.getRoom().getName(),
+                reservation.getReason(),
+                reservation.getLocation(),
+                reservation.getStartAt(),
+                reservation.getEndAt(),
+                rejectionReason);
     }
 
-    public void notifyRequesterCancelled(String email, String resourceLabel, String resourceName) {
-        sendSimple(email, "Reservierung storniert – " + resourceName, """
-                <p>Ihre genehmigte Reservierung für <strong>%s %s</strong> wurde wegen eines Konflikts storniert.</p>
-                """.formatted(escape(resourceLabel), escape(resourceName)));
+    public void notifyRequesterCancelled(long unitId, String email, String resourceLabel, String resourceName) {
+        if (!unitMailService.canSendForUnit(unitId) || email == null || email.isBlank()) {
+            return;
+        }
+        unitMailService.sendHtmlMail(
+                unitId,
+                email,
+                "Reservierung storniert – " + resourceName,
+                wrapHtml(
+                        "Reservierung storniert",
+                        """
+                        <p>Ihre genehmigte Reservierung für <strong>%s %s</strong> wurde wegen eines Konflikts storniert.</p>
+                        """
+                                .formatted(escape(resourceLabel), escape(resourceName))));
+    }
+
+    private void sendDecisionMail(
+            long unitId,
+            String email,
+            boolean approved,
+            String typeLabel,
+            String resourceName,
+            String reason,
+            String location,
+            Instant startAt,
+            Instant endAt,
+            String rejectionReason) {
+        if (!unitMailService.canSendForUnit(unitId) || email == null || email.isBlank()) {
+            return;
+        }
+        String subject = (approved ? "Reservierung genehmigt" : "Reservierung abgelehnt") + " – " + resourceName;
+        String statusLine = approved
+                ? "<p style=\"color:#15803d;font-weight:700;\">Ihre Reservierung wurde genehmigt.</p>"
+                : "<p style=\"color:#b91c1c;font-weight:700;\">Ihre Reservierung wurde abgelehnt.</p>";
+        String reasonBlock = approved
+                ? ""
+                : "<tr><td style=\"padding:6px 0;font-weight:600;\">Ablehnungsgrund</td><td>"
+                        + escape(rejectionReason != null && !rejectionReason.isBlank() ? rejectionReason : "—")
+                        + "</td></tr>";
+        String body = statusLine
+                + """
+                <table style="width:100%%;border-collapse:collapse;margin-top:12px;">
+                  <tr><td style="padding:6px 0;font-weight:600;">%s</td><td>%s</td></tr>
+                  <tr><td style="padding:6px 0;font-weight:600;">Grund</td><td>%s</td></tr>
+                  <tr><td style="padding:6px 0;font-weight:600;">Ort</td><td>%s</td></tr>
+                  <tr><td style="padding:6px 0;font-weight:600;">Zeitraum</td><td>%s – %s</td></tr>
+                  %s
+                </table>
+                """
+                        .formatted(
+                                escape(typeLabel),
+                                escape(resourceName),
+                                escape(reason),
+                                escape(blankToDash(location)),
+                                DISPLAY.format(startAt),
+                                DISPLAY.format(endAt),
+                                reasonBlock);
+        unitMailService.sendHtmlMail(unitId, email, subject, wrapHtml(subject, body));
     }
 
     private void notifyAdmins(
@@ -115,71 +191,28 @@ public class ReservierungenNotificationService {
         }
     }
 
-    private void sendSimple(String email, String subject, String bodyHtml) {
-        if (email == null || email.isBlank()) {
-            return;
-        }
-        // Ohne unitId kein Versand – wird vom Aufrufer mit unitId versendet
-    }
-
-    public void notifyRequesterApproved(long unitId, String email, String resourceLabel, String resourceName) {
-        if (!unitMailService.canSendForUnit(unitId) || email == null || email.isBlank()) {
-            return;
-        }
-        unitMailService.sendHtmlMail(
-                unitId,
-                email,
-                "Reservierung genehmigt – " + resourceName,
-                wrapHtml(
-                        "Reservierung genehmigt",
-                        """
-                        <p>Ihre Reservierung für <strong>%s %s</strong> wurde genehmigt.</p>
-                        """
-                                .formatted(escape(resourceLabel), escape(resourceName))));
-    }
-
-    public void notifyRequesterRejected(long unitId, String email, String resourceLabel, String resourceName, String reason) {
-        if (!unitMailService.canSendForUnit(unitId) || email == null || email.isBlank()) {
-            return;
-        }
-        unitMailService.sendHtmlMail(
-                unitId,
-                email,
-                "Reservierung abgelehnt – " + resourceName,
-                wrapHtml(
-                        "Reservierung abgelehnt",
-                        """
-                        <p>Ihre Reservierung für <strong>%s %s</strong> wurde abgelehnt.</p>
-                        <p><strong>Begründung:</strong> %s</p>
-                        """
-                                .formatted(escape(resourceLabel), escape(resourceName), escape(reason != null ? reason : "—"))));
-    }
-
-    public void notifyRequesterCancelled(long unitId, String email, String resourceLabel, String resourceName) {
-        if (!unitMailService.canSendForUnit(unitId) || email == null || email.isBlank()) {
-            return;
-        }
-        unitMailService.sendHtmlMail(
-                unitId,
-                email,
-                "Reservierung storniert – " + resourceName,
-                wrapHtml(
-                        "Reservierung storniert",
-                        """
-                        <p>Ihre genehmigte Reservierung für <strong>%s %s</strong> wurde wegen eines Konflikts storniert.</p>
-                        """
-                                .formatted(escape(resourceLabel), escape(resourceName))));
-    }
-
     private String buildNewRequestHtml(
+            long unitId,
             String typeLabel,
             String resourceName,
             String requesterName,
             String requesterEmail,
             String reason,
             String location,
-            java.time.Instant startAt,
-            java.time.Instant endAt) {
+            Instant startAt,
+            Instant endAt) {
+        String manageUrl = buildManageUrl(unitId);
+        String cta = manageUrl == null
+                ? "<p>Bitte im Feuerwehr-Manager unter <strong>Reservierungen → Verwaltung</strong> bearbeiten.</p>"
+                : """
+                  <p style="margin:18px 0 8px;">
+                    <a href="%s" style="background:#e63022;color:#fff;padding:10px 16px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:600;">
+                      Zur Genehmigung öffnen
+                    </a>
+                  </p>
+                  <p style="color:#64748b;font-size:13px;">Oder im System: Reservierungen → Verwaltung</p>
+                  """
+                        .formatted(escape(manageUrl));
         return """
                 <p>Ein neuer Antrag für eine %sreservierung ist eingegangen.</p>
                 <table style="width:100%%;border-collapse:collapse;">
@@ -190,6 +223,7 @@ public class ReservierungenNotificationService {
                   <tr><td style="padding:6px 0;font-weight:600;">Ort</td><td>%s</td></tr>
                   <tr><td style="padding:6px 0;font-weight:600;">Zeitraum</td><td>%s – %s</td></tr>
                 </table>
+                %s
                 """
                 .formatted(
                         escape(typeLabel.toLowerCase(Locale.ROOT)),
@@ -198,9 +232,22 @@ public class ReservierungenNotificationService {
                         escape(requesterName),
                         escape(requesterEmail),
                         escape(reason),
-                        escape(location != null && !location.isBlank() ? location : "—"),
+                        escape(blankToDash(location)),
                         DISPLAY.format(startAt),
-                        DISPLAY.format(endAt));
+                        DISPLAY.format(endAt),
+                        cta);
+    }
+
+    private String buildManageUrl(long unitId) {
+        String base = globalSettingsService.get().getAppUrl();
+        if (base == null || base.isBlank()) {
+            return null;
+        }
+        String normalized = base.trim();
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized + "/reservierungen?unit=" + unitId + "&tab=verwaltung";
     }
 
     private static String wrapHtml(String title, String body) {
@@ -222,6 +269,10 @@ public class ReservierungenNotificationService {
             return user.getLoginEmail().trim();
         }
         return null;
+    }
+
+    private static String blankToDash(String value) {
+        return value != null && !value.isBlank() ? value : "—";
     }
 
     private static String escape(String value) {

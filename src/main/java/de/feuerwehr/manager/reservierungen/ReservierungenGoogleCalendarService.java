@@ -1,5 +1,7 @@
 package de.feuerwehr.manager.reservierungen;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import de.feuerwehr.manager.unit.UnitCalendarAccount;
@@ -33,10 +35,11 @@ public class ReservierungenGoogleCalendarService {
 
     private final UnitCalendarAccountRepository calendarAccountRepository;
     private final ReservationCalendarEventRepository calendarEventRepository;
+    private final ObjectMapper objectMapper;
 
-    public void syncVehicleReservation(
+    public int syncVehicleReservation(
             long unitId, VehicleReservation reservation, List<Long> calendarAccountIds) {
-        syncReservation(
+        return syncReservation(
                 unitId,
                 calendarAccountIds,
                 ReservationKind.VEHICLE,
@@ -48,8 +51,8 @@ public class ReservierungenGoogleCalendarService {
                 reservation.getEndAt());
     }
 
-    public void syncRoomReservation(long unitId, RoomReservation reservation, List<Long> calendarAccountIds) {
-        syncReservation(
+    public int syncRoomReservation(long unitId, RoomReservation reservation, List<Long> calendarAccountIds) {
+        return syncReservation(
                 unitId,
                 calendarAccountIds,
                 ReservationKind.ROOM,
@@ -71,7 +74,7 @@ public class ReservierungenGoogleCalendarService {
         }
     }
 
-    private void syncReservation(
+    private int syncReservation(
             long unitId,
             List<Long> selectedAccountIds,
             ReservationKind kind,
@@ -83,7 +86,11 @@ public class ReservierungenGoogleCalendarService {
             Instant endAt) {
         List<CalendarCredentials> targets = resolveCredentials(unitId, selectedAccountIds);
         if (targets.isEmpty()) {
-            return;
+            log.warn(
+                    "Google-Kalender-Sync übersprungen (Reservierung {}): kein nutzbarer Kalender für Einheit {}.",
+                    reservationId,
+                    unitId);
+            return 0;
         }
         Map<String, Object> body = Map.of(
                 "summary", title,
@@ -91,12 +98,16 @@ public class ReservierungenGoogleCalendarService {
                 "location", location != null ? location : "",
                 "start", Map.of("dateTime", RFC3339.format(startAt), "timeZone", "Europe/Berlin"),
                 "end", Map.of("dateTime", RFC3339.format(endAt), "timeZone", "Europe/Berlin"));
+        int created = 0;
         for (CalendarCredentials cred : targets) {
-            createOrUpdateEvent(cred, kind, reservationId, body);
+            if (createOrUpdateEvent(cred, kind, reservationId, body)) {
+                created++;
+            }
         }
+        return created;
     }
 
-    private void createOrUpdateEvent(
+    private boolean createOrUpdateEvent(
             CalendarCredentials cred, ReservationKind kind, long reservationId, Map<String, Object> body) {
         try {
             RestClient client = buildClient(cred.accessToken());
@@ -112,10 +123,11 @@ public class ReservierungenGoogleCalendarService {
             String googleEventId = extractEventId(raw);
             if (googleEventId == null) {
                 log.warn(
-                        "Google-Kalender: Event-ID konnte nicht gelesen werden (Reservierung {}, Kalender {}).",
+                        "Google-Kalender: Event-ID konnte nicht gelesen werden (Reservierung {}, Kalender {}). Body={}",
                         reservationId,
-                        cred.account().getId());
-                return;
+                        cred.account().getId(),
+                        raw != null && raw.length() > 200 ? raw.substring(0, 200) : raw);
+                return false;
             }
             ReservationCalendarEvent link = calendarEventRepository
                     .findByReservationKindAndReservationIdAndCalendarAccountId(
@@ -129,6 +141,7 @@ public class ReservierungenGoogleCalendarService {
             link.setCalendarAccountId(cred.account().getId());
             link.setGoogleEventId(googleEventId);
             calendarEventRepository.save(link);
+            return true;
         } catch (RestClientResponseException e) {
             log.warn(
                     "Google-Kalender-Sync fehlgeschlagen (Reservierung {}, Kalender {}): HTTP {} – {}",
@@ -136,12 +149,14 @@ public class ReservierungenGoogleCalendarService {
                     cred.account().getId(),
                     e.getStatusCode().value(),
                     e.getResponseBodyAsString());
+            return false;
         } catch (Exception e) {
             log.warn(
                     "Google-Kalender-Sync fehlgeschlagen (Reservierung {}, Kalender {}): {}",
                     reservationId,
                     cred.account().getId(),
                     e.getMessage());
+            return false;
         }
     }
 
@@ -174,10 +189,6 @@ public class ReservierungenGoogleCalendarService {
                 continue;
             }
             toCredentials(account).ifPresent(result::add);
-            if (selected == null && !result.isEmpty()) {
-                // Rückwärtskompatibel: ohne Auswahl nur den ersten nutzbaren Kalender
-                break;
-            }
         }
         return result;
     }
@@ -234,23 +245,17 @@ public class ReservierungenGoogleCalendarService {
         return URI.create("https://dummy/" + calendarId.replace("@", "%40")).getRawPath().substring(1);
     }
 
-    private static String extractEventId(String raw) {
+    private String extractEventId(String raw) {
         if (raw == null || raw.isBlank()) {
             return null;
         }
-        int idx = raw.indexOf("\"id\"");
-        if (idx < 0) {
+        try {
+            JsonNode root = objectMapper.readTree(raw);
+            String id = root.path("id").asText(null);
+            return id != null && !id.isBlank() ? id : null;
+        } catch (Exception e) {
             return null;
         }
-        int start = raw.indexOf('"', idx + 4);
-        if (start < 0) {
-            return null;
-        }
-        int end = raw.indexOf('"', start + 1);
-        if (end < 0) {
-            return null;
-        }
-        return raw.substring(start + 1, end);
     }
 
     private record CalendarCredentials(UnitCalendarAccount account, String calendarId, String accessToken) {}

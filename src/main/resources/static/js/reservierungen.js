@@ -61,6 +61,25 @@
     });
   }
 
+  function formatConflictTime(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso);
+    var pad = function (n) { return n < 10 ? '0' + n : String(n); };
+    return pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + '.' + d.getFullYear()
+      + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+
+  function describeConflicts(conflicts) {
+    if (!conflicts || !conflicts.length) {
+      return '';
+    }
+    return conflicts.map(function (c) {
+      return '- ' + (c.resourceName || 'Ressource') + ' (' + (c.requesterName || '—') + '): '
+        + formatConflictTime(c.startAt) + ' – ' + formatConflictTime(c.endAt);
+    }).join('\n');
+  }
+
   function openModal(kind, id, name) {
     if (!modal || !form) {
       return;
@@ -120,11 +139,7 @@
     }
   });
 
-  form?.addEventListener('submit', function (event) {
-    event.preventDefault();
-    if (!form.reportValidity()) {
-      return;
-    }
+  function submitCreate(forceLoesch) {
     var kind = document.getElementById('reservierung-kind').value;
     var resourceId = Number(document.getElementById('reservierung-resource-id').value);
     var startAt = localDateTimeToIso(document.getElementById('reservierung-start').value);
@@ -145,7 +160,7 @@
       location: document.getElementById('reservierung-location').value.trim(),
       startAt: startAt,
       endAt: endAt,
-      forceAvailabilityOverride: false
+      forceAvailabilityOverride: !!forceLoesch
     };
     var url = kind === 'vehicle'
       ? '/reservierungen/api/fahrzeuge?unit=' + encodeURIComponent(unitId)
@@ -161,6 +176,22 @@
     })
       .then(parseJsonResponse)
       .then(function (data) {
+        if (data.code === 'LOESCH_WARNING') {
+          var msg = (data.message || 'Löschfahrzeug-Warnung.')
+            + '\n\nTrotzdem Antrag einreichen?';
+          if (window.confirm(msg)) {
+            submitCreate(true);
+          }
+          return;
+        }
+        if (data.code === 'CONFLICTS') {
+          notify(
+            (data.message || 'Zeitraum bereits vergeben.') + '\n'
+              + describeConflicts(data.conflicts),
+            'error'
+          );
+          return;
+        }
         if (!data.ok) {
           notify(data.message || 'Fehler beim Einreichen.', 'error');
           return;
@@ -177,9 +208,17 @@
           submitBtn.disabled = false;
         }
       });
+  }
+
+  form?.addEventListener('submit', function (event) {
+    event.preventDefault();
+    if (!form.reportValidity()) {
+      return;
+    }
+    submitCreate(false);
   });
 
-  function processReservation(kind, id, action, reason) {
+  function processReservation(kind, id, action, reason, forceLoesch, conflictIds) {
     var url = (kind === 'VEHICLE' ? '/reservierungen/api/fahrzeuge/' : '/reservierungen/api/raeume/')
       + id + '/process?unit=' + encodeURIComponent(unitId);
     return fetch(url, {
@@ -189,11 +228,42 @@
       body: JSON.stringify({
         action: action,
         reason: reason || '',
-        forceAvailabilityOverride: false,
-        conflictIds: [],
+        forceAvailabilityOverride: !!forceLoesch,
+        conflictIds: conflictIds || [],
         diveraGroupIds: []
       })
     }).then(parseJsonResponse);
+  }
+
+  function handleProcessResult(data, retry) {
+    if (data.code === 'CONFLICTS') {
+      var list = describeConflicts(data.conflicts);
+      var confirmMsg = (data.message || 'Konflikte vorhanden.')
+        + '\n\nBestehende genehmigte Reservierungen:\n' + list
+        + '\n\nKonfliktierende Reservierungen stornieren und trotzdem genehmigen?';
+      if (window.confirm(confirmMsg)) {
+        var ids = (data.conflicts || []).map(function (c) { return c.id; });
+        retry('approve_with_conflict_resolution', false, ids);
+      }
+      return false;
+    }
+    if (data.code === 'LOESCH_WARNING') {
+      var loeschMsg = (data.message || 'Löschfahrzeug-Warnung.')
+        + '\n\nTrotzdem genehmigen?';
+      if (window.confirm(loeschMsg)) {
+        retry('approve', true, []);
+      }
+      return false;
+    }
+    if (!data.ok) {
+      notify(data.message || 'Aktion fehlgeschlagen.', 'error');
+      return false;
+    }
+    var notes = (data.syncNotes || []).filter(Boolean);
+    if (notes.length) {
+      notify((data.message || 'OK') + ' ' + notes.join(' '), 'success');
+    }
+    return true;
   }
 
   function deleteReservation(kind, id) {
@@ -218,35 +288,45 @@
     var kind = row.dataset.kind;
     var id = row.dataset.id;
     var action = btn.dataset.action;
-    if (action === 'approve') {
+
+    function runApprove(approveAction, forceLoesch, conflictIds) {
       btn.disabled = true;
-      processReservation(kind, id, 'approve').then(function (data) {
-        if (data.ok) {
-          window.location.reload();
-        } else {
-          notify(data.message || 'Genehmigung fehlgeschlagen.', 'error');
+      processReservation(kind, id, approveAction, '', forceLoesch, conflictIds)
+        .then(function (data) {
+          if (handleProcessResult(data, function (nextAction, nextForce, nextIds) {
+            runApprove(nextAction, nextForce, nextIds);
+          })) {
+            window.location.reload();
+          } else {
+            btn.disabled = false;
+          }
+        })
+        .catch(function () {
+          notify('Genehmigung fehlgeschlagen.', 'error');
           btn.disabled = false;
-        }
-      }).catch(function () {
-        notify('Genehmigung fehlgeschlagen.', 'error');
-        btn.disabled = false;
-      });
+        });
+    }
+
+    if (action === 'approve') {
+      runApprove('approve', false, []);
       return;
     }
     if (action === 'reject') {
       var reason = window.prompt('Begründung für die Ablehnung (optional):', '') || '';
       btn.disabled = true;
-      processReservation(kind, id, 'reject', reason).then(function (data) {
-        if (data.ok) {
-          window.location.reload();
-        } else {
-          notify(data.message || 'Ablehnung fehlgeschlagen.', 'error');
+      processReservation(kind, id, 'reject', reason, false, [])
+        .then(function (data) {
+          if (data.ok) {
+            window.location.reload();
+          } else {
+            notify(data.message || 'Ablehnung fehlgeschlagen.', 'error');
+            btn.disabled = false;
+          }
+        })
+        .catch(function () {
+          notify('Ablehnung fehlgeschlagen.', 'error');
           btn.disabled = false;
-        }
-      }).catch(function () {
-        notify('Ablehnung fehlgeschlagen.', 'error');
-        btn.disabled = false;
-      });
+        });
     }
   });
 

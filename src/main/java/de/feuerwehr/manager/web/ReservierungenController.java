@@ -1,7 +1,9 @@
 package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.reservierungen.CreateReservationRequest;
+import de.feuerwehr.manager.reservierungen.LoeschfahrzeugWarningException;
 import de.feuerwehr.manager.reservierungen.ProcessReservationRequest;
+import de.feuerwehr.manager.reservierungen.ReservationConflictException;
 import de.feuerwehr.manager.reservierungen.ReservierungenConflictService;
 import de.feuerwehr.manager.reservierungen.ReservierungenService;
 import de.feuerwehr.manager.reservierungen.ReservierungenTab;
@@ -15,6 +17,8 @@ import de.feuerwehr.manager.unit.UnitAdminService;
 import de.feuerwehr.manager.unit.UnitService;
 import de.feuerwehr.manager.user.UserRepository;
 import de.feuerwehr.manager.web.dto.ActionResultDto;
+import de.feuerwehr.manager.web.dto.ReservationActionResultDto;
+import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -83,7 +87,7 @@ public class ReservierungenController {
 
     @PostMapping("/api/fahrzeuge")
     @ResponseBody
-    public ActionResultDto createVehicle(
+    public ReservationActionResultDto createVehicle(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit") long unitId,
             @RequestBody CreateReservationRequest body) {
@@ -92,15 +96,19 @@ public class ReservierungenController {
             requireRead(actor, unitId);
             accessControlService.requireUnitAccess(actor, unitId);
             reservierungenService.createVehicleReservation(unitId, actor.getUserId(), body);
-            return ActionResultDto.success("Fahrzeugreservierung wurde eingereicht.");
+            return ReservationActionResultDto.success("Fahrzeugreservierung wurde eingereicht.");
+        } catch (LoeschfahrzeugWarningException e) {
+            return ReservationActionResultDto.loeschWarning(e.getWarning());
+        } catch (ReservationConflictException e) {
+            return ReservationActionResultDto.conflicts(e.getMessage(), e.getConflicts());
         } catch (IllegalArgumentException e) {
-            return ActionResultDto.failure(e.getMessage());
+            return ReservationActionResultDto.failure(e.getMessage());
         }
     }
 
     @PostMapping("/api/raeume")
     @ResponseBody
-    public ActionResultDto createRoom(
+    public ReservationActionResultDto createRoom(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit") long unitId,
             @RequestBody CreateReservationRequest body) {
@@ -109,15 +117,17 @@ public class ReservierungenController {
             requireRead(actor, unitId);
             accessControlService.requireUnitAccess(actor, unitId);
             reservierungenService.createRoomReservation(unitId, actor.getUserId(), body);
-            return ActionResultDto.success("Raumreservierung wurde eingereicht.");
+            return ReservationActionResultDto.success("Raumreservierung wurde eingereicht.");
+        } catch (ReservationConflictException e) {
+            return ReservationActionResultDto.conflicts(e.getMessage(), e.getConflicts());
         } catch (IllegalArgumentException e) {
-            return ActionResultDto.failure(e.getMessage());
+            return ReservationActionResultDto.failure(e.getMessage());
         }
     }
 
     @PostMapping("/api/fahrzeuge/{id}/process")
     @ResponseBody
-    public ActionResultDto processVehicle(
+    public ReservationActionResultDto processVehicle(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit") long unitId,
             @PathVariable long id,
@@ -126,16 +136,21 @@ public class ReservierungenController {
             requireModuleEnabled(unitId);
             requireWrite(actor, unitId);
             accessControlService.requireUnitAccess(actor, unitId);
-            reservierungenService.processVehicleReservation(unitId, id, actor.getUserId(), body);
-            return ActionResultDto.success("Fahrzeugreservierung wurde bearbeitet.");
+            List<String> notes =
+                    reservierungenService.processVehicleReservation(unitId, id, actor.getUserId(), body);
+            return ReservationActionResultDto.success("Fahrzeugreservierung wurde bearbeitet.", notes);
+        } catch (ReservationConflictException e) {
+            return ReservationActionResultDto.conflicts(e.getMessage(), e.getConflicts());
+        } catch (LoeschfahrzeugWarningException e) {
+            return ReservationActionResultDto.loeschWarning(e.getWarning());
         } catch (IllegalArgumentException | IllegalStateException e) {
-            return ActionResultDto.failure(e.getMessage());
+            return ReservationActionResultDto.failure(e.getMessage());
         }
     }
 
     @PostMapping("/api/raeume/{id}/process")
     @ResponseBody
-    public ActionResultDto processRoom(
+    public ReservationActionResultDto processRoom(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit") long unitId,
             @PathVariable long id,
@@ -144,10 +159,13 @@ public class ReservierungenController {
             requireModuleEnabled(unitId);
             requireWrite(actor, unitId);
             accessControlService.requireUnitAccess(actor, unitId);
-            reservierungenService.processRoomReservation(unitId, id, actor.getUserId(), body);
-            return ActionResultDto.success("Raumreservierung wurde bearbeitet.");
+            List<String> notes =
+                    reservierungenService.processRoomReservation(unitId, id, actor.getUserId(), body);
+            return ReservationActionResultDto.success("Raumreservierung wurde bearbeitet.", notes);
+        } catch (ReservationConflictException e) {
+            return ReservationActionResultDto.conflicts(e.getMessage(), e.getConflicts());
         } catch (IllegalArgumentException | IllegalStateException e) {
-            return ActionResultDto.failure(e.getMessage());
+            return ReservationActionResultDto.failure(e.getMessage());
         }
     }
 

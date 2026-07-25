@@ -87,7 +87,13 @@ public class ReservierungenService {
         LoeschfahrzeugWarningView warning = conflictService.checkLoeschfahrzeugWarning(
                 unitId, vehicle.getId(), request.startAt(), request.endAt(), null);
         if (warning.warning() && !request.forceAvailabilityOverride()) {
-            throw new IllegalArgumentException(warning.message());
+            throw new LoeschfahrzeugWarningException(warning);
+        }
+        List<ReservationConflictView> conflicts = conflictService.vehicleConflicts(
+                vehicle.getId(), request.startAt(), request.endAt(), null);
+        if (!conflicts.isEmpty()) {
+            throw new ReservationConflictException(
+                    "Das Fahrzeug ist in diesem Zeitraum bereits vergeben.", conflicts);
         }
         VehicleReservation reservation = new VehicleReservation();
         reservation.setUnit(requireUnit(unitId));
@@ -113,6 +119,12 @@ public class ReservierungenService {
                 .orElseThrow(() -> new IllegalArgumentException("Raum nicht gefunden."));
         if (!room.isActive()) {
             throw new IllegalArgumentException("Raum ist nicht aktiv.");
+        }
+        List<ReservationConflictView> conflicts = conflictService.roomConflicts(
+                room.getId(), request.startAt(), request.endAt(), null);
+        if (!conflicts.isEmpty()) {
+            throw new ReservationConflictException(
+                    "Der Raum ist in diesem Zeitraum bereits vergeben.", conflicts);
         }
         RoomReservation reservation = new RoomReservation();
         reservation.setUnit(requireUnit(unitId));
@@ -145,33 +157,33 @@ public class ReservierungenService {
     }
 
     @Transactional
-    public void processVehicleReservation(long unitId, long reservationId, long actorUserId, ProcessReservationRequest request) {
+    public List<String> processVehicleReservation(
+            long unitId, long reservationId, long actorUserId, ProcessReservationRequest request) {
         VehicleReservation reservation = requirePendingVehicle(unitId, reservationId);
         String action = normalizeAction(request.action());
         if ("reject".equals(action)) {
             rejectVehicle(reservation, actorUserId, request.reason());
-            return;
+            return List.of();
         }
         if ("approve".equals(action) || "approve_with_conflict_resolution".equals(action)) {
-            approveVehicle(reservation, actorUserId, request);
-        } else {
-            throw new IllegalArgumentException("Unbekannte Aktion: " + request.action());
+            return approveVehicle(reservation, actorUserId, request);
         }
+        throw new IllegalArgumentException("Unbekannte Aktion: " + request.action());
     }
 
     @Transactional
-    public void processRoomReservation(long unitId, long reservationId, long actorUserId, ProcessReservationRequest request) {
+    public List<String> processRoomReservation(
+            long unitId, long reservationId, long actorUserId, ProcessReservationRequest request) {
         RoomReservation reservation = requirePendingRoom(unitId, reservationId);
         String action = normalizeAction(request.action());
         if ("reject".equals(action)) {
             rejectRoom(reservation, actorUserId, request.reason());
-            return;
+            return List.of();
         }
         if ("approve".equals(action) || "approve_with_conflict_resolution".equals(action)) {
-            approveRoom(reservation, actorUserId, request);
-        } else {
-            throw new IllegalArgumentException("Unbekannte Aktion: " + request.action());
+            return approveRoom(reservation, actorUserId, request);
         }
+        throw new IllegalArgumentException("Unbekannte Aktion: " + request.action());
     }
 
     @Transactional
@@ -194,17 +206,18 @@ public class ReservierungenService {
         roomReservationRepository.delete(reservation);
     }
 
-    private void approveVehicle(VehicleReservation reservation, long actorUserId, ProcessReservationRequest request) {
+    private List<String> approveVehicle(VehicleReservation reservation, long actorUserId, ProcessReservationRequest request) {
         long unitId = reservation.getUnit().getId();
         List<ReservationConflictView> conflicts = conflictService.vehicleConflicts(
                 reservation.getVehicle().getId(), reservation.getStartAt(), reservation.getEndAt(), reservation.getId());
         if (!conflicts.isEmpty() && !"approve_with_conflict_resolution".equals(normalizeAction(request.action()))) {
-            throw new IllegalStateException("Konflikte vorhanden – Genehmigung mit Konfliktlösung erforderlich.");
+            throw new ReservationConflictException(
+                    "Konflikte vorhanden – Genehmigung mit Konfliktlösung erforderlich.", conflicts);
         }
         LoeschfahrzeugWarningView warning = conflictService.checkLoeschfahrzeugWarning(
                 unitId, reservation.getVehicle().getId(), reservation.getStartAt(), reservation.getEndAt(), reservation.getId());
         if (warning.warning() && !request.forceAvailabilityOverride()) {
-            throw new IllegalArgumentException(warning.message());
+            throw new LoeschfahrzeugWarningException(warning);
         }
         if ("approve_with_conflict_resolution".equals(normalizeAction(request.action()))) {
             cancelVehicleConflicts(unitId, conflicts, request.conflictIds());
@@ -213,17 +226,18 @@ public class ReservierungenService {
         reservation.setApprovedByUser(requireUser(actorUserId));
         reservation.setApprovedAt(Instant.now());
         vehicleReservationRepository.save(reservation);
-        applyVehicleIntegrations(unitId, reservation, actorUserId, request.diveraGroupIds());
-        notificationService.notifyRequesterApproved(
-                unitId, reservation.getRequesterEmail(), "Fahrzeug", reservation.getVehicle().getName());
+        List<String> syncNotes = applyVehicleIntegrations(unitId, reservation, actorUserId, request.diveraGroupIds());
+        notificationService.notifyRequesterDecision(unitId, reservation, true, null);
+        return syncNotes;
     }
 
-    private void approveRoom(RoomReservation reservation, long actorUserId, ProcessReservationRequest request) {
+    private List<String> approveRoom(RoomReservation reservation, long actorUserId, ProcessReservationRequest request) {
         long unitId = reservation.getUnit().getId();
         List<ReservationConflictView> conflicts = conflictService.roomConflicts(
                 reservation.getRoom().getId(), reservation.getStartAt(), reservation.getEndAt(), reservation.getId());
         if (!conflicts.isEmpty() && !"approve_with_conflict_resolution".equals(normalizeAction(request.action()))) {
-            throw new IllegalStateException("Konflikte vorhanden – Genehmigung mit Konfliktlösung erforderlich.");
+            throw new ReservationConflictException(
+                    "Konflikte vorhanden – Genehmigung mit Konfliktlösung erforderlich.", conflicts);
         }
         if ("approve_with_conflict_resolution".equals(normalizeAction(request.action()))) {
             cancelRoomConflicts(unitId, conflicts, request.conflictIds());
@@ -232,9 +246,9 @@ public class ReservierungenService {
         reservation.setApprovedByUser(requireUser(actorUserId));
         reservation.setApprovedAt(Instant.now());
         roomReservationRepository.save(reservation);
-        applyRoomIntegrations(unitId, reservation, actorUserId);
-        notificationService.notifyRequesterApproved(
-                unitId, reservation.getRequesterEmail(), "Raum", reservation.getRoom().getName());
+        List<String> syncNotes = applyRoomIntegrations(unitId, reservation, actorUserId);
+        notificationService.notifyRequesterDecision(unitId, reservation, true, null);
+        return syncNotes;
     }
 
     private void rejectVehicle(VehicleReservation reservation, long actorUserId, String reason) {
@@ -243,12 +257,8 @@ public class ReservierungenService {
         reservation.setApprovedByUser(requireUser(actorUserId));
         reservation.setApprovedAt(Instant.now());
         vehicleReservationRepository.save(reservation);
-        notificationService.notifyRequesterRejected(
-                reservation.getUnit().getId(),
-                reservation.getRequesterEmail(),
-                "Fahrzeug",
-                reservation.getVehicle().getName(),
-                reason);
+        notificationService.notifyRequesterDecision(
+                reservation.getUnit().getId(), reservation, false, reason);
     }
 
     private void rejectRoom(RoomReservation reservation, long actorUserId, String reason) {
@@ -257,12 +267,8 @@ public class ReservierungenService {
         reservation.setApprovedByUser(requireUser(actorUserId));
         reservation.setApprovedAt(Instant.now());
         roomReservationRepository.save(reservation);
-        notificationService.notifyRequesterRejected(
-                reservation.getUnit().getId(),
-                reservation.getRequesterEmail(),
-                "Raum",
-                reservation.getRoom().getName(),
-                reason);
+        notificationService.notifyRequesterDecision(
+                reservation.getUnit().getId(), reservation, false, reason);
     }
 
     private void cancelVehicleConflicts(long unitId, List<ReservationConflictView> conflicts, List<Long> conflictIds) {
@@ -299,33 +305,59 @@ public class ReservierungenService {
         }
     }
 
-    private void applyVehicleIntegrations(
+    private List<String> applyVehicleIntegrations(
             long unitId, VehicleReservation reservation, long actorUserId, List<Integer> diveraGroupIds) {
+        List<String> notes = new ArrayList<>();
         UnitReservierungenSettings settings = settingsService.ensureSettings(unitId);
         if (settings.isVehicleDiveraEnabled()) {
             List<Integer> groups = diveraGroupIds != null && !diveraGroupIds.isEmpty()
                     ? diveraGroupIds
                     : settingsService.defaultDiveraGroupIds(settings, false);
-            diveraSyncService.syncVehicleReservation(reservation, groups, actorUserId).ifPresent(reservation::setDiveraEventId);
-            vehicleReservationRepository.save(reservation);
+            var synced = diveraSyncService.syncVehicleReservation(reservation, groups, actorUserId);
+            if (synced.isPresent()) {
+                reservation.setDiveraEventId(synced.get());
+                vehicleReservationRepository.save(reservation);
+                notes.add("DIVERA: Termin angelegt.");
+            } else {
+                notes.add("DIVERA: Termin konnte nicht angelegt werden (Zugang/API prüfen).");
+            }
         }
         if (settings.isVehicleGoogleCalendarEnabled()) {
-            googleCalendarService.syncVehicleReservation(
+            int created = googleCalendarService.syncVehicleReservation(
                     unitId, reservation, settingsService.vehicleGoogleCalendarAccountIds(settings));
+            if (created > 0) {
+                notes.add("Google Kalender: " + created + (created == 1 ? " Termin" : " Termine") + " angelegt.");
+            } else {
+                notes.add("Google Kalender: kein Termin angelegt (Kalender/Service-Account prüfen).");
+            }
         }
+        return notes;
     }
 
-    private void applyRoomIntegrations(long unitId, RoomReservation reservation, long actorUserId) {
+    private List<String> applyRoomIntegrations(long unitId, RoomReservation reservation, long actorUserId) {
+        List<String> notes = new ArrayList<>();
         UnitReservierungenSettings settings = settingsService.ensureSettings(unitId);
         if (settings.isRoomDiveraEnabled()) {
             List<Integer> groups = settingsService.defaultDiveraGroupIds(settings, true);
-            diveraSyncService.syncRoomReservation(reservation, groups, actorUserId).ifPresent(reservation::setDiveraEventId);
-            roomReservationRepository.save(reservation);
+            var synced = diveraSyncService.syncRoomReservation(reservation, groups, actorUserId);
+            if (synced.isPresent()) {
+                reservation.setDiveraEventId(synced.get());
+                roomReservationRepository.save(reservation);
+                notes.add("DIVERA: Termin angelegt.");
+            } else {
+                notes.add("DIVERA: Termin konnte nicht angelegt werden (Zugang/API prüfen).");
+            }
         }
         if (settings.isRoomGoogleCalendarEnabled()) {
-            googleCalendarService.syncRoomReservation(
+            int created = googleCalendarService.syncRoomReservation(
                     unitId, reservation, settingsService.roomGoogleCalendarAccountIds(settings));
+            if (created > 0) {
+                notes.add("Google Kalender: " + created + (created == 1 ? " Termin" : " Termine") + " angelegt.");
+            } else {
+                notes.add("Google Kalender: kein Termin angelegt (Kalender/Service-Account prüfen).");
+            }
         }
+        return notes;
     }
 
     private void cleanupVehicleReservation(VehicleReservation reservation) {
