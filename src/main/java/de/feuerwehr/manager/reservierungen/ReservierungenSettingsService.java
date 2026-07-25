@@ -233,8 +233,13 @@ public class ReservierungenSettingsService {
         if (defaultId == null || defaultId.isBlank()) {
             return List.of();
         }
+        String trimmed = defaultId.trim();
+        // „Alle“ / Gruppe ohne DIVERA-ID → keine group an DIVERA
+        if ("ALL".equalsIgnoreCase(trimmed) || "alle".equalsIgnoreCase(trimmed)) {
+            return List.of();
+        }
         try {
-            int parsed = Integer.parseInt(defaultId.trim());
+            int parsed = Integer.parseInt(trimmed);
             return parsed > 0 ? List.of(parsed) : List.of();
         } catch (NumberFormatException e) {
             return List.of();

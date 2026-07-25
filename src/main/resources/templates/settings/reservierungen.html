@@ -66,14 +66,27 @@
         </label>
         <p class="hint text-sm">Google Kalender: Service-Account und Kalender-ID unter Admin → Schnittstellen hinterlegen.</p>
         <div class="form-group">
-          <label for="vehicleDiveraDefaultGroupId">DIVERA Standard-Gruppe (ID)</label>
-          <input id="vehicleDiveraDefaultGroupId" name="vehicleDiveraDefaultGroupId" class="field"
-                 th:value="${settings.vehicleDiveraDefaultGroupId}"/>
-        </div>
-        <div class="form-group">
-          <label for="vehicleDiveraGroupsJson">DIVERA Gruppen (JSON, optional)</label>
-          <textarea id="vehicleDiveraGroupsJson" name="vehicleDiveraGroupsJson" class="field" rows="3"
-                    th:text="${settings.vehicleDiveraGroupsJson}"></textarea>
+          <label for="vehicleDiveraDefaultGroupId">DIVERA Standard-Gruppe</label>
+          <select id="vehicleDiveraDefaultGroupId" name="vehicleDiveraDefaultGroupId" class="field">
+            <option value="">— bitte wählen —</option>
+            <option th:each="g : ${diveraRecipientGroups}"
+                    th:value="${g.groupId != null and !#strings.isEmpty(g.groupId) ? g.groupId : 'ALL'}"
+                    th:text="${g.label + (g.groupId != null and !#strings.isEmpty(g.groupId) ? '' : ' (ohne ID)')}"
+                    th:selected="${(g.groupId != null and !#strings.isEmpty(g.groupId) and g.groupId == settings.vehicleDiveraDefaultGroupId)
+                      or ((g.groupId == null or #strings.isEmpty(g.groupId))
+                          and (settings.vehicleDiveraDefaultGroupId == null
+                               or #strings.isEmpty(settings.vehicleDiveraDefaultGroupId)
+                               or settings.vehicleDiveraDefaultGroupId == 'ALL'))}">
+              Gruppe
+            </option>
+          </select>
+          <p class="hint">
+            Aus Admin → Schnittstellen → DIVERA → Empfänger-Gruppen.
+            Bei „Alle“ (ohne ID) wird keine Gruppen-ID an DIVERA übergeben.
+          </p>
+          <p class="hint hint--warn" th:if="${#lists.isEmpty(diveraRecipientGroups)}">
+            Noch keine Empfänger-Gruppen hinterlegt — zuerst unter Schnittstellen anlegen.
+          </p>
         </div>
 
         <h3 style="margin-top:24px;">Löschfahrzeug-Warnung</h3>
@@ -211,9 +224,24 @@
           <span>Genehmigte Raumreservierungen in Google Kalender eintragen</span>
         </label>
         <div class="form-group">
-          <label for="roomDiveraDefaultGroupId">DIVERA Standard-Gruppe (ID, optional)</label>
-          <input id="roomDiveraDefaultGroupId" name="roomDiveraDefaultGroupId" class="field"
-                 th:value="${settings.roomDiveraDefaultGroupId}"/>
+          <label for="roomDiveraDefaultGroupId">DIVERA Standard-Gruppe</label>
+          <select id="roomDiveraDefaultGroupId" name="roomDiveraDefaultGroupId" class="field">
+            <option value="">— bitte wählen —</option>
+            <option th:each="g : ${diveraRecipientGroups}"
+                    th:value="${g.groupId != null and !#strings.isEmpty(g.groupId) ? g.groupId : 'ALL'}"
+                    th:text="${g.label + (g.groupId != null and !#strings.isEmpty(g.groupId) ? '' : ' (ohne ID)')}"
+                    th:selected="${(g.groupId != null and !#strings.isEmpty(g.groupId) and g.groupId == settings.roomDiveraDefaultGroupId)
+                      or ((g.groupId == null or #strings.isEmpty(g.groupId))
+                          and (settings.roomDiveraDefaultGroupId == null
+                               or #strings.isEmpty(settings.roomDiveraDefaultGroupId)
+                               or settings.roomDiveraDefaultGroupId == 'ALL'))}">
+              Gruppe
+            </option>
+          </select>
+          <p class="hint">
+            Aus Admin → Schnittstellen → DIVERA → Empfänger-Gruppen.
+            Bei „Alle“ (ohne ID) wird keine Gruppen-ID an DIVERA übergeben.
+          </p>
         </div>
 
         <div style="margin-top:24px;">

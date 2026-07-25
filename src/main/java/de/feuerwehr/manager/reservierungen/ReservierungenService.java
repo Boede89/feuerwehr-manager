@@ -317,7 +317,8 @@ public class ReservierungenService {
     private void applyRoomIntegrations(long unitId, RoomReservation reservation, long actorUserId) {
         UnitReservierungenSettings settings = settingsService.ensureSettings(unitId);
         if (settings.isRoomDiveraEnabled()) {
-            diveraSyncService.syncRoomReservation(reservation, actorUserId).ifPresent(reservation::setDiveraEventId);
+            List<Integer> groups = settingsService.defaultDiveraGroupIds(settings, true);
+            diveraSyncService.syncRoomReservation(reservation, groups, actorUserId).ifPresent(reservation::setDiveraEventId);
             roomReservationRepository.save(reservation);
         }
         if (settings.isRoomGoogleCalendarEnabled()) {

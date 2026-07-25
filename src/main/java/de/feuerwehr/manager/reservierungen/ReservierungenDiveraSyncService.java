@@ -34,12 +34,11 @@ public class ReservierungenDiveraSyncService {
                 reservation.getLocation(),
                 reservation.getStartAt(),
                 reservation.getEndAt(),
-                false,
                 groupIds,
                 actorUserId);
     }
 
-    public Optional<Long> syncRoomReservation(RoomReservation reservation, Long actorUserId) {
+    public Optional<Long> syncRoomReservation(RoomReservation reservation, List<Integer> groupIds, Long actorUserId) {
         return syncReservation(
                 reservation.getUnit().getId(),
                 reservation.getId(),
@@ -48,8 +47,7 @@ public class ReservierungenDiveraSyncService {
                 reservation.getLocation(),
                 reservation.getStartAt(),
                 reservation.getEndAt(),
-                true,
-                List.of(),
+                groupIds,
                 actorUserId);
     }
 
@@ -77,7 +75,6 @@ public class ReservierungenDiveraSyncService {
             String location,
             Instant startAt,
             Instant endAt,
-            boolean room,
             List<Integer> groupIds,
             Long actorUserId) {
         Optional<DiveraCredentials> credentials = resolveCredentials(unitId, actorUserId);
@@ -86,12 +83,12 @@ public class ReservierungenDiveraSyncService {
         }
         DiveraCredentials cred = credentials.get();
         ObjectNode event = objectMapper.createObjectNode();
-        boolean useGroups = !room && groupIds != null && !groupIds.isEmpty();
+        boolean useGroups = groupIds != null && !groupIds.isEmpty();
         event.put("notification_type", useGroups ? 3 : 2);
         event.put("title", resourceName + " - " + (reason != null ? reason : "Reservierung"));
         event.put("ts_start", startAt.getEpochSecond());
         event.put("ts_end", endAt.getEpochSecond());
-        if (!room && location != null && !location.isBlank()) {
+        if (location != null && !location.isBlank()) {
             event.put("address", location.trim());
         }
         event.put("foreign_id", String.valueOf(reservationId));

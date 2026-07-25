@@ -2,6 +2,7 @@ package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.reservierungen.ReservierungenSettingsService;
 import de.feuerwehr.manager.reservierungen.UnitReservierungenSettings;
+import de.feuerwehr.manager.divera.DiveraMappingService;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.settings.AppModule;
@@ -35,6 +36,7 @@ public class ReservierungenSettingsController {
     private final ReservierungenSettingsService settingsService;
     private final UnitAdminService unitAdminService;
     private final UserRepository userRepository;
+    private final DiveraMappingService diveraMappingService;
 
     @GetMapping
     public String index(
@@ -76,6 +78,7 @@ public class ReservierungenSettingsController {
             model.addAttribute(
                     "roomNotificationSummary",
                     formatNotificationSummary(roomNotifyUsers.size(), roomNotifyEmails.size(), true));
+            model.addAttribute("diveraRecipientGroups", diveraMappingService.listRecipientGroups(unit.getId()));
             return "settings/reservierungen";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
