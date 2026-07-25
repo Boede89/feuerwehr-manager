@@ -116,6 +116,19 @@
   syncOpenButton();
   syncMoveButtons();
 
+  function syncTogglePanels() {
+    document.querySelectorAll('[data-toggle-panel]').forEach(function (checkbox) {
+      var panel = document.getElementById(checkbox.getAttribute('data-toggle-panel'));
+      if (!panel) return;
+      panel.hidden = !checkbox.checked;
+    });
+  }
+
+  document.querySelectorAll('[data-toggle-panel]').forEach(function (checkbox) {
+    checkbox.addEventListener('change', syncTogglePanels);
+  });
+  syncTogglePanels();
+
   function openNamedModal(id) {
     var el = document.getElementById(id);
     if (!el) return;

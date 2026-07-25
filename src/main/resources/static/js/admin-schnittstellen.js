@@ -217,6 +217,15 @@
   reopenModalIfRequested('divera-recipient-groups', 'modal-divera-recipient-groups');
   reopenModalIfRequested('divera-status-ids', 'modal-divera-status-ids');
 
+  if (window.location.hash) {
+    var anchor = document.querySelector(window.location.hash);
+    if (anchor) {
+      setTimeout(function () {
+        anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 80);
+    }
+  }
+
   function getJson(url) {
     return fetch(url, {
       method: 'GET',

@@ -40,7 +40,9 @@
             </button>
           </div>
           <p class="hint">
-            <strong>Manuell:</strong> eigene Reihenfolge nur für Reservierungen (unabhängig von Technik).
+            <strong>Manuell:</strong> eigene Reihenfolge nur für Reservierungen
+            (unabhängig von
+            <a th:href="@{/admin(scope='einheit', tab='technik', unit=${unitId})}">Technik</a>).
             Beim Wechsel auf „Manuell“ öffnet sich die Sortierung.
           </p>
         </div>
@@ -56,16 +58,13 @@
 
         <h3 style="margin-top:24px;">DIVERA &amp; Google Kalender</h3>
         <label class="checkbox-row">
-          <input type="checkbox" name="vehicleDiveraEnabled" value="true" th:checked="${settings.vehicleDiveraEnabled}"/>
+          <input type="checkbox" name="vehicleDiveraEnabled" value="true" id="vehicleDiveraEnabled"
+                 th:checked="${settings.vehicleDiveraEnabled}"
+                 data-toggle-panel="vehicle-divera-group-panel"/>
           <span>Genehmigte Fahrzeugreservierungen als Termin an DIVERA übergeben</span>
         </label>
-        <label class="checkbox-row">
-          <input type="checkbox" name="vehicleGoogleCalendarEnabled" value="true"
-                 th:checked="${settings.vehicleGoogleCalendarEnabled}"/>
-          <span>Genehmigte Fahrzeugreservierungen in Google Kalender eintragen</span>
-        </label>
-        <p class="hint text-sm">Google Kalender: Service-Account und Kalender-ID unter Admin → Schnittstellen hinterlegen.</p>
-        <div class="form-group">
+        <div class="form-group reservierungen-conditional-panel" id="vehicle-divera-group-panel"
+             th:attr="hidden=${!settings.vehicleDiveraEnabled}">
           <label for="vehicleDiveraDefaultGroupId">DIVERA Standard-Gruppe</label>
           <select id="vehicleDiveraDefaultGroupId" name="vehicleDiveraDefaultGroupId" class="field">
             <option value="">— bitte wählen —</option>
@@ -81,13 +80,27 @@
             </option>
           </select>
           <p class="hint">
-            Aus Admin → Schnittstellen → DIVERA → Empfänger-Gruppen.
+            Aus
+            <a th:href="@{/admin(scope='einheit', tab='schnittstellen', unit=${unitId})}">Admin → Schnittstellen → DIVERA</a>
+            →
+            <a th:href="@{/admin(scope='einheit', tab='schnittstellen', unit=${unitId}, openModal='divera-recipient-groups')}">Empfänger-Gruppen</a>.
             Bei „Alle“ (ohne ID) wird keine Gruppen-ID an DIVERA übergeben.
           </p>
           <p class="hint hint--warn" th:if="${#lists.isEmpty(diveraRecipientGroups)}">
-            Noch keine Empfänger-Gruppen hinterlegt — zuerst unter Schnittstellen anlegen.
+            Noch keine Empfänger-Gruppen hinterlegt —
+            <a th:href="@{/admin(scope='einheit', tab='schnittstellen', unit=${unitId}, openModal='divera-recipient-groups')}">jetzt anlegen</a>.
           </p>
         </div>
+        <label class="checkbox-row">
+          <input type="checkbox" name="vehicleGoogleCalendarEnabled" value="true"
+                 th:checked="${settings.vehicleGoogleCalendarEnabled}"/>
+          <span>Genehmigte Fahrzeugreservierungen in Google Kalender eintragen</span>
+        </label>
+        <p class="hint text-sm">
+          Google Kalender: Service-Account und Kalender-ID unter
+          <a th:href="@{/admin(scope='einheit', tab='schnittstellen', unit=${unitId})}#calendar-google">Admin → Schnittstellen → Kalender (Google)</a>
+          hinterlegen.
+        </p>
 
         <h3 style="margin-top:24px;">Löschfahrzeug-Warnung</h3>
         <label class="checkbox-row">
@@ -126,7 +139,9 @@
         <input type="hidden" name="unit" th:value="${unitId}"/>
         <div class="modal__body">
           <p class="hint">
-            Reihenfolge nur für das Modul Reservierungen. Die Sortierung unter Technik bleibt unverändert.
+            Reihenfolge nur für das Modul Reservierungen. Die Sortierung unter
+            <a th:href="@{/admin(scope='einheit', tab='technik', unit=${unitId})}">Technik</a>
+            bleibt unverändert.
           </p>
           <ul class="reservierungen-sort-list" id="vehicle-sort-list">
             <li class="reservierungen-sort-item" th:each="v : ${vehiclesForSortModal}" th:attr="data-vehicle-id=${v.id}">
@@ -215,15 +230,13 @@
 
         <h3 style="margin-top:24px;">DIVERA &amp; Google Kalender</h3>
         <label class="checkbox-row">
-          <input type="checkbox" name="roomDiveraEnabled" value="true" th:checked="${settings.roomDiveraEnabled}"/>
+          <input type="checkbox" name="roomDiveraEnabled" value="true" id="roomDiveraEnabled"
+                 th:checked="${settings.roomDiveraEnabled}"
+                 data-toggle-panel="room-divera-group-panel"/>
           <span>Genehmigte Raumreservierungen als Termin an DIVERA übergeben</span>
         </label>
-        <label class="checkbox-row">
-          <input type="checkbox" name="roomGoogleCalendarEnabled" value="true"
-                 th:checked="${settings.roomGoogleCalendarEnabled}"/>
-          <span>Genehmigte Raumreservierungen in Google Kalender eintragen</span>
-        </label>
-        <div class="form-group">
+        <div class="form-group reservierungen-conditional-panel" id="room-divera-group-panel"
+             th:attr="hidden=${!settings.roomDiveraEnabled}">
           <label for="roomDiveraDefaultGroupId">DIVERA Standard-Gruppe</label>
           <select id="roomDiveraDefaultGroupId" name="roomDiveraDefaultGroupId" class="field">
             <option value="">— bitte wählen —</option>
@@ -239,10 +252,27 @@
             </option>
           </select>
           <p class="hint">
-            Aus Admin → Schnittstellen → DIVERA → Empfänger-Gruppen.
+            Aus
+            <a th:href="@{/admin(scope='einheit', tab='schnittstellen', unit=${unitId})}">Admin → Schnittstellen → DIVERA</a>
+            →
+            <a th:href="@{/admin(scope='einheit', tab='schnittstellen', unit=${unitId}, openModal='divera-recipient-groups')}">Empfänger-Gruppen</a>.
             Bei „Alle“ (ohne ID) wird keine Gruppen-ID an DIVERA übergeben.
           </p>
+          <p class="hint hint--warn" th:if="${#lists.isEmpty(diveraRecipientGroups)}">
+            Noch keine Empfänger-Gruppen hinterlegt —
+            <a th:href="@{/admin(scope='einheit', tab='schnittstellen', unit=${unitId}, openModal='divera-recipient-groups')}">jetzt anlegen</a>.
+          </p>
         </div>
+        <label class="checkbox-row">
+          <input type="checkbox" name="roomGoogleCalendarEnabled" value="true"
+                 th:checked="${settings.roomGoogleCalendarEnabled}"/>
+          <span>Genehmigte Raumreservierungen in Google Kalender eintragen</span>
+        </label>
+        <p class="hint text-sm">
+          Google Kalender unter
+          <a th:href="@{/admin(scope='einheit', tab='schnittstellen', unit=${unitId})}#calendar-google">Admin → Schnittstellen → Kalender (Google)</a>
+          hinterlegen.
+        </p>
 
         <div style="margin-top:24px;">
           <button type="submit" class="btn btn--primary">Speichern</button>

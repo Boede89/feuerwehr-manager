@@ -6553,6 +6553,24 @@ span.required { color: var(--error); }
   margin-bottom: 8px;
 }
 
+.reservierungen-conditional-panel {
+  margin: 8px 0 14px 1.6rem;
+  padding: 10px 12px;
+  border-left: 3px solid color-mix(in srgb, var(--primary, #b91c1c) 55%, transparent);
+  background: color-mix(in srgb, var(--primary, #b91c1c) 6%, transparent);
+  border-radius: 0 8px 8px 0;
+}
+
+.reservierungen-conditional-panel[hidden] {
+  display: none !important;
+}
+
+.settings-page .hint a {
+  color: var(--primary, #b91c1c);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 /* ===== Auswertung ? ?bersicht ===== */
 .auswertung-overview {
   margin-top: 16px;
