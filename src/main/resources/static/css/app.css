@@ -6780,6 +6780,12 @@ span.required { color: var(--error); }
   margin: 0;
 }
 
+.reservierungen-multi-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .reservierungen-chips {
   display: flex;
   flex-wrap: wrap;
