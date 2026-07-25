@@ -43,6 +43,10 @@ public class UnitReservierungenSettings {
     @Column(name = "vehicle_google_calendar_enabled", nullable = false)
     private boolean vehicleGoogleCalendarEnabled;
 
+    /** JSON-Array von unit_calendar_accounts.id für Fahrzeug-Sync. */
+    @Column(name = "vehicle_google_calendar_account_ids_json", columnDefinition = "TEXT")
+    private String vehicleGoogleCalendarAccountIdsJson;
+
     @Column(name = "vehicle_divera_default_group_id", length = 32)
     private String vehicleDiveraDefaultGroupId;
 
@@ -72,6 +76,10 @@ public class UnitReservierungenSettings {
 
     @Column(name = "room_google_calendar_enabled", nullable = false)
     private boolean roomGoogleCalendarEnabled;
+
+    /** JSON-Array von unit_calendar_accounts.id für Raum-Sync. */
+    @Column(name = "room_google_calendar_account_ids_json", columnDefinition = "TEXT")
+    private String roomGoogleCalendarAccountIdsJson;
 
     @Column(name = "room_divera_default_group_id", length = 32)
     private String roomDiveraDefaultGroupId;

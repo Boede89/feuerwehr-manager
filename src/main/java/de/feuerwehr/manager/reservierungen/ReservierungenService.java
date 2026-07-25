@@ -310,7 +310,8 @@ public class ReservierungenService {
             vehicleReservationRepository.save(reservation);
         }
         if (settings.isVehicleGoogleCalendarEnabled()) {
-            googleCalendarService.syncVehicleReservation(unitId, reservation);
+            googleCalendarService.syncVehicleReservation(
+                    unitId, reservation, settingsService.vehicleGoogleCalendarAccountIds(settings));
         }
     }
 
@@ -322,7 +323,8 @@ public class ReservierungenService {
             roomReservationRepository.save(reservation);
         }
         if (settings.isRoomGoogleCalendarEnabled()) {
-            googleCalendarService.syncRoomReservation(unitId, reservation);
+            googleCalendarService.syncRoomReservation(
+                    unitId, reservation, settingsService.roomGoogleCalendarAccountIds(settings));
         }
     }
 

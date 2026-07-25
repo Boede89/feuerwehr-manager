@@ -6656,6 +6656,36 @@ span.required { color: var(--error); }
   display: none !important;
 }
 
+.reservierungen-field {
+  max-width: 22rem;
+}
+
+.reservierungen-field__row {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.field--compact {
+  max-width: 22rem;
+  width: 100%;
+}
+
+.reservierungen-multi-select {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card, #fff);
+  max-width: 22rem;
+}
+
+.reservierungen-multi-select .checkbox-row {
+  margin: 0;
+}
+
 .settings-page .hint a {
   color: var(--primary, #b91c1c);
   text-decoration: underline;

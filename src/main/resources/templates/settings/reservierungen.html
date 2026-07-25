@@ -21,15 +21,15 @@
 
   <div class="card" th:if="${settingsTab == 'fahrzeug'}">
     <div class="card__body">
-      <form method="post" th:action="@{/settings/reservierungen/fahrzeug}">
+      <form method="post" th:action="@{/settings/reservierungen/fahrzeug}" id="form-vehicle-settings">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="unit" th:value="${unitId}"/>
 
         <h3>Allgemein</h3>
-        <div class="form-group">
+        <div class="form-group reservierungen-field">
           <label for="vehicleSortMode">Sortierung Fahrzeuge</label>
-          <div class="btn-group" style="flex-wrap:wrap; align-items:center; gap:8px;">
-            <select id="vehicleSortMode" name="vehicleSortMode" class="field" style="min-width:220px;">
+          <div class="btn-group reservierungen-field__row">
+            <select id="vehicleSortMode" name="vehicleSortMode" class="field field--compact">
               <option value="manual" th:selected="${settings.vehicleSortMode == 'manual'}">Manuell</option>
               <option value="name" th:selected="${settings.vehicleSortMode == 'name'}">Name</option>
               <option value="created" th:selected="${settings.vehicleSortMode == 'created'}">Anlagezeit</option>
@@ -63,10 +63,10 @@
                  data-toggle-panel="vehicle-divera-group-panel"/>
           <span>Genehmigte Fahrzeugreservierungen als Termin an DIVERA übergeben</span>
         </label>
-        <div class="form-group reservierungen-conditional-panel" id="vehicle-divera-group-panel"
+        <div class="form-group reservierungen-field reservierungen-conditional-panel" id="vehicle-divera-group-panel"
              th:attr="hidden=${!settings.vehicleDiveraEnabled}">
           <label for="vehicleDiveraDefaultGroupId">DIVERA Standard-Gruppe</label>
-          <select id="vehicleDiveraDefaultGroupId" name="vehicleDiveraDefaultGroupId" class="field">
+          <select id="vehicleDiveraDefaultGroupId" name="vehicleDiveraDefaultGroupId" class="field field--compact">
             <option value="">— bitte wählen —</option>
             <option th:each="g : ${diveraRecipientGroups}"
                     th:value="${g.groupId != null and !#strings.isEmpty(g.groupId) ? g.groupId : 'ALL'}"
@@ -92,15 +92,30 @@
           </p>
         </div>
         <label class="checkbox-row">
-          <input type="checkbox" name="vehicleGoogleCalendarEnabled" value="true"
-                 th:checked="${settings.vehicleGoogleCalendarEnabled}"/>
+          <input type="checkbox" name="vehicleGoogleCalendarEnabled" value="true" id="vehicleGoogleCalendarEnabled"
+                 th:checked="${settings.vehicleGoogleCalendarEnabled}"
+                 data-toggle-panel="vehicle-google-calendar-panel"/>
           <span>Genehmigte Fahrzeugreservierungen in Google Kalender eintragen</span>
         </label>
-        <p class="hint text-sm">
-          Google Kalender: Service-Account und Kalender-ID unter
-          <a th:href="@{|/admin?scope=einheit&amp;tab=schnittstellen&amp;unit=${unitId}#calendar-google|}">Admin → Schnittstellen → Kalender (Google)</a>
-          hinterlegen.
-        </p>
+        <div class="form-group reservierungen-field reservierungen-conditional-panel" id="vehicle-google-calendar-panel"
+             th:attr="hidden=${!settings.vehicleGoogleCalendarEnabled}">
+          <label>Google Kalender</label>
+          <div class="reservierungen-multi-select field--compact" th:if="${!#lists.isEmpty(googleCalendarAccounts)}">
+            <label class="checkbox-row" th:each="c : ${googleCalendarAccounts}">
+              <input type="checkbox" name="vehicleGoogleCalendarAccountIds" th:value="${c.id}"
+                     th:checked="${selectedVehicleGoogleCalendarAccountIds.contains(c.id)
+                       or (#lists.isEmpty(selectedVehicleGoogleCalendarAccountIds) and #lists.size(googleCalendarAccounts) == 1)}"/>
+              <span th:text="${c.label}">Kalender</span>
+            </label>
+          </div>
+          <p class="hint" th:if="${!#lists.isEmpty(googleCalendarAccounts)}">
+            Mehrere Kalender möglich — Termine werden in alle ausgewählten eingetragen.
+          </p>
+          <p class="hint hint--warn" th:if="${#lists.isEmpty(googleCalendarAccounts)}">
+            Kein schreibbarer Google-Kalender hinterlegt —
+            <a th:href="@{|/admin?scope=einheit&amp;tab=schnittstellen&amp;unit=${unitId}#calendar-google|}">jetzt konfigurieren</a>.
+          </p>
+        </div>
 
         <h3 style="margin-top:24px;">Löschfahrzeug-Warnung</h3>
         <label class="checkbox-row">
@@ -108,23 +123,49 @@
                  th:checked="${settings.vehicleLoeschWarnEnabled}"/>
           <span>Mindestverfügbarkeit von Löschfahrzeugen prüfen</span>
         </label>
-        <div class="form-group">
+        <div class="form-group reservierungen-field">
           <label for="vehicleLoeschMinAvailable">Mindestanzahl verfügbarer Löschfahrzeuge</label>
-          <input id="vehicleLoeschMinAvailable" name="vehicleLoeschMinAvailable" type="number" min="0" class="field"
+          <input id="vehicleLoeschMinAvailable" name="vehicleLoeschMinAvailable" type="number" min="0"
+                 class="field field--compact"
                  th:value="${settings.vehicleLoeschMinAvailable}"/>
         </div>
-        <div class="reservierungen-user-checkboxes">
-          <label class="checkbox-row" th:each="v : ${vehicles}">
-            <input type="checkbox" name="vehicleLoeschVehicleIds" th:value="${v.id}"
-                   th:checked="${selectedLoeschVehicleIds.contains(v.id)}"/>
-            <span th:text="${v.name}">LF</span>
-          </label>
+        <div class="btn-group" style="align-items:center; gap:10px; flex-wrap:wrap;">
+          <button type="button" class="btn btn--outline btn--sm" data-open-notify-modal="modal-loesch-vehicles">
+            Löschfahrzeuge definieren
+          </button>
+          <span class="hint" id="loesch-vehicle-summary" th:text="${loeschVehicleSummary}">—</span>
         </div>
 
         <div style="margin-top:24px;">
           <button type="submit" class="btn btn--primary">Speichern</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div id="modal-loesch-vehicles" class="modal-overlay" th:if="${settingsTab == 'fahrzeug'}">
+    <div class="modal modal--md" role="dialog" aria-labelledby="modal-loesch-vehicles-title">
+      <div class="modal__header">
+        <h3 id="modal-loesch-vehicles-title">Löschfahrzeuge definieren</h3>
+        <button type="button" class="modal__close" data-close-modal="modal-loesch-vehicles" aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal__body">
+        <p class="hint">Diese Fahrzeuge zählen für die Mindestverfügbarkeits-Warnung.</p>
+        <div class="reservierungen-user-checkboxes reservierungen-user-checkboxes--modal" id="loesch-vehicle-checkboxes">
+          <label class="checkbox-row" th:each="v : ${vehicles}">
+            <input type="checkbox" name="vehicleLoeschVehicleIds" th:value="${v.id}"
+                   form="form-vehicle-settings"
+                   th:checked="${selectedLoeschVehicleIds.contains(v.id)}"
+                   data-loesch-vehicle-check/>
+            <span th:text="${v.name}">LF</span>
+          </label>
+          <p class="hint" th:if="${#lists.isEmpty(vehicles)}">Keine Fahrzeuge vorhanden.</p>
+        </div>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--primary" data-close-modal="modal-loesch-vehicles" id="btn-loesch-apply">Übernehmen</button>
+        <button type="button" class="btn btn--outline" data-close-modal="modal-loesch-vehicles">Abbrechen</button>
+      </div>
     </div>
   </div>
 
@@ -210,9 +251,9 @@
         <input type="hidden" name="unit" th:value="${unitId}"/>
 
         <h3>Allgemein</h3>
-        <div class="form-group">
+        <div class="form-group reservierungen-field">
           <label for="roomSortMode">Sortierung Räume</label>
-          <select id="roomSortMode" name="roomSortMode" class="field">
+          <select id="roomSortMode" name="roomSortMode" class="field field--compact">
             <option value="manual" th:selected="${settings.roomSortMode == 'manual'}">Manuell (Reihenfolge Technik)</option>
             <option value="name" th:selected="${settings.roomSortMode == 'name'}">Name</option>
             <option value="created" th:selected="${settings.roomSortMode == 'created'}">Anlagezeit</option>
@@ -235,10 +276,10 @@
                  data-toggle-panel="room-divera-group-panel"/>
           <span>Genehmigte Raumreservierungen als Termin an DIVERA übergeben</span>
         </label>
-        <div class="form-group reservierungen-conditional-panel" id="room-divera-group-panel"
+        <div class="form-group reservierungen-field reservierungen-conditional-panel" id="room-divera-group-panel"
              th:attr="hidden=${!settings.roomDiveraEnabled}">
           <label for="roomDiveraDefaultGroupId">DIVERA Standard-Gruppe</label>
-          <select id="roomDiveraDefaultGroupId" name="roomDiveraDefaultGroupId" class="field">
+          <select id="roomDiveraDefaultGroupId" name="roomDiveraDefaultGroupId" class="field field--compact">
             <option value="">— bitte wählen —</option>
             <option th:each="g : ${diveraRecipientGroups}"
                     th:value="${g.groupId != null and !#strings.isEmpty(g.groupId) ? g.groupId : 'ALL'}"
@@ -264,15 +305,30 @@
           </p>
         </div>
         <label class="checkbox-row">
-          <input type="checkbox" name="roomGoogleCalendarEnabled" value="true"
-                 th:checked="${settings.roomGoogleCalendarEnabled}"/>
+          <input type="checkbox" name="roomGoogleCalendarEnabled" value="true" id="roomGoogleCalendarEnabled"
+                 th:checked="${settings.roomGoogleCalendarEnabled}"
+                 data-toggle-panel="room-google-calendar-panel"/>
           <span>Genehmigte Raumreservierungen in Google Kalender eintragen</span>
         </label>
-        <p class="hint text-sm">
-          Google Kalender unter
-          <a th:href="@{|/admin?scope=einheit&amp;tab=schnittstellen&amp;unit=${unitId}#calendar-google|}">Admin → Schnittstellen → Kalender (Google)</a>
-          hinterlegen.
-        </p>
+        <div class="form-group reservierungen-field reservierungen-conditional-panel" id="room-google-calendar-panel"
+             th:attr="hidden=${!settings.roomGoogleCalendarEnabled}">
+          <label>Google Kalender</label>
+          <div class="reservierungen-multi-select field--compact" th:if="${!#lists.isEmpty(googleCalendarAccounts)}">
+            <label class="checkbox-row" th:each="c : ${googleCalendarAccounts}">
+              <input type="checkbox" name="roomGoogleCalendarAccountIds" th:value="${c.id}"
+                     th:checked="${selectedRoomGoogleCalendarAccountIds.contains(c.id)
+                       or (#lists.isEmpty(selectedRoomGoogleCalendarAccountIds) and #lists.size(googleCalendarAccounts) == 1)}"/>
+              <span th:text="${c.label}">Kalender</span>
+            </label>
+          </div>
+          <p class="hint" th:if="${!#lists.isEmpty(googleCalendarAccounts)}">
+            Mehrere Kalender möglich — Termine werden in alle ausgewählten eingetragen.
+          </p>
+          <p class="hint hint--warn" th:if="${#lists.isEmpty(googleCalendarAccounts)}">
+            Kein schreibbarer Google-Kalender hinterlegt —
+            <a th:href="@{|/admin?scope=einheit&amp;tab=schnittstellen&amp;unit=${unitId}#calendar-google|}">jetzt konfigurieren</a>.
+          </p>
+        </div>
 
         <div style="margin-top:24px;">
           <button type="submit" class="btn btn--primary">Speichern</button>

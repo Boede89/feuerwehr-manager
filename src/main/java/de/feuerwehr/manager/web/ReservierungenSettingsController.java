@@ -74,7 +74,21 @@ public class ReservierungenSettingsController {
             model.addAttribute("selectedRoomNotificationUserIds", roomNotifyUsers);
             model.addAttribute("selectedRoomNotificationEmails", roomNotifyEmails);
             model.addAttribute("roomNotificationEmailsText", String.join("\n", roomNotifyEmails));
-            model.addAttribute("selectedLoeschVehicleIds", settingsService.loeschVehicleIds(settings));
+            List<Long> loeschIds = settingsService.loeschVehicleIds(settings);
+            List<Long> vehicleCalendarIds = settingsService.vehicleGoogleCalendarAccountIds(settings);
+            List<Long> roomCalendarIds = settingsService.roomGoogleCalendarAccountIds(settings);
+            var googleCalendars = unitAdminService.listCalendarAccounts(unit.getId()).stream()
+                    .filter(c -> c.isEnabled()
+                            && c.getCalendarId() != null
+                            && !c.getCalendarId().isBlank()
+                            && c.getServiceAccountJson() != null
+                            && !c.getServiceAccountJson().isBlank())
+                    .toList();
+            model.addAttribute("selectedLoeschVehicleIds", loeschIds);
+            model.addAttribute("loeschVehicleSummary", formatLoeschSummary(loeschIds.size()));
+            model.addAttribute("googleCalendarAccounts", googleCalendars);
+            model.addAttribute("selectedVehicleGoogleCalendarAccountIds", vehicleCalendarIds);
+            model.addAttribute("selectedRoomGoogleCalendarAccountIds", roomCalendarIds);
             model.addAttribute(
                     "vehicleNotificationSummary",
                     formatNotificationSummary(vehicleNotifyUsers.size(), vehicleNotifyEmails.size(), false));
@@ -97,6 +111,8 @@ public class ReservierungenSettingsController {
             @RequestParam(name = "vehicleDiveraEnabled", defaultValue = "false") boolean vehicleDiveraEnabled,
             @RequestParam(name = "vehicleGoogleCalendarEnabled", defaultValue = "false")
                     boolean vehicleGoogleCalendarEnabled,
+            @RequestParam(name = "vehicleGoogleCalendarAccountIds", required = false)
+                    Long[] vehicleGoogleCalendarAccountIds,
             @RequestParam(name = "vehicleDiveraDefaultGroupId", required = false) String vehicleDiveraDefaultGroupId,
             @RequestParam(name = "vehicleDiveraGroupsJson", required = false) String vehicleDiveraGroupsJson,
             @RequestParam(name = "vehicleLoeschWarnEnabled", defaultValue = "false") boolean vehicleLoeschWarnEnabled,
@@ -112,6 +128,9 @@ public class ReservierungenSettingsController {
                     vehicleSortMode,
                     vehicleDiveraEnabled,
                     vehicleGoogleCalendarEnabled,
+                    vehicleGoogleCalendarAccountIds == null
+                            ? List.of()
+                            : Arrays.asList(vehicleGoogleCalendarAccountIds),
                     vehicleDiveraDefaultGroupId,
                     vehicleDiveraGroupsJson,
                     vehicleLoeschWarnEnabled,
@@ -175,6 +194,7 @@ public class ReservierungenSettingsController {
             @RequestParam(name = "roomSortMode", defaultValue = "manual") String roomSortMode,
             @RequestParam(name = "roomDiveraEnabled", defaultValue = "false") boolean roomDiveraEnabled,
             @RequestParam(name = "roomGoogleCalendarEnabled", defaultValue = "false") boolean roomGoogleCalendarEnabled,
+            @RequestParam(name = "roomGoogleCalendarAccountIds", required = false) Long[] roomGoogleCalendarAccountIds,
             @RequestParam(name = "roomDiveraDefaultGroupId", required = false) String roomDiveraDefaultGroupId,
             RedirectAttributes redirectAttributes) {
         try {
@@ -182,7 +202,14 @@ public class ReservierungenSettingsController {
             accessControlService.requireUnitAccess(actor, unit);
             requireModuleEnabled(unit);
             settingsService.saveRoomSettings(
-                    unit, roomSortMode, roomDiveraEnabled, roomGoogleCalendarEnabled, roomDiveraDefaultGroupId);
+                    unit,
+                    roomSortMode,
+                    roomDiveraEnabled,
+                    roomGoogleCalendarEnabled,
+                    roomGoogleCalendarAccountIds == null
+                            ? List.of()
+                            : Arrays.asList(roomGoogleCalendarAccountIds),
+                    roomDiveraDefaultGroupId);
             redirectAttributes.addFlashAttribute("message", "Raum-Reservierungseinstellungen gespeichert.");
             return "redirect:/settings/reservierungen?unit=" + unit + "&tab=raum";
         } catch (IllegalArgumentException e) {
@@ -218,6 +245,13 @@ public class ReservierungenSettingsController {
         if (!moduleSettingsService.isEnabled(AppModule.RESERVIERUNGEN, unitId)) {
             throw new IllegalArgumentException("Modul Reservierungen ist für diese Einheit nicht aktiv.");
         }
+    }
+
+    private static String formatLoeschSummary(int count) {
+        if (count <= 0) {
+            return "Noch keine Löschfahrzeuge ausgewählt.";
+        }
+        return count == 1 ? "1 Löschfahrzeug ausgewählt." : count + " Löschfahrzeuge ausgewählt.";
     }
 
     private static String formatNotificationSummary(int users, int emails, boolean roomFallbackHint) {

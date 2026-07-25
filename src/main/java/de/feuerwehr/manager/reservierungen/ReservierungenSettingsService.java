@@ -38,6 +38,7 @@ public class ReservierungenSettingsService {
             String vehicleSortMode,
             boolean vehicleDiveraEnabled,
             boolean vehicleGoogleCalendarEnabled,
+            List<Long> vehicleGoogleCalendarAccountIds,
             String vehicleDiveraDefaultGroupId,
             String vehicleDiveraGroupsJson,
             boolean vehicleLoeschWarnEnabled,
@@ -47,6 +48,10 @@ public class ReservierungenSettingsService {
         settings.setVehicleSortMode(normalizeSortMode(vehicleSortMode));
         settings.setVehicleDiveraEnabled(vehicleDiveraEnabled);
         settings.setVehicleGoogleCalendarEnabled(vehicleGoogleCalendarEnabled);
+        settings.setVehicleGoogleCalendarAccountIdsJson(
+                vehicleGoogleCalendarEnabled
+                        ? writeJsonLongListPreserveOrder(vehicleGoogleCalendarAccountIds)
+                        : "[]");
         settings.setVehicleDiveraDefaultGroupId(trimToNull(vehicleDiveraDefaultGroupId));
         settings.setVehicleDiveraGroupsJson(trimToNull(vehicleDiveraGroupsJson));
         settings.setVehicleLoeschWarnEnabled(vehicleLoeschWarnEnabled);
@@ -78,11 +83,16 @@ public class ReservierungenSettingsService {
             String roomSortMode,
             boolean roomDiveraEnabled,
             boolean roomGoogleCalendarEnabled,
+            List<Long> roomGoogleCalendarAccountIds,
             String roomDiveraDefaultGroupId) {
         UnitReservierungenSettings settings = ensureSettings(unitId);
         settings.setRoomSortMode(normalizeSortMode(roomSortMode));
         settings.setRoomDiveraEnabled(roomDiveraEnabled);
         settings.setRoomGoogleCalendarEnabled(roomGoogleCalendarEnabled);
+        settings.setRoomGoogleCalendarAccountIdsJson(
+                roomGoogleCalendarEnabled
+                        ? writeJsonLongListPreserveOrder(roomGoogleCalendarAccountIds)
+                        : "[]");
         settings.setRoomDiveraDefaultGroupId(trimToNull(roomDiveraDefaultGroupId));
         return settingsRepository.save(settings);
     }
@@ -226,6 +236,36 @@ public class ReservierungenSettingsService {
 
     public List<Long> loeschVehicleIds(UnitReservierungenSettings settings) {
         return parseLongIdList(settings.getVehicleLoeschVehicleIdsJson());
+    }
+
+    public List<Long> vehicleGoogleCalendarAccountIds(UnitReservierungenSettings settings) {
+        return parseLongIdListPreserveOrder(settings.getVehicleGoogleCalendarAccountIdsJson());
+    }
+
+    public List<Long> roomGoogleCalendarAccountIds(UnitReservierungenSettings settings) {
+        return parseLongIdListPreserveOrder(settings.getRoomGoogleCalendarAccountIdsJson());
+    }
+
+    public List<Long> parseLongIdListPreserveOrder(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            List<Long> ids = objectMapper.readValue(json, new TypeReference<>() {});
+            if (ids == null) {
+                return List.of();
+            }
+            List<Long> result = new ArrayList<>();
+            Set<Long> seen = new HashSet<>();
+            for (Long id : ids) {
+                if (id != null && id > 0 && seen.add(id)) {
+                    result.add(id);
+                }
+            }
+            return List.copyOf(result);
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 
     public List<Integer> defaultDiveraGroupIds(UnitReservierungenSettings settings, boolean room) {

@@ -168,4 +168,64 @@
       }
     });
   });
+
+  function updateLoeschSummary() {
+    var summary = document.getElementById('loesch-vehicle-summary');
+    if (!summary) return;
+    var count = document.querySelectorAll('[data-loesch-vehicle-check]:checked').length;
+    if (count <= 0) {
+      summary.textContent = 'Noch keine Löschfahrzeuge ausgewählt.';
+    } else if (count === 1) {
+      summary.textContent = '1 Löschfahrzeug ausgewählt.';
+    } else {
+      summary.textContent = count + ' Löschfahrzeuge ausgewählt.';
+    }
+  }
+
+  var loeschSnapshot = [];
+
+  function snapshotLoesch() {
+    loeschSnapshot = Array.prototype.map.call(
+      document.querySelectorAll('[data-loesch-vehicle-check]'),
+      function (cb) {
+        return cb.checked;
+      }
+    );
+  }
+
+  function restoreLoesch() {
+    var boxes = document.querySelectorAll('[data-loesch-vehicle-check]');
+    boxes.forEach(function (cb, index) {
+      if (index < loeschSnapshot.length) {
+        cb.checked = loeschSnapshot[index];
+      }
+    });
+    updateLoeschSummary();
+  }
+
+  document.querySelectorAll('[data-loesch-vehicle-check]').forEach(function (cb) {
+    cb.addEventListener('change', updateLoeschSummary);
+  });
+
+  document.querySelectorAll('[data-open-notify-modal="modal-loesch-vehicles"]').forEach(function (btn) {
+    btn.addEventListener('click', snapshotLoesch);
+  });
+
+  document.getElementById('btn-loesch-apply')?.addEventListener('click', updateLoeschSummary);
+
+  document.querySelectorAll('[data-close-modal="modal-loesch-vehicles"]').forEach(function (btn) {
+    if (btn.id === 'btn-loesch-apply') return;
+    btn.addEventListener('click', restoreLoesch);
+  });
+
+  var loeschModal = document.getElementById('modal-loesch-vehicles');
+  if (loeschModal) {
+    loeschModal.addEventListener('click', function (ev) {
+      if (ev.target === loeschModal) {
+        restoreLoesch();
+      }
+    });
+  }
+
+  updateLoeschSummary();
 })();

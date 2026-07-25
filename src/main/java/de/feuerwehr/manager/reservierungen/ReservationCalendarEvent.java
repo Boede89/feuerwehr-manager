@@ -39,6 +39,9 @@ public class ReservationCalendarEvent {
     @Column(name = "reservation_id", nullable = false)
     private long reservationId;
 
+    @Column(name = "calendar_account_id")
+    private Long calendarAccountId;
+
     @Column(name = "google_event_id", nullable = false, length = 255)
     private String googleEventId;
 
