@@ -185,7 +185,7 @@ public class ReservierungenGoogleCalendarService {
     private java.util.Optional<CalendarCredentials> resolveCredentialsForAccount(long unitId, Long accountId) {
         if (accountId == null) {
             List<CalendarCredentials> fallback = resolveCredentials(unitId, List.of());
-            return fallback.isEmpty() ? java.util.Optional.empty() : java.util.Optional.of(fallback.getFirst());
+            return fallback.isEmpty() ? java.util.Optional.empty() : java.util.Optional.of(fallback.get(0));
         }
         return calendarAccountRepository
                 .findById(accountId)
