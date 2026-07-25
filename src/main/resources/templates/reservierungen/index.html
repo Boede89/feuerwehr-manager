@@ -263,7 +263,7 @@
     </div>
   </div>
 
-  <div id="reservierung-pick-modal" class="modal-overlay" aria-hidden="true">
+  <div id="reservierung-pick-modal" class="modal-overlay modal-overlay--stack" aria-hidden="true">
     <div class="modal modal--md" role="dialog" aria-labelledby="reservierung-pick-title">
       <div class="modal__header">
         <h3 id="reservierung-pick-title">Weitere Fahrzeuge wählen</h3>
@@ -331,11 +331,18 @@
             </select>
           </div>
           <div class="form-group">
+            <label for="import-primary" id="import-primary-label">Fahrzeug <span class="req">*</span></label>
+            <select id="import-primary" class="field" required>
+              <option value="">— bitte wählen —</option>
+            </select>
+          </div>
+          <div class="form-group" id="import-extra-vehicles-block">
             <div class="reservierungen-section-head">
-              <label id="import-resources-label">Fahrzeuge <span class="req">*</span></label>
+              <label>Weitere Fahrzeuge</label>
               <button type="button" class="btn btn--outline btn--sm" id="import-add-resource">Weiteres Fahrzeug hinzufügen</button>
             </div>
             <div id="import-selected-chips" class="reservierungen-chips"></div>
+            <p class="hint text-sm">Zusätzliche Fahrzeuge erscheinen im Kalender kommagetrennt in einem Termin.</p>
           </div>
           <div class="form-group">
             <label for="import-name">Antragsteller <span class="req">*</span></label>
@@ -372,7 +379,7 @@
     </div>
   </div>
 
-  <div id="reservierung-import-options-modal" class="modal-overlay" aria-hidden="true">
+  <div id="reservierung-import-options-modal" class="modal-overlay modal-overlay--stack" aria-hidden="true">
     <div class="modal modal--md" role="dialog" aria-labelledby="reservierung-import-options-title">
       <div class="modal__header">
         <h3 id="reservierung-import-options-title">Übernahme bestätigen</h3>

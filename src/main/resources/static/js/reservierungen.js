@@ -23,7 +23,7 @@
   var resourceCatalog = window.__reservierungenResources || {};
   var pendingCreateFlags = { forceConflict: false, forceLoesch: false };
   var selectedResources = [];
-  var importSelectedResources = [];
+  var importExtraResources = [];
   var pickContext = 'create'; // create | import
   var pendingImportPayload = null;
 
@@ -164,10 +164,59 @@
   }
 
   function renderImportChips() {
-    var kind = document.getElementById('import-kind')?.value || 'vehicle';
-    renderChips(importChipsBox, importSelectedResources, kind, function (id) {
-      importSelectedResources = importSelectedResources.filter(function (r) { return String(r.id) !== String(id); });
+    renderChips(importChipsBox, importExtraResources, 'vehicle', function (id) {
+      importExtraResources = importExtraResources.filter(function (r) { return String(r.id) !== String(id); });
       renderImportChips();
+    });
+  }
+
+  function fillSelectOptions(selectEl, kind, selectedId) {
+    if (!selectEl) return;
+    var current = selectedId != null ? String(selectedId) : selectEl.value;
+    selectEl.innerHTML = '';
+    var placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = '— bitte wählen —';
+    selectEl.appendChild(placeholder);
+    resourceOptionsFor(kind).forEach(function (opt) {
+      var option = document.createElement('option');
+      option.value = String(opt.id);
+      option.textContent = opt.name;
+      if (current && String(opt.id) === current) {
+        option.selected = true;
+      }
+      selectEl.appendChild(option);
+    });
+  }
+
+  function applyEndDateFromStart(startInput, endInput) {
+    if (!startInput || !endInput || !startInput.value) {
+      return;
+    }
+    var startDate = String(startInput.value).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
+      return;
+    }
+    var endVal = endInput.value || '';
+    var endTime = endVal.length >= 16 ? endVal.slice(11, 16) : '';
+    // Datum vom Beginn übernehmen; Uhrzeit vom Ende behalten – nie die Start-Uhrzeit kopieren
+    if (endTime && endTime !== '00:00') {
+      endInput.value = startDate + 'T' + endTime;
+    } else if (!endVal) {
+      // Nur Datum vorbelegen; Uhrzeit muss der Nutzer selbst setzen (Platzhalter 00:00)
+      endInput.value = startDate + 'T00:00';
+    } else {
+      endInput.value = startDate + 'T' + (endTime || '00:00');
+    }
+  }
+
+  function wireStartToEndDate(startInput, endInput) {
+    if (!startInput || !endInput || startInput.dataset.dateSyncBound) {
+      return;
+    }
+    startInput.dataset.dateSyncBound = '1';
+    startInput.addEventListener('change', function () {
+      applyEndDateFromStart(startInput, endInput);
     });
   }
 
@@ -176,9 +225,14 @@
     var kind = context === 'import'
       ? (document.getElementById('import-kind')?.value || 'vehicle')
       : currentKind();
-    var already = context === 'import' ? importSelectedResources : selectedResources;
-    var alreadyIds = {};
-    already.forEach(function (r) { alreadyIds[String(r.id)] = true; });
+    var already = {};
+    if (context === 'import') {
+      var primary = document.getElementById('import-primary')?.value;
+      if (primary) already[String(primary)] = true;
+      importExtraResources.forEach(function (r) { already[String(r.id)] = true; });
+    } else {
+      selectedResources.forEach(function (r) { already[String(r.id)] = true; });
+    }
     var title = document.getElementById('reservierung-pick-title');
     if (title) {
       title.textContent = kind === 'vehicle' ? 'Weitere Fahrzeuge wählen' : 'Weiteren Raum wählen';
@@ -186,7 +240,7 @@
     var list = document.getElementById('reservierung-pick-list');
     if (!list) return;
     list.innerHTML = '';
-    var options = resourceOptionsFor(kind).filter(function (opt) { return !alreadyIds[String(opt.id)]; });
+    var options = resourceOptionsFor(kind).filter(function (opt) { return !already[String(opt.id)]; });
     if (!options.length) {
       var empty = document.createElement('p');
       empty.className = 'hint';
@@ -219,19 +273,31 @@
       notify('Bitte mindestens einen Eintrag auswählen.', 'error');
       return;
     }
-    var target = pickContext === 'import' ? importSelectedResources : selectedResources;
-    var seen = {};
-    target.forEach(function (r) { seen[String(r.id)] = true; });
-    checks.forEach(function (input) {
-      if (seen[input.value]) return;
-      seen[input.value] = true;
-      target.push({ id: Number(input.value), name: input.dataset.name || findResource(kind, input.value)?.name || input.value });
-    });
     if (pickContext === 'import') {
-      importSelectedResources = target;
+      var seen = {};
+      var primary = document.getElementById('import-primary')?.value;
+      if (primary) seen[String(primary)] = true;
+      importExtraResources.forEach(function (r) { seen[String(r.id)] = true; });
+      checks.forEach(function (input) {
+        if (seen[input.value]) return;
+        seen[input.value] = true;
+        importExtraResources.push({
+          id: Number(input.value),
+          name: input.dataset.name || findResource(kind, input.value)?.name || input.value
+        });
+      });
       renderImportChips();
     } else {
-      selectedResources = target;
+      var seenCreate = {};
+      selectedResources.forEach(function (r) { seenCreate[String(r.id)] = true; });
+      checks.forEach(function (input) {
+        if (seenCreate[input.value]) return;
+        seenCreate[input.value] = true;
+        selectedResources.push({
+          id: Number(input.value),
+          name: input.dataset.name || findResource(kind, input.value)?.name || input.value
+        });
+      });
       renderSelectedChips();
     }
     closeOverlay(pickModal);
@@ -251,6 +317,7 @@
     end.className = 'field reservierung-slot-end';
     end.required = true;
     end.setAttribute('aria-label', 'Ende');
+    wireStartToEndDate(start, end);
     row.appendChild(start);
     row.appendChild(end);
     if (canRemove) {
@@ -550,16 +617,16 @@
 
   function syncImportUiForKind() {
     var kind = document.getElementById('import-kind')?.value || 'vehicle';
-    var label = document.getElementById('import-resources-label');
-    var addBtn = document.getElementById('import-add-resource');
+    var label = document.getElementById('import-primary-label');
+    var extraBlock = document.getElementById('import-extra-vehicles-block');
     if (label) {
-      label.innerHTML = (kind === 'vehicle' ? 'Fahrzeuge' : 'Raum') + ' <span class="req">*</span>';
+      label.innerHTML = (kind === 'vehicle' ? 'Fahrzeug' : 'Raum') + ' <span class="req">*</span>';
     }
-    if (addBtn) {
-      addBtn.textContent = kind === 'vehicle' ? 'Weiteres Fahrzeug hinzufügen' : 'Raum wählen';
-      addBtn.hidden = false;
+    if (extraBlock) {
+      extraBlock.hidden = kind !== 'vehicle';
     }
-    importSelectedResources = [];
+    importExtraResources = [];
+    fillSelectOptions(document.getElementById('import-primary'), kind, null);
     renderImportChips();
   }
 
@@ -572,8 +639,13 @@
   });
   document.getElementById('import-kind')?.addEventListener('change', syncImportUiForKind);
   document.getElementById('import-add-resource')?.addEventListener('click', function () {
+    if ((document.getElementById('import-kind')?.value || 'vehicle') !== 'vehicle') {
+      return;
+    }
     openPickModal('import');
   });
+
+  wireStartToEndDate(document.getElementById('import-start'), document.getElementById('import-end'));
 
   importForm?.addEventListener('submit', function (event) {
     event.preventDefault();
@@ -582,14 +654,19 @@
       return;
     }
     var kind = document.getElementById('import-kind').value;
-    var resourceIds = importSelectedResources.map(function (r) { return Number(r.id); }).filter(Boolean);
-    if (!resourceIds.length) {
-      notify(kind === 'vehicle' ? 'Bitte mindestens ein Fahrzeug wählen.' : 'Bitte einen Raum wählen.', 'error');
+    var primaryId = Number(document.getElementById('import-primary')?.value || 0);
+    if (!primaryId) {
+      notify(kind === 'vehicle' ? 'Bitte ein Fahrzeug wählen.' : 'Bitte einen Raum wählen.', 'error');
       return;
     }
-    if (kind === 'room' && resourceIds.length > 1) {
-      notify('Für Räume bitte genau einen Raum wählen.', 'error');
-      return;
+    var resourceIds = [primaryId];
+    if (kind === 'vehicle') {
+      importExtraResources.forEach(function (r) {
+        var id = Number(r.id);
+        if (id && resourceIds.indexOf(id) < 0) {
+          resourceIds.push(id);
+        }
+      });
     }
     var startAt = localDateTimeToIso(document.getElementById('import-start').value);
     var endAt = localDateTimeToIso(document.getElementById('import-end').value);
