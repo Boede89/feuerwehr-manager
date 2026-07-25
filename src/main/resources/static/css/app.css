@@ -3242,6 +3242,19 @@ span.required { color: var(--error); }
   color: var(--rot, #b91c1c);
 }
 
+.config-status-detail {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.config-status-detail::before {
+  content: '·';
+  margin-right: 0.35rem;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
 .leitstellen-mail-actions .inline-form {
   display: inline;
   margin: 0;

@@ -217,6 +217,7 @@
   reopenModalIfRequested('divera-recipient-groups', 'modal-divera-recipient-groups');
   reopenModalIfRequested('divera-status-ids', 'modal-divera-status-ids');
   reopenModalIfRequested('leitstellen-mail', 'modal-leitstellen-mail');
+  reopenModalIfRequested('print-settings', 'modal-print-settings');
 
   document.querySelectorAll('[data-open-modal="modal-divera-access-key"], [data-open-modal="modal-divera-webhook-secret"]').forEach(function (btn) {
     btn.addEventListener('click', function () {

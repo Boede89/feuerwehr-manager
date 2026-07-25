@@ -237,10 +237,17 @@ public class AdminUnitViewService {
 
     private void populatePrint(Model model, long unitId) {
         UnitPrintSettings settings = unitPrintSettingsService.requireSettings(unitId);
+        boolean printerConfigured = settings.getPrintMode() == PrintMode.CUPS
+                && settings.getCupsPrinterName() != null
+                && !settings.getCupsPrinterName().isBlank();
         model.addAttribute("printSettings", settings);
         model.addAttribute("printModes", PrintMode.values());
         model.addAttribute("cupsClientAvailable", unitPrintSettingsService.isCupsClientAvailable());
         model.addAttribute("defaultCupsServer", unitPrintSettingsService.resolveCupsServer(settings));
+        model.addAttribute("printPrinterConfigured", printerConfigured);
+        model.addAttribute(
+                "printPrinterName",
+                printerConfigured ? settings.getCupsPrinterName().trim() : null);
     }
 
     private void populateEinsatzapp(Model model, long unitId) {
