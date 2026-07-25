@@ -9,14 +9,23 @@
   var unitId = root.dataset.unitId;
   var canWrite = root.dataset.canWrite === 'true';
   var modal = document.getElementById('reservierung-modal');
+  var pickModal = document.getElementById('reservierung-pick-modal');
   var conflictModal = document.getElementById('reservierung-conflict-modal');
   var loeschModal = document.getElementById('reservierung-loesch-modal');
+  var importModal = document.getElementById('reservierung-import-modal');
+  var importOptionsModal = document.getElementById('reservierung-import-options-modal');
   var form = document.getElementById('reservierung-form');
+  var importForm = document.getElementById('reservierung-import-form');
   var submitBtn = document.getElementById('reservierung-submit');
-  var resourcesBox = document.getElementById('reservierung-resources');
   var slotsBox = document.getElementById('reservierung-slots');
-  var resourceCatalog = (window.__reservierungenResources || {});
+  var chipsBox = document.getElementById('reservierung-selected-chips');
+  var importChipsBox = document.getElementById('import-selected-chips');
+  var resourceCatalog = window.__reservierungenResources || {};
   var pendingCreateFlags = { forceConflict: false, forceLoesch: false };
+  var selectedResources = [];
+  var importSelectedResources = [];
+  var pickContext = 'create'; // create | import
+  var pendingImportPayload = null;
 
   function notify(msg, type) {
     if (typeof window.toast === 'function') {
@@ -106,52 +115,129 @@
     return document.getElementById('reservierung-kind').value;
   }
 
-  function resourceOptions() {
-    return currentKind() === 'vehicle' ? (resourceCatalog.vehicles || []) : (resourceCatalog.rooms || []);
+  function resourceOptionsFor(kind) {
+    return kind === 'vehicle' ? (resourceCatalog.vehicles || []) : (resourceCatalog.rooms || []);
   }
 
-  function buildResourceSelect(selectedId) {
-    var select = document.createElement('select');
-    select.className = 'field reservierung-resource-select';
-    select.required = true;
-    var placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = '— bitte wählen —';
-    select.appendChild(placeholder);
-    resourceOptions().forEach(function (opt) {
-      var option = document.createElement('option');
-      option.value = String(opt.id);
-      option.textContent = opt.name;
-      if (selectedId != null && String(opt.id) === String(selectedId)) {
-        option.selected = true;
+  function findResource(kind, id) {
+    var list = resourceOptionsFor(kind);
+    for (var i = 0; i < list.length; i++) {
+      if (String(list[i].id) === String(id)) {
+        return list[i];
       }
-      select.appendChild(option);
-    });
-    return select;
+    }
+    return null;
   }
 
-  function addResourceRow(selectedId) {
-    if (!resourcesBox) return;
-    var row = document.createElement('div');
-    row.className = 'reservierungen-multi-row';
-    var select = buildResourceSelect(selectedId);
-    var removeBtn = document.createElement('button');
-    removeBtn.type = 'button';
-    removeBtn.className = 'btn btn--outline btn--sm';
-    removeBtn.textContent = 'Entfernen';
-    removeBtn.addEventListener('click', function () {
-      if (resourcesBox.children.length <= 1) {
-        notify('Mindestens ein Eintrag ist erforderlich.', 'error');
-        return;
-      }
-      row.remove();
+  function renderChips(box, list, kind, onRemove) {
+    if (!box) return;
+    box.innerHTML = '';
+    if (!list.length) {
+      var empty = document.createElement('p');
+      empty.className = 'hint';
+      empty.textContent = kind === 'vehicle' ? 'Noch kein Fahrzeug ausgewählt.' : 'Noch kein Raum ausgewählt.';
+      box.appendChild(empty);
+      return;
+    }
+    list.forEach(function (item) {
+      var chip = document.createElement('span');
+      chip.className = 'reservierungen-chip';
+      chip.textContent = item.name;
+      var remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'reservierungen-chip__remove';
+      remove.setAttribute('aria-label', 'Entfernen');
+      remove.textContent = '×';
+      remove.addEventListener('click', function () {
+        onRemove(item.id);
+      });
+      chip.appendChild(remove);
+      box.appendChild(chip);
     });
-    row.appendChild(select);
-    row.appendChild(removeBtn);
-    resourcesBox.appendChild(row);
   }
 
-  function addSlotRow() {
+  function renderSelectedChips() {
+    renderChips(chipsBox, selectedResources, currentKind(), function (id) {
+      selectedResources = selectedResources.filter(function (r) { return String(r.id) !== String(id); });
+      renderSelectedChips();
+    });
+  }
+
+  function renderImportChips() {
+    var kind = document.getElementById('import-kind')?.value || 'vehicle';
+    renderChips(importChipsBox, importSelectedResources, kind, function (id) {
+      importSelectedResources = importSelectedResources.filter(function (r) { return String(r.id) !== String(id); });
+      renderImportChips();
+    });
+  }
+
+  function openPickModal(context) {
+    pickContext = context;
+    var kind = context === 'import'
+      ? (document.getElementById('import-kind')?.value || 'vehicle')
+      : currentKind();
+    var already = context === 'import' ? importSelectedResources : selectedResources;
+    var alreadyIds = {};
+    already.forEach(function (r) { alreadyIds[String(r.id)] = true; });
+    var title = document.getElementById('reservierung-pick-title');
+    if (title) {
+      title.textContent = kind === 'vehicle' ? 'Weitere Fahrzeuge wählen' : 'Weiteren Raum wählen';
+    }
+    var list = document.getElementById('reservierung-pick-list');
+    if (!list) return;
+    list.innerHTML = '';
+    var options = resourceOptionsFor(kind).filter(function (opt) { return !alreadyIds[String(opt.id)]; });
+    if (!options.length) {
+      var empty = document.createElement('p');
+      empty.className = 'hint';
+      empty.textContent = 'Keine weiteren Einträge verfügbar.';
+      list.appendChild(empty);
+    } else {
+      options.forEach(function (opt) {
+        var label = document.createElement('label');
+        label.className = 'checkbox-row';
+        var input = document.createElement('input');
+        input.type = 'checkbox';
+        input.value = String(opt.id);
+        input.dataset.name = opt.name;
+        label.appendChild(input);
+        var span = document.createElement('span');
+        span.textContent = opt.name;
+        label.appendChild(span);
+        list.appendChild(label);
+      });
+    }
+    openOverlay(pickModal);
+  }
+
+  function applyPickSelection() {
+    var kind = pickContext === 'import'
+      ? (document.getElementById('import-kind')?.value || 'vehicle')
+      : currentKind();
+    var checks = document.querySelectorAll('#reservierung-pick-list input[type="checkbox"]:checked');
+    if (!checks.length) {
+      notify('Bitte mindestens einen Eintrag auswählen.', 'error');
+      return;
+    }
+    var target = pickContext === 'import' ? importSelectedResources : selectedResources;
+    var seen = {};
+    target.forEach(function (r) { seen[String(r.id)] = true; });
+    checks.forEach(function (input) {
+      if (seen[input.value]) return;
+      seen[input.value] = true;
+      target.push({ id: Number(input.value), name: input.dataset.name || findResource(kind, input.value)?.name || input.value });
+    });
+    if (pickContext === 'import') {
+      importSelectedResources = target;
+      renderImportChips();
+    } else {
+      selectedResources = target;
+      renderSelectedChips();
+    }
+    closeOverlay(pickModal);
+  }
+
+  function addSlotRow(canRemove) {
     if (!slotsBox) return;
     var row = document.createElement('div');
     row.className = 'reservierungen-multi-row reservierungen-multi-row--slot';
@@ -159,43 +245,49 @@
     start.type = 'datetime-local';
     start.className = 'field reservierung-slot-start';
     start.required = true;
+    start.setAttribute('aria-label', 'Beginn');
     var end = document.createElement('input');
     end.type = 'datetime-local';
     end.className = 'field reservierung-slot-end';
     end.required = true;
-    var removeBtn = document.createElement('button');
-    removeBtn.type = 'button';
-    removeBtn.className = 'btn btn--outline btn--sm';
-    removeBtn.textContent = 'Entfernen';
-    removeBtn.addEventListener('click', function () {
-      if (slotsBox.children.length <= 1) {
-        notify('Mindestens ein Termin ist erforderlich.', 'error');
-        return;
-      }
-      row.remove();
-    });
+    end.setAttribute('aria-label', 'Ende');
     row.appendChild(start);
     row.appendChild(end);
-    row.appendChild(removeBtn);
+    if (canRemove) {
+      var removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'btn btn--outline btn--sm';
+      removeBtn.textContent = 'Entfernen';
+      removeBtn.addEventListener('click', function () {
+        row.remove();
+      });
+      row.appendChild(removeBtn);
+    }
     slotsBox.appendChild(row);
   }
 
-  function resetDynamicFields(kind, primaryId) {
-    if (resourcesBox) {
-      resourcesBox.innerHTML = '';
-      addResourceRow(primaryId);
+  function resetCreateForm(kind, primaryId, primaryName) {
+    selectedResources = [];
+    if (primaryId) {
+      var found = findResource(kind, primaryId);
+      selectedResources.push({
+        id: Number(primaryId),
+        name: found ? found.name : (primaryName || String(primaryId))
+      });
     }
+    renderSelectedChips();
     if (slotsBox) {
       slotsBox.innerHTML = '';
-      addSlotRow();
+      addSlotRow(false);
     }
     var label = document.getElementById('reservierung-resources-label');
     var addBtn = document.getElementById('reservierung-add-resource');
     if (label) {
-      label.innerHTML = (kind === 'vehicle' ? 'Fahrzeuge' : 'Räume') + ' <span class="req">*</span>';
+      label.innerHTML = (kind === 'vehicle' ? 'Ausgewählte Fahrzeuge' : 'Ausgewählte Räume') + ' <span class="req">*</span>';
     }
     if (addBtn) {
-      addBtn.textContent = kind === 'vehicle' ? '+ weiteres Fahrzeug' : '+ weiterer Raum';
+      addBtn.textContent = kind === 'vehicle' ? 'Weiteres Fahrzeug hinzufügen' : 'Weiteren Raum hinzufügen';
+      addBtn.hidden = kind !== 'vehicle' && kind !== 'room' ? false : false;
     }
   }
 
@@ -208,7 +300,7 @@
     document.getElementById('reservierung-modal-title').textContent =
       (kind === 'vehicle' ? 'Fahrzeug' : 'Raum') + ' reservieren' + (name ? ': ' + name : '');
     form.reset();
-    resetDynamicFields(kind, id);
+    resetCreateForm(kind, id, name);
     var nameEl = document.getElementById('reservierung-name');
     var emailEl = document.getElementById('reservierung-email');
     if (nameEl && root.dataset.requesterName) {
@@ -244,20 +336,6 @@
     }
     var d = new Date(value);
     return isNaN(d.getTime()) ? null : d.toISOString();
-  }
-
-  function collectResourceIds() {
-    var ids = [];
-    var seen = {};
-    document.querySelectorAll('.reservierung-resource-select').forEach(function (select) {
-      var value = Number(select.value);
-      if (!value || seen[value]) {
-        return;
-      }
-      seen[value] = true;
-      ids.push(value);
-    });
-    return ids;
   }
 
   function collectSlots() {
@@ -310,6 +388,12 @@
       closeModal();
     });
   });
+  document.querySelectorAll('[data-close-pick-modal]').forEach(function (btn) {
+    btn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      closeOverlay(pickModal);
+    });
+  });
   document.querySelectorAll('[data-close-conflict-modal]').forEach(function (btn) {
     btn.addEventListener('click', function (ev) {
       ev.preventDefault();
@@ -322,29 +406,49 @@
       closeOverlay(loeschModal);
     });
   });
+  document.querySelectorAll('[data-close-import-modal]').forEach(function (btn) {
+    btn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      closeOverlay(importModal);
+    });
+  });
+  document.querySelectorAll('[data-close-import-options-modal]').forEach(function (btn) {
+    btn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      closeOverlay(importOptionsModal);
+      pendingImportPayload = null;
+    });
+  });
 
   modal?.addEventListener('click', function (ev) {
-    if (ev.target === modal) {
-      closeModal();
-    }
+    if (ev.target === modal) closeModal();
+  });
+  pickModal?.addEventListener('click', function (ev) {
+    if (ev.target === pickModal) closeOverlay(pickModal);
   });
   conflictModal?.addEventListener('click', function (ev) {
-    if (ev.target === conflictModal) {
-      closeOverlay(conflictModal);
-    }
+    if (ev.target === conflictModal) closeOverlay(conflictModal);
   });
   loeschModal?.addEventListener('click', function (ev) {
-    if (ev.target === loeschModal) {
-      closeOverlay(loeschModal);
+    if (ev.target === loeschModal) closeOverlay(loeschModal);
+  });
+  importModal?.addEventListener('click', function (ev) {
+    if (ev.target === importModal) closeOverlay(importModal);
+  });
+  importOptionsModal?.addEventListener('click', function (ev) {
+    if (ev.target === importOptionsModal) {
+      closeOverlay(importOptionsModal);
+      pendingImportPayload = null;
     }
   });
 
   document.getElementById('reservierung-add-resource')?.addEventListener('click', function () {
-    addResourceRow(null);
+    openPickModal('create');
   });
   document.getElementById('reservierung-add-slot')?.addEventListener('click', function () {
-    addSlotRow();
+    addSlotRow(true);
   });
+  document.getElementById('reservierung-pick-apply')?.addEventListener('click', applyPickSelection);
   document.getElementById('reservierung-conflict-force')?.addEventListener('click', function () {
     closeOverlay(conflictModal);
     pendingCreateFlags.forceConflict = true;
@@ -358,7 +462,7 @@
 
   function submitCreate() {
     var kind = currentKind();
-    var resourceIds = collectResourceIds();
+    var resourceIds = selectedResources.map(function (r) { return Number(r.id); }).filter(Boolean);
     var slots = collectSlots();
     var requesterName = document.getElementById('reservierung-name').value.trim();
     var requesterEmail = document.getElementById('reservierung-email').value.trim();
@@ -400,9 +504,7 @@
     var url = kind === 'vehicle'
       ? '/reservierungen/api/fahrzeuge?unit=' + encodeURIComponent(unitId)
       : '/reservierungen/api/raeume?unit=' + encodeURIComponent(unitId);
-    if (submitBtn) {
-      submitBtn.disabled = true;
-    }
+    if (submitBtn) submitBtn.disabled = true;
     fetch(url, {
       method: 'POST',
       credentials: 'same-origin',
@@ -432,9 +534,7 @@
         notify('Antrag konnte nicht gesendet werden.', 'error');
       })
       .finally(function () {
-        if (submitBtn) {
-          submitBtn.disabled = false;
-        }
+        if (submitBtn) submitBtn.disabled = false;
       });
   }
 
@@ -446,6 +546,112 @@
     }
     pendingCreateFlags = { forceConflict: false, forceLoesch: false };
     submitCreate();
+  });
+
+  function syncImportUiForKind() {
+    var kind = document.getElementById('import-kind')?.value || 'vehicle';
+    var label = document.getElementById('import-resources-label');
+    var addBtn = document.getElementById('import-add-resource');
+    if (label) {
+      label.innerHTML = (kind === 'vehicle' ? 'Fahrzeuge' : 'Raum') + ' <span class="req">*</span>';
+    }
+    if (addBtn) {
+      addBtn.textContent = kind === 'vehicle' ? 'Weiteres Fahrzeug hinzufügen' : 'Raum wählen';
+      addBtn.hidden = false;
+    }
+    importSelectedResources = [];
+    renderImportChips();
+  }
+
+  document.getElementById('reservierung-import-open')?.addEventListener('click', function () {
+    if (!importModal || !importForm) return;
+    importForm.reset();
+    document.getElementById('import-kind').value = 'vehicle';
+    syncImportUiForKind();
+    openOverlay(importModal);
+  });
+  document.getElementById('import-kind')?.addEventListener('change', syncImportUiForKind);
+  document.getElementById('import-add-resource')?.addEventListener('click', function () {
+    openPickModal('import');
+  });
+
+  importForm?.addEventListener('submit', function (event) {
+    event.preventDefault();
+    if (!importForm.reportValidity()) {
+      notify('Bitte alle Pflichtfelder ausfüllen.', 'error');
+      return;
+    }
+    var kind = document.getElementById('import-kind').value;
+    var resourceIds = importSelectedResources.map(function (r) { return Number(r.id); }).filter(Boolean);
+    if (!resourceIds.length) {
+      notify(kind === 'vehicle' ? 'Bitte mindestens ein Fahrzeug wählen.' : 'Bitte einen Raum wählen.', 'error');
+      return;
+    }
+    if (kind === 'room' && resourceIds.length > 1) {
+      notify('Für Räume bitte genau einen Raum wählen.', 'error');
+      return;
+    }
+    var startAt = localDateTimeToIso(document.getElementById('import-start').value);
+    var endAt = localDateTimeToIso(document.getElementById('import-end').value);
+    if (!startAt || !endAt) {
+      notify('Bitte Beginn und Ende angeben.', 'error');
+      return;
+    }
+    if (new Date(endAt).getTime() <= new Date(startAt).getTime()) {
+      notify('Das Ende muss nach dem Beginn liegen.', 'error');
+      return;
+    }
+    pendingImportPayload = {
+      kind: kind,
+      resourceIds: resourceIds,
+      resourceId: resourceIds[0],
+      requesterName: document.getElementById('import-name').value.trim(),
+      requesterEmail: document.getElementById('import-email').value.trim(),
+      reason: document.getElementById('import-reason').value.trim(),
+      location: document.getElementById('import-location').value.trim(),
+      startAt: startAt,
+      endAt: endAt
+    };
+    var emailOpt = document.getElementById('import-opt-email');
+    var calOpt = document.getElementById('import-opt-calendar');
+    if (emailOpt) emailOpt.checked = true;
+    if (calOpt) calOpt.checked = true;
+    openOverlay(importOptionsModal);
+  });
+
+  document.getElementById('import-options-confirm')?.addEventListener('click', function () {
+    if (!pendingImportPayload) return;
+    var payload = Object.assign({}, pendingImportPayload, {
+      sendRequesterEmail: !!document.getElementById('import-opt-email')?.checked,
+      syncCalendars: !!document.getElementById('import-opt-calendar')?.checked
+    });
+    var btn = document.getElementById('import-options-confirm');
+    if (btn) btn.disabled = true;
+    fetch('/reservierungen/api/import?unit=' + encodeURIComponent(unitId), {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: Object.assign({ 'Content-Type': 'application/json', Accept: 'application/json' }, csrfHeaders()),
+      body: JSON.stringify(payload)
+    })
+      .then(parseJsonResponse)
+      .then(function (data) {
+        if (!data.ok) {
+          notify(data.message || 'Übernahme fehlgeschlagen.', 'error');
+          return;
+        }
+        var notes = (data.syncNotes || []).filter(Boolean);
+        notify((data.message || 'Übernommen.') + (notes.length ? ' ' + notes.join(' ') : ''), 'success');
+        closeOverlay(importOptionsModal);
+        closeOverlay(importModal);
+        pendingImportPayload = null;
+        window.location.reload();
+      })
+      .catch(function () {
+        notify('Übernahme fehlgeschlagen.', 'error');
+      })
+      .finally(function () {
+        if (btn) btn.disabled = false;
+      });
   });
 
   function processReservation(kind, id, action, reason, forceLoesch, conflictIds) {
@@ -518,13 +724,9 @@
 
   document.getElementById('pending-reservations-table')?.addEventListener('click', function (event) {
     var btn = event.target.closest('[data-action]');
-    if (!btn) {
-      return;
-    }
+    if (!btn) return;
     var row = btn.closest('tr');
-    if (!row) {
-      return;
-    }
+    if (!row) return;
     var kind = row.dataset.kind;
     var id = row.dataset.id;
     var action = btn.dataset.action;
@@ -573,15 +775,11 @@
   document.querySelectorAll('[data-action="delete"]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var row = btn.closest('tr');
-      if (!row || !canWrite) {
-        return;
-      }
+      if (!row || !canWrite) return;
       var confirmMsg = 'Reservierung wirklich löschen?\n\n'
         + 'Falls vorhanden, wird der Termin auch aus DIVERA und dem Google-Kalender entfernt.\n'
         + 'Der Antragsteller erhält eine E-Mail, dass die Reservierung storniert wurde.';
-      if (!window.confirm(confirmMsg)) {
-        return;
-      }
+      if (!window.confirm(confirmMsg)) return;
       btn.disabled = true;
       deleteReservation(row.dataset.kind, row.dataset.id).then(function (data) {
         if (data.ok) {

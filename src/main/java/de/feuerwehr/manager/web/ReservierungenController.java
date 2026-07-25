@@ -1,6 +1,7 @@
 package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.reservierungen.CreateReservationRequest;
+import de.feuerwehr.manager.reservierungen.ImportReservationRequest;
 import de.feuerwehr.manager.reservierungen.LoeschfahrzeugWarningException;
 import de.feuerwehr.manager.reservierungen.ProcessReservationRequest;
 import de.feuerwehr.manager.reservierungen.ReservationConflictException;
@@ -138,6 +139,23 @@ public class ReservierungenController {
             return ReservationActionResultDto.success(msg);
         } catch (ReservationConflictException e) {
             return ReservationActionResultDto.conflicts(e.getMessage(), e.getConflicts());
+        } catch (IllegalArgumentException e) {
+            return ReservationActionResultDto.failure(e.getMessage());
+        }
+    }
+
+    @PostMapping("/api/import")
+    @ResponseBody
+    public ReservationActionResultDto importApproved(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @RequestBody ImportReservationRequest body) {
+        try {
+            requireModuleEnabled(unitId);
+            requireWrite(actor, unitId);
+            accessControlService.requireUnitAccess(actor, unitId);
+            List<String> notes = reservierungenService.importApprovedReservation(unitId, actor.getUserId(), body);
+            return ReservationActionResultDto.success("Reservierung wurde als genehmigt übernommen.", notes);
         } catch (IllegalArgumentException e) {
             return ReservationActionResultDto.failure(e.getMessage());
         }

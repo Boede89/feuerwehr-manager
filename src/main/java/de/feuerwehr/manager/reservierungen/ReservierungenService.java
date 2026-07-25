@@ -203,6 +203,113 @@ public class ReservierungenService {
         return saved;
     }
 
+    @Transactional
+    public List<String> importApprovedReservation(long unitId, long actorUserId, ImportReservationRequest request) {
+        String kind = request.kind() == null ? "" : request.kind().trim().toLowerCase(Locale.ROOT);
+        if (!"vehicle".equals(kind) && !"room".equals(kind) && !"fahrzeug".equals(kind) && !"raum".equals(kind)) {
+            throw new IllegalArgumentException("Bitte Art Fahrzeug oder Raum wählen.");
+        }
+        boolean vehicleKind = "vehicle".equals(kind) || "fahrzeug".equals(kind);
+        List<Long> resourceIds = new ArrayList<>();
+        if (request.resourceIds() != null) {
+            for (Long id : request.resourceIds()) {
+                if (id != null && id > 0) {
+                    resourceIds.add(id);
+                }
+            }
+        }
+        if (resourceIds.isEmpty() && request.resourceId() != null && request.resourceId() > 0) {
+            resourceIds.add(request.resourceId());
+        }
+        if (resourceIds.isEmpty()) {
+            throw new IllegalArgumentException(
+                    vehicleKind ? "Bitte mindestens ein Fahrzeug wählen." : "Bitte einen Raum wählen.");
+        }
+        validateTimes(request.startAt(), request.endAt());
+        String requesterName = requireText(request.requesterName(), "Antragsteller");
+        String requesterEmail = requireText(request.requesterEmail(), "E-Mail");
+        String reason = requireText(request.reason(), "Grund");
+        String location = requireText(request.location(), "Ort / Standort");
+        Unit unit = requireUnit(unitId);
+        User actor = requireUser(actorUserId);
+        List<String> notes = new ArrayList<>();
+
+        if (vehicleKind) {
+            List<Vehicle> vehicles = new ArrayList<>();
+            for (Long vehicleId : resourceIds) {
+                Vehicle vehicle = vehicleRepository
+                        .findByIdAndUnitId(vehicleId, unitId)
+                        .orElseThrow(() -> new IllegalArgumentException("Fahrzeug nicht gefunden."));
+                if (!vehicle.isActive()) {
+                    throw new IllegalArgumentException("Fahrzeug \"" + vehicle.getName() + "\" ist nicht aktiv.");
+                }
+                vehicles.add(vehicle);
+            }
+            VehicleReservation reservation = new VehicleReservation();
+            reservation.setUnit(unit);
+            reservation.setVehiclesOrdered(vehicles);
+            reservation.setRequesterUser(actor);
+            reservation.setRequesterName(requesterName);
+            reservation.setRequesterEmail(requesterEmail);
+            reservation.setReason(reason);
+            reservation.setLocation(location);
+            reservation.setStartAt(request.startAt());
+            reservation.setEndAt(request.endAt());
+            reservation.setStatus(ReservationStatus.APPROVED);
+            reservation.setApprovedByUser(actor);
+            reservation.setApprovedAt(Instant.now());
+            VehicleReservation saved = vehicleReservationRepository.save(reservation);
+            if (request.syncCalendars()) {
+                notes.addAll(applyVehicleIntegrations(unitId, saved, actorUserId, null));
+            } else {
+                notes.add("Kalender-Sync übersprungen.");
+            }
+            if (request.sendRequesterEmail()) {
+                notificationService.notifyRequesterDecision(unitId, saved, true, null);
+                notes.add("Antragsteller per E-Mail informiert.");
+            } else {
+                notes.add("Keine E-Mail an Antragsteller gesendet.");
+            }
+            return notes;
+        }
+
+        if (resourceIds.size() != 1) {
+            throw new IllegalArgumentException("Für Räume bitte genau einen Raum wählen.");
+        }
+        Room room = roomRepository
+                .findByIdAndUnitId(resourceIds.get(0), unitId)
+                .orElseThrow(() -> new IllegalArgumentException("Raum nicht gefunden."));
+        if (!room.isActive()) {
+            throw new IllegalArgumentException("Raum ist nicht aktiv.");
+        }
+        RoomReservation reservation = new RoomReservation();
+        reservation.setUnit(unit);
+        reservation.setRoom(room);
+        reservation.setRequesterUser(actor);
+        reservation.setRequesterName(requesterName);
+        reservation.setRequesterEmail(requesterEmail);
+        reservation.setReason(reason);
+        reservation.setLocation(location);
+        reservation.setStartAt(request.startAt());
+        reservation.setEndAt(request.endAt());
+        reservation.setStatus(ReservationStatus.APPROVED);
+        reservation.setApprovedByUser(actor);
+        reservation.setApprovedAt(Instant.now());
+        RoomReservation saved = roomReservationRepository.save(reservation);
+        if (request.syncCalendars()) {
+            notes.addAll(applyRoomIntegrations(unitId, saved, actorUserId));
+        } else {
+            notes.add("Kalender-Sync übersprungen.");
+        }
+        if (request.sendRequesterEmail()) {
+            notificationService.notifyRequesterDecision(unitId, saved, true, null);
+            notes.add("Antragsteller per E-Mail informiert.");
+        } else {
+            notes.add("Keine E-Mail an Antragsteller gesendet.");
+        }
+        return notes;
+    }
+
     @Transactional(readOnly = true)
     public List<ReservationConflictView> checkVehicleConflicts(long unitId, long reservationId) {
         VehicleReservation reservation = requirePendingVehicle(unitId, reservationId);

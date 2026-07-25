@@ -6780,10 +6780,45 @@ span.required { color: var(--error); }
   margin: 0;
 }
 
-.reservierungen-multi-rows {
+.reservierungen-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 36px;
+  margin-bottom: 4px;
+}
+
+.reservierungen-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary, #b91c1c) 12%, #fff);
+  border: 1px solid color-mix(in srgb, var(--primary, #b91c1c) 35%, #ddd);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.reservierungen-chip__remove {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0 2px;
+  color: inherit;
+}
+
+.reservierungen-pick-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  max-height: 280px;
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 8px);
 }
 
 .reservierungen-multi-row {

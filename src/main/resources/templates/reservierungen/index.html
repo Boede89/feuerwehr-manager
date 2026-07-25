@@ -167,7 +167,10 @@
     </div>
 
     <div class="card" style="margin-top:16px;">
-      <div class="card__header">Historie</div>
+      <div class="card__header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <span>Historie</span>
+        <button type="button" class="btn btn--primary btn--sm" id="reservierung-import-open">Reservierung hinzufügen</button>
+      </div>
       <div class="card__body card__body--flush">
         <div class="table-wrapper">
           <table class="table">
@@ -213,6 +216,15 @@
       <form id="reservierung-form" novalidate>
         <input type="hidden" id="reservierung-kind"/>
         <div class="modal__body">
+          <div class="form-group" id="reservierung-resources-block">
+            <div class="reservierungen-section-head">
+              <label id="reservierung-resources-label">Ausgewählte Fahrzeuge <span class="req">*</span></label>
+              <button type="button" class="btn btn--outline btn--sm" id="reservierung-add-resource">Weiteres Fahrzeug hinzufügen</button>
+            </div>
+            <div id="reservierung-selected-chips" class="reservierungen-chips"></div>
+            <p class="hint text-sm" id="reservierung-resources-hint">Weitere Fahrzeuge erscheinen im Kalender kommagetrennt in einem Termin.</p>
+          </div>
+
           <div class="form-group">
             <label for="reservierung-name">Antragsteller <span class="req">*</span></label>
             <input id="reservierung-name" class="field" required maxlength="255"
@@ -234,21 +246,13 @@
                    placeholder="z. B. Feuerwehrhaus, Übungsplatz"/>
           </div>
 
-          <div class="form-group" id="reservierung-resources-block">
-            <div class="reservierungen-section-head">
-              <label id="reservierung-resources-label">Fahrzeuge <span class="req">*</span></label>
-              <button type="button" class="btn btn--outline btn--sm" id="reservierung-add-resource">+ weiteres Fahrzeug</button>
-            </div>
-            <div id="reservierung-resources" class="reservierungen-multi-rows"></div>
-          </div>
-
           <div class="form-group">
-            <div class="reservierungen-section-head">
-              <label>Termine <span class="req">*</span></label>
+            <label>Termine <span class="req">*</span></label>
+            <div id="reservierung-slots" class="reservierungen-multi-rows"></div>
+            <div style="margin-top:8px;">
               <button type="button" class="btn btn--outline btn--sm" id="reservierung-add-slot">+ weiterer Termin</button>
             </div>
-            <div id="reservierung-slots" class="reservierungen-multi-rows"></div>
-            <p class="hint text-sm">Mehrere Termine = mehrere Anträge mit denselben Angaben. Mehrere Fahrzeuge erscheinen im Kalender kommagetrennt in <strong>einem</strong> Termin.</p>
+            <p class="hint text-sm">Mehrere Termine = mehrere Anträge mit denselben Angaben.</p>
           </div>
         </div>
         <div class="modal__footer">
@@ -256,6 +260,23 @@
           <button type="button" class="btn btn--outline" data-close-reservierung-modal>Abbrechen</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div id="reservierung-pick-modal" class="modal-overlay" aria-hidden="true">
+    <div class="modal modal--md" role="dialog" aria-labelledby="reservierung-pick-title">
+      <div class="modal__header">
+        <h3 id="reservierung-pick-title">Weitere Fahrzeuge wählen</h3>
+        <button type="button" class="modal__close" data-close-pick-modal aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal__body">
+        <p class="hint" id="reservierung-pick-hint">Bereits ausgewählte Einträge sind ausgeblendet.</p>
+        <div id="reservierung-pick-list" class="reservierungen-pick-list"></div>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--primary" id="reservierung-pick-apply">Übernehmen</button>
+        <button type="button" class="btn btn--outline" data-close-pick-modal>Abbrechen</button>
+      </div>
     </div>
   </div>
 
@@ -289,6 +310,89 @@
       <div class="modal__footer">
         <button type="button" class="btn btn--primary" id="reservierung-loesch-force">Trotzdem senden</button>
         <button type="button" class="btn btn--outline" data-close-loesch-modal>Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="reservierung-import-modal" class="modal-overlay" aria-hidden="true" th:if="${reservierungenTab == 'verwaltung' and canManage}">
+    <div class="modal modal--wide" role="dialog" aria-labelledby="reservierung-import-title">
+      <div class="modal__header">
+        <h3 id="reservierung-import-title">Reservierung hinzufügen</h3>
+        <button type="button" class="modal__close" data-close-import-modal aria-label="Schließen">✕</button>
+      </div>
+      <form id="reservierung-import-form" novalidate>
+        <div class="modal__body">
+          <p class="hint">Für Übernahmen aus dem bisherigen System. Einträge werden direkt als <strong>genehmigt</strong> gespeichert.</p>
+          <div class="form-group">
+            <label for="import-kind">Art <span class="req">*</span></label>
+            <select id="import-kind" class="field" required>
+              <option value="vehicle">Fahrzeug</option>
+              <option value="room">Raum</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <div class="reservierungen-section-head">
+              <label id="import-resources-label">Fahrzeuge <span class="req">*</span></label>
+              <button type="button" class="btn btn--outline btn--sm" id="import-add-resource">Weiteres Fahrzeug hinzufügen</button>
+            </div>
+            <div id="import-selected-chips" class="reservierungen-chips"></div>
+          </div>
+          <div class="form-group">
+            <label for="import-name">Antragsteller <span class="req">*</span></label>
+            <input id="import-name" class="field" required maxlength="255"/>
+          </div>
+          <div class="form-group">
+            <label for="import-email">E-Mail <span class="req">*</span></label>
+            <input id="import-email" type="email" class="field" required maxlength="255"/>
+          </div>
+          <div class="form-group">
+            <label for="import-reason">Grund <span class="req">*</span></label>
+            <textarea id="import-reason" class="field" rows="2" required maxlength="2000"></textarea>
+          </div>
+          <div class="form-group">
+            <label for="import-location">Ort / Standort <span class="req">*</span></label>
+            <input id="import-location" class="field" required maxlength="255"/>
+          </div>
+          <div class="form-grid form-grid--2">
+            <div class="form-group">
+              <label for="import-start">Beginn <span class="req">*</span></label>
+              <input id="import-start" type="datetime-local" class="field" required/>
+            </div>
+            <div class="form-group">
+              <label for="import-end">Ende <span class="req">*</span></label>
+              <input id="import-end" type="datetime-local" class="field" required/>
+            </div>
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button type="submit" class="btn btn--primary" id="import-submit">Übernehmen</button>
+          <button type="button" class="btn btn--outline" data-close-import-modal>Abbrechen</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="reservierung-import-options-modal" class="modal-overlay" aria-hidden="true">
+    <div class="modal modal--md" role="dialog" aria-labelledby="reservierung-import-options-title">
+      <div class="modal__header">
+        <h3 id="reservierung-import-options-title">Übernahme bestätigen</h3>
+        <button type="button" class="modal__close" data-close-import-options-modal aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal__body">
+        <p>Wie soll die Reservierung übernommen werden?</p>
+        <label class="checkbox-row">
+          <input type="checkbox" id="import-opt-email" checked/>
+          <span>Antragsteller per E-Mail über die genehmigte Reservierung informieren</span>
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" id="import-opt-calendar" checked/>
+          <span>Termin in die konfigurierten Kalender übernehmen (DIVERA / Google)</span>
+        </label>
+        <p class="hint">Haken bei Kalender entfernen, wenn der Termin dort bereits existiert.</p>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--primary" id="import-options-confirm">Jetzt übernehmen</button>
+        <button type="button" class="btn btn--outline" data-close-import-options-modal>Abbrechen</button>
       </div>
     </div>
   </div>
