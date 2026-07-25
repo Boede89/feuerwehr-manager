@@ -383,6 +383,14 @@ public class DiveraApiClient {
                     .body(jsonBody)
                     .retrieve()
                     .body(String.class);
+            if (raw == null || raw.isBlank()) {
+                return new DiveraMutationResult(false, "DIVERA-API: Leere Antwort", null, 200);
+            }
+            JsonNode root = objectMapper.readTree(raw);
+            if (root.has("success") && !root.path("success").asBoolean(false)) {
+                String msg = textOr(root, "message", "error", "DIVERA-API: Anfrage abgelehnt");
+                return new DiveraMutationResult(false, msg, raw, 200);
+            }
             return new DiveraMutationResult(true, "OK", raw, 200);
         } catch (RestClientResponseException e) {
             String responseBody = e.getResponseBodyAsString();

@@ -9,6 +9,8 @@ import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -55,15 +57,17 @@ public class ReservierungenDiveraSyncService {
         if (diveraEventId == null || diveraEventId <= 0) {
             return;
         }
-        Optional<DiveraCredentials> credentials = resolveCredentials(unitId, actorUserId);
-        if (credentials.isEmpty()) {
-            return;
-        }
-        DiveraCredentials cred = credentials.get();
-        DiveraApiClient.DiveraMutationResult result =
-                diveraApiClient.deleteEvent(cred.apiBaseUrl(), cred.accessKey(), diveraEventId);
-        if (!result.success()) {
-            log.warn("Divera-Event {} konnte nicht gelöscht werden: {}", diveraEventId, result.message());
+        for (DiveraCredentials cred : resolveCredentialCandidates(unitId, actorUserId)) {
+            DiveraApiClient.DiveraMutationResult result =
+                    diveraApiClient.deleteEvent(cred.apiBaseUrl(), cred.accessKey(), diveraEventId);
+            if (result.success()) {
+                return;
+            }
+            log.warn(
+                    "Divera-Event {} konnte nicht gelöscht werden ({}): {}",
+                    diveraEventId,
+                    cred.source(),
+                    result.message());
         }
     }
 
@@ -77,16 +81,65 @@ public class ReservierungenDiveraSyncService {
             Instant endAt,
             List<Integer> groupIds,
             Long actorUserId) {
-        Optional<DiveraCredentials> credentials = resolveCredentials(unitId, actorUserId);
-        if (credentials.isEmpty()) {
+        List<DiveraCredentials> candidates = resolveCredentialCandidates(unitId, actorUserId);
+        if (candidates.isEmpty()) {
             log.warn(
                     "DIVERA-Sync übersprungen (Reservierung {}): kein Access Key (Einheit oder Genehmiger).",
                     reservationId);
             return Optional.empty();
         }
-        DiveraCredentials cred = credentials.get();
+
+        ObjectNode body = buildEventBody(reservationId, resourceName, reason, location, startAt, endAt, groupIds);
+        DiveraApiClient.DiveraMutationResult lastFailure = null;
+        for (DiveraCredentials cred : candidates) {
+            DiveraApiClient.DiveraMutationResult result =
+                    diveraApiClient.createEvent(cred.apiBaseUrl(), cred.accessKey(), body);
+            if (!result.success()) {
+                lastFailure = result;
+                log.warn(
+                        "Divera-Reservierung {} fehlgeschlagen ({}): {} – {}",
+                        reservationId,
+                        cred.source(),
+                        result.message(),
+                        abbreviate(result.body()));
+                continue;
+            }
+            Optional<Long> eventId = parseEventId(result.body());
+            if (eventId.isEmpty()) {
+                log.warn(
+                        "DIVERA-Event angelegt, aber ID nicht lesbar (Reservierung {}, {}). Body={}",
+                        reservationId,
+                        cred.source(),
+                        abbreviate(result.body()));
+                return Optional.empty();
+            }
+            log.info(
+                    "DIVERA-Termin {} für Reservierung {} angelegt ({}).",
+                    eventId.get(),
+                    reservationId,
+                    cred.source());
+            return eventId;
+        }
+        if (lastFailure != null) {
+            log.warn(
+                    "Divera-Reservierung {} konnte mit keinem Access Key übertragen werden: {}",
+                    reservationId,
+                    lastFailure.message());
+        }
+        return Optional.empty();
+    }
+
+    private ObjectNode buildEventBody(
+            long reservationId,
+            String resourceName,
+            String reason,
+            String location,
+            Instant startAt,
+            Instant endAt,
+            List<Integer> groupIds) {
         ObjectNode event = objectMapper.createObjectNode();
         boolean useGroups = groupIds != null && !groupIds.isEmpty();
+        // 2 = Alle des Standortes, 3 = Ausgewählte Gruppen (DIVERA API v2/events)
         event.put("notification_type", useGroups ? 3 : 2);
         event.put("title", resourceName + " - " + (reason != null ? reason : "Reservierung"));
         event.put("text", reason != null ? reason : "Reservierung");
@@ -102,28 +155,7 @@ public class ReservierungenDiveraSyncService {
         }
         ObjectNode body = objectMapper.createObjectNode();
         body.set("Event", event);
-        if (useGroups) {
-            var usingGroups = body.putArray("usingGroups");
-            groupIds.forEach(usingGroups::add);
-        }
-        DiveraApiClient.DiveraMutationResult result =
-                diveraApiClient.createEvent(cred.apiBaseUrl(), cred.accessKey(), body);
-        if (!result.success()) {
-            log.warn(
-                    "Divera-Reservierung {} konnte nicht übertragen werden: {} – {}",
-                    reservationId,
-                    result.message(),
-                    result.body());
-            return Optional.empty();
-        }
-        Optional<Long> eventId = parseEventId(result.body());
-        if (eventId.isEmpty()) {
-            log.warn(
-                    "DIVERA-Event angelegt, aber ID nicht lesbar (Reservierung {}). Body={}",
-                    reservationId,
-                    result.body());
-        }
-        return eventId;
+        return body;
     }
 
     private Optional<Long> parseEventId(String body) {
@@ -132,9 +164,25 @@ public class ReservierungenDiveraSyncService {
         }
         try {
             JsonNode root = objectMapper.readTree(body);
-            long id = root.path("data").path("id").asLong(0);
+            JsonNode data = root.path("data");
+            long id = data.path("id").asLong(0);
             if (id <= 0) {
-                id = root.path("data").path("Event").path("id").asLong(0);
+                id = data.path("Event").path("id").asLong(0);
+            }
+            if (id <= 0 && data.isObject()) {
+                // data kann als Map id → Event geliefert werden
+                var fields = data.fields();
+                if (fields.hasNext()) {
+                    var first = fields.next();
+                    id = first.getValue().path("id").asLong(0);
+                    if (id <= 0) {
+                        try {
+                            id = Long.parseLong(first.getKey());
+                        } catch (NumberFormatException ignored) {
+                            id = 0;
+                        }
+                    }
+                }
             }
             if (id <= 0) {
                 id = root.path("id").asLong(0);
@@ -145,24 +193,45 @@ public class ReservierungenDiveraSyncService {
         }
     }
 
-    private Optional<DiveraCredentials> resolveCredentials(long unitId, Long actorUserId) {
-        String accessKey = null;
-        if (actorUserId != null) {
-            accessKey = userRepository.findById(actorUserId).map(User::getDiveraApiKey).orElse(null);
-        }
+    /**
+     * Einheits-Access-Key zuerst (wie unter Schnittstellen konfiguriert), danach persönlicher Key des
+     * Genehmigers – falls der persönliche Key keine Schreibrechte hat, greift der Unit-Key.
+     */
+    private List<DiveraCredentials> resolveCredentialCandidates(long unitId, Long actorUserId) {
         UnitDiveraSettings unitSettings =
                 diveraSettingsRepository.findByUnitId(unitId).orElse(null);
         String apiBase = unitSettings != null && unitSettings.getApiBaseUrl() != null
                 ? unitSettings.getApiBaseUrl()
                 : "https://app.divera247.com";
-        if (accessKey == null || accessKey.isBlank()) {
-            accessKey = unitSettings != null ? unitSettings.getAccessKey() : null;
+
+        List<DiveraCredentials> result = new ArrayList<>();
+        LinkedHashSet<String> seen = new LinkedHashSet<>();
+
+        if (unitSettings != null && unitSettings.getAccessKey() != null && !unitSettings.getAccessKey().isBlank()) {
+            String key = unitSettings.getAccessKey().trim();
+            if (seen.add(key)) {
+                result.add(new DiveraCredentials(apiBase, key, "unit-access-key"));
+            }
         }
-        if (accessKey == null || accessKey.isBlank()) {
-            return Optional.empty();
+        if (actorUserId != null) {
+            userRepository.findById(actorUserId).map(User::getDiveraApiKey).ifPresent(raw -> {
+                if (raw != null && !raw.isBlank()) {
+                    String key = raw.trim();
+                    if (seen.add(key)) {
+                        result.add(new DiveraCredentials(apiBase, key, "user-api-key"));
+                    }
+                }
+            });
         }
-        return Optional.of(new DiveraCredentials(apiBase, accessKey.trim()));
+        return result;
     }
 
-    private record DiveraCredentials(String apiBaseUrl, String accessKey) {}
+    private static String abbreviate(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.length() > 300 ? value.substring(0, 300) + "…" : value;
+    }
+
+    private record DiveraCredentials(String apiBaseUrl, String accessKey, String source) {}
 }

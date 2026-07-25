@@ -309,6 +309,11 @@ public class ReservierungenService {
             long unitId, VehicleReservation reservation, long actorUserId, List<Integer> diveraGroupIds) {
         List<String> notes = new ArrayList<>();
         UnitReservierungenSettings settings = settingsService.ensureSettings(unitId);
+        if (!settings.isVehicleDiveraEnabled() && !settings.isVehicleGoogleCalendarEnabled()) {
+            notes.add(
+                    "Hinweis: DIVERA-/Google-Sync ist unter Reservierungen → Einstellungen nicht aktiviert.");
+            return notes;
+        }
         if (settings.isVehicleDiveraEnabled()) {
             List<Integer> groups = diveraGroupIds != null && !diveraGroupIds.isEmpty()
                     ? diveraGroupIds
@@ -319,7 +324,9 @@ public class ReservierungenService {
                 vehicleReservationRepository.save(reservation);
                 notes.add("DIVERA: Termin angelegt.");
             } else {
-                notes.add("DIVERA: Termin konnte nicht angelegt werden (Zugang/API prüfen).");
+                notes.add(
+                        "DIVERA: Termin konnte nicht angelegt werden"
+                                + " (Access Key unter Admin → Schnittstellen bzw. Server-Log prüfen).");
             }
         }
         if (settings.isVehicleGoogleCalendarEnabled()) {
@@ -328,7 +335,10 @@ public class ReservierungenService {
             if (created > 0) {
                 notes.add("Google Kalender: " + created + (created == 1 ? " Termin" : " Termine") + " angelegt.");
             } else {
-                notes.add("Google Kalender: kein Termin angelegt (Kalender/Service-Account prüfen).");
+                notes.add(
+                        "Google Kalender: kein Termin angelegt"
+                                + " (Kalender aktiv + Service-Account-JSON + Calendar-ID;"
+                                + " Kalender mit client_email teilen; Server-Log prüfen).");
             }
         }
         return notes;
@@ -337,6 +347,11 @@ public class ReservierungenService {
     private List<String> applyRoomIntegrations(long unitId, RoomReservation reservation, long actorUserId) {
         List<String> notes = new ArrayList<>();
         UnitReservierungenSettings settings = settingsService.ensureSettings(unitId);
+        if (!settings.isRoomDiveraEnabled() && !settings.isRoomGoogleCalendarEnabled()) {
+            notes.add(
+                    "Hinweis: DIVERA-/Google-Sync ist unter Reservierungen → Einstellungen nicht aktiviert.");
+            return notes;
+        }
         if (settings.isRoomDiveraEnabled()) {
             List<Integer> groups = settingsService.defaultDiveraGroupIds(settings, true);
             var synced = diveraSyncService.syncRoomReservation(reservation, groups, actorUserId);
@@ -345,7 +360,9 @@ public class ReservierungenService {
                 roomReservationRepository.save(reservation);
                 notes.add("DIVERA: Termin angelegt.");
             } else {
-                notes.add("DIVERA: Termin konnte nicht angelegt werden (Zugang/API prüfen).");
+                notes.add(
+                        "DIVERA: Termin konnte nicht angelegt werden"
+                                + " (Access Key unter Admin → Schnittstellen bzw. Server-Log prüfen).");
             }
         }
         if (settings.isRoomGoogleCalendarEnabled()) {
@@ -354,7 +371,10 @@ public class ReservierungenService {
             if (created > 0) {
                 notes.add("Google Kalender: " + created + (created == 1 ? " Termin" : " Termine") + " angelegt.");
             } else {
-                notes.add("Google Kalender: kein Termin angelegt (Kalender/Service-Account prüfen).");
+                notes.add(
+                        "Google Kalender: kein Termin angelegt"
+                                + " (Kalender aktiv + Service-Account-JSON + Calendar-ID;"
+                                + " Kalender mit client_email teilen; Server-Log prüfen).");
             }
         }
         return notes;

@@ -260,8 +260,17 @@
       return false;
     }
     var notes = (data.syncNotes || []).filter(Boolean);
+    var syncFailed = notes.some(function (n) {
+      return /konnte nicht|kein Termin|nicht aktiviert|Hinweis:/i.test(n);
+    });
     if (notes.length) {
-      notify((data.message || 'OK') + ' ' + notes.join(' '), 'success');
+      var text = (data.message || 'OK') + '\n\n' + notes.join('\n');
+      if (syncFailed) {
+        window.alert(text);
+        notify(notes.join(' '), 'error');
+      } else {
+        notify(notes.join(' '), 'success');
+      }
     }
     return true;
   }

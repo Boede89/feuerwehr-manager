@@ -776,6 +776,7 @@
           <div class="form-group form-group--full">
             <label>Kalender-ID (für API-Schreibzugriff)</label>
             <input name="calendarId" type="text" maxlength="512" placeholder="abc@group.calendar.google.com"/>
+            <p class="hint">Kalender in Google mit der <code>client_email</code> aus dem Service-Account teilen (Schreibrechte).</p>
           </div>
           <div class="form-group form-group--full">
             <label>Service-Account-JSON (Schreibrechte)</label>
@@ -783,8 +784,9 @@
           </div>
           <div class="form-group">
             <label class="checkbox-row">
-              <input type="checkbox" name="enabled" value="true"/> Kalender aktiv
+              <input type="checkbox" name="enabled" value="true" checked/> Kalender aktiv
             </label>
+            <p class="hint">Muss aktiv sein, damit genehmigte Reservierungen eingetragen werden.</p>
           </div>
         </div>
         <div class="modal__footer">
