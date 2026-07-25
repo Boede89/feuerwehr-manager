@@ -98,7 +98,7 @@
         </label>
         <p class="hint text-sm">
           Google Kalender: Service-Account und Kalender-ID unter
-          <a th:href="@{/admin(scope='einheit', tab='schnittstellen', unit=${unitId})}#calendar-google">Admin → Schnittstellen → Kalender (Google)</a>
+          <a th:href="@{|/admin?scope=einheit&amp;tab=schnittstellen&amp;unit=${unitId}#calendar-google|}">Admin → Schnittstellen → Kalender (Google)</a>
           hinterlegen.
         </p>
 
@@ -192,7 +192,7 @@
             <label for="vehicleNotificationEmailsText">Manuell (eine Adresse pro Zeile oder mit Komma)</label>
             <textarea id="vehicleNotificationEmailsText" name="notificationEmailsText" class="field" rows="4"
                       placeholder="z. B. wehrfuehrung@beispiel.de"
-                      th:text="${#strings.listJoin(selectedVehicleNotificationEmails, '\n')}"></textarea>
+                      th:text="${vehicleNotificationEmailsText}"></textarea>
           </div>
         </div>
         <div class="modal__footer">
@@ -270,7 +270,7 @@
         </label>
         <p class="hint text-sm">
           Google Kalender unter
-          <a th:href="@{/admin(scope='einheit', tab='schnittstellen', unit=${unitId})}#calendar-google">Admin → Schnittstellen → Kalender (Google)</a>
+          <a th:href="@{|/admin?scope=einheit&amp;tab=schnittstellen&amp;unit=${unitId}#calendar-google|}">Admin → Schnittstellen → Kalender (Google)</a>
           hinterlegen.
         </p>
 
@@ -309,7 +309,7 @@
             <label for="roomNotificationEmailsText">Manuell (eine Adresse pro Zeile oder mit Komma)</label>
             <textarea id="roomNotificationEmailsText" name="notificationEmailsText" class="field" rows="4"
                       placeholder="z. B. gemeinde@beispiel.de"
-                      th:text="${#strings.listJoin(selectedRoomNotificationEmails, '\n')}"></textarea>
+                      th:text="${roomNotificationEmailsText}"></textarea>
           </div>
         </div>
         <div class="modal__footer">

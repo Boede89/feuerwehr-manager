@@ -69,8 +69,11 @@ public class ReservierungenSettingsController {
             model.addAttribute("vehiclesForSortModal", vehiclesSorted);
             model.addAttribute("selectedVehicleNotificationUserIds", vehicleNotifyUsers);
             model.addAttribute("selectedVehicleNotificationEmails", vehicleNotifyEmails);
+            model.addAttribute(
+                    "vehicleNotificationEmailsText", String.join("\n", vehicleNotifyEmails));
             model.addAttribute("selectedRoomNotificationUserIds", roomNotifyUsers);
             model.addAttribute("selectedRoomNotificationEmails", roomNotifyEmails);
+            model.addAttribute("roomNotificationEmailsText", String.join("\n", roomNotifyEmails));
             model.addAttribute("selectedLoeschVehicleIds", settingsService.loeschVehicleIds(settings));
             model.addAttribute(
                     "vehicleNotificationSummary",

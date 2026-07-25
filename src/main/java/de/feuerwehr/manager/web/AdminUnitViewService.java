@@ -186,10 +186,17 @@ public class AdminUnitViewService {
             Optional<UnitLeitstellenMailSettings> opt = leitstellenMailSettingsService.findByUnitId(unitId);
             if (opt.isPresent()) {
                 UnitLeitstellenMailSettings s = opt.get();
+                boolean passwordConfigured =
+                        s.getImapPassword() != null && !s.getImapPassword().isBlank();
+                boolean configured = s.isEnabled()
+                        && s.getImapHost() != null
+                        && !s.getImapHost().isBlank()
+                        && s.getImapUsername() != null
+                        && !s.getImapUsername().isBlank()
+                        && passwordConfigured;
                 model.addAttribute("leitstellenMail", s);
-                model.addAttribute(
-                        "leitstellenMailPasswordConfigured",
-                        s.getImapPassword() != null && !s.getImapPassword().isBlank());
+                model.addAttribute("leitstellenMailPasswordConfigured", passwordConfigured);
+                model.addAttribute("leitstellenMailConfigured", configured);
                 if (s.getLastPollAt() != null) {
                     model.addAttribute(
                             "leitstellenMailLastPollAt",
@@ -200,10 +207,12 @@ public class AdminUnitViewService {
             } else {
                 model.addAttribute("leitstellenMail", null);
                 model.addAttribute("leitstellenMailPasswordConfigured", false);
+                model.addAttribute("leitstellenMailConfigured", false);
             }
         } catch (Exception e) {
             model.addAttribute("leitstellenMail", null);
             model.addAttribute("leitstellenMailPasswordConfigured", false);
+            model.addAttribute("leitstellenMailConfigured", false);
         }
     }
 

@@ -216,6 +216,7 @@
 
   reopenModalIfRequested('divera-recipient-groups', 'modal-divera-recipient-groups');
   reopenModalIfRequested('divera-status-ids', 'modal-divera-status-ids');
+  reopenModalIfRequested('leitstellen-mail', 'modal-leitstellen-mail');
 
   if (window.location.hash) {
     var anchor = document.querySelector(window.location.hash);
