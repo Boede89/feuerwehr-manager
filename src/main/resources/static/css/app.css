@@ -6877,12 +6877,6 @@ span.required { color: var(--error); }
   color: var(--danger, #b91c1c);
 }
 
-@media (max-width: 640px) {
-  .reservierungen-multi-row--slot {
-    grid-template-columns: 1fr;
-  }
-}
-
 .reservierungen-conditional-panel[hidden] {
   display: none !important;
 }
