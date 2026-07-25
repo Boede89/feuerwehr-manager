@@ -31,7 +31,7 @@ public class ReservierungenDiveraSyncService {
         return syncReservation(
                 reservation.getUnit().getId(),
                 reservation.getId(),
-                reservation.getVehicle().getName(),
+                reservation.vehicleNamesJoined(),
                 reservation.getReason(),
                 reservation.getLocation(),
                 reservation.getStartAt(),

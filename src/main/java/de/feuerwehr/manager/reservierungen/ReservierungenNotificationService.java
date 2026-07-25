@@ -29,29 +29,45 @@ public class ReservierungenNotificationService {
     private final GlobalSettingsService globalSettingsService;
 
     public void notifyAdminsNewVehicleReservation(long unitId, VehicleReservation reservation) {
+        notifyAdminsNewVehicleReservation(unitId, reservation, 1);
+    }
+
+    public void notifyAdminsNewVehicleReservation(long unitId, VehicleReservation reservation, int totalCreated) {
         UnitReservierungenSettings settings = settingsService.ensureSettings(unitId);
+        String names = reservation.vehicleNamesJoined();
+        String subject = totalCreated > 1
+                ? "Neue Fahrzeugreservierungen (" + totalCreated + ") – " + names
+                : "Neue Fahrzeugreservierung – " + names;
         notifyAdmins(
                 unitId,
                 settingsService.vehicleNotificationRecipients(settings),
-                "Neue Fahrzeugreservierung – " + reservation.getVehicle().getName(),
+                subject,
                 buildNewRequestHtml(
                         unitId,
                         "Fahrzeug",
-                        reservation.getVehicle().getName(),
+                        names,
                         reservation.getRequesterName(),
                         reservation.getRequesterEmail(),
                         reservation.getReason(),
                         reservation.getLocation(),
                         reservation.getStartAt(),
-                        reservation.getEndAt()));
+                        reservation.getEndAt(),
+                        totalCreated));
     }
 
     public void notifyAdminsNewRoomReservation(long unitId, RoomReservation reservation) {
+        notifyAdminsNewRoomReservation(unitId, reservation, 1);
+    }
+
+    public void notifyAdminsNewRoomReservation(long unitId, RoomReservation reservation, int totalCreated) {
         UnitReservierungenSettings settings = settingsService.ensureSettings(unitId);
+        String subject = totalCreated > 1
+                ? "Neue Raumreservierungen (" + totalCreated + ") – " + reservation.getRoom().getName()
+                : "Neue Raumreservierung – " + reservation.getRoom().getName();
         notifyAdmins(
                 unitId,
                 settingsService.roomNotificationRecipients(settings),
-                "Neue Raumreservierung – " + reservation.getRoom().getName(),
+                subject,
                 buildNewRequestHtml(
                         unitId,
                         "Raum",
@@ -61,7 +77,8 @@ public class ReservierungenNotificationService {
                         reservation.getReason(),
                         reservation.getLocation(),
                         reservation.getStartAt(),
-                        reservation.getEndAt()));
+                        reservation.getEndAt(),
+                        totalCreated));
     }
 
     public void notifyRequesterDecision(
@@ -71,7 +88,7 @@ public class ReservierungenNotificationService {
                 reservation.getRequesterEmail(),
                 approved,
                 "Fahrzeug",
-                reservation.getVehicle().getName(),
+                reservation.vehicleNamesJoined(),
                 reservation.getReason(),
                 reservation.getLocation(),
                 reservation.getStartAt(),
@@ -221,7 +238,8 @@ public class ReservierungenNotificationService {
             String reason,
             String location,
             Instant startAt,
-            Instant endAt) {
+            Instant endAt,
+            int totalCreated) {
         String manageUrl = buildManageUrl(unitId);
         String cta = manageUrl == null
                 ? "<p>Bitte im Feuerwehr-Manager unter <strong>Reservierungen → Verwaltung</strong> bearbeiten.</p>"
@@ -234,20 +252,25 @@ public class ReservierungenNotificationService {
                   <p style="color:#64748b;font-size:13px;">Oder im System: Reservierungen → Verwaltung</p>
                   """
                         .formatted(escape(manageUrl));
+        String multiNote = totalCreated > 1
+                ? "<p>Es wurden <strong>" + totalCreated + "</strong> Termine in diesem Antrag eingereicht.</p>"
+                : "";
         return """
                 <p>Ein neuer Antrag für eine %sreservierung ist eingegangen.</p>
+                %s
                 <table style="width:100%%;border-collapse:collapse;">
                   <tr><td style="padding:6px 0;font-weight:600;">%s</td><td>%s</td></tr>
                   <tr><td style="padding:6px 0;font-weight:600;">Antragsteller</td><td>%s</td></tr>
                   <tr><td style="padding:6px 0;font-weight:600;">E-Mail</td><td>%s</td></tr>
                   <tr><td style="padding:6px 0;font-weight:600;">Grund</td><td>%s</td></tr>
                   <tr><td style="padding:6px 0;font-weight:600;">Ort</td><td>%s</td></tr>
-                  <tr><td style="padding:6px 0;font-weight:600;">Zeitraum</td><td>%s – %s</td></tr>
+                  <tr><td style="padding:6px 0;font-weight:600;">Zeitraum (Beispiel)</td><td>%s – %s</td></tr>
                 </table>
                 %s
                 """
                 .formatted(
                         escape(typeLabel.toLowerCase(Locale.ROOT)),
+                        multiNote,
                         escape(typeLabel),
                         escape(resourceName),
                         escape(requesterName),

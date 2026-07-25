@@ -47,7 +47,7 @@ public class ReservierungenGoogleCalendarService {
                 calendarAccountIds,
                 ReservationKind.VEHICLE,
                 reservation.getId(),
-                reservation.getVehicle().getName() + " - " + reservation.getReason(),
+                reservation.vehicleNamesJoined() + " - " + reservation.getReason(),
                 reservation.getReason(),
                 reservation.getLocation(),
                 reservation.getStartAt(),

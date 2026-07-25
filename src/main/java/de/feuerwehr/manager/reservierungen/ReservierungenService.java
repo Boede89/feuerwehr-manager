@@ -12,6 +12,7 @@ import de.feuerwehr.manager.user.UserRepository;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -76,77 +77,138 @@ public class ReservierungenService {
     }
 
     @Transactional
-    public VehicleReservation createVehicleReservation(long unitId, long userId, CreateReservationRequest request) {
-        validateTimes(request.startAt(), request.endAt());
-        Vehicle vehicle = vehicleRepository
-                .findByIdAndUnitId(request.resourceId(), unitId)
-                .orElseThrow(() -> new IllegalArgumentException("Fahrzeug nicht gefunden."));
-        if (!vehicle.isActive()) {
-            throw new IllegalArgumentException("Fahrzeug ist nicht aktiv.");
+    public List<VehicleReservation> createVehicleReservation(long unitId, long userId, CreateReservationRequest request) {
+        List<Long> vehicleIds = resolveResourceIds(request);
+        List<CreateReservationRequest.ReservationTimeSlot> slots = resolveSlots(request);
+        if (vehicleIds.isEmpty()) {
+            throw new IllegalArgumentException("Bitte mindestens ein Fahrzeug wählen.");
         }
-        LoeschfahrzeugWarningView warning = conflictService.checkLoeschfahrzeugWarning(
-                unitId, vehicle.getId(), request.startAt(), request.endAt(), null);
-        if (warning.warning() && !request.forceAvailabilityOverride()) {
-            throw new LoeschfahrzeugWarningException(warning);
+        String requesterName = requireText(request.requesterName(), "Antragsteller");
+        String requesterEmail = requireText(request.requesterEmail(), "E-Mail");
+        String reason = requireText(request.reason(), "Grund");
+        String location = requireText(request.location(), "Ort / Standort");
+        Unit unit = requireUnit(unitId);
+        User requester = requireUser(userId);
+
+        List<Vehicle> vehicles = new ArrayList<>();
+        for (Long vehicleId : vehicleIds) {
+            Vehicle vehicle = vehicleRepository
+                    .findByIdAndUnitId(vehicleId, unitId)
+                    .orElseThrow(() -> new IllegalArgumentException("Fahrzeug nicht gefunden."));
+            if (!vehicle.isActive()) {
+                throw new IllegalArgumentException("Fahrzeug \"" + vehicle.getName() + "\" ist nicht aktiv.");
+            }
+            vehicles.add(vehicle);
         }
-        List<ReservationConflictView> conflicts = conflictService.vehicleConflicts(
-                vehicle.getId(), request.startAt(), request.endAt(), null);
-        if (!conflicts.isEmpty()) {
+
+        List<ReservationConflictView> allConflicts = new ArrayList<>();
+        for (CreateReservationRequest.ReservationTimeSlot slot : slots) {
+            validateTimes(slot.startAt(), slot.endAt());
+            allConflicts.addAll(conflictService.vehicleConflictsForVehicles(
+                    vehicleIds, slot.startAt(), slot.endAt(), null));
+        }
+        if (!allConflicts.isEmpty() && !request.forceConflictOverride()) {
             throw new ReservationConflictException(
-                    "Das Fahrzeug ist in diesem Zeitraum bereits vergeben.", conflicts);
+                    "Mindestens ein Fahrzeug ist in einem der Zeiträume bereits vergeben.",
+                    distinctConflicts(allConflicts));
         }
-        VehicleReservation reservation = new VehicleReservation();
-        reservation.setUnit(requireUnit(unitId));
-        reservation.setVehicle(vehicle);
-        reservation.setRequesterUser(requireUser(userId));
-        reservation.setRequesterName(requireText(request.requesterName(), "Antragsteller"));
-        reservation.setRequesterEmail(requireText(request.requesterEmail(), "E-Mail"));
-        reservation.setReason(requireText(request.reason(), "Grund"));
-        reservation.setLocation(trimToNull(request.location()));
-        reservation.setStartAt(request.startAt());
-        reservation.setEndAt(request.endAt());
-        reservation.setStatus(ReservationStatus.PENDING);
-        VehicleReservation saved = vehicleReservationRepository.save(reservation);
-        notificationService.notifyAdminsNewVehicleReservation(unitId, saved);
+
+        for (CreateReservationRequest.ReservationTimeSlot slot : slots) {
+            LoeschfahrzeugWarningView warning = conflictService.checkLoeschfahrzeugWarning(
+                    unitId, vehicleIds, slot.startAt(), slot.endAt(), null);
+            if (warning.warning() && !request.forceAvailabilityOverride()) {
+                throw new LoeschfahrzeugWarningException(warning);
+            }
+        }
+
+        List<VehicleReservation> saved = new ArrayList<>();
+        for (CreateReservationRequest.ReservationTimeSlot slot : slots) {
+            VehicleReservation reservation = new VehicleReservation();
+            reservation.setUnit(unit);
+            reservation.setVehiclesOrdered(vehicles);
+            reservation.setRequesterUser(requester);
+            reservation.setRequesterName(requesterName);
+            reservation.setRequesterEmail(requesterEmail);
+            reservation.setReason(reason);
+            reservation.setLocation(location);
+            reservation.setStartAt(slot.startAt());
+            reservation.setEndAt(slot.endAt());
+            reservation.setStatus(ReservationStatus.PENDING);
+            saved.add(vehicleReservationRepository.save(reservation));
+        }
+        if (!saved.isEmpty()) {
+            notificationService.notifyAdminsNewVehicleReservation(unitId, saved.get(0), saved.size());
+        }
         return saved;
     }
 
     @Transactional
-    public RoomReservation createRoomReservation(long unitId, long userId, CreateReservationRequest request) {
-        validateTimes(request.startAt(), request.endAt());
-        Room room = roomRepository
-                .findByIdAndUnitId(request.resourceId(), unitId)
-                .orElseThrow(() -> new IllegalArgumentException("Raum nicht gefunden."));
-        if (!room.isActive()) {
-            throw new IllegalArgumentException("Raum ist nicht aktiv.");
+    public List<RoomReservation> createRoomReservation(long unitId, long userId, CreateReservationRequest request) {
+        List<Long> roomIds = resolveResourceIds(request);
+        List<CreateReservationRequest.ReservationTimeSlot> slots = resolveSlots(request);
+        if (roomIds.isEmpty()) {
+            throw new IllegalArgumentException("Bitte mindestens einen Raum wählen.");
         }
-        List<ReservationConflictView> conflicts = conflictService.roomConflicts(
-                room.getId(), request.startAt(), request.endAt(), null);
-        if (!conflicts.isEmpty()) {
+        String requesterName = requireText(request.requesterName(), "Antragsteller");
+        String requesterEmail = requireText(request.requesterEmail(), "E-Mail");
+        String reason = requireText(request.reason(), "Grund");
+        String location = requireText(request.location(), "Ort / Standort");
+        Unit unit = requireUnit(unitId);
+        User requester = requireUser(userId);
+
+        List<Room> rooms = new ArrayList<>();
+        for (Long roomId : roomIds) {
+            Room room = roomRepository
+                    .findByIdAndUnitId(roomId, unitId)
+                    .orElseThrow(() -> new IllegalArgumentException("Raum nicht gefunden."));
+            if (!room.isActive()) {
+                throw new IllegalArgumentException("Raum \"" + room.getName() + "\" ist nicht aktiv.");
+            }
+            rooms.add(room);
+        }
+
+        List<ReservationConflictView> allConflicts = new ArrayList<>();
+        for (CreateReservationRequest.ReservationTimeSlot slot : slots) {
+            validateTimes(slot.startAt(), slot.endAt());
+            for (Room room : rooms) {
+                allConflicts.addAll(conflictService.roomConflicts(room.getId(), slot.startAt(), slot.endAt(), null));
+            }
+        }
+        if (!allConflicts.isEmpty() && !request.forceConflictOverride()) {
             throw new ReservationConflictException(
-                    "Der Raum ist in diesem Zeitraum bereits vergeben.", conflicts);
+                    "Mindestens ein Raum ist in einem der Zeiträume bereits vergeben.",
+                    distinctConflicts(allConflicts));
         }
-        RoomReservation reservation = new RoomReservation();
-        reservation.setUnit(requireUnit(unitId));
-        reservation.setRoom(room);
-        reservation.setRequesterUser(requireUser(userId));
-        reservation.setRequesterName(requireText(request.requesterName(), "Antragsteller"));
-        reservation.setRequesterEmail(requireText(request.requesterEmail(), "E-Mail"));
-        reservation.setReason(requireText(request.reason(), "Grund"));
-        reservation.setLocation(trimToNull(request.location()));
-        reservation.setStartAt(request.startAt());
-        reservation.setEndAt(request.endAt());
-        reservation.setStatus(ReservationStatus.PENDING);
-        RoomReservation saved = roomReservationRepository.save(reservation);
-        notificationService.notifyAdminsNewRoomReservation(unitId, saved);
+
+        List<RoomReservation> saved = new ArrayList<>();
+        for (CreateReservationRequest.ReservationTimeSlot slot : slots) {
+            for (Room room : rooms) {
+                RoomReservation reservation = new RoomReservation();
+                reservation.setUnit(unit);
+                reservation.setRoom(room);
+                reservation.setRequesterUser(requester);
+                reservation.setRequesterName(requesterName);
+                reservation.setRequesterEmail(requesterEmail);
+                reservation.setReason(reason);
+                reservation.setLocation(location);
+                reservation.setStartAt(slot.startAt());
+                reservation.setEndAt(slot.endAt());
+                reservation.setStatus(ReservationStatus.PENDING);
+                saved.add(roomReservationRepository.save(reservation));
+            }
+        }
+        if (!saved.isEmpty()) {
+            notificationService.notifyAdminsNewRoomReservation(unitId, saved.get(0), saved.size());
+        }
         return saved;
     }
 
     @Transactional(readOnly = true)
     public List<ReservationConflictView> checkVehicleConflicts(long unitId, long reservationId) {
         VehicleReservation reservation = requirePendingVehicle(unitId, reservationId);
-        return conflictService.vehicleConflicts(
-                reservation.getVehicle().getId(), reservation.getStartAt(), reservation.getEndAt(), reservation.getId());
+        List<Long> vehicleIds = reservation.resolvedVehicles().stream().map(Vehicle::getId).toList();
+        return conflictService.vehicleConflictsForVehicles(
+                vehicleIds, reservation.getStartAt(), reservation.getEndAt(), reservation.getId());
     }
 
     @Transactional(readOnly = true)
@@ -194,7 +256,7 @@ public class ReservierungenService {
                 .orElseThrow(() -> new IllegalArgumentException("Reservierung nicht gefunden."));
         ReservationStatus status = reservation.getStatus();
         String email = reservation.getRequesterEmail();
-        String vehicleName = reservation.getVehicle().getName();
+        String vehicleName = reservation.vehicleNamesJoined();
         String reason = reservation.getReason();
         String location = reservation.getLocation();
         Instant startAt = reservation.getStartAt();
@@ -250,24 +312,21 @@ public class ReservierungenService {
 
     private List<String> approveVehicle(VehicleReservation reservation, long actorUserId, ProcessReservationRequest request) {
         long unitId = reservation.getUnit().getId();
-        List<ReservationConflictView> conflicts = conflictService.vehicleConflicts(
-                reservation.getVehicle().getId(), reservation.getStartAt(), reservation.getEndAt(), reservation.getId());
+        List<Long> vehicleIds = reservation.resolvedVehicles().stream().map(Vehicle::getId).toList();
+        List<ReservationConflictView> conflicts = conflictService.vehicleConflictsForVehicles(
+                vehicleIds, reservation.getStartAt(), reservation.getEndAt(), reservation.getId());
         if (!conflicts.isEmpty() && !"approve_with_conflict_resolution".equals(normalizeAction(request.action()))) {
             throw new ReservationConflictException(
                     "Das Fahrzeug ist in diesem Zeitraum bereits genehmigt belegt.", conflicts);
         }
         LoeschfahrzeugWarningView warning = conflictService.checkLoeschfahrzeugWarning(
-                unitId, reservation.getVehicle().getId(), reservation.getStartAt(), reservation.getEndAt(), reservation.getId());
+                unitId, vehicleIds, reservation.getStartAt(), reservation.getEndAt(), reservation.getId());
         if (warning.warning() && !request.forceAvailabilityOverride()) {
             throw new LoeschfahrzeugWarningException(warning);
         }
         if ("approve_with_conflict_resolution".equals(normalizeAction(request.action()))) {
-            // Konflikte erneut laden, falls zwischenzeitlich geändert
-            conflicts = conflictService.vehicleConflicts(
-                    reservation.getVehicle().getId(),
-                    reservation.getStartAt(),
-                    reservation.getEndAt(),
-                    reservation.getId());
+            conflicts = conflictService.vehicleConflictsForVehicles(
+                    vehicleIds, reservation.getStartAt(), reservation.getEndAt(), reservation.getId());
             cancelVehicleConflicts(unitId, conflicts, request.conflictIds());
         }
         reservation.setStatus(ReservationStatus.APPROVED);
@@ -340,7 +399,7 @@ public class ReservierungenService {
                     unitId,
                     existing.getRequesterEmail(),
                     "Fahrzeug",
-                    existing.getVehicle().getName(),
+                    existing.vehicleNamesJoined(),
                     existing.getReason(),
                     existing.getLocation(),
                     existing.getStartAt(),
@@ -495,7 +554,7 @@ public class ReservierungenService {
         return new ReservationListItemView(
                 reservation.getId(),
                 ReservationKind.VEHICLE,
-                reservation.getVehicle().getName(),
+                reservation.vehicleNamesJoined(),
                 reservation.getRequesterName(),
                 reservation.getRequesterEmail(),
                 reservation.getReason(),
@@ -544,6 +603,51 @@ public class ReservierungenService {
         if (!endAt.isAfter(startAt)) {
             throw new IllegalArgumentException("Endzeit muss nach Startzeit liegen.");
         }
+    }
+
+    private static List<Long> resolveResourceIds(CreateReservationRequest request) {
+        LinkedHashSet<Long> ids = new LinkedHashSet<>();
+        if (request.resourceIds() != null) {
+            for (Long id : request.resourceIds()) {
+                if (id != null && id > 0) {
+                    ids.add(id);
+                }
+            }
+        }
+        if (ids.isEmpty() && request.resourceId() != null && request.resourceId() > 0) {
+            ids.add(request.resourceId());
+        }
+        return List.copyOf(ids);
+    }
+
+    private static List<CreateReservationRequest.ReservationTimeSlot> resolveSlots(CreateReservationRequest request) {
+        List<CreateReservationRequest.ReservationTimeSlot> slots = new ArrayList<>();
+        if (request.slots() != null) {
+            for (CreateReservationRequest.ReservationTimeSlot slot : request.slots()) {
+                if (slot != null && slot.startAt() != null && slot.endAt() != null) {
+                    slots.add(slot);
+                }
+            }
+        }
+        if (slots.isEmpty() && request.startAt() != null && request.endAt() != null) {
+            slots.add(new CreateReservationRequest.ReservationTimeSlot(request.startAt(), request.endAt()));
+        }
+        if (slots.isEmpty()) {
+            throw new IllegalArgumentException("Bitte mindestens einen Termin angeben.");
+        }
+        return slots;
+    }
+
+    private static List<ReservationConflictView> distinctConflicts(List<ReservationConflictView> conflicts) {
+        LinkedHashSet<Long> seen = new LinkedHashSet<>();
+        List<ReservationConflictView> result = new ArrayList<>();
+        for (ReservationConflictView conflict : conflicts) {
+            if (conflict == null || !seen.add(conflict.id())) {
+                continue;
+            }
+            result.add(conflict);
+        }
+        return result;
     }
 
     private static String requireText(String value, String label) {

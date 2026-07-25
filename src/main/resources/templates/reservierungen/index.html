@@ -205,45 +205,51 @@
   </div>
 
   <div id="reservierung-modal" class="modal-overlay" aria-hidden="true">
-    <div class="modal modal--md" role="dialog" aria-labelledby="reservierung-modal-title">
+    <div class="modal modal--wide" role="dialog" aria-labelledby="reservierung-modal-title">
       <div class="modal__header">
         <h3 id="reservierung-modal-title">Reservierung</h3>
         <button type="button" class="modal__close" data-close-reservierung-modal aria-label="Schließen">✕</button>
       </div>
-      <form id="reservierung-form">
+      <form id="reservierung-form" novalidate>
         <input type="hidden" id="reservierung-kind"/>
-        <input type="hidden" id="reservierung-resource-id"/>
         <div class="modal__body">
           <div class="form-group">
-            <label for="reservierung-name">Antragsteller</label>
+            <label for="reservierung-name">Antragsteller <span class="req">*</span></label>
             <input id="reservierung-name" class="field" required maxlength="255"
                    th:value="${requesterName}"/>
           </div>
           <div class="form-group">
-            <label for="reservierung-email">E-Mail</label>
+            <label for="reservierung-email">E-Mail <span class="req">*</span></label>
             <input id="reservierung-email" type="email" class="field" required maxlength="255"
                    th:value="${requesterEmail}"/>
           </div>
           <div class="form-group">
-            <label for="reservierung-reason">Grund</label>
+            <label for="reservierung-reason">Grund <span class="req">*</span></label>
             <textarea id="reservierung-reason" class="field" rows="3" required maxlength="2000"
                       placeholder="z. B. Übung, Veranstaltung, Transport"></textarea>
           </div>
           <div class="form-group">
-            <label for="reservierung-location">Ort / Standort (optional)</label>
-            <input id="reservierung-location" class="field" maxlength="255"/>
+            <label for="reservierung-location">Ort / Standort <span class="req">*</span></label>
+            <input id="reservierung-location" class="field" required maxlength="255"
+                   placeholder="z. B. Feuerwehrhaus, Übungsplatz"/>
           </div>
-          <div class="form-grid form-grid--2">
-            <div class="form-group">
-              <label for="reservierung-start">Beginn</label>
-              <input id="reservierung-start" type="datetime-local" class="field" required/>
+
+          <div class="form-group" id="reservierung-resources-block">
+            <div class="reservierungen-section-head">
+              <label id="reservierung-resources-label">Fahrzeuge <span class="req">*</span></label>
+              <button type="button" class="btn btn--outline btn--sm" id="reservierung-add-resource">+ weiteres Fahrzeug</button>
             </div>
-            <div class="form-group">
-              <label for="reservierung-end">Ende</label>
-              <input id="reservierung-end" type="datetime-local" class="field" required/>
-            </div>
+            <div id="reservierung-resources" class="reservierungen-multi-rows"></div>
           </div>
-          <p class="hint text-sm">Der Antrag wird zur Genehmigung eingereicht. Sie erhalten eine E-Mail nach der Bearbeitung.</p>
+
+          <div class="form-group">
+            <div class="reservierungen-section-head">
+              <label>Termine <span class="req">*</span></label>
+              <button type="button" class="btn btn--outline btn--sm" id="reservierung-add-slot">+ weiterer Termin</button>
+            </div>
+            <div id="reservierung-slots" class="reservierungen-multi-rows"></div>
+            <p class="hint text-sm">Mehrere Termine = mehrere Anträge mit denselben Angaben. Mehrere Fahrzeuge erscheinen im Kalender kommagetrennt in <strong>einem</strong> Termin.</p>
+          </div>
         </div>
         <div class="modal__footer">
           <button type="submit" class="btn btn--primary" id="reservierung-submit">Antrag einreichen</button>
@@ -252,6 +258,47 @@
       </form>
     </div>
   </div>
+
+  <div id="reservierung-conflict-modal" class="modal-overlay" aria-hidden="true">
+    <div class="modal modal--md" role="dialog" aria-labelledby="reservierung-conflict-title">
+      <div class="modal__header">
+        <h3 id="reservierung-conflict-title">Zeitraum bereits vergeben</h3>
+        <button type="button" class="modal__close" data-close-conflict-modal aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal__body">
+        <p id="reservierung-conflict-message" class="reservierungen-conflict-lead">Das Fahrzeug ist in diesem Zeitraum bereits vergeben.</p>
+        <ul id="reservierung-conflict-list" class="reservierungen-conflict-list"></ul>
+        <p class="hint">Sie können den Antrag trotzdem absenden. Die Genehmigung prüft Konflikte erneut.</p>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--primary" id="reservierung-conflict-force">Trotzdem senden</button>
+        <button type="button" class="btn btn--outline" data-close-conflict-modal>Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="reservierung-loesch-modal" class="modal-overlay" aria-hidden="true">
+    <div class="modal modal--md" role="dialog" aria-labelledby="reservierung-loesch-title">
+      <div class="modal__header">
+        <h3 id="reservierung-loesch-title">Löschfahrzeug-Warnung</h3>
+        <button type="button" class="modal__close" data-close-loesch-modal aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal__body">
+        <p id="reservierung-loesch-message">Warnung zur Mindestverfügbarkeit.</p>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--primary" id="reservierung-loesch-force">Trotzdem senden</button>
+        <button type="button" class="btn btn--outline" data-close-loesch-modal>Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <script th:inline="javascript">
+    window.__reservierungenResources = {
+      vehicles: /*[[${vehicleOptions}]]*/ [],
+      rooms: /*[[${roomOptions}]]*/ []
+    };
+  </script>
   <script th:src="@{/js/reservierungen.js}" defer></script>
 </main>
 </html>

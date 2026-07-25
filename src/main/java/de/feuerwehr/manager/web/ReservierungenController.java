@@ -7,6 +7,8 @@ import de.feuerwehr.manager.reservierungen.ReservationConflictException;
 import de.feuerwehr.manager.reservierungen.ReservierungenConflictService;
 import de.feuerwehr.manager.reservierungen.ReservierungenService;
 import de.feuerwehr.manager.reservierungen.ReservierungenTab;
+import de.feuerwehr.manager.reservierungen.RoomReservation;
+import de.feuerwehr.manager.reservierungen.VehicleReservation;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.UserPermissionService;
@@ -65,8 +67,16 @@ public class ReservierungenController {
             model.addAttribute("reservierungenTabs", ReservierungenTab.values());
             model.addAttribute("canWrite", canWrite);
             model.addAttribute("canManage", canWrite);
-            model.addAttribute("vehicles", conflictService.listBookableVehicles(unit.getId()));
-            model.addAttribute("rooms", unitAdminService.listRooms(unit.getId()).stream().filter(r -> r.isActive()).toList());
+            var vehicles = conflictService.listBookableVehicles(unit.getId());
+            var rooms = unitAdminService.listRooms(unit.getId()).stream().filter(r -> r.isActive()).toList();
+            model.addAttribute("vehicles", vehicles);
+            model.addAttribute("rooms", rooms);
+            model.addAttribute(
+                    "vehicleOptions",
+                    vehicles.stream().map(v -> Map.of("id", v.getId(), "name", v.getName())).toList());
+            model.addAttribute(
+                    "roomOptions",
+                    rooms.stream().map(r -> Map.of("id", r.getId(), "name", r.getName())).toList());
             model.addAttribute("requesterName", actor.getDisplayName());
             model.addAttribute(
                     "requesterEmail",
@@ -95,8 +105,12 @@ public class ReservierungenController {
             requireModuleEnabled(unitId);
             requireRead(actor, unitId);
             accessControlService.requireUnitAccess(actor, unitId);
-            reservierungenService.createVehicleReservation(unitId, actor.getUserId(), body);
-            return ReservationActionResultDto.success("Fahrzeugreservierung wurde eingereicht.");
+            List<VehicleReservation> created =
+                    reservierungenService.createVehicleReservation(unitId, actor.getUserId(), body);
+            String msg = created.size() == 1
+                    ? "Fahrzeugreservierung wurde eingereicht."
+                    : created.size() + " Fahrzeugtermine wurden eingereicht.";
+            return ReservationActionResultDto.success(msg);
         } catch (LoeschfahrzeugWarningException e) {
             return ReservationActionResultDto.loeschWarning(e.getWarning());
         } catch (ReservationConflictException e) {
@@ -116,8 +130,12 @@ public class ReservierungenController {
             requireModuleEnabled(unitId);
             requireRead(actor, unitId);
             accessControlService.requireUnitAccess(actor, unitId);
-            reservierungenService.createRoomReservation(unitId, actor.getUserId(), body);
-            return ReservationActionResultDto.success("Raumreservierung wurde eingereicht.");
+            List<RoomReservation> created =
+                    reservierungenService.createRoomReservation(unitId, actor.getUserId(), body);
+            String msg = created.size() == 1
+                    ? "Raumreservierung wurde eingereicht."
+                    : created.size() + " Raumtermine wurden eingereicht.";
+            return ReservationActionResultDto.success(msg);
         } catch (ReservationConflictException e) {
             return ReservationActionResultDto.conflicts(e.getMessage(), e.getConflicts());
         } catch (IllegalArgumentException e) {

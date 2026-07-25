@@ -34,19 +34,40 @@ public class ReservierungenConflictService {
         }
         List<Long> relatedIds = relatedVehicleIds(vehicle);
         return vehicleReservationRepository
-                .findByVehicleIdInAndStatus(relatedIds, ReservationStatus.APPROVED)
+                .findByStatusAndAnyVehicleIdIn(ReservationStatus.APPROVED, relatedIds)
                 .stream()
                 .filter(r -> excludeId == null || !excludeId.equals(r.getId()))
                 .filter(r -> overlaps(r.getStartAt(), r.getEndAt(), startAt, endAt))
                 .map(r -> new ReservationConflictView(
                         r.getId(),
                         ReservationKind.VEHICLE,
-                        r.getVehicle().getName(),
+                        r.vehicleNamesJoined(),
                         r.getRequesterName(),
                         r.getStartAt(),
                         r.getEndAt(),
                         r.getStatus()))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReservationConflictView> vehicleConflictsForVehicles(
+            List<Long> vehicleIds, Instant startAt, Instant endAt, Long excludeId) {
+        LinkedHashSet<Long> seen = new LinkedHashSet<>();
+        List<ReservationConflictView> result = new java.util.ArrayList<>();
+        if (vehicleIds == null) {
+            return List.of();
+        }
+        for (Long vehicleId : vehicleIds) {
+            if (vehicleId == null) {
+                continue;
+            }
+            for (ReservationConflictView conflict : vehicleConflicts(vehicleId, startAt, endAt, excludeId)) {
+                if (seen.add(conflict.id())) {
+                    result.add(conflict);
+                }
+            }
+        }
+        return List.copyOf(result);
     }
 
     @Transactional(readOnly = true)
@@ -75,23 +96,39 @@ public class ReservierungenConflictService {
     @Transactional(readOnly = true)
     public LoeschfahrzeugWarningView checkLoeschfahrzeugWarning(
             long unitId, long vehicleId, Instant startAt, Instant endAt, Long excludeReservationId) {
+        return checkLoeschfahrzeugWarning(unitId, List.of(vehicleId), startAt, endAt, excludeReservationId);
+    }
+
+    @Transactional(readOnly = true)
+    public LoeschfahrzeugWarningView checkLoeschfahrzeugWarning(
+            long unitId, List<Long> vehicleIds, Instant startAt, Instant endAt, Long excludeReservationId) {
         UnitReservierungenSettings settings = settingsService.ensureSettings(unitId);
         if (!settings.isVehicleLoeschWarnEnabled()) {
             return noWarning();
         }
         List<Long> loeschIds = settingsService.loeschVehicleIds(settings);
-        if (loeschIds.isEmpty()) {
+        if (loeschIds.isEmpty() || vehicleIds == null || vehicleIds.isEmpty()) {
             return noWarning();
         }
-        boolean isLoeschVehicle = false;
-        Vehicle requested = vehicleRepository.findById(vehicleId).orElse(null);
-        if (requested != null) {
-            Set<Long> related = new HashSet<>(relatedVehicleIds(requested));
-            isLoeschVehicle = loeschIds.stream().anyMatch(related::contains);
-        } else {
-            isLoeschVehicle = loeschIds.contains(vehicleId);
+        Set<Long> requestedLoesch = new HashSet<>();
+        for (Long vehicleId : vehicleIds) {
+            if (vehicleId == null) {
+                continue;
+            }
+            Vehicle requested = vehicleRepository.findById(vehicleId).orElse(null);
+            if (requested == null) {
+                if (loeschIds.contains(vehicleId)) {
+                    requestedLoesch.add(vehicleId);
+                }
+                continue;
+            }
+            for (Long related : relatedVehicleIds(requested)) {
+                if (loeschIds.contains(related)) {
+                    requestedLoesch.add(related);
+                }
+            }
         }
-        if (!isLoeschVehicle) {
+        if (requestedLoesch.isEmpty()) {
             return noWarning();
         }
         int total = loeschIds.size();
@@ -103,16 +140,7 @@ public class ReservierungenConflictService {
             }
             reservedLoesch.add(loeschId);
         }
-        // Beantragtes Löschfahrzeug zählt nach Genehmigung als belegt
-        if (requested != null) {
-            for (Long related : relatedVehicleIds(requested)) {
-                if (loeschIds.contains(related)) {
-                    reservedLoesch.add(related);
-                }
-            }
-        } else {
-            reservedLoesch.add(vehicleId);
-        }
+        reservedLoesch.addAll(requestedLoesch);
         int reservedAfter = reservedLoesch.size();
         int remainingAfter = Math.max(0, total - reservedAfter);
         if (remainingAfter >= minAvailable) {
@@ -142,7 +170,6 @@ public class ReservierungenConflictService {
         return settingsService.sortVehicles(settings, vehicles);
     }
 
-    /** Produktiv- und Testkopie desselben Fahrzeugs teilen sich denselben Belegungskalender. */
     List<Long> relatedVehicleIds(Vehicle vehicle) {
         long root = vehicle.getProductionSourceId() != null ? vehicle.getProductionSourceId() : vehicle.getId();
         LinkedHashSet<Long> ids = new LinkedHashSet<>();

@@ -9,8 +9,14 @@
   var unitId = root.dataset.unitId;
   var canWrite = root.dataset.canWrite === 'true';
   var modal = document.getElementById('reservierung-modal');
+  var conflictModal = document.getElementById('reservierung-conflict-modal');
+  var loeschModal = document.getElementById('reservierung-loesch-modal');
   var form = document.getElementById('reservierung-form');
   var submitBtn = document.getElementById('reservierung-submit');
+  var resourcesBox = document.getElementById('reservierung-resources');
+  var slotsBox = document.getElementById('reservierung-slots');
+  var resourceCatalog = (window.__reservierungenResources || {});
+  var pendingCreateFlags = { forceConflict: false, forceLoesch: false };
 
   function notify(msg, type) {
     if (typeof window.toast === 'function') {
@@ -80,15 +86,129 @@
     }).join('\n');
   }
 
+  function openOverlay(el) {
+    if (!el) return;
+    el.classList.add('active');
+    el.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+  }
+
+  function closeOverlay(el) {
+    if (!el) return;
+    el.classList.remove('active');
+    el.setAttribute('aria-hidden', 'true');
+    if (!document.querySelector('.modal-overlay.active')) {
+      document.body.classList.remove('modal-open');
+    }
+  }
+
+  function currentKind() {
+    return document.getElementById('reservierung-kind').value;
+  }
+
+  function resourceOptions() {
+    return currentKind() === 'vehicle' ? (resourceCatalog.vehicles || []) : (resourceCatalog.rooms || []);
+  }
+
+  function buildResourceSelect(selectedId) {
+    var select = document.createElement('select');
+    select.className = 'field reservierung-resource-select';
+    select.required = true;
+    var placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = '— bitte wählen —';
+    select.appendChild(placeholder);
+    resourceOptions().forEach(function (opt) {
+      var option = document.createElement('option');
+      option.value = String(opt.id);
+      option.textContent = opt.name;
+      if (selectedId != null && String(opt.id) === String(selectedId)) {
+        option.selected = true;
+      }
+      select.appendChild(option);
+    });
+    return select;
+  }
+
+  function addResourceRow(selectedId) {
+    if (!resourcesBox) return;
+    var row = document.createElement('div');
+    row.className = 'reservierungen-multi-row';
+    var select = buildResourceSelect(selectedId);
+    var removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'btn btn--outline btn--sm';
+    removeBtn.textContent = 'Entfernen';
+    removeBtn.addEventListener('click', function () {
+      if (resourcesBox.children.length <= 1) {
+        notify('Mindestens ein Eintrag ist erforderlich.', 'error');
+        return;
+      }
+      row.remove();
+    });
+    row.appendChild(select);
+    row.appendChild(removeBtn);
+    resourcesBox.appendChild(row);
+  }
+
+  function addSlotRow() {
+    if (!slotsBox) return;
+    var row = document.createElement('div');
+    row.className = 'reservierungen-multi-row reservierungen-multi-row--slot';
+    var start = document.createElement('input');
+    start.type = 'datetime-local';
+    start.className = 'field reservierung-slot-start';
+    start.required = true;
+    var end = document.createElement('input');
+    end.type = 'datetime-local';
+    end.className = 'field reservierung-slot-end';
+    end.required = true;
+    var removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'btn btn--outline btn--sm';
+    removeBtn.textContent = 'Entfernen';
+    removeBtn.addEventListener('click', function () {
+      if (slotsBox.children.length <= 1) {
+        notify('Mindestens ein Termin ist erforderlich.', 'error');
+        return;
+      }
+      row.remove();
+    });
+    row.appendChild(start);
+    row.appendChild(end);
+    row.appendChild(removeBtn);
+    slotsBox.appendChild(row);
+  }
+
+  function resetDynamicFields(kind, primaryId) {
+    if (resourcesBox) {
+      resourcesBox.innerHTML = '';
+      addResourceRow(primaryId);
+    }
+    if (slotsBox) {
+      slotsBox.innerHTML = '';
+      addSlotRow();
+    }
+    var label = document.getElementById('reservierung-resources-label');
+    var addBtn = document.getElementById('reservierung-add-resource');
+    if (label) {
+      label.innerHTML = (kind === 'vehicle' ? 'Fahrzeuge' : 'Räume') + ' <span class="req">*</span>';
+    }
+    if (addBtn) {
+      addBtn.textContent = kind === 'vehicle' ? '+ weiteres Fahrzeug' : '+ weiterer Raum';
+    }
+  }
+
   function openModal(kind, id, name) {
     if (!modal || !form) {
       return;
     }
+    pendingCreateFlags = { forceConflict: false, forceLoesch: false };
     document.getElementById('reservierung-kind').value = kind;
-    document.getElementById('reservierung-resource-id').value = String(id);
     document.getElementById('reservierung-modal-title').textContent =
-      (kind === 'vehicle' ? 'Fahrzeug' : 'Raum') + ' reservieren: ' + name;
+      (kind === 'vehicle' ? 'Fahrzeug' : 'Raum') + ' reservieren' + (name ? ': ' + name : '');
     form.reset();
+    resetDynamicFields(kind, id);
     var nameEl = document.getElementById('reservierung-name');
     var emailEl = document.getElementById('reservierung-email');
     if (nameEl && root.dataset.requesterName) {
@@ -97,26 +217,18 @@
     if (emailEl && root.dataset.requesterEmail) {
       emailEl.value = root.dataset.requesterEmail;
     }
-    modal.classList.add('active');
-    document.body.classList.add('modal-open');
+    openOverlay(modal);
     document.getElementById('reservierung-reason')?.focus();
   }
 
   function closeModal() {
-    if (!modal) {
-      return;
-    }
-    modal.classList.remove('active');
-    if (!document.querySelector('.modal-overlay.active')) {
-      document.body.classList.remove('modal-open');
-    }
+    closeOverlay(modal);
   }
 
   function localDateTimeToIso(value) {
     if (!value) {
       return null;
     }
-    // datetime-local liefert "YYYY-MM-DDTHH:mm" ohne Zeitzone – explizit als lokale Zeit lesen
     var m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(String(value).trim());
     if (m) {
       var local = new Date(
@@ -134,6 +246,58 @@
     return isNaN(d.getTime()) ? null : d.toISOString();
   }
 
+  function collectResourceIds() {
+    var ids = [];
+    var seen = {};
+    document.querySelectorAll('.reservierung-resource-select').forEach(function (select) {
+      var value = Number(select.value);
+      if (!value || seen[value]) {
+        return;
+      }
+      seen[value] = true;
+      ids.push(value);
+    });
+    return ids;
+  }
+
+  function collectSlots() {
+    var slots = [];
+    document.querySelectorAll('#reservierung-slots .reservierungen-multi-row--slot').forEach(function (row) {
+      var startAt = localDateTimeToIso(row.querySelector('.reservierung-slot-start')?.value);
+      var endAt = localDateTimeToIso(row.querySelector('.reservierung-slot-end')?.value);
+      if (startAt && endAt) {
+        slots.push({ startAt: startAt, endAt: endAt });
+      }
+    });
+    return slots;
+  }
+
+  function showConflictModal(data) {
+    var msg = document.getElementById('reservierung-conflict-message');
+    var list = document.getElementById('reservierung-conflict-list');
+    if (msg) {
+      msg.textContent = data.message || 'Mindestens eine Ressource ist bereits vergeben.';
+    }
+    if (list) {
+      list.innerHTML = '';
+      (data.conflicts || []).forEach(function (c) {
+        var li = document.createElement('li');
+        li.textContent = (c.resourceName || 'Ressource') + ' · ' + (c.requesterName || '—') + ' · '
+          + formatConflictTime(c.startAt) + ' – ' + formatConflictTime(c.endAt);
+        list.appendChild(li);
+      });
+    }
+    openOverlay(conflictModal);
+  }
+
+  function showLoeschModal(data) {
+    var msg = document.getElementById('reservierung-loesch-message');
+    if (msg) {
+      msg.textContent = data.message || 'Löschfahrzeug-Warnung.';
+    }
+    openOverlay(loeschModal);
+  }
+
   document.querySelectorAll('.reservierung-open-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
       openModal(btn.dataset.kind, btn.dataset.id, btn.dataset.name || '');
@@ -146,35 +310,92 @@
       closeModal();
     });
   });
+  document.querySelectorAll('[data-close-conflict-modal]').forEach(function (btn) {
+    btn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      closeOverlay(conflictModal);
+    });
+  });
+  document.querySelectorAll('[data-close-loesch-modal]').forEach(function (btn) {
+    btn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      closeOverlay(loeschModal);
+    });
+  });
 
   modal?.addEventListener('click', function (ev) {
     if (ev.target === modal) {
       closeModal();
     }
   });
+  conflictModal?.addEventListener('click', function (ev) {
+    if (ev.target === conflictModal) {
+      closeOverlay(conflictModal);
+    }
+  });
+  loeschModal?.addEventListener('click', function (ev) {
+    if (ev.target === loeschModal) {
+      closeOverlay(loeschModal);
+    }
+  });
 
-  function submitCreate(forceLoesch) {
-    var kind = document.getElementById('reservierung-kind').value;
-    var resourceId = Number(document.getElementById('reservierung-resource-id').value);
-    var startAt = localDateTimeToIso(document.getElementById('reservierung-start').value);
-    var endAt = localDateTimeToIso(document.getElementById('reservierung-end').value);
-    if (!startAt || !endAt) {
-      notify('Bitte Beginn und Ende angeben.', 'error');
+  document.getElementById('reservierung-add-resource')?.addEventListener('click', function () {
+    addResourceRow(null);
+  });
+  document.getElementById('reservierung-add-slot')?.addEventListener('click', function () {
+    addSlotRow();
+  });
+  document.getElementById('reservierung-conflict-force')?.addEventListener('click', function () {
+    closeOverlay(conflictModal);
+    pendingCreateFlags.forceConflict = true;
+    submitCreate();
+  });
+  document.getElementById('reservierung-loesch-force')?.addEventListener('click', function () {
+    closeOverlay(loeschModal);
+    pendingCreateFlags.forceLoesch = true;
+    submitCreate();
+  });
+
+  function submitCreate() {
+    var kind = currentKind();
+    var resourceIds = collectResourceIds();
+    var slots = collectSlots();
+    var requesterName = document.getElementById('reservierung-name').value.trim();
+    var requesterEmail = document.getElementById('reservierung-email').value.trim();
+    var reason = document.getElementById('reservierung-reason').value.trim();
+    var location = document.getElementById('reservierung-location').value.trim();
+
+    if (!requesterName || !requesterEmail || !reason || !location) {
+      notify('Bitte alle Pflichtfelder ausfüllen.', 'error');
       return;
     }
-    if (new Date(endAt).getTime() <= new Date(startAt).getTime()) {
-      notify('Das Ende muss nach dem Beginn liegen.', 'error');
+    if (!resourceIds.length) {
+      notify(kind === 'vehicle' ? 'Bitte mindestens ein Fahrzeug wählen.' : 'Bitte mindestens einen Raum wählen.', 'error');
       return;
     }
+    if (!slots.length) {
+      notify('Bitte mindestens einen Termin angeben.', 'error');
+      return;
+    }
+    for (var i = 0; i < slots.length; i++) {
+      if (new Date(slots[i].endAt).getTime() <= new Date(slots[i].startAt).getTime()) {
+        notify('Termin ' + (i + 1) + ': Das Ende muss nach dem Beginn liegen.', 'error');
+        return;
+      }
+    }
+
     var payload = {
-      resourceId: resourceId,
-      requesterName: document.getElementById('reservierung-name').value.trim(),
-      requesterEmail: document.getElementById('reservierung-email').value.trim(),
-      reason: document.getElementById('reservierung-reason').value.trim(),
-      location: document.getElementById('reservierung-location').value.trim(),
-      startAt: startAt,
-      endAt: endAt,
-      forceAvailabilityOverride: !!forceLoesch
+      resourceIds: resourceIds,
+      resourceId: resourceIds[0],
+      requesterName: requesterName,
+      requesterEmail: requesterEmail,
+      reason: reason,
+      location: location,
+      slots: slots,
+      startAt: slots[0].startAt,
+      endAt: slots[0].endAt,
+      forceAvailabilityOverride: !!pendingCreateFlags.forceLoesch,
+      forceConflictOverride: !!pendingCreateFlags.forceConflict
     };
     var url = kind === 'vehicle'
       ? '/reservierungen/api/fahrzeuge?unit=' + encodeURIComponent(unitId)
@@ -191,25 +412,18 @@
       .then(parseJsonResponse)
       .then(function (data) {
         if (data.code === 'LOESCH_WARNING') {
-          var msg = (data.message || 'Löschfahrzeug-Warnung.')
-            + '\n\nTrotzdem Antrag einreichen?';
-          if (window.confirm(msg)) {
-            submitCreate(true);
-          }
+          showLoeschModal(data);
           return;
         }
         if (data.code === 'CONFLICTS') {
-          notify(
-            (data.message || 'Zeitraum bereits vergeben.') + '\n'
-              + describeConflicts(data.conflicts),
-            'error'
-          );
+          showConflictModal(data);
           return;
         }
         if (!data.ok) {
           notify(data.message || 'Fehler beim Einreichen.', 'error');
           return;
         }
+        pendingCreateFlags = { forceConflict: false, forceLoesch: false };
         closeModal();
         notify(data.message || 'Antrag eingereicht.', 'success');
         window.location.href = '/reservierungen?unit=' + encodeURIComponent(unitId) + '&tab=meine';
@@ -227,9 +441,11 @@
   form?.addEventListener('submit', function (event) {
     event.preventDefault();
     if (!form.reportValidity()) {
+      notify('Bitte alle Pflichtfelder ausfüllen.', 'error');
       return;
     }
-    submitCreate(false);
+    pendingCreateFlags = { forceConflict: false, forceLoesch: false };
+    submitCreate();
   });
 
   function processReservation(kind, id, action, reason, forceLoesch, conflictIds) {
