@@ -6827,6 +6827,95 @@ span.required { color: var(--error); }
   background: #334155;
 }
 
+/* Details-Modal (Historie) – Layout wie Altprojekt, Farben Projekt-Theme */
+.reservierung-details-modal__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.reservierung-details-modal__title::before {
+  content: '';
+  width: 1.1rem;
+  height: 1.1rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 2px solid var(--rot);
+  background:
+    linear-gradient(var(--rot), var(--rot)) center 28%/2px 2px no-repeat,
+    linear-gradient(var(--rot), var(--rot)) center 68%/2px 0.45rem no-repeat;
+}
+
+.reservierung-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 28px;
+}
+
+.reservierung-details-block {
+  margin: 0 0 16px;
+}
+
+.reservierung-details-block:last-child {
+  margin-bottom: 0;
+}
+
+.reservierung-details-block__title {
+  margin: 0 0 6px;
+  font-size: var(--fs-md, 14px);
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reservierung-details-block__title::before {
+  content: '';
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--text-muted);
+}
+
+.reservierung-details-block__title--resource::before { background: var(--rot); }
+.reservierung-details-block__title--user::before { background: #0ea5e9; }
+.reservierung-details-block__title--time::before { background: var(--gruen); }
+.reservierung-details-block__title--reason::before { background: var(--gelb); }
+.reservierung-details-block__title--place::before { background: #0ea5e9; }
+.reservierung-details-block__title--status::before { background: var(--text-muted); }
+.reservierung-details-block__title--created::before { background: var(--text-subtle); }
+.reservierung-details-block__title--reject::before { background: var(--error); }
+
+.reservierung-details-block p {
+  margin: 0;
+  color: var(--text);
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.reservierung-details-reject {
+  color: var(--error, #dc2626) !important;
+  font-weight: 500;
+}
+
+.reservierung-details-modal__footer {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.badge--lg {
+  font-size: var(--fs-sm, 12px);
+  padding: 4px 12px;
+}
+
+@media (max-width: 720px) {
+  .reservierung-details-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .reservierungen-slot-end-time {
   min-width: 7rem;
 }

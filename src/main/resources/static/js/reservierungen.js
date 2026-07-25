@@ -529,6 +529,21 @@
       pendingImportPayload = null;
     });
   });
+  document.querySelectorAll('[data-close-details-modal]').forEach(function (btn) {
+    btn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      var overlay = btn.closest('.modal-overlay');
+      if (overlay) closeOverlay(overlay);
+    });
+  });
+  document.querySelectorAll('[data-open-details]').forEach(function (btn) {
+    btn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      var id = btn.getAttribute('data-open-details');
+      var overlay = id ? document.getElementById(id) : null;
+      if (overlay) openOverlay(overlay);
+    });
+  });
 
   modal?.addEventListener('click', function (ev) {
     if (ev.target === modal) closeModal();
@@ -550,6 +565,11 @@
       closeOverlay(importOptionsModal);
       pendingImportPayload = null;
     }
+  });
+  document.querySelectorAll('[id^="reservierung-details-"]').forEach(function (overlay) {
+    overlay.addEventListener('click', function (ev) {
+      if (ev.target === overlay) closeOverlay(overlay);
+    });
   });
 
   document.getElementById('reservierung-add-resource')?.addEventListener('click', function () {

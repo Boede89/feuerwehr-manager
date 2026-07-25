@@ -193,15 +193,100 @@
               </td>
               <td>
                 <span class="badge"
-                      th:classappend="${r.status().name() == 'APPROVED'} ? ' badge-success' : ' badge--danger'"
-                      th:text="${r.status().name() == 'APPROVED'} ? 'Genehmigt' : (${r.status().name() == 'REJECTED'} ? 'Abgelehnt' : ${r.status()})">Genehmigt</span>
+                      th:classappend="${r.status().name() == 'APPROVED'} ? ' badge-success' : (${r.status().name() == 'CANCELLED'} ? ' badge-warning' : ' badge--danger')"
+                      th:text="${r.status().name() == 'APPROVED'} ? 'Genehmigt' : (${r.status().name() == 'REJECTED'} ? 'Abgelehnt' : (${r.status().name() == 'CANCELLED'} ? 'Storniert' : ${r.status()}))">Genehmigt</span>
               </td>
               <td class="table-actions">
-                <button type="button" class="btn btn--danger btn--sm" data-action="delete">Löschen</button>
+                <div class="btn-group">
+                  <button type="button" class="btn btn--outline btn--sm"
+                          th:attr="data-open-details=${'reservierung-details-' + r.kind().name() + '-' + r.id()}">Details</button>
+                  <button type="button" class="btn btn--danger btn--sm" data-action="delete">Löschen</button>
+                </div>
               </td>
             </tr>
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Details-Modals (Historie), Layout analog Altprojekt -->
+    <div th:each="r : ${allReservations}"
+         th:if="${r.status().name() != 'PENDING'}"
+         th:id="${'reservierung-details-' + r.kind().name() + '-' + r.id()}"
+         class="modal-overlay"
+         aria-hidden="true">
+      <div class="modal modal--wide reservierung-details-modal" role="dialog"
+           th:attr="aria-labelledby=${'reservierung-details-title-' + r.kind().name() + '-' + r.id()}">
+        <div class="modal__header">
+          <h3 class="reservierung-details-modal__title"
+              th:id="${'reservierung-details-title-' + r.kind().name() + '-' + r.id()}">
+            <span th:if="${r.kind().name() == 'VEHICLE'}" th:text="${'Reservierungsdetails #' + r.id()}">Reservierungsdetails</span>
+            <span th:if="${r.kind().name() == 'ROOM'}" th:text="${'Raumreservierung #' + r.id()}">Raumreservierung</span>
+          </h3>
+          <button type="button" class="modal__close" data-close-details-modal aria-label="Schließen">✕</button>
+        </div>
+        <div class="modal__body">
+          <div class="reservierung-details-grid">
+            <div class="reservierung-details-col">
+              <div class="reservierung-details-block">
+                <h6 class="reservierung-details-block__title reservierung-details-block__title--resource">
+                  <span th:text="${r.kind().name() == 'VEHICLE'} ? 'Fahrzeug' : 'Raum'">Fahrzeug</span>
+                </h6>
+                <p th:text="${r.resourceName()}">TLF</p>
+              </div>
+              <div class="reservierung-details-block">
+                <h6 class="reservierung-details-block__title reservierung-details-block__title--user">Antragsteller</h6>
+                <p>
+                  <strong th:text="${r.requesterName()}">Name</strong><br>
+                  <small class="text-muted" th:text="${r.requesterEmail()}">mail@example.de</small>
+                </p>
+              </div>
+              <div class="reservierung-details-block">
+                <h6 class="reservierung-details-block__title reservierung-details-block__title--time">Zeitraum</h6>
+                <p>
+                  <strong>Von:</strong>
+                  <span th:text="${r.startAt() != null ? #temporals.format(r.startAt().atZone(T(java.time.ZoneId).of('Europe/Berlin')), 'dd.MM.yyyy HH:mm') : '—'}">—</span><br>
+                  <strong>Bis:</strong>
+                  <span th:text="${r.endAt() != null ? #temporals.format(r.endAt().atZone(T(java.time.ZoneId).of('Europe/Berlin')), 'dd.MM.yyyy HH:mm') : '—'}">—</span>
+                </p>
+              </div>
+            </div>
+            <div class="reservierung-details-col">
+              <div class="reservierung-details-block">
+                <h6 class="reservierung-details-block__title reservierung-details-block__title--reason">Grund</h6>
+                <p th:text="${r.reason()}">Übung</p>
+              </div>
+              <div class="reservierung-details-block">
+                <h6 class="reservierung-details-block__title reservierung-details-block__title--place">Ort</h6>
+                <p th:text="${r.location() != null and !#strings.isEmpty(r.location()) ? r.location() : 'Nicht angegeben'}">Ort</p>
+              </div>
+              <div class="reservierung-details-block">
+                <h6 class="reservierung-details-block__title reservierung-details-block__title--status">Status</h6>
+                <p>
+                  <span class="badge"
+                        th:classappend="${r.status().name() == 'APPROVED'} ? ' badge-success' : (${r.status().name() == 'CANCELLED'} ? ' badge-warning' : ' badge--danger')"
+                        th:text="${r.status().name() == 'APPROVED'} ? 'Genehmigt' : (${r.status().name() == 'REJECTED'} ? 'Abgelehnt' : (${r.status().name() == 'CANCELLED'} ? 'Storniert' : ${r.status()}))">Genehmigt</span>
+                </p>
+              </div>
+              <div class="reservierung-details-block" th:if="${r.createdAt() != null}">
+                <h6 class="reservierung-details-block__title reservierung-details-block__title--created">Erstellt</h6>
+                <p><small class="text-muted"
+                          th:text="${#temporals.format(r.createdAt().atZone(T(java.time.ZoneId).of('Europe/Berlin')), 'dd.MM.yyyy HH:mm')}">—</small></p>
+              </div>
+              <div class="reservierung-details-block"
+                   th:if="${r.status().name() == 'REJECTED' and r.rejectionReason() != null and !#strings.isEmpty(r.rejectionReason())}">
+                <h6 class="reservierung-details-block__title reservierung-details-block__title--reject">Ablehnungsgrund</h6>
+                <p class="reservierung-details-reject" th:text="${r.rejectionReason()}">Grund</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal__footer reservierung-details-modal__footer">
+          <span class="badge badge--lg"
+                th:classappend="${r.status().name() == 'APPROVED'} ? ' badge-success' : (${r.status().name() == 'CANCELLED'} ? ' badge-warning' : ' badge--danger')"
+                th:text="${r.status().name() == 'APPROVED'} ? 'Genehmigt' : (${r.status().name() == 'REJECTED'} ? 'Abgelehnt' : (${r.status().name() == 'CANCELLED'} ? 'Storniert' : ${r.status()}))">Genehmigt</span>
+          <button type="button" class="btn btn--outline" data-close-details-modal>Schließen</button>
         </div>
       </div>
     </div>

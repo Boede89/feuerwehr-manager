@@ -672,6 +672,7 @@ public class ReservierungenService {
                 reservation.getRejectionReason(),
                 reservation.getApprovedAt(),
                 reservation.getApprovedByUser() != null ? reservation.getApprovedByUser().getDisplayName() : null,
+                reservation.getCreatedAt(),
                 reservation.getRequesterUser() != null
                         && Objects.equals(reservation.getRequesterUser().getId(), currentUserId));
     }
@@ -691,6 +692,7 @@ public class ReservierungenService {
                 reservation.getRejectionReason(),
                 reservation.getApprovedAt(),
                 reservation.getApprovedByUser() != null ? reservation.getApprovedByUser().getDisplayName() : null,
+                reservation.getCreatedAt(),
                 reservation.getRequesterUser() != null
                         && Objects.equals(reservation.getRequesterUser().getId(), currentUserId));
     }

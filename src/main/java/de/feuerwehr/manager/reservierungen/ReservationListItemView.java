@@ -16,4 +16,5 @@ public record ReservationListItemView(
         String rejectionReason,
         Instant approvedAt,
         String approvedByName,
+        Instant createdAt,
         boolean ownedByCurrentUser) {}
