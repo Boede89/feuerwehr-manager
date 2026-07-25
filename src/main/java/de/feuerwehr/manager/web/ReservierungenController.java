@@ -21,6 +21,7 @@ import de.feuerwehr.manager.unit.UnitService;
 import de.feuerwehr.manager.user.UserRepository;
 import de.feuerwehr.manager.web.dto.ActionResultDto;
 import de.feuerwehr.manager.web.dto.ReservationActionResultDto;
+import de.feuerwehr.manager.web.dto.ResourceOptionDto;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -74,10 +75,14 @@ public class ReservierungenController {
             model.addAttribute("rooms", rooms);
             model.addAttribute(
                     "vehicleOptions",
-                    vehicles.stream().map(v -> Map.of("id", v.getId(), "name", v.getName())).toList());
+                    vehicles.stream()
+                            .map(v -> new ResourceOptionDto(v.getId(), v.getName() != null ? v.getName() : ""))
+                            .toList());
             model.addAttribute(
                     "roomOptions",
-                    rooms.stream().map(r -> Map.of("id", r.getId(), "name", r.getName())).toList());
+                    rooms.stream()
+                            .map(r -> new ResourceOptionDto(r.getId(), r.getName() != null ? r.getName() : ""))
+                            .toList());
             model.addAttribute("requesterName", actor.getDisplayName());
             model.addAttribute(
                     "requesterEmail",

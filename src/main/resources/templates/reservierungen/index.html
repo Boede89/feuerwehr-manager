@@ -366,9 +366,14 @@
               <input id="import-start" type="datetime-local" class="field" required/>
             </div>
             <div class="form-group">
-              <label for="import-end">Ende <span class="req">*</span></label>
-              <input id="import-end" type="datetime-local" class="field" required/>
+              <label for="import-end-date">Ende Datum <span class="req">*</span></label>
+              <input id="import-end-date" type="date" class="field" required/>
             </div>
+          </div>
+          <div class="form-group">
+            <label for="import-end-time">Ende Uhrzeit <span class="req">*</span></label>
+            <input id="import-end-time" type="time" class="field" required/>
+            <p class="hint text-sm">Das Datum wird vom Beginn übernommen; die Uhrzeit bitte manuell eintragen.</p>
           </div>
         </div>
         <div class="modal__footer">
@@ -404,12 +409,12 @@
     </div>
   </div>
 
-  <script th:inline="javascript">
-    window.__reservierungenResources = {
-      vehicles: /*[[${vehicleOptions}]]*/ [],
-      rooms: /*[[${roomOptions}]]*/ []
-    };
-  </script>
+  <select id="reservierungen-vehicles-template" hidden aria-hidden="true">
+    <option th:each="v : ${vehicleOptions}" th:value="${v.id}" th:text="${v.name}">Fahrzeug</option>
+  </select>
+  <select id="reservierungen-rooms-template" hidden aria-hidden="true">
+    <option th:each="r : ${roomOptions}" th:value="${r.id}" th:text="${r.name}">Raum</option>
+  </select>
   <script th:src="@{/js/reservierungen.js}" defer></script>
 </main>
 </html>

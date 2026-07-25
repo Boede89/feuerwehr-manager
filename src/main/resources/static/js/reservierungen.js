@@ -20,12 +20,29 @@
   var slotsBox = document.getElementById('reservierung-slots');
   var chipsBox = document.getElementById('reservierung-selected-chips');
   var importChipsBox = document.getElementById('import-selected-chips');
-  var resourceCatalog = window.__reservierungenResources || {};
+  var resourceCatalog = loadResourceCatalog();
   var pendingCreateFlags = { forceConflict: false, forceLoesch: false };
   var selectedResources = [];
   var importExtraResources = [];
   var pickContext = 'create'; // create | import
   var pendingImportPayload = null;
+
+  function loadResourceCatalog() {
+    function fromSelect(id) {
+      var select = document.getElementById(id);
+      var list = [];
+      if (!select) return list;
+      Array.prototype.forEach.call(select.options, function (opt) {
+        if (!opt.value) return;
+        list.push({ id: Number(opt.value), name: opt.textContent || opt.label || opt.value });
+      });
+      return list;
+    }
+    return {
+      vehicles: fromSelect('reservierungen-vehicles-template'),
+      rooms: fromSelect('reservierungen-rooms-template')
+    };
+  }
 
   function notify(msg, type) {
     if (typeof window.toast === 'function') {
@@ -189,35 +206,32 @@
     });
   }
 
-  function applyEndDateFromStart(startInput, endInput) {
-    if (!startInput || !endInput || !startInput.value) {
+  function applyEndDateFromStart(startInput, endDateInput) {
+    if (!startInput || !endDateInput || !startInput.value) {
       return;
     }
     var startDate = String(startInput.value).slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
       return;
     }
-    var endVal = endInput.value || '';
-    var endTime = endVal.length >= 16 ? endVal.slice(11, 16) : '';
-    // Datum vom Beginn übernehmen; Uhrzeit vom Ende behalten – nie die Start-Uhrzeit kopieren
-    if (endTime && endTime !== '00:00') {
-      endInput.value = startDate + 'T' + endTime;
-    } else if (!endVal) {
-      // Nur Datum vorbelegen; Uhrzeit muss der Nutzer selbst setzen (Platzhalter 00:00)
-      endInput.value = startDate + 'T00:00';
-    } else {
-      endInput.value = startDate + 'T' + (endTime || '00:00');
-    }
+    endDateInput.value = startDate;
   }
 
-  function wireStartToEndDate(startInput, endInput) {
-    if (!startInput || !endInput || startInput.dataset.dateSyncBound) {
+  function wireStartToEndDate(startInput, endDateInput) {
+    if (!startInput || !endDateInput || startInput.dataset.dateSyncBound) {
       return;
     }
     startInput.dataset.dateSyncBound = '1';
     startInput.addEventListener('change', function () {
-      applyEndDateFromStart(startInput, endInput);
+      applyEndDateFromStart(startInput, endDateInput);
     });
+  }
+
+  function combineDateAndTime(dateValue, timeValue) {
+    if (!dateValue || !timeValue) {
+      return null;
+    }
+    return localDateTimeToIso(String(dateValue).slice(0, 10) + 'T' + String(timeValue).slice(0, 5));
   }
 
   function openPickModal(context) {
@@ -312,14 +326,20 @@
     start.className = 'field reservierung-slot-start';
     start.required = true;
     start.setAttribute('aria-label', 'Beginn');
-    var end = document.createElement('input');
-    end.type = 'datetime-local';
-    end.className = 'field reservierung-slot-end';
-    end.required = true;
-    end.setAttribute('aria-label', 'Ende');
-    wireStartToEndDate(start, end);
+    var endDate = document.createElement('input');
+    endDate.type = 'date';
+    endDate.className = 'field reservierung-slot-end-date';
+    endDate.required = true;
+    endDate.setAttribute('aria-label', 'Ende Datum');
+    var endTime = document.createElement('input');
+    endTime.type = 'time';
+    endTime.className = 'field reservierung-slot-end-time reservierungen-slot-end-time';
+    endTime.required = true;
+    endTime.setAttribute('aria-label', 'Ende Uhrzeit');
+    wireStartToEndDate(start, endDate);
     row.appendChild(start);
-    row.appendChild(end);
+    row.appendChild(endDate);
+    row.appendChild(endTime);
     if (canRemove) {
       var removeBtn = document.createElement('button');
       removeBtn.type = 'button';
@@ -407,13 +427,36 @@
 
   function collectSlots() {
     var slots = [];
-    document.querySelectorAll('#reservierung-slots .reservierungen-multi-row--slot').forEach(function (row) {
+    var rows = document.querySelectorAll('#reservierung-slots .reservierungen-multi-row--slot');
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
       var startAt = localDateTimeToIso(row.querySelector('.reservierung-slot-start')?.value);
-      var endAt = localDateTimeToIso(row.querySelector('.reservierung-slot-end')?.value);
-      if (startAt && endAt) {
-        slots.push({ startAt: startAt, endAt: endAt });
+      var endAt = combineDateAndTime(
+        row.querySelector('.reservierung-slot-end-date')?.value,
+        row.querySelector('.reservierung-slot-end-time')?.value
+      );
+      if (!startAt) {
+        notify('Termin ' + (i + 1) + ': Bitte Beginn angeben.', 'error');
+        return null;
       }
-    });
+      if (!row.querySelector('.reservierung-slot-end-date')?.value) {
+        notify('Termin ' + (i + 1) + ': Bitte Endedatum angeben.', 'error');
+        return null;
+      }
+      if (!row.querySelector('.reservierung-slot-end-time')?.value) {
+        notify('Termin ' + (i + 1) + ': Bitte Enduhrzeit manuell eintragen.', 'error');
+        return null;
+      }
+      if (!endAt) {
+        notify('Termin ' + (i + 1) + ': Ende ungültig.', 'error');
+        return null;
+      }
+      if (new Date(endAt).getTime() <= new Date(startAt).getTime()) {
+        notify('Termin ' + (i + 1) + ': Das Ende muss nach dem Beginn liegen.', 'error');
+        return null;
+      }
+      slots.push({ startAt: startAt, endAt: endAt });
+    }
     return slots;
   }
 
@@ -530,7 +573,6 @@
   function submitCreate() {
     var kind = currentKind();
     var resourceIds = selectedResources.map(function (r) { return Number(r.id); }).filter(Boolean);
-    var slots = collectSlots();
     var requesterName = document.getElementById('reservierung-name').value.trim();
     var requesterEmail = document.getElementById('reservierung-email').value.trim();
     var reason = document.getElementById('reservierung-reason').value.trim();
@@ -544,15 +586,13 @@
       notify(kind === 'vehicle' ? 'Bitte mindestens ein Fahrzeug wählen.' : 'Bitte mindestens einen Raum wählen.', 'error');
       return;
     }
+    var slots = collectSlots();
+    if (!slots) {
+      return;
+    }
     if (!slots.length) {
       notify('Bitte mindestens einen Termin angeben.', 'error');
       return;
-    }
-    for (var i = 0; i < slots.length; i++) {
-      if (new Date(slots[i].endAt).getTime() <= new Date(slots[i].startAt).getTime()) {
-        notify('Termin ' + (i + 1) + ': Das Ende muss nach dem Beginn liegen.', 'error');
-        return;
-      }
     }
 
     var payload = {
@@ -645,7 +685,7 @@
     openPickModal('import');
   });
 
-  wireStartToEndDate(document.getElementById('import-start'), document.getElementById('import-end'));
+  wireStartToEndDate(document.getElementById('import-start'), document.getElementById('import-end-date'));
 
   importForm?.addEventListener('submit', function (event) {
     event.preventDefault();
@@ -669,9 +709,23 @@
       });
     }
     var startAt = localDateTimeToIso(document.getElementById('import-start').value);
-    var endAt = localDateTimeToIso(document.getElementById('import-end').value);
-    if (!startAt || !endAt) {
-      notify('Bitte Beginn und Ende angeben.', 'error');
+    var endDate = document.getElementById('import-end-date')?.value;
+    var endTime = document.getElementById('import-end-time')?.value;
+    if (!startAt) {
+      notify('Bitte Beginn angeben.', 'error');
+      return;
+    }
+    if (!endDate) {
+      notify('Bitte Endedatum angeben.', 'error');
+      return;
+    }
+    if (!endTime) {
+      notify('Bitte Enduhrzeit manuell eintragen.', 'error');
+      return;
+    }
+    var endAt = combineDateAndTime(endDate, endTime);
+    if (!endAt) {
+      notify('Ende ungültig.', 'error');
       return;
     }
     if (new Date(endAt).getTime() <= new Date(startAt).getTime()) {
