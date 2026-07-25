@@ -28,11 +28,21 @@
         <h3>Allgemein</h3>
         <div class="form-group">
           <label for="vehicleSortMode">Sortierung Fahrzeuge</label>
-          <select id="vehicleSortMode" name="vehicleSortMode" class="field">
-            <option value="manual" th:selected="${settings.vehicleSortMode == 'manual'}">Manuell (Reihenfolge Technik)</option>
-            <option value="name" th:selected="${settings.vehicleSortMode == 'name'}">Name</option>
-            <option value="created" th:selected="${settings.vehicleSortMode == 'created'}">Anlagezeit</option>
-          </select>
+          <div class="btn-group" style="flex-wrap:wrap; align-items:center; gap:8px;">
+            <select id="vehicleSortMode" name="vehicleSortMode" class="field" style="min-width:220px;">
+              <option value="manual" th:selected="${settings.vehicleSortMode == 'manual'}">Manuell</option>
+              <option value="name" th:selected="${settings.vehicleSortMode == 'name'}">Name</option>
+              <option value="created" th:selected="${settings.vehicleSortMode == 'created'}">Anlagezeit</option>
+            </select>
+            <button type="button" class="btn btn--outline btn--sm" id="btn-vehicle-sort-order"
+                    th:disabled="${settings.vehicleSortMode != 'manual'}">
+              Reihenfolge festlegen
+            </button>
+          </div>
+          <p class="hint">
+            <strong>Manuell:</strong> eigene Reihenfolge nur für Reservierungen (unabhängig von Technik).
+            Beim Wechsel auf „Manuell“ öffnet sich die Sortierung.
+          </p>
         </div>
 
         <h3 style="margin-top:24px;">Benachrichtigungen</h3>
@@ -93,6 +103,43 @@
     </div>
   </div>
 
+  <div id="modal-vehicle-sort-order" class="modal-overlay" th:if="${settingsTab == 'fahrzeug'}">
+    <div class="modal modal--md" role="dialog" aria-labelledby="modal-vehicle-sort-title">
+      <div class="modal__header">
+        <h3 id="modal-vehicle-sort-title">Fahrzeug-Reihenfolge</h3>
+        <button type="button" class="modal__close" data-close-vehicle-sort aria-label="Schließen">✕</button>
+      </div>
+      <form method="post" th:action="@{/settings/reservierungen/fahrzeug/sortierung}" id="form-vehicle-sort-order">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <div class="modal__body">
+          <p class="hint">
+            Reihenfolge nur für das Modul Reservierungen. Die Sortierung unter Technik bleibt unverändert.
+          </p>
+          <ul class="reservierungen-sort-list" id="vehicle-sort-list">
+            <li class="reservierungen-sort-item" th:each="v, iter : ${vehiclesForSortModal}" th:attr="data-vehicle-id=${v.id}">
+              <span class="reservierungen-sort-item__name" th:text="${v.name}">LF 20</span>
+              <div class="row-order" role="group" aria-label="Reihenfolge">
+                <button type="button" class="row-order__btn" data-sort-dir="up" title="Nach oben" aria-label="Nach oben">
+                  <span aria-hidden="true">▴</span>
+                </button>
+                <button type="button" class="row-order__btn" data-sort-dir="down" title="Nach unten" aria-label="Nach unten">
+                  <span aria-hidden="true">▾</span>
+                </button>
+              </div>
+            </li>
+          </ul>
+          <p class="hint" th:if="${#lists.isEmpty(vehiclesForSortModal)}">Keine Fahrzeuge vorhanden.</p>
+          <div id="vehicle-sort-hidden-inputs"></div>
+        </div>
+        <div class="modal__footer">
+          <button type="submit" class="btn btn--primary" th:disabled="${#lists.isEmpty(vehiclesForSortModal)}">Reihenfolge speichern</button>
+          <button type="button" class="btn btn--outline" data-close-vehicle-sort>Abbrechen</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="card" th:if="${settingsTab == 'raum'}">
     <div class="card__body">
       <form method="post" th:action="@{/settings/reservierungen/raum}">
@@ -141,5 +188,7 @@
       </form>
     </div>
   </div>
+
+  <script th:src="@{/js/reservierungen-settings.js}" defer></script>
 </main>
 </html>

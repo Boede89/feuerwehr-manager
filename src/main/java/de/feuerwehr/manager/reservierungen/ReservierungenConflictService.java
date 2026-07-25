@@ -96,9 +96,11 @@ public class ReservierungenConflictService {
 
     @Transactional(readOnly = true)
     public List<Vehicle> listBookableVehicles(long unitId) {
-        return unitAdminService.listVehicles(unitId).stream()
+        UnitReservierungenSettings settings = settingsService.ensureSettings(unitId);
+        List<Vehicle> vehicles = unitAdminService.listVehicles(unitId).stream()
                 .filter(Vehicle::isActive)
                 .toList();
+        return settingsService.sortVehicles(settings, vehicles);
     }
 
     private static LoeschfahrzeugWarningView noWarning() {

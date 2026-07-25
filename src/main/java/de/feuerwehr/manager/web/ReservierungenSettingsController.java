@@ -52,13 +52,15 @@ public class ReservierungenSettingsController {
             requireModuleEnabled(unit.getId());
             UnitReservierungenSettings settings = settingsService.ensureSettings(unit.getId());
             List<User> users = userRepository.findUnitScopedAccountsByUnitId(unit.getId());
-            List<Vehicle> vehicles = unitAdminService.listVehicles(unit.getId());
+            List<Vehicle> vehiclesTechnik = unitAdminService.listVehicles(unit.getId());
+            List<Vehicle> vehiclesSorted = settingsService.sortVehicles(settings, vehiclesTechnik);
             model.addAttribute("unitId", unit.getId());
             model.addAttribute("currentUnitName", unit.getName());
             model.addAttribute("settingsTab", tab);
             model.addAttribute("settings", settings);
             model.addAttribute("unitUsers", users);
-            model.addAttribute("vehicles", vehicles);
+            model.addAttribute("vehicles", vehiclesSorted);
+            model.addAttribute("vehiclesForSortModal", vehiclesSorted);
             model.addAttribute("selectedVehicleNotificationUserIds", settingsService.vehicleNotificationUserIds(settings));
             model.addAttribute("selectedRoomNotificationUserIds", settingsService.roomNotificationUserIds(settings));
             model.addAttribute("selectedLoeschVehicleIds", settingsService.loeschVehicleIds(settings));
@@ -99,6 +101,26 @@ public class ReservierungenSettingsController {
                     vehicleLoeschVehicleIds == null ? List.of() : Arrays.asList(vehicleLoeschVehicleIds),
                     vehicleNotificationUserIds == null ? List.of() : Arrays.asList(vehicleNotificationUserIds));
             redirectAttributes.addFlashAttribute("message", "Fahrzeug-Reservierungseinstellungen gespeichert.");
+            return "redirect:/settings/reservierungen?unit=" + unit + "&tab=fahrzeug";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return "redirect:/settings/reservierungen?unit=" + unit + "&tab=fahrzeug";
+        }
+    }
+
+    @PostMapping("/fahrzeug/sortierung")
+    public String saveVehicleSortOrder(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam(name = "vehicleIds", required = false) Long[] vehicleIds,
+            RedirectAttributes redirectAttributes) {
+        try {
+            accessControlService.requireAdminLevel(actor);
+            accessControlService.requireUnitAccess(actor, unit);
+            requireModuleEnabled(unit);
+            settingsService.saveVehicleSortOrder(
+                    unit, vehicleIds == null ? List.of() : Arrays.asList(vehicleIds));
+            redirectAttributes.addFlashAttribute("message", "Fahrzeug-Reihenfolge gespeichert.");
             return "redirect:/settings/reservierungen?unit=" + unit + "&tab=fahrzeug";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());

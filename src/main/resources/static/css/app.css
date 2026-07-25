@@ -6515,6 +6515,30 @@ span.required { color: var(--error); }
   gap: 8px;
 }
 
+.reservierungen-sort-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reservierungen-sort-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 8px);
+  background: var(--bg-card, #fff);
+}
+
+.reservierungen-sort-item__name {
+  font-weight: 600;
+}
+
 /* ===== Auswertung ? ?bersicht ===== */
 .auswertung-overview {
   margin-top: 16px;

@@ -33,6 +33,10 @@ public class UnitReservierungenSettings {
     @Column(name = "vehicle_sort_mode", nullable = false, length = 16)
     private String vehicleSortMode = "manual";
 
+    /** JSON-Array von Fahrzeug-IDs in Anzeige-Reihenfolge (nur bei Sortierung „manual“). */
+    @Column(name = "vehicle_sort_order_json", columnDefinition = "TEXT")
+    private String vehicleSortOrderJson;
+
     @Column(name = "vehicle_divera_enabled", nullable = false)
     private boolean vehicleDiveraEnabled;
 
