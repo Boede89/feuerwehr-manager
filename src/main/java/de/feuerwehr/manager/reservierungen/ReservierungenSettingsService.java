@@ -6,9 +6,11 @@ import de.feuerwehr.manager.technik.Vehicle;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -40,8 +42,7 @@ public class ReservierungenSettingsService {
             String vehicleDiveraGroupsJson,
             boolean vehicleLoeschWarnEnabled,
             int vehicleLoeschMinAvailable,
-            List<Long> vehicleLoeschVehicleIds,
-            List<Long> vehicleNotificationUserIds) {
+            List<Long> vehicleLoeschVehicleIds) {
         UnitReservierungenSettings settings = ensureSettings(unitId);
         settings.setVehicleSortMode(normalizeSortMode(vehicleSortMode));
         settings.setVehicleDiveraEnabled(vehicleDiveraEnabled);
@@ -51,7 +52,15 @@ public class ReservierungenSettingsService {
         settings.setVehicleLoeschWarnEnabled(vehicleLoeschWarnEnabled);
         settings.setVehicleLoeschMinAvailable(Math.max(0, vehicleLoeschMinAvailable));
         settings.setVehicleLoeschVehicleIdsJson(writeJsonLongList(vehicleLoeschVehicleIds));
-        settings.setVehicleNotificationUserIdsJson(writeJsonLongList(vehicleNotificationUserIds));
+        return settingsRepository.save(settings);
+    }
+
+    @Transactional
+    public UnitReservierungenSettings saveVehicleNotifications(
+            long unitId, List<Long> userIds, List<String> emails) {
+        UnitReservierungenSettings settings = ensureSettings(unitId);
+        settings.setVehicleNotificationUserIdsJson(writeJsonLongList(userIds));
+        settings.setVehicleNotificationEmailsJson(writeJsonEmailList(emails));
         return settingsRepository.save(settings);
     }
 
@@ -69,14 +78,21 @@ public class ReservierungenSettingsService {
             String roomSortMode,
             boolean roomDiveraEnabled,
             boolean roomGoogleCalendarEnabled,
-            String roomDiveraDefaultGroupId,
-            List<Long> roomNotificationUserIds) {
+            String roomDiveraDefaultGroupId) {
         UnitReservierungenSettings settings = ensureSettings(unitId);
         settings.setRoomSortMode(normalizeSortMode(roomSortMode));
         settings.setRoomDiveraEnabled(roomDiveraEnabled);
         settings.setRoomGoogleCalendarEnabled(roomGoogleCalendarEnabled);
         settings.setRoomDiveraDefaultGroupId(trimToNull(roomDiveraDefaultGroupId));
-        settings.setRoomNotificationUserIdsJson(writeJsonLongList(roomNotificationUserIds));
+        return settingsRepository.save(settings);
+    }
+
+    @Transactional
+    public UnitReservierungenSettings saveRoomNotifications(
+            long unitId, List<Long> userIds, List<String> emails) {
+        UnitReservierungenSettings settings = ensureSettings(unitId);
+        settings.setRoomNotificationUserIdsJson(writeJsonLongList(userIds));
+        settings.setRoomNotificationEmailsJson(writeJsonEmailList(emails));
         return settingsRepository.save(settings);
     }
 
@@ -129,12 +145,83 @@ public class ReservierungenSettingsService {
         return parseLongIdList(settings.getVehicleNotificationUserIdsJson());
     }
 
-    public List<Long> roomNotificationUserIds(UnitReservierungenSettings settings) {
-        List<Long> roomIds = parseLongIdList(settings.getRoomNotificationUserIdsJson());
-        if (!roomIds.isEmpty()) {
-            return roomIds;
+    public List<String> vehicleNotificationEmails(UnitReservierungenSettings settings) {
+        return parseEmailList(settings.getVehicleNotificationEmailsJson());
+    }
+
+    /** Explizit für Raum hinterlegte Benutzer (ohne Fallback auf Fahrzeug). */
+    public List<Long> roomNotificationUserIdsStored(UnitReservierungenSettings settings) {
+        return parseLongIdList(settings.getRoomNotificationUserIdsJson());
+    }
+
+    public List<String> roomNotificationEmailsStored(UnitReservierungenSettings settings) {
+        return parseEmailList(settings.getRoomNotificationEmailsJson());
+    }
+
+    /**
+     * Empfänger für neue Raum-Anträge. Leer (keine Benutzer, keine E-Mails) → wie Fahrzeug.
+     */
+    public NotificationRecipients roomNotificationRecipients(UnitReservierungenSettings settings) {
+        List<Long> userIds = roomNotificationUserIdsStored(settings);
+        List<String> emails = roomNotificationEmailsStored(settings);
+        if (userIds.isEmpty() && emails.isEmpty()) {
+            return vehicleNotificationRecipients(settings);
         }
-        return vehicleNotificationUserIds(settings);
+        return new NotificationRecipients(userIds, emails);
+    }
+
+    public NotificationRecipients vehicleNotificationRecipients(UnitReservierungenSettings settings) {
+        return new NotificationRecipients(
+                vehicleNotificationUserIds(settings), vehicleNotificationEmails(settings));
+    }
+
+    /** @deprecated Nutze {@link #roomNotificationUserIdsStored} bzw. Recipients. */
+    public List<Long> roomNotificationUserIds(UnitReservierungenSettings settings) {
+        return roomNotificationRecipients(settings).userIds();
+    }
+
+    public record NotificationRecipients(List<Long> userIds, List<String> emails) {
+        public boolean isEmpty() {
+            return (userIds == null || userIds.isEmpty()) && (emails == null || emails.isEmpty());
+        }
+    }
+
+    public List<String> parseEmailList(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            List<String> raw = objectMapper.readValue(json, new TypeReference<>() {});
+            if (raw == null) {
+                return List.of();
+            }
+            return normalizeEmails(raw);
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    public List<String> parseEmailsFromText(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return List.of();
+        }
+        String[] parts = raw.split("[,;\\s]+");
+        return normalizeEmails(Arrays.asList(parts));
+    }
+
+    private static List<String> normalizeEmails(List<String> raw) {
+        LinkedHashSet<String> result = new LinkedHashSet<>();
+        for (String entry : raw) {
+            if (entry == null) {
+                continue;
+            }
+            String email = entry.trim().toLowerCase(Locale.ROOT);
+            if (email.isEmpty() || !email.contains("@") || email.length() > 254) {
+                continue;
+            }
+            result.add(email);
+        }
+        return List.copyOf(result);
     }
 
     public List<Long> loeschVehicleIds(UnitReservierungenSettings settings) {
@@ -194,6 +281,15 @@ public class ReservierungenSettingsService {
                         .distinct()
                         .sorted(Comparator.naturalOrder())
                         .toList();
+        try {
+            return objectMapper.writeValueAsString(normalized);
+        } catch (Exception e) {
+            return "[]";
+        }
+    }
+
+    private String writeJsonEmailList(List<String> emails) {
+        List<String> normalized = normalizeEmails(emails == null ? List.of() : emails);
         try {
             return objectMapper.writeValueAsString(normalized);
         } catch (Exception e) {

@@ -54,6 +54,10 @@ public class ReservierungenSettingsController {
             List<User> users = userRepository.findUnitScopedAccountsByUnitId(unit.getId());
             List<Vehicle> vehiclesTechnik = unitAdminService.listVehicles(unit.getId());
             List<Vehicle> vehiclesSorted = settingsService.sortVehicles(settings, vehiclesTechnik);
+            List<Long> vehicleNotifyUsers = settingsService.vehicleNotificationUserIds(settings);
+            List<String> vehicleNotifyEmails = settingsService.vehicleNotificationEmails(settings);
+            List<Long> roomNotifyUsers = settingsService.roomNotificationUserIdsStored(settings);
+            List<String> roomNotifyEmails = settingsService.roomNotificationEmailsStored(settings);
             model.addAttribute("unitId", unit.getId());
             model.addAttribute("currentUnitName", unit.getName());
             model.addAttribute("settingsTab", tab);
@@ -61,9 +65,17 @@ public class ReservierungenSettingsController {
             model.addAttribute("unitUsers", users);
             model.addAttribute("vehicles", vehiclesSorted);
             model.addAttribute("vehiclesForSortModal", vehiclesSorted);
-            model.addAttribute("selectedVehicleNotificationUserIds", settingsService.vehicleNotificationUserIds(settings));
-            model.addAttribute("selectedRoomNotificationUserIds", settingsService.roomNotificationUserIds(settings));
+            model.addAttribute("selectedVehicleNotificationUserIds", vehicleNotifyUsers);
+            model.addAttribute("selectedVehicleNotificationEmails", vehicleNotifyEmails);
+            model.addAttribute("selectedRoomNotificationUserIds", roomNotifyUsers);
+            model.addAttribute("selectedRoomNotificationEmails", roomNotifyEmails);
             model.addAttribute("selectedLoeschVehicleIds", settingsService.loeschVehicleIds(settings));
+            model.addAttribute(
+                    "vehicleNotificationSummary",
+                    formatNotificationSummary(vehicleNotifyUsers.size(), vehicleNotifyEmails.size(), false));
+            model.addAttribute(
+                    "roomNotificationSummary",
+                    formatNotificationSummary(roomNotifyUsers.size(), roomNotifyEmails.size(), true));
             return "settings/reservierungen";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
@@ -77,13 +89,13 @@ public class ReservierungenSettingsController {
             @RequestParam long unit,
             @RequestParam(name = "vehicleSortMode", defaultValue = "manual") String vehicleSortMode,
             @RequestParam(name = "vehicleDiveraEnabled", defaultValue = "false") boolean vehicleDiveraEnabled,
-            @RequestParam(name = "vehicleGoogleCalendarEnabled", defaultValue = "false") boolean vehicleGoogleCalendarEnabled,
+            @RequestParam(name = "vehicleGoogleCalendarEnabled", defaultValue = "false")
+                    boolean vehicleGoogleCalendarEnabled,
             @RequestParam(name = "vehicleDiveraDefaultGroupId", required = false) String vehicleDiveraDefaultGroupId,
             @RequestParam(name = "vehicleDiveraGroupsJson", required = false) String vehicleDiveraGroupsJson,
             @RequestParam(name = "vehicleLoeschWarnEnabled", defaultValue = "false") boolean vehicleLoeschWarnEnabled,
             @RequestParam(name = "vehicleLoeschMinAvailable", defaultValue = "1") int vehicleLoeschMinAvailable,
             @RequestParam(name = "vehicleLoeschVehicleIds", required = false) Long[] vehicleLoeschVehicleIds,
-            @RequestParam(name = "vehicleNotificationUserIds", required = false) Long[] vehicleNotificationUserIds,
             RedirectAttributes redirectAttributes) {
         try {
             accessControlService.requireAdminLevel(actor);
@@ -98,8 +110,7 @@ public class ReservierungenSettingsController {
                     vehicleDiveraGroupsJson,
                     vehicleLoeschWarnEnabled,
                     vehicleLoeschMinAvailable,
-                    vehicleLoeschVehicleIds == null ? List.of() : Arrays.asList(vehicleLoeschVehicleIds),
-                    vehicleNotificationUserIds == null ? List.of() : Arrays.asList(vehicleNotificationUserIds));
+                    vehicleLoeschVehicleIds == null ? List.of() : Arrays.asList(vehicleLoeschVehicleIds));
             redirectAttributes.addFlashAttribute("message", "Fahrzeug-Reservierungseinstellungen gespeichert.");
             return "redirect:/settings/reservierungen?unit=" + unit + "&tab=fahrzeug";
         } catch (IllegalArgumentException e) {
@@ -128,6 +139,29 @@ public class ReservierungenSettingsController {
         }
     }
 
+    @PostMapping("/fahrzeug/benachrichtigungen")
+    public String saveVehicleNotifications(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam(name = "notificationUserIds", required = false) Long[] notificationUserIds,
+            @RequestParam(name = "notificationEmailsText", required = false) String notificationEmailsText,
+            RedirectAttributes redirectAttributes) {
+        try {
+            accessControlService.requireAdminLevel(actor);
+            accessControlService.requireUnitAccess(actor, unit);
+            requireModuleEnabled(unit);
+            settingsService.saveVehicleNotifications(
+                    unit,
+                    notificationUserIds == null ? List.of() : Arrays.asList(notificationUserIds),
+                    settingsService.parseEmailsFromText(notificationEmailsText));
+            redirectAttributes.addFlashAttribute("message", "Fahrzeug-Benachrichtigungen gespeichert.");
+            return "redirect:/settings/reservierungen?unit=" + unit + "&tab=fahrzeug";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return "redirect:/settings/reservierungen?unit=" + unit + "&tab=fahrzeug";
+        }
+    }
+
     @PostMapping("/raum")
     public String saveRoom(
             @AuthenticationPrincipal AppUserDetails actor,
@@ -136,20 +170,37 @@ public class ReservierungenSettingsController {
             @RequestParam(name = "roomDiveraEnabled", defaultValue = "false") boolean roomDiveraEnabled,
             @RequestParam(name = "roomGoogleCalendarEnabled", defaultValue = "false") boolean roomGoogleCalendarEnabled,
             @RequestParam(name = "roomDiveraDefaultGroupId", required = false) String roomDiveraDefaultGroupId,
-            @RequestParam(name = "roomNotificationUserIds", required = false) Long[] roomNotificationUserIds,
             RedirectAttributes redirectAttributes) {
         try {
             accessControlService.requireAdminLevel(actor);
             accessControlService.requireUnitAccess(actor, unit);
             requireModuleEnabled(unit);
             settingsService.saveRoomSettings(
-                    unit,
-                    roomSortMode,
-                    roomDiveraEnabled,
-                    roomGoogleCalendarEnabled,
-                    roomDiveraDefaultGroupId,
-                    roomNotificationUserIds == null ? List.of() : Arrays.asList(roomNotificationUserIds));
+                    unit, roomSortMode, roomDiveraEnabled, roomGoogleCalendarEnabled, roomDiveraDefaultGroupId);
             redirectAttributes.addFlashAttribute("message", "Raum-Reservierungseinstellungen gespeichert.");
+            return "redirect:/settings/reservierungen?unit=" + unit + "&tab=raum";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return "redirect:/settings/reservierungen?unit=" + unit + "&tab=raum";
+        }
+    }
+
+    @PostMapping("/raum/benachrichtigungen")
+    public String saveRoomNotifications(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam(name = "notificationUserIds", required = false) Long[] notificationUserIds,
+            @RequestParam(name = "notificationEmailsText", required = false) String notificationEmailsText,
+            RedirectAttributes redirectAttributes) {
+        try {
+            accessControlService.requireAdminLevel(actor);
+            accessControlService.requireUnitAccess(actor, unit);
+            requireModuleEnabled(unit);
+            settingsService.saveRoomNotifications(
+                    unit,
+                    notificationUserIds == null ? List.of() : Arrays.asList(notificationUserIds),
+                    settingsService.parseEmailsFromText(notificationEmailsText));
+            redirectAttributes.addFlashAttribute("message", "Raum-Benachrichtigungen gespeichert.");
             return "redirect:/settings/reservierungen?unit=" + unit + "&tab=raum";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
@@ -161,5 +212,24 @@ public class ReservierungenSettingsController {
         if (!moduleSettingsService.isEnabled(AppModule.RESERVIERUNGEN, unitId)) {
             throw new IllegalArgumentException("Modul Reservierungen ist für diese Einheit nicht aktiv.");
         }
+    }
+
+    private static String formatNotificationSummary(int users, int emails, boolean roomFallbackHint) {
+        if (users == 0 && emails == 0) {
+            return roomFallbackHint
+                    ? "Keine eigenen Empfänger — es gelten die Fahrzeug-Benachrichtigungen."
+                    : "Noch keine Empfänger ausgewählt.";
+        }
+        StringBuilder sb = new StringBuilder();
+        if (users > 0) {
+            sb.append(users).append(users == 1 ? " Benutzer" : " Benutzer");
+        }
+        if (emails > 0) {
+            if (!sb.isEmpty()) {
+                sb.append(", ");
+            }
+            sb.append(emails).append(emails == 1 ? " E-Mail-Adresse" : " E-Mail-Adressen");
+        }
+        return sb.toString();
     }
 }

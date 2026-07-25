@@ -29,7 +29,7 @@ public class ReservierungenNotificationService {
         UnitReservierungenSettings settings = settingsService.ensureSettings(unitId);
         notifyAdmins(
                 unitId,
-                settingsService.vehicleNotificationUserIds(settings),
+                settingsService.vehicleNotificationRecipients(settings),
                 "Neue Fahrzeugreservierung – " + reservation.getVehicle().getName(),
                 buildNewRequestHtml(
                         "Fahrzeug",
@@ -46,7 +46,7 @@ public class ReservierungenNotificationService {
         UnitReservierungenSettings settings = settingsService.ensureSettings(unitId);
         notifyAdmins(
                 unitId,
-                settingsService.roomNotificationUserIds(settings),
+                settingsService.roomNotificationRecipients(settings),
                 "Neue Raumreservierung – " + reservation.getRoom().getName(),
                 buildNewRequestHtml(
                         "Raum",
@@ -78,8 +78,12 @@ public class ReservierungenNotificationService {
                 """.formatted(escape(resourceLabel), escape(resourceName)));
     }
 
-    private void notifyAdmins(long unitId, List<Long> userIds, String subject, String htmlBody) {
-        if (userIds == null || userIds.isEmpty()) {
+    private void notifyAdmins(
+            long unitId,
+            ReservierungenSettingsService.NotificationRecipients recipients,
+            String subject,
+            String htmlBody) {
+        if (recipients == null || recipients.isEmpty()) {
             return;
         }
         if (!unitMailService.canSendForUnit(unitId)) {
@@ -87,6 +91,7 @@ public class ReservierungenNotificationService {
             return;
         }
         Set<String> sent = new LinkedHashSet<>();
+        List<Long> userIds = recipients.userIds() != null ? recipients.userIds() : List.of();
         for (Long userId : userIds) {
             if (userId == null || userId <= 0) {
                 continue;
@@ -100,6 +105,13 @@ public class ReservierungenNotificationService {
                 continue;
             }
             unitMailService.sendHtmlMail(unitId, email, subject, wrapHtml(subject, htmlBody));
+        }
+        List<String> extraEmails = recipients.emails() != null ? recipients.emails() : List.of();
+        for (String email : extraEmails) {
+            if (email == null || email.isBlank() || !sent.add(email.toLowerCase(Locale.ROOT))) {
+                continue;
+            }
+            unitMailService.sendHtmlMail(unitId, email.trim(), subject, wrapHtml(subject, htmlBody));
         }
     }
 

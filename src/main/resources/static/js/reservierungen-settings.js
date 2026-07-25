@@ -115,4 +115,44 @@
 
   syncOpenButton();
   syncMoveButtons();
+
+  function openNamedModal(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add('active');
+    document.body.classList.add('modal-open');
+  }
+
+  function closeNamedModal(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove('active');
+    if (!document.querySelector('.modal-overlay.active')) {
+      document.body.classList.remove('modal-open');
+    }
+  }
+
+  document.querySelectorAll('[data-open-notify-modal]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      openNamedModal(btn.getAttribute('data-open-notify-modal'));
+    });
+  });
+
+  document.querySelectorAll('[data-close-modal]').forEach(function (btn) {
+    btn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      closeNamedModal(btn.getAttribute('data-close-modal'));
+    });
+  });
+
+  document.querySelectorAll('.modal-overlay').forEach(function (overlay) {
+    overlay.addEventListener('click', function (ev) {
+      if (ev.target === overlay) {
+        overlay.classList.remove('active');
+        if (!document.querySelector('.modal-overlay.active')) {
+          document.body.classList.remove('modal-open');
+        }
+      }
+    });
+  });
 })();

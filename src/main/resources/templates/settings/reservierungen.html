@@ -46,13 +46,12 @@
         </div>
 
         <h3 style="margin-top:24px;">Benachrichtigungen</h3>
-        <p class="hint text-sm">Diese Benutzer erhalten eine E-Mail bei neuen Fahrzeug-Reservierungsanträgen.</p>
-        <div class="reservierungen-user-checkboxes">
-          <label class="checkbox-row" th:each="u : ${unitUsers}">
-            <input type="checkbox" name="vehicleNotificationUserIds" th:value="${u.id}"
-                   th:checked="${selectedVehicleNotificationUserIds.contains(u.id)}"/>
-            <span th:text="${u.displayName + (u.loginEmail != null ? ' (' + u.loginEmail + ')' : '')}">Benutzer</span>
-          </label>
+        <p class="hint text-sm">Bei neuen Fahrzeug-Reservierungsanträgen.</p>
+        <div class="btn-group" style="align-items:center; gap:10px; flex-wrap:wrap;">
+          <button type="button" class="btn btn--outline btn--sm" data-open-notify-modal="modal-vehicle-notifications">
+            Benachrichtigungen
+          </button>
+          <span class="hint" th:text="${vehicleNotificationSummary}">—</span>
         </div>
 
         <h3 style="margin-top:24px;">DIVERA &amp; Google Kalender</h3>
@@ -117,7 +116,7 @@
             Reihenfolge nur für das Modul Reservierungen. Die Sortierung unter Technik bleibt unverändert.
           </p>
           <ul class="reservierungen-sort-list" id="vehicle-sort-list">
-            <li class="reservierungen-sort-item" th:each="v, iter : ${vehiclesForSortModal}" th:attr="data-vehicle-id=${v.id}">
+            <li class="reservierungen-sort-item" th:each="v : ${vehiclesForSortModal}" th:attr="data-vehicle-id=${v.id}">
               <span class="reservierungen-sort-item__name" th:text="${v.name}">LF 20</span>
               <div class="row-order" role="group" aria-label="Reihenfolge">
                 <button type="button" class="row-order__btn" data-sort-dir="up" title="Nach oben" aria-label="Nach oben">
@@ -140,6 +139,42 @@
     </div>
   </div>
 
+  <div id="modal-vehicle-notifications" class="modal-overlay" th:if="${settingsTab == 'fahrzeug'}">
+    <div class="modal modal--md" role="dialog" aria-labelledby="modal-vehicle-notify-title">
+      <div class="modal__header">
+        <h3 id="modal-vehicle-notify-title">Fahrzeug-Benachrichtigungen</h3>
+        <button type="button" class="modal__close" data-close-modal="modal-vehicle-notifications" aria-label="Schließen">✕</button>
+      </div>
+      <form method="post" th:action="@{/settings/reservierungen/fahrzeug/benachrichtigungen}">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <div class="modal__body">
+          <p class="hint">Diese Empfänger erhalten eine E-Mail bei neuen Fahrzeug-Reservierungsanträgen.</p>
+          <h4 class="reservierungen-notify-subtitle">Benutzer</h4>
+          <div class="reservierungen-user-checkboxes reservierungen-user-checkboxes--modal">
+            <label class="checkbox-row" th:each="u : ${unitUsers}">
+              <input type="checkbox" name="notificationUserIds" th:value="${u.id}"
+                     th:checked="${selectedVehicleNotificationUserIds.contains(u.id)}"/>
+              <span th:text="${u.displayName + (u.loginEmail != null ? ' (' + u.loginEmail + ')' : '')}">Benutzer</span>
+            </label>
+            <p class="hint" th:if="${#lists.isEmpty(unitUsers)}">Keine Benutzer in dieser Einheit.</p>
+          </div>
+          <h4 class="reservierungen-notify-subtitle">Weitere E-Mail-Adressen</h4>
+          <div class="form-group">
+            <label for="vehicleNotificationEmailsText">Manuell (eine Adresse pro Zeile oder mit Komma)</label>
+            <textarea id="vehicleNotificationEmailsText" name="notificationEmailsText" class="field" rows="4"
+                      placeholder="z. B. wehrfuehrung@beispiel.de"
+                      th:text="${#strings.listJoin(selectedVehicleNotificationEmails, '\n')}"></textarea>
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button type="submit" class="btn btn--primary">Speichern</button>
+          <button type="button" class="btn btn--outline" data-close-modal="modal-vehicle-notifications">Abbrechen</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="card" th:if="${settingsTab == 'raum'}">
     <div class="card__body">
       <form method="post" th:action="@{/settings/reservierungen/raum}">
@@ -157,13 +192,12 @@
         </div>
 
         <h3 style="margin-top:24px;">Benachrichtigungen</h3>
-        <p class="hint text-sm">Diese Benutzer erhalten eine E-Mail bei neuen Raum-Reservierungsanträgen. Leer = wie Fahrzeug.</p>
-        <div class="reservierungen-user-checkboxes">
-          <label class="checkbox-row" th:each="u : ${unitUsers}">
-            <input type="checkbox" name="roomNotificationUserIds" th:value="${u.id}"
-                   th:checked="${selectedRoomNotificationUserIds.contains(u.id)}"/>
-            <span th:text="${u.displayName + (u.loginEmail != null ? ' (' + u.loginEmail + ')' : '')}">Benutzer</span>
-          </label>
+        <p class="hint text-sm">Bei neuen Raum-Reservierungsanträgen. Leer = wie Fahrzeug.</p>
+        <div class="btn-group" style="align-items:center; gap:10px; flex-wrap:wrap;">
+          <button type="button" class="btn btn--outline btn--sm" data-open-notify-modal="modal-room-notifications">
+            Benachrichtigungen
+          </button>
+          <span class="hint" th:text="${roomNotificationSummary}">—</span>
         </div>
 
         <h3 style="margin-top:24px;">DIVERA &amp; Google Kalender</h3>
@@ -184,6 +218,45 @@
 
         <div style="margin-top:24px;">
           <button type="submit" class="btn btn--primary">Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-room-notifications" class="modal-overlay" th:if="${settingsTab == 'raum'}">
+    <div class="modal modal--md" role="dialog" aria-labelledby="modal-room-notify-title">
+      <div class="modal__header">
+        <h3 id="modal-room-notify-title">Raum-Benachrichtigungen</h3>
+        <button type="button" class="modal__close" data-close-modal="modal-room-notifications" aria-label="Schließen">✕</button>
+      </div>
+      <form method="post" th:action="@{/settings/reservierungen/raum/benachrichtigungen}">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <div class="modal__body">
+          <p class="hint">
+            Eigene Empfänger für Raum-Anträge. Wenn hier niemand und keine E-Mail hinterlegt ist,
+            gelten die Empfänger aus den Fahrzeug-Einstellungen.
+          </p>
+          <h4 class="reservierungen-notify-subtitle">Benutzer</h4>
+          <div class="reservierungen-user-checkboxes reservierungen-user-checkboxes--modal">
+            <label class="checkbox-row" th:each="u : ${unitUsers}">
+              <input type="checkbox" name="notificationUserIds" th:value="${u.id}"
+                     th:checked="${selectedRoomNotificationUserIds.contains(u.id)}"/>
+              <span th:text="${u.displayName + (u.loginEmail != null ? ' (' + u.loginEmail + ')' : '')}">Benutzer</span>
+            </label>
+            <p class="hint" th:if="${#lists.isEmpty(unitUsers)}">Keine Benutzer in dieser Einheit.</p>
+          </div>
+          <h4 class="reservierungen-notify-subtitle">Weitere E-Mail-Adressen</h4>
+          <div class="form-group">
+            <label for="roomNotificationEmailsText">Manuell (eine Adresse pro Zeile oder mit Komma)</label>
+            <textarea id="roomNotificationEmailsText" name="notificationEmailsText" class="field" rows="4"
+                      placeholder="z. B. gemeinde@beispiel.de"
+                      th:text="${#strings.listJoin(selectedRoomNotificationEmails, '\n')}"></textarea>
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button type="submit" class="btn btn--primary">Speichern</button>
+          <button type="button" class="btn btn--outline" data-close-modal="modal-room-notifications">Abbrechen</button>
         </div>
       </form>
     </div>

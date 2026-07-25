@@ -61,6 +61,9 @@ public class UnitReservierungenSettings {
     @Column(name = "vehicle_notification_user_ids_json", columnDefinition = "TEXT")
     private String vehicleNotificationUserIdsJson;
 
+    @Column(name = "vehicle_notification_emails_json", columnDefinition = "TEXT")
+    private String vehicleNotificationEmailsJson;
+
     @Column(name = "room_sort_mode", nullable = false, length = 16)
     private String roomSortMode = "manual";
 
@@ -75,6 +78,9 @@ public class UnitReservierungenSettings {
 
     @Column(name = "room_notification_user_ids_json", columnDefinition = "TEXT")
     private String roomNotificationUserIdsJson;
+
+    @Column(name = "room_notification_emails_json", columnDefinition = "TEXT")
+    private String roomNotificationEmailsJson;
 
     @Column(name = "updated_at", nullable = false, insertable = false, updatable = false)
     private Instant updatedAt;
