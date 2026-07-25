@@ -326,7 +326,8 @@ public class ReservierungenService {
             } else {
                 notes.add(
                         "DIVERA: Termin konnte nicht angelegt werden"
-                                + " (Access Key unter Admin → Schnittstellen bzw. Server-Log prüfen).");
+                                + " (persönlichen Access Key unter Einstellungen bzw."
+                                + " Einheits-Key unter Admin → Schnittstellen prüfen; Server-Log).");
             }
         }
         if (settings.isVehicleGoogleCalendarEnabled()) {
@@ -362,7 +363,8 @@ public class ReservierungenService {
             } else {
                 notes.add(
                         "DIVERA: Termin konnte nicht angelegt werden"
-                                + " (Access Key unter Admin → Schnittstellen bzw. Server-Log prüfen).");
+                                + " (persönlichen Access Key unter Einstellungen bzw."
+                                + " Einheits-Key unter Admin → Schnittstellen prüfen; Server-Log).");
             }
         }
         if (settings.isRoomGoogleCalendarEnabled()) {

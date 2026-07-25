@@ -194,8 +194,8 @@ public class ReservierungenDiveraSyncService {
     }
 
     /**
-     * Einheits-Access-Key zuerst (wie unter Schnittstellen konfiguriert), danach persönlicher Key des
-     * Genehmigers – falls der persönliche Key keine Schreibrechte hat, greift der Unit-Key.
+     * Persönlicher Access Key des Genehmigers zuerst (Termin erscheint unter dessen DIVERA-Konto),
+     * danach Einheits-Access-Key als Fallback.
      */
     private List<DiveraCredentials> resolveCredentialCandidates(long unitId, Long actorUserId) {
         UnitDiveraSettings unitSettings =
@@ -207,12 +207,6 @@ public class ReservierungenDiveraSyncService {
         List<DiveraCredentials> result = new ArrayList<>();
         LinkedHashSet<String> seen = new LinkedHashSet<>();
 
-        if (unitSettings != null && unitSettings.getAccessKey() != null && !unitSettings.getAccessKey().isBlank()) {
-            String key = unitSettings.getAccessKey().trim();
-            if (seen.add(key)) {
-                result.add(new DiveraCredentials(apiBase, key, "unit-access-key"));
-            }
-        }
         if (actorUserId != null) {
             userRepository.findById(actorUserId).map(User::getDiveraApiKey).ifPresent(raw -> {
                 if (raw != null && !raw.isBlank()) {
@@ -222,6 +216,12 @@ public class ReservierungenDiveraSyncService {
                     }
                 }
             });
+        }
+        if (unitSettings != null && unitSettings.getAccessKey() != null && !unitSettings.getAccessKey().isBlank()) {
+            String key = unitSettings.getAccessKey().trim();
+            if (seen.add(key)) {
+                result.add(new DiveraCredentials(apiBase, key, "unit-access-key"));
+            }
         }
         return result;
     }
