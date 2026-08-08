@@ -1007,7 +1007,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .dashboard-widget__handle--e {
-  top: 10px;
+  top: 40px;
   right: -4px;
   width: 10px;
   bottom: 10px;
@@ -1015,7 +1015,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .dashboard-widget__handle--w {
-  top: 10px;
+  top: 40px;
   left: -4px;
   width: 10px;
   bottom: 10px;
@@ -1031,8 +1031,8 @@ input:focus, select:focus, textarea:focus {
 }
 
 .dashboard-widget__handle--n {
-  left: 10px;
-  right: 10px;
+  left: 40px;
+  right: 40px;
   top: -4px;
   height: 10px;
   cursor: ns-resize;
