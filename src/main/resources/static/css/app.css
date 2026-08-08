@@ -874,7 +874,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .dashboard-edit-bar {
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -884,6 +884,14 @@ input:focus, select:focus, textarea:focus {
   border: 1px dashed var(--border, rgba(0, 0, 0, 0.15));
   border-radius: var(--radius-md, 8px);
   background: var(--bg-card-hover, rgba(0, 0, 0, 0.03));
+}
+
+body.dashboard-editing .dashboard-edit-bar {
+  display: flex;
+}
+
+.dashboard-edit-bar[hidden] {
+  display: none !important;
 }
 
 .dashboard-edit-bar .hint {
