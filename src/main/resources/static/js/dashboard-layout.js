@@ -14,6 +14,7 @@
   var editHint = document.getElementById('dashboard-edit-hint');
   var addModal = document.getElementById('modal-dashboard-add');
   var atemschutzModal = document.getElementById('modal-dashboard-atemschutz-config');
+  var openReportsModal = document.getElementById('modal-dashboard-open-reports-config');
   var emptyHint = document.getElementById('dashboard-widgets-empty');
   var editing = false;
   var interaction = null;
@@ -76,6 +77,30 @@
     }
   }
 
+  function openReportsDefaults() {
+    var el = document.getElementById('open-reports-widget-defaults');
+    if (!el) {
+      return {
+        showEinsatzberichte: true,
+        showAnwesenheitslisten: true,
+        anwesenheitOnlyUntilToday: true,
+        limit: 15,
+        openInEdit: true,
+      };
+    }
+    try {
+      return JSON.parse(el.textContent || '{}');
+    } catch (e) {
+      return {
+        showEinsatzberichte: true,
+        showAnwesenheitslisten: true,
+        anwesenheitOnlyUntilToday: true,
+        limit: 15,
+        openInEdit: true,
+      };
+    }
+  }
+
   function parseConfig(raw) {
     if (!raw) return null;
     try {
@@ -87,8 +112,12 @@
 
   function readConfig(node) {
     var parsed = parseConfig(node.getAttribute('data-config'));
-    if (node.getAttribute('data-widget-type') === 'ATEMSCHUTZ') {
+    var type = node.getAttribute('data-widget-type');
+    if (type === 'ATEMSCHUTZ') {
       return parsed && typeof parsed === 'object' ? parsed : atemschutzDefaults();
+    }
+    if (type === 'OPEN_REPORTS') {
+      return parsed && typeof parsed === 'object' ? parsed : openReportsDefaults();
     }
     return parsed && typeof parsed === 'object' ? parsed : null;
   }
@@ -185,6 +214,7 @@
     if (type === 'UNIT_OVERVIEW') return { x: 0, y: row, w: 12, h: 5 };
     if (type === 'PLANNED_ALARMS') return { x: 0, y: row, w: 8, h: 7 };
     if (type === 'ATEMSCHUTZ') return { x: 0, y: row, w: 6, h: 10 };
+    if (type === 'OPEN_REPORTS') return { x: 0, y: row, w: 6, h: 8 };
     return { x: 0, y: row, w: 8, h: 8 };
   }
 
@@ -321,6 +351,77 @@
     }
   }
 
+  function fillOpenReportsConfigForm(cfg) {
+    var einsatz = document.getElementById('open-reports-cfg-einsatz');
+    var anwesenheit = document.getElementById('open-reports-cfg-anwesenheit');
+    var untilToday = document.getElementById('open-reports-cfg-until-today');
+    var openEdit = document.getElementById('open-reports-cfg-edit');
+    var limit = document.getElementById('open-reports-cfg-limit');
+    if (einsatz) einsatz.checked = cfg.showEinsatzberichte !== false;
+    if (anwesenheit) anwesenheit.checked = cfg.showAnwesenheitslisten !== false;
+    if (untilToday) untilToday.checked = cfg.anwesenheitOnlyUntilToday !== false;
+    if (openEdit) openEdit.checked = cfg.openInEdit !== false;
+    if (limit) limit.value = String(cfg.limit != null ? cfg.limit : 15);
+  }
+
+  function readOpenReportsConfigForm() {
+    var einsatz = document.getElementById('open-reports-cfg-einsatz');
+    var anwesenheit = document.getElementById('open-reports-cfg-anwesenheit');
+    var untilToday = document.getElementById('open-reports-cfg-until-today');
+    var openEdit = document.getElementById('open-reports-cfg-edit');
+    var limit = document.getElementById('open-reports-cfg-limit');
+    var parsedLimit = limit ? parseInt(limit.value, 10) : 15;
+    if (isNaN(parsedLimit)) parsedLimit = 15;
+    parsedLimit = Math.max(1, Math.min(50, parsedLimit));
+    return {
+      showEinsatzberichte: !!(einsatz && einsatz.checked),
+      showAnwesenheitslisten: !!(anwesenheit && anwesenheit.checked),
+      anwesenheitOnlyUntilToday: !!(untilToday && untilToday.checked),
+      openInEdit: !!(openEdit && openEdit.checked),
+      limit: parsedLimit,
+    };
+  }
+
+  function openOpenReportsConfig(node) {
+    configTarget = node;
+    fillOpenReportsConfigForm(readConfig(node) || openReportsDefaults());
+    if (openReportsModal) {
+      openReportsModal.classList.add('active');
+      openReportsModal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('modal-open');
+    }
+  }
+
+  function closeOpenReportsConfig() {
+    configTarget = null;
+    if (openReportsModal) {
+      openReportsModal.classList.remove('active');
+      openReportsModal.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('modal-open');
+    }
+  }
+
+  function saveOpenReportsConfig() {
+    if (!configTarget) return;
+    configTarget.setAttribute('data-config', JSON.stringify(readOpenReportsConfigForm()));
+    closeOpenReportsConfig();
+    if (typeof window.toast === 'function') {
+      window.toast('Einstellungen übernommen – mit „Fertig“ speichern');
+    }
+  }
+
+  function openWidgetConfig(node) {
+    if (!node) return;
+    var type = node.getAttribute('data-widget-type');
+    if (type === 'ATEMSCHUTZ') {
+      openAtemschutzConfig(node);
+      return;
+    }
+    if (type === 'OPEN_REPORTS') {
+      openOpenReportsConfig(node);
+    }
+  }
+
   function ensureHandles(node) {
     if (node.querySelector('.dashboard-widget__handles')) return;
     var handles = document.createElement('div');
@@ -346,20 +447,27 @@
       existing.classList.remove('dashboard-widget--removed');
       applyGeom(existing, geom);
       existing.classList.add('dashboard-widget--editing');
-      if (type === 'ATEMSCHUTZ' && !existing.getAttribute('data-config')) {
-        existing.setAttribute('data-config', JSON.stringify(atemschutzDefaults()));
+      if ((type === 'ATEMSCHUTZ' || type === 'OPEN_REPORTS') && !existing.getAttribute('data-config')) {
+        existing.setAttribute(
+          'data-config',
+          JSON.stringify(type === 'ATEMSCHUTZ' ? atemschutzDefaults() : openReportsDefaults())
+        );
       }
     } else {
       var item = catalog().find(function (c) { return c.id === type; });
       var article = document.createElement('article');
       article.className = 'dashboard-widget widget-card dashboard-widget--placeholder dashboard-widget--editing';
       if (type === 'ATEMSCHUTZ') article.classList.add('widget-card--atemschutz');
+      if (type === 'OPEN_REPORTS') article.classList.add('widget-card--open-reports');
       article.setAttribute('data-widget-type', type);
       if (type === 'ATEMSCHUTZ') {
         article.setAttribute('data-config', JSON.stringify(atemschutzDefaults()));
       }
+      if (type === 'OPEN_REPORTS') {
+        article.setAttribute('data-config', JSON.stringify(openReportsDefaults()));
+      }
       var configureBtn =
-        type === 'ATEMSCHUTZ'
+        type === 'ATEMSCHUTZ' || type === 'OPEN_REPORTS'
           ? '<button type="button" class="btn btn--outline btn--sm dashboard-widget__configure">Konfigurieren</button>'
           : '';
       article.innerHTML =
@@ -505,7 +613,7 @@
     if (configureBtn) {
       e.preventDefault();
       e.stopPropagation();
-      openAtemschutzConfig(configureBtn.closest('.dashboard-widget'));
+      openWidgetConfig(configureBtn.closest('.dashboard-widget'));
       return;
     }
     var removeBtn = e.target.closest('.dashboard-widget__remove');
@@ -573,6 +681,17 @@
     });
     var saveCfg = document.getElementById('atemschutz-config-save');
     if (saveCfg) saveCfg.addEventListener('click', saveAtemschutzConfig);
+  }
+
+  if (openReportsModal) {
+    openReportsModal.querySelectorAll('[data-close-open-reports-config]').forEach(function (btn) {
+      btn.addEventListener('click', closeOpenReportsConfig);
+    });
+    openReportsModal.addEventListener('click', function (e) {
+      if (e.target === openReportsModal) closeOpenReportsConfig();
+    });
+    var saveOpenReports = document.getElementById('open-reports-config-save');
+    if (saveOpenReports) saveOpenReports.addEventListener('click', saveOpenReportsConfig);
   }
 
   widgetNodes().forEach(ensureHandles);

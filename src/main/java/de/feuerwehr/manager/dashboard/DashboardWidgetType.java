@@ -41,6 +41,12 @@ public enum DashboardWidgetType {
             "Tauglichkeiten der Geräteträger - Zahlen und optional Namen",
             null,
             null,
+            false),
+    OPEN_REPORTS(
+            "Offene Berichte",
+            "Noch nicht freigegebene Einsatzberichte und Anwesenheitslisten",
+            AppModule.BERICHTE,
+            "berichte.read",
             false);
 
     private final String label;

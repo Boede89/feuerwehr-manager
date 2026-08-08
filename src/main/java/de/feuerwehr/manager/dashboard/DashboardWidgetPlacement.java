@@ -28,6 +28,8 @@ public record DashboardWidgetPlacement(
             config = defaultConfigFor(type);
         } else if (type == DashboardWidgetType.ATEMSCHUTZ) {
             config = AtemschutzWidgetConfig.normalize(config);
+        } else if (type == DashboardWidgetType.OPEN_REPORTS) {
+            config = OpenReportsWidgetConfig.normalize(config);
         } else {
             config = java.util.Map.copyOf(config);
         }
@@ -52,6 +54,7 @@ public record DashboardWidgetPlacement(
             case PLANNED_ALARMS -> new DashboardWidgetPlacement(type, 0, rowHint, 8, 7);
             case UNIT_OVERVIEW -> new DashboardWidgetPlacement(type, 0, rowHint, 12, 5);
             case ATEMSCHUTZ -> new DashboardWidgetPlacement(type, 0, rowHint, 6, 10);
+            case OPEN_REPORTS -> new DashboardWidgetPlacement(type, 0, rowHint, 6, 8);
         };
     }
 
@@ -79,6 +82,7 @@ public record DashboardWidgetPlacement(
             case TERMINE -> "widget-card--termine";
             case UNIT_OVERVIEW -> "widget-card--unit-overview";
             case ATEMSCHUTZ -> "widget-card--atemschutz";
+            case OPEN_REPORTS -> "widget-card--open-reports";
         };
     }
 
@@ -93,6 +97,9 @@ public record DashboardWidgetPlacement(
     private static java.util.Map<String, Object> defaultConfigFor(DashboardWidgetType type) {
         if (type == DashboardWidgetType.ATEMSCHUTZ) {
             return AtemschutzWidgetConfig.defaults();
+        }
+        if (type == DashboardWidgetType.OPEN_REPORTS) {
+            return OpenReportsWidgetConfig.defaults();
         }
         return java.util.Map.of();
     }

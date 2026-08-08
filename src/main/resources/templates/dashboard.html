@@ -32,7 +32,7 @@
           <span class="dashboard-widget__drag" title="Verschieben" aria-hidden="true">⋮⋮</span>
           <span class="dashboard-widget__chrome-actions">
             <button type="button" class="btn btn--outline btn--sm dashboard-widget__configure"
-                    th:if="${w.type().name() == 'ATEMSCHUTZ'}"
+                    th:if="${w.type().name() == 'ATEMSCHUTZ' or w.type().name() == 'OPEN_REPORTS'}"
                     aria-label="Widget konfigurieren">Konfigurieren</button>
             <button type="button" class="btn btn--outline btn--sm dashboard-widget__remove"
                     aria-label="Widget entfernen">Entfernen</button>
@@ -263,6 +263,33 @@
             </div>
           </div>
         </th:block>
+
+        <th:block th:if="${w.type().name() == 'OPEN_REPORTS'}">
+          <div class="widget-card__header">
+            <h3>Offene Berichte</h3>
+            <a th:href="@{/berichte(unit=${unitId})}">Zu Berichte →</a>
+          </div>
+          <div class="widget-card__body widget-card__body--open-reports">
+            <p class="text-muted text-sm" th:if="${#lists.isEmpty(openReportItems)}">
+              Keine offenen Berichte nach aktueller Konfiguration.
+            </p>
+            <div class="dash-open-reports-list" th:if="${!#lists.isEmpty(openReportItems)}">
+              <a class="dash-open-report"
+                 th:each="item : ${openReportItems}"
+                 th:href="${item.href()}"
+                 th:classappend="${' dash-open-report--' + item.kind()}">
+                <span class="dash-open-report__kind" th:text="${item.kindLabel()}">Einsatzbericht</span>
+                <span class="dash-open-report__title" th:text="${item.title()}">Titel</span>
+                <span class="dash-open-report__meta">
+                  <span th:if="${item.date() != null}"
+                        th:text="${#temporals.format(item.date(), 'dd.MM.yyyy')}">01.01.2026</span>
+                  <span th:if="${item.number() != null and !#strings.isEmpty(item.number())}"
+                        th:text="${' · ' + item.number()}"></span>
+                </span>
+              </a>
+            </div>
+          </div>
+        </th:block>
       </article>
     </th:block>
 
@@ -344,6 +371,44 @@
       <div class="modal__footer">
         <button type="button" class="btn btn--primary" id="atemschutz-config-save">Übernehmen</button>
         <button type="button" class="btn btn--outline" data-close-atemschutz-config>Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-dashboard-open-reports-config" class="modal-overlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-labelledby="modal-dashboard-open-reports-title">
+      <div class="modal__header">
+        <h3 id="modal-dashboard-open-reports-title">Offene-Berichte-Widget</h3>
+        <button type="button" class="modal__close" data-close-open-reports-config aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal__body">
+        <p class="hint">Wählen Sie, welche offenen Berichte angezeigt werden. Nach „Fertig“ werden die Daten neu geladen.</p>
+        <div class="dash-open-reports-config form-grid">
+          <label class="checkbox-inline form-group--full">
+            <input type="checkbox" id="open-reports-cfg-einsatz"/>
+            Einsatzberichte (Entwurf, noch nicht freigegeben)
+          </label>
+          <label class="checkbox-inline form-group--full">
+            <input type="checkbox" id="open-reports-cfg-anwesenheit"/>
+            Anwesenheitslisten (Entwurf, noch nicht freigegeben)
+          </label>
+          <label class="checkbox-inline form-group--full">
+            <input type="checkbox" id="open-reports-cfg-until-today"/>
+            Anwesenheitslisten nur bis heute (zukünftige ausblenden)
+          </label>
+          <label class="checkbox-inline form-group--full">
+            <input type="checkbox" id="open-reports-cfg-edit"/>
+            Beim Klick direkt zum Bearbeiten öffnen
+          </label>
+          <div class="form-group form-group--full">
+            <label for="open-reports-cfg-limit">Max. Einträge</label>
+            <input type="number" id="open-reports-cfg-limit" min="1" max="50" step="1"/>
+          </div>
+        </div>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--primary" id="open-reports-config-save">Übernehmen</button>
+        <button type="button" class="btn btn--outline" data-close-open-reports-config>Abbrechen</button>
       </div>
     </div>
   </div>
@@ -431,12 +496,13 @@
 
   <script id="dashboard-catalog-json" type="application/json" th:text="${dashboardCatalogJson}">[]</script>
   <script id="atemschutz-widget-defaults" type="application/json" th:text="${atemschutzWidgetDefaultsJson}">{}</script>
+  <script id="open-reports-widget-defaults" type="application/json" th:text="${openReportsWidgetDefaultsJson}">{}</script>
 
   <div id="dashboard-meta" hidden
        th:attr="data-unit-id=${unitId}, data-csrf-token=${_csrf.token}"></div>
 
   <script th:src="@{/js/combo-suggest.js}" defer></script>
   <script th:src="@{/js/dashboard-manual-alarms.js}" defer></script>
-  <script th:src="@{/js/dashboard-layout.js(v='20260808d')}" defer></script>
+  <script th:src="@{/js/dashboard-layout.js(v='20260808f')}" defer></script>
 </main>
 </html>

@@ -22,6 +22,18 @@ public interface IncidentReportRepository extends JpaRepository<IncidentReport, 
 
     @Query("""
             SELECT r FROM IncidentReport r
+            WHERE r.unit.id = :unitId
+              AND r.status = :status
+              AND (r.testData = FALSE OR :includeTestReports = TRUE)
+            ORDER BY r.incidentDate DESC, r.id DESC
+            """)
+    List<IncidentReport> findByUnitIdAndStatus(
+            @Param("unitId") long unitId,
+            @Param("status") IncidentReportStatus status,
+            @Param("includeTestReports") boolean includeTestReports);
+
+    @Query("""
+            SELECT r FROM IncidentReport r
             LEFT JOIN FETCH r.createdByUser
             WHERE r.unit.id = :unitId
               AND r.incidentDate >= :yearStart

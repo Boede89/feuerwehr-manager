@@ -11,6 +11,7 @@ import de.feuerwehr.manager.dashboard.DashboardLayoutService;
 import de.feuerwehr.manager.dashboard.DashboardWidgetCatalogItem;
 import de.feuerwehr.manager.dashboard.DashboardWidgetPlacement;
 import de.feuerwehr.manager.dashboard.DashboardWidgetType;
+import de.feuerwehr.manager.dashboard.OpenReportsWidgetConfig;
 import de.feuerwehr.manager.divera.DiveraAlarmsResponse;
 import de.feuerwehr.manager.divera.DiveraService;
 import de.feuerwehr.manager.divera.ManualAlarmService;
@@ -155,6 +156,20 @@ public class DashboardController {
             model.addAttribute("atemschutzWidgetDefaultsJson", "{}");
         }
 
+        if (needed.contains(DashboardWidgetType.OPEN_REPORTS)) {
+            loadOpenReportsWidget(resolvedUnitId, placements, model);
+        } else {
+            model.addAttribute("openReportItems", List.of());
+            model.addAttribute("openReportsConfigJson", "{}");
+        }
+        try {
+            model.addAttribute(
+                    "openReportsWidgetDefaultsJson",
+                    objectMapper.writeValueAsString(OpenReportsWidgetConfig.defaults()));
+        } catch (Exception e) {
+            model.addAttribute("openReportsWidgetDefaultsJson", "{}");
+        }
+
         return "dashboard";
     }
 
@@ -178,6 +193,28 @@ public class DashboardController {
             model.addAttribute("atemschutzMetrics", List.of());
             model.addAttribute("atemschutzIncludePaused", false);
             model.addAttribute("atemschutzConfigJson", "{}");
+        }
+    }
+
+    private void loadOpenReportsWidget(
+            long unitId, List<DashboardWidgetPlacement> placements, Model model) {
+        try {
+            DashboardWidgetPlacement openReports = placements.stream()
+                    .filter(p -> p.type() == DashboardWidgetType.OPEN_REPORTS)
+                    .findFirst()
+                    .orElse(null);
+            Map<String, Object> config =
+                    openReports != null ? openReports.config() : OpenReportsWidgetConfig.defaults();
+            model.addAttribute(
+                    "openReportItems",
+                    dashboardLayoutService.buildOpenReportItems(unitId, config));
+            model.addAttribute(
+                    "openReportsConfigJson",
+                    objectMapper.writeValueAsString(OpenReportsWidgetConfig.normalize(config)));
+        } catch (Exception e) {
+            log.warn("Offene-Berichte-Widget konnte nicht geladen werden: {}", e.getMessage(), e);
+            model.addAttribute("openReportItems", List.of());
+            model.addAttribute("openReportsConfigJson", "{}");
         }
     }
 

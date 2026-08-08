@@ -4,12 +4,20 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.feuerwehr.manager.atemschutz.AtemschutzService;
 import de.feuerwehr.manager.atemschutz.CarrierTauglichkeitStatus;
+import de.feuerwehr.manager.berichte.AttendanceReport;
+import de.feuerwehr.manager.berichte.AttendanceReportRepository;
+import de.feuerwehr.manager.berichte.IncidentReport;
+import de.feuerwehr.manager.berichte.IncidentReportRepository;
+import de.feuerwehr.manager.berichte.IncidentReportStatus;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.UserPermissionService;
 import de.feuerwehr.manager.settings.ModuleSettingsService;
+import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -35,6 +43,9 @@ public class DashboardLayoutService {
     private final ModuleSettingsService moduleSettingsService;
     private final UserPermissionService userPermissionService;
     private final AtemschutzService atemschutzService;
+    private final IncidentReportRepository incidentReportRepository;
+    private final AttendanceReportRepository attendanceReportRepository;
+    private final TestModeService testModeService;
 
     @Transactional(readOnly = true)
     public List<DashboardWidgetPlacement> resolveActivePlacements(AppUserDetails actor, long unitId) {
@@ -155,6 +166,97 @@ public class DashboardLayoutService {
                     names));
         }
         return List.copyOf(views);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DashboardOpenReportItem> buildOpenReportItems(long unitId, Map<String, Object> config) {
+        Map<String, Object> cfg = OpenReportsWidgetConfig.normalize(config);
+        boolean includeTest = testModeService.isEnabled();
+        boolean openInEdit = OpenReportsWidgetConfig.openInEdit(cfg);
+        int limit = OpenReportsWidgetConfig.limit(cfg);
+        List<DashboardOpenReportItem> items = new ArrayList<>();
+
+        if (OpenReportsWidgetConfig.showEinsatzberichte(cfg)) {
+            for (IncidentReport report :
+                    incidentReportRepository.findByUnitIdAndStatus(
+                            unitId, IncidentReportStatus.ENTWURF, includeTest)) {
+                if (report == null || report.getId() == null) {
+                    continue;
+                }
+                String title = openReportTitle(report);
+                String href = openInEdit
+                        ? "/berichte/einsatzberichte/" + report.getId() + "/bearbeiten?unit=" + unitId
+                        : "/berichte/einsatzberichte/" + report.getId() + "?unit=" + unitId;
+                items.add(new DashboardOpenReportItem(
+                        "einsatz",
+                        "Einsatzbericht",
+                        title,
+                        report.getIncidentDate(),
+                        blankToNull(report.getIncidentNumber()),
+                        href));
+            }
+        }
+
+        if (OpenReportsWidgetConfig.showAnwesenheitslisten(cfg)) {
+            LocalDate toDate =
+                    OpenReportsWidgetConfig.anwesenheitOnlyUntilToday(cfg) ? LocalDate.now() : null;
+            for (AttendanceReport report :
+                    attendanceReportRepository.findByUnitIdAndStatusOptionalToDate(
+                            unitId, IncidentReportStatus.ENTWURF, toDate, includeTest)) {
+                if (report == null || report.getId() == null) {
+                    continue;
+                }
+                String title = blankToNull(report.getTitle());
+                if (title == null) {
+                    title = "Anwesenheitsliste";
+                }
+                String href = openInEdit
+                        ? "/berichte/anwesenheitslisten/" + report.getId() + "/bearbeiten?unit=" + unitId
+                        : "/berichte/anwesenheitslisten/" + report.getId() + "?unit=" + unitId;
+                items.add(new DashboardOpenReportItem(
+                        "anwesenheit",
+                        "Anwesenheitsliste",
+                        title,
+                        report.getEventDate(),
+                        blankToNull(report.getReportNumber()),
+                        href));
+            }
+        }
+
+        items.sort(Comparator
+                .comparing(DashboardOpenReportItem::date, Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(DashboardOpenReportItem::title, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)));
+        if (items.size() > limit) {
+            return List.copyOf(items.subList(0, limit));
+        }
+        return List.copyOf(items);
+    }
+
+    private static String openReportTitle(IncidentReport report) {
+        String stichwort = blankToNull(report.getStichwort());
+        if (stichwort != null) {
+            return stichwort;
+        }
+        String type = blankToNull(report.getIncidentTypeLabel());
+        String location = blankToNull(report.getLocation());
+        if (type != null && location != null) {
+            return type + " · " + location;
+        }
+        if (type != null) {
+            return type;
+        }
+        if (location != null) {
+            return location;
+        }
+        return "Einsatzbericht";
+    }
+
+    private static String blankToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private static boolean matchesMetric(
@@ -306,11 +408,9 @@ public class DashboardLayoutService {
         if (configRaw instanceof Map<?, ?> map) {
             Map<String, Object> copy = new LinkedHashMap<>();
             map.forEach((k, v) -> copy.put(String.valueOf(k), v));
-            config = type == DashboardWidgetType.ATEMSCHUTZ
-                    ? AtemschutzWidgetConfig.normalize(copy)
-                    : copy;
-        } else if (type == DashboardWidgetType.ATEMSCHUTZ) {
-            config = AtemschutzWidgetConfig.defaults();
+            config = normalizeConfig(type, copy);
+        } else {
+            config = defaultConfig(type);
         }
         return new DashboardWidgetPlacement(
                 type,
@@ -324,17 +424,34 @@ public class DashboardLayoutService {
     @SuppressWarnings("unchecked")
     private Map<String, Object> readConfig(JsonNode node, DashboardWidgetType type) {
         if (node == null || node.isNull()) {
-            return type == DashboardWidgetType.ATEMSCHUTZ ? AtemschutzWidgetConfig.defaults() : Map.of();
+            return defaultConfig(type);
         }
         try {
             Map<String, Object> map = objectMapper.convertValue(node, Map.class);
-            if (type == DashboardWidgetType.ATEMSCHUTZ) {
-                return AtemschutzWidgetConfig.normalize(map);
-            }
-            return map != null ? map : Map.of();
+            return normalizeConfig(type, map != null ? map : Map.of());
         } catch (Exception e) {
-            return type == DashboardWidgetType.ATEMSCHUTZ ? AtemschutzWidgetConfig.defaults() : Map.of();
+            return defaultConfig(type);
         }
+    }
+
+    private static Map<String, Object> defaultConfig(DashboardWidgetType type) {
+        if (type == DashboardWidgetType.ATEMSCHUTZ) {
+            return AtemschutzWidgetConfig.defaults();
+        }
+        if (type == DashboardWidgetType.OPEN_REPORTS) {
+            return OpenReportsWidgetConfig.defaults();
+        }
+        return Map.of();
+    }
+
+    private static Map<String, Object> normalizeConfig(DashboardWidgetType type, Map<String, Object> raw) {
+        if (type == DashboardWidgetType.ATEMSCHUTZ) {
+            return AtemschutzWidgetConfig.normalize(raw);
+        }
+        if (type == DashboardWidgetType.OPEN_REPORTS) {
+            return OpenReportsWidgetConfig.normalize(raw);
+        }
+        return raw == null || raw.isEmpty() ? Map.of() : Map.copyOf(raw);
     }
 
     private static String textOrNull(JsonNode node) {
