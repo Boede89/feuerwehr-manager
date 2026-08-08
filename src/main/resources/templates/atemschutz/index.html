@@ -95,12 +95,13 @@
           <th>G26</th>
           <th>Übung/Einsatz</th>
           <th>Strecke</th>
+          <th>Notiz</th>
         </tr>
         </thead>
         <tbody>
         <tr th:each="row : ${carriers}" class="carrier-row member-row" role="link" tabindex="0"
             th:with="exited=${!T(de.feuerwehr.manager.util.PersonMembership).isCurrentlyMember(row.carrier.person)}"
-            th:attr="data-search=${row.carrier.person.lastName + ' ' + row.carrier.person.firstName},
+            th:attr="data-search=${row.carrier.person.lastName + ' ' + row.carrier.person.firstName + ' ' + (row.carrier.notes != null ? row.carrier.notes : '')},
                      data-status=${row.carrier.status.name()},
                      data-tauglichkeit=${exited ? 'AUSGETRETEN' : row.tauglichkeit.name()},
                      data-carrier-id=${row.carrier.id},
@@ -139,6 +140,14 @@
             <th:block th:unless="${exited}" th:with="view=${row.summaries.get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).STRECKEN)}">
               <div th:replace="~{fragments/atemschutz-fitness-badge :: validityDate(${view})}"></div>
             </th:block>
+          </td>
+          <td class="atemschutz-notes-cell">
+            <span th:if="${row.carrier.notes != null and !#strings.isEmpty(row.carrier.notes)}"
+                  class="atemschutz-notes-text"
+                  th:text="${row.carrier.notes}"
+                  th:title="${row.carrier.notes}">Notiz</span>
+            <span th:unless="${row.carrier.notes != null and !#strings.isEmpty(row.carrier.notes)}"
+                  class="text-muted">—</span>
           </td>
         </tr>
         </tbody>

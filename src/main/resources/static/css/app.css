@@ -4138,6 +4138,20 @@ span.required { color: var(--error); }
 .atemschutz-select-col input[type="checkbox"] {
   margin: 0;
 }
+.atemschutz-notes-cell {
+  max-width: 14rem;
+}
+.atemschutz-notes-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.875rem;
+  line-height: 1.3;
+  color: var(--text-muted, #6b7280);
+  white-space: normal;
+  word-break: break-word;
+}
 .user-notification-table th:not(:first-child),
 .user-notification-table td:not(:first-child) {
   width: 120px;
