@@ -11,7 +11,7 @@
   var editBtn = document.getElementById('dashboard-edit-btn');
   var doneBtn = document.getElementById('dashboard-done-btn');
   var addBtn = document.getElementById('dashboard-add-btn');
-  var editBar = document.getElementById('dashboard-edit-bar');
+  var editHint = document.getElementById('dashboard-edit-hint');
   var addModal = document.getElementById('modal-dashboard-add');
   var atemschutzModal = document.getElementById('modal-dashboard-atemschutz-config');
   var emptyHint = document.getElementById('dashboard-widgets-empty');
@@ -32,12 +32,27 @@
 
   function catalog() {
     var el = document.getElementById('dashboard-catalog-json');
-    if (!el) return [];
-    try {
-      return JSON.parse(el.textContent || '[]');
-    } catch (e) {
-      return [];
+    var items = [];
+    if (el) {
+      try {
+        items = JSON.parse(el.textContent || '[]');
+      } catch (e) {
+        items = [];
+      }
     }
+    if (!Array.isArray(items)) items = [];
+    var hasAtemschutz = items.some(function (item) {
+      return item && item.id === 'ATEMSCHUTZ';
+    });
+    if (!hasAtemschutz) {
+      items.push({
+        id: 'ATEMSCHUTZ',
+        label: 'Atemschutz',
+        description: 'Tauglichkeiten der Geräteträger - Zahlen und optional Namen',
+        alreadyActive: false,
+      });
+    }
+    return items;
   }
 
   function atemschutzDefaults() {
@@ -178,10 +193,8 @@
     document.body.classList.toggle('dashboard-editing', editing);
     if (editBtn) editBtn.hidden = editing;
     if (doneBtn) doneBtn.hidden = !editing;
-    if (editBar) {
-      editBar.hidden = !editing;
-      editBar.setAttribute('aria-hidden', editing ? 'false' : 'true');
-    }
+    if (addBtn) addBtn.hidden = !editing;
+    if (editHint) editHint.hidden = !editing;
     widgetNodes().forEach(function (node) {
       node.classList.toggle('dashboard-widget--editing', editing);
     });
@@ -565,4 +578,7 @@
   updateBoardRows();
   updateEmptyHint();
   setEditing(false);
+  window.addEventListener('pageshow', function () {
+    setEditing(false);
+  });
 })();

@@ -873,26 +873,18 @@ input:focus, select:focus, textarea:focus {
   flex-shrink: 0;
 }
 
-.dashboard-edit-bar {
-  display: none !important;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-  padding: 12px 14px;
+.dashboard-edit-hint {
+  margin: 0 0 16px;
+  padding: 10px 12px;
   border: 1px dashed var(--border, rgba(0, 0, 0, 0.15));
   border-radius: var(--radius-md, 8px);
   background: var(--bg-card-hover, rgba(0, 0, 0, 0.03));
+  color: var(--text-muted, #6b7280);
+  font-size: 0.9rem;
 }
 
-body.dashboard-editing .dashboard-edit-bar:not([hidden]) {
-  display: flex !important;
-}
-
-.dashboard-edit-bar .hint {
-  margin: 0;
-  flex: 1;
+.dashboard-edit-hint[hidden] {
+  display: none !important;
 }
 
 .dashboard-widgets {

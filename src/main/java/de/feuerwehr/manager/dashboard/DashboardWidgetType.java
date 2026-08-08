@@ -39,7 +39,7 @@ public enum DashboardWidgetType {
     ATEMSCHUTZ(
             "Atemschutz",
             "Tauglichkeiten der Geräteträger - Zahlen und optional Namen",
-            AppModule.ATEMSCHUTZ,
+            null,
             null,
             false);
 
