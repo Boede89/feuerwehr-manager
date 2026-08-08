@@ -1,6 +1,7 @@
 -- Mehrere Fahrzeuge pro Fahrzeugreservierung (gemeinsamer Kalender-Titel)
+-- Idempotent: nach fehlgeschlagenem Erstversuch erneut anwendbar.
 
-CREATE TABLE vehicle_reservation_vehicles (
+CREATE TABLE IF NOT EXISTS vehicle_reservation_vehicles (
     reservation_id BIGINT NOT NULL,
     vehicle_id BIGINT NOT NULL,
     sort_order INT NOT NULL DEFAULT 0,
@@ -11,4 +12,12 @@ CREATE TABLE vehicle_reservation_vehicles (
 );
 
 INSERT INTO vehicle_reservation_vehicles (reservation_id, vehicle_id, sort_order)
-SELECT id, vehicle_id, 0 FROM vehicle_reservations;
+SELECT vr.id, vr.vehicle_id, 0
+FROM vehicle_reservations vr
+WHERE vr.vehicle_id IS NOT NULL
+  AND NOT EXISTS (
+      SELECT 1
+      FROM vehicle_reservation_vehicles vrv
+      WHERE vrv.reservation_id = vr.id
+        AND vrv.vehicle_id = vr.vehicle_id
+  );

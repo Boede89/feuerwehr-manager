@@ -1,50 +1,47 @@
 #!/usr/bin/env bash
-# Notfall-Fix: doppelte Flyway-V102 entfernen und Image ohne Cache neu bauen.
+# Repariert fehlgeschlagene V102 (vehicle reservation multi vehicles) + startet App.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-echo "==> 1) Git aktualisieren"
+echo "==> Git aktualisieren"
 git fetch origin
 git reset --hard origin/main
-
-echo "==> 2) Alte Doppel-Migration sicher entfernen (falls noch vorhanden)"
 rm -f src/main/resources/db/migration/V102__user_permission_overrides.sql
 
-echo "==> 3) Erwartete Dateien"
-ls -1 src/main/resources/db/migration/V102*.sql
-ls -1 src/main/resources/db/migration/V103*.sql
+echo "==> App stoppen"
+docker compose stop app
 
-if [[ -f src/main/resources/db/migration/V102__user_permission_overrides.sql ]]; then
-  echo "FEHLER: V102__user_permission_overrides.sql existiert noch!"
-  exit 1
-fi
-if [[ ! -f src/main/resources/db/migration/V103__user_permission_overrides.sql ]]; then
-  echo "FEHLER: V103__user_permission_overrides.sql fehlt!"
-  exit 1
-fi
-
-echo "==> 4) Flyway-Altlasten zu Permissions entfernen"
-docker compose stop app || true
+echo "==> Fehlgeschlagenen Flyway-Eintrag V102 entfernen"
 docker compose exec -T mysql mysql -uff -pffsecret feuerwehr_manager -e \
-  "DELETE FROM flyway_schema_history WHERE script LIKE '%user_permission_overrides%';" || true
+  "DELETE FROM flyway_schema_history WHERE version='102' AND success=0;"
 
-echo "==> 5) Image OHNE Cache neu bauen (dauert einige Minuten)"
-docker compose build --no-cache --pull app
+echo "==> Schema für V102 vorbereiten (idempotent)"
+docker compose exec -T mysql mysql -uff -pffsecret feuerwehr_manager <<'SQL'
+CREATE TABLE IF NOT EXISTS vehicle_reservation_vehicles (
+    reservation_id BIGINT NOT NULL,
+    vehicle_id BIGINT NOT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (reservation_id, vehicle_id),
+    CONSTRAINT fk_vrv_reservation FOREIGN KEY (reservation_id) REFERENCES vehicle_reservations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_vrv_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
+    INDEX idx_vrv_vehicle (vehicle_id)
+);
+INSERT INTO vehicle_reservation_vehicles (reservation_id, vehicle_id, sort_order)
+SELECT vr.id, vr.vehicle_id, 0
+FROM vehicle_reservations vr
+WHERE vr.vehicle_id IS NOT NULL
+  AND NOT EXISTS (
+      SELECT 1 FROM vehicle_reservation_vehicles vrv
+      WHERE vrv.reservation_id = vr.id AND vrv.vehicle_id = vr.vehicle_id
+  );
+SQL
 
-echo "==> 6) Prüfen, dass im Image keine doppelte V102-Permissions-Datei steckt"
-TMP_CID=$(docker create feuerwehr-manager-app)
-docker cp "$TMP_CID:/app/app.jar" /tmp/ffm-check.jar
-docker rm "$TMP_CID" >/dev/null
-jar tf /tmp/ffm-check.jar | grep 'db/migration/V102' || true
-jar tf /tmp/ffm-check.jar | grep 'db/migration/V103' || true
-if jar tf /tmp/ffm-check.jar | grep -q 'V102__user_permission_overrides'; then
-  echo "FEHLER: Alte V102-Permissions-Datei ist noch im JAR!"
-  exit 1
-fi
-
-echo "==> 7) App starten"
+echo "==> App neu bauen und starten"
+docker compose build --no-cache app
 docker compose up -d app
-sleep 15
+
+echo "==> Warten..."
+sleep 20
 docker compose ps app
 echo "---- Logs ----"
-docker logs ffm_app --tail 30
+docker logs ffm_app --tail 40
