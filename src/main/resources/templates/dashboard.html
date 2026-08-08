@@ -65,8 +65,8 @@
               <div class="meine-statistik-card meine-statistik-card--uebung">
                 <span class="meine-statistik-card__label">Übungsdienste</span>
                 <div class="meine-statistik-card__main">
-                  <strong class="meine-statistik-card__value" th:text="${myParticipation.uebungQuote()}">0/0</strong>
-                  <span class="meine-statistik-card__pct" th:text="${myParticipation.uebungPct()}">—</span>
+                  <strong class="meine-statistik-card__value" th:text="${myParticipation.uebungPct()}">—</strong>
+                  <span class="meine-statistik-card__pct" th:text="${myParticipation.uebungQuote()}">0/0</span>
                 </div>
                 <div class="meine-statistik-card__bar" role="presentation" aria-hidden="true">
                   <div class="meine-statistik-card__bar-fill"
@@ -76,8 +76,8 @@
               <div class="meine-statistik-card meine-statistik-card--einsatz">
                 <span class="meine-statistik-card__label">Einsätze</span>
                 <div class="meine-statistik-card__main">
-                  <strong class="meine-statistik-card__value" th:text="${myParticipation.einsatzQuote()}">0/0</strong>
-                  <span class="meine-statistik-card__pct" th:text="${myParticipation.einsatzPct()}">—</span>
+                  <strong class="meine-statistik-card__value" th:text="${myParticipation.einsatzPct()}">—</strong>
+                  <span class="meine-statistik-card__pct" th:text="${myParticipation.einsatzQuote()}">0/0</span>
                 </div>
                 <div class="meine-statistik-card__bar" role="presentation" aria-hidden="true">
                   <div class="meine-statistik-card__bar-fill meine-statistik-card__bar-fill--einsatz"
