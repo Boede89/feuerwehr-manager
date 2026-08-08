@@ -3,6 +3,14 @@
   var board = document.getElementById('dashboard-widgets');
   if (!meta || !board) return;
 
+  var SIZE_ORDER = ['NARROW', 'HALF', 'WIDE', 'FULL'];
+  var SIZE_LABEL = {
+    NARROW: 'Schmal',
+    HALF: 'Halb',
+    WIDE: 'Breit',
+    FULL: 'Ganz',
+  };
+
   var editBtn = document.getElementById('dashboard-edit-btn');
   var doneBtn = document.getElementById('dashboard-done-btn');
   var addBtn = document.getElementById('dashboard-add-btn');
@@ -33,14 +41,15 @@
     }
   }
 
-  function setCatalog(items) {
-    var el = document.getElementById('dashboard-catalog-json');
-    if (el) el.textContent = JSON.stringify(items || []);
-    renderCatalog();
-  }
-
   function widgetNodes() {
     return Array.prototype.slice.call(board.querySelectorAll('.dashboard-widget'));
+  }
+
+  function defaultSizeFor(type) {
+    if (type === 'TERMINE') return 'NARROW';
+    if (type === 'MY_STATS') return 'HALF';
+    if (type === 'UNIT_OVERVIEW') return 'FULL';
+    return 'WIDE';
   }
 
   function currentLayout() {
@@ -49,14 +58,38 @@
         return !n.hasAttribute('data-removed');
       })
       .map(function (n) {
-        return n.getAttribute('data-widget-type');
+        return {
+          type: n.getAttribute('data-widget-type'),
+          size: n.getAttribute('data-widget-size') || defaultSizeFor(n.getAttribute('data-widget-type')),
+        };
       })
-      .filter(Boolean);
+      .filter(function (item) {
+        return !!item.type;
+      });
   }
 
   function updateEmptyHint() {
     if (!emptyHint) return;
     emptyHint.hidden = currentLayout().length > 0;
+  }
+
+  function applySizeClass(node, size) {
+    SIZE_ORDER.forEach(function (s) {
+      node.classList.remove('dashboard-widget--size-' + s.toLowerCase());
+    });
+    node.classList.add('dashboard-widget--size-' + String(size).toLowerCase());
+    node.setAttribute('data-widget-size', size);
+    var btn = node.querySelector('.dashboard-widget__resize');
+    if (btn) {
+      btn.textContent = 'Größe: ' + (SIZE_LABEL[size] || size);
+    }
+  }
+
+  function cycleSize(node) {
+    var current = node.getAttribute('data-widget-size') || 'FULL';
+    var idx = SIZE_ORDER.indexOf(current);
+    var next = SIZE_ORDER[(idx + 1) % SIZE_ORDER.length];
+    applySizeClass(node, next);
   }
 
   function setEditing(on) {
@@ -77,8 +110,8 @@
     var list = document.getElementById('dashboard-catalog-list');
     if (!list) return;
     var active = {};
-    currentLayout().forEach(function (id) {
-      active[id] = true;
+    currentLayout().forEach(function (item) {
+      active[item.type] = true;
     });
     var items = catalog();
     list.innerHTML = items
@@ -129,26 +162,39 @@
   }
 
   function addWidget(type) {
-    if (!type || currentLayout().indexOf(type) >= 0) return;
+    if (!type) return;
+    var exists = currentLayout().some(function (item) {
+      return item.type === type;
+    });
+    if (exists) return;
     var existing = board.querySelector('.dashboard-widget[data-widget-type="' + type + '"]');
+    var size = defaultSizeFor(type);
     if (existing) {
       existing.removeAttribute('data-removed');
       existing.hidden = false;
       existing.classList.remove('dashboard-widget--removed');
+      applySizeClass(existing, existing.getAttribute('data-widget-size') || size);
       board.appendChild(existing);
     } else {
       var item = catalog().find(function (c) {
         return c.id === type;
       });
       var article = document.createElement('article');
-      article.className = 'dashboard-widget widget-card dashboard-widget--placeholder dashboard-widget--editing';
+      article.className =
+        'dashboard-widget widget-card dashboard-widget--placeholder dashboard-widget--editing dashboard-widget--size-' +
+        size.toLowerCase();
       article.setAttribute('data-widget-type', type);
+      article.setAttribute('data-widget-size', size);
       article.draggable = true;
       article.innerHTML =
         '<div class="dashboard-widget__chrome">' +
         '<span class="dashboard-widget__drag" aria-hidden="true">⋮⋮</span>' +
+        '<div class="dashboard-widget__chrome-actions">' +
+        '<button type="button" class="btn btn--outline btn--sm dashboard-widget__resize">Größe: ' +
+        escapeHtml(SIZE_LABEL[size]) +
+        '</button>' +
         '<button type="button" class="btn btn--outline btn--sm dashboard-widget__remove">Entfernen</button>' +
-        '</div>' +
+        '</div></div>' +
         '<div class="widget-card__header"><h3>' +
         escapeHtml(item ? item.label : type) +
         '</h3></div>' +
@@ -228,6 +274,12 @@
     if (removeBtn && editing) {
       e.preventDefault();
       removeWidget(removeBtn.closest('.dashboard-widget'));
+      return;
+    }
+    var resizeBtn = e.target.closest('.dashboard-widget__resize');
+    if (resizeBtn && editing) {
+      e.preventDefault();
+      cycleSize(resizeBtn.closest('.dashboard-widget'));
     }
   });
 
@@ -258,9 +310,6 @@
   board.addEventListener('dragend', function () {
     if (dragEl) dragEl.classList.remove('dashboard-widget--dragging');
     dragEl = null;
-    widgetNodes().forEach(function (n) {
-      n.classList.remove('dashboard-widget--drop-target');
-    });
   });
 
   board.addEventListener('dragover', function (e) {

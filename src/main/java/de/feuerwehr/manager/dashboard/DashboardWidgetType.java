@@ -35,12 +35,6 @@ public enum DashboardWidgetType {
             "Einsätze, Übungsdienste und Mitglieder der Einheit",
             AppModule.AUSWERTUNG,
             "auswertung.read",
-            false),
-    QUICK_LINKS(
-            "Schnellzugriff",
-            "Links zu Modulen, für die Sie berechtigt sind",
-            null,
-            null,
             false);
 
     private final String label;

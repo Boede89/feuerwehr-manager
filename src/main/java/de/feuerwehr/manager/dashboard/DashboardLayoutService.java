@@ -1,16 +1,17 @@
 package de.feuerwehr.manager.dashboard;
 
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.UserPermissionService;
-import de.feuerwehr.manager.settings.AppModule;
 import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,11 +23,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class DashboardLayoutService {
 
-    private static final List<DashboardWidgetType> DEFAULT_LAYOUT = List.of(
-            DashboardWidgetType.MY_STATS,
-            DashboardWidgetType.DIVERA,
-            DashboardWidgetType.TERMINE,
-            DashboardWidgetType.QUICK_LINKS);
+    private static final List<DashboardWidgetPlacement> DEFAULT_LAYOUT = List.of(
+            DashboardWidgetPlacement.of(DashboardWidgetType.MY_STATS),
+            new DashboardWidgetPlacement(DashboardWidgetType.DIVERA, DashboardWidgetSize.WIDE),
+            new DashboardWidgetPlacement(DashboardWidgetType.TERMINE, DashboardWidgetSize.NARROW));
 
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
@@ -34,31 +34,21 @@ public class DashboardLayoutService {
     private final UserPermissionService userPermissionService;
 
     @Transactional(readOnly = true)
-    public List<DashboardWidgetType> resolveActiveWidgets(AppUserDetails actor, long unitId) {
+    public List<DashboardWidgetPlacement> resolveActivePlacements(AppUserDetails actor, long unitId) {
         User user = userRepository.findById(actor.getUserId()).orElseThrow();
         boolean hasStoredLayout =
                 user.getDashboardLayoutJson() != null && !user.getDashboardLayoutJson().isBlank();
-        List<DashboardWidgetType> stored = parseLayout(user.getDashboardLayoutJson());
-        List<DashboardWidgetType> source = hasStoredLayout ? stored : DEFAULT_LAYOUT;
-        List<DashboardWidgetType> visible = new ArrayList<>();
-        for (DashboardWidgetType type : source) {
-            if (isAllowed(actor, unitId, type) && !visible.contains(type)) {
-                visible.add(type);
-            }
-        }
-        if (visible.isEmpty() && !hasStoredLayout) {
-            for (DashboardWidgetType type : DEFAULT_LAYOUT) {
-                if (isAllowed(actor, unitId, type) && !visible.contains(type)) {
-                    visible.add(type);
-                }
-            }
-        }
-        return List.copyOf(visible);
+        List<DashboardWidgetPlacement> stored = parseLayout(user.getDashboardLayoutJson());
+        List<DashboardWidgetPlacement> source = hasStoredLayout ? stored : DEFAULT_LAYOUT;
+        return filterAllowedUnique(actor, unitId, source, !hasStoredLayout);
     }
 
     @Transactional(readOnly = true)
     public List<DashboardWidgetCatalogItem> catalog(AppUserDetails actor, long unitId) {
-        Set<DashboardWidgetType> active = new LinkedHashSet<>(resolveActiveWidgets(actor, unitId));
+        Set<DashboardWidgetType> active = new LinkedHashSet<>();
+        for (DashboardWidgetPlacement p : resolveActivePlacements(actor, unitId)) {
+            active.add(p.type());
+        }
         List<DashboardWidgetCatalogItem> items = new ArrayList<>();
         for (DashboardWidgetType type : DashboardWidgetType.values()) {
             if (!isAllowed(actor, unitId, type)) {
@@ -71,22 +61,35 @@ public class DashboardLayoutService {
     }
 
     @Transactional
-    public List<DashboardWidgetType> saveLayout(
-            AppUserDetails actor, long unitId, List<String> widgetIds) {
+    public List<DashboardWidgetPlacement> saveLayout(
+            AppUserDetails actor, long unitId, List<Map<String, String>> widgets) {
         User user = userRepository.findById(actor.getUserId()).orElseThrow();
-        LinkedHashSet<DashboardWidgetType> cleaned = new LinkedHashSet<>();
-        if (widgetIds != null) {
-            for (String raw : widgetIds) {
-                DashboardWidgetType type = DashboardWidgetType.fromId(raw);
-                if (type != null && isAllowed(actor, unitId, type)) {
-                    cleaned.add(type);
+        LinkedHashMap<DashboardWidgetType, DashboardWidgetSize> cleaned = new LinkedHashMap<>();
+        if (widgets != null) {
+            for (Map<String, String> raw : widgets) {
+                if (raw == null) {
+                    continue;
                 }
+                DashboardWidgetType type = DashboardWidgetType.fromId(raw.get("type"));
+                if (type == null || !isAllowed(actor, unitId, type) || cleaned.containsKey(type)) {
+                    continue;
+                }
+                DashboardWidgetSize size = DashboardWidgetSize.fromId(raw.get("size"));
+                if (size == null) {
+                    size = DashboardWidgetSize.defaultFor(type);
+                }
+                cleaned.put(type, size);
             }
         }
-        List<DashboardWidgetType> layout = List.copyOf(cleaned);
+        List<DashboardWidgetPlacement> layout = cleaned.entrySet().stream()
+                .map(e -> new DashboardWidgetPlacement(e.getKey(), e.getValue()))
+                .toList();
         try {
-            user.setDashboardLayoutJson(objectMapper.writeValueAsString(
-                    layout.stream().map(Enum::name).toList()));
+            List<Map<String, String>> payload = new ArrayList<>();
+            for (DashboardWidgetPlacement p : layout) {
+                payload.add(Map.of("type", p.type().name(), "size", p.size().name()));
+            }
+            user.setDashboardLayoutJson(objectMapper.writeValueAsString(payload));
         } catch (Exception e) {
             throw new IllegalStateException("Dashboard-Layout konnte nicht gespeichert werden", e);
         }
@@ -112,18 +115,62 @@ public class DashboardLayoutService {
         return true;
     }
 
-    private List<DashboardWidgetType> parseLayout(String json) {
+    private List<DashboardWidgetPlacement> filterAllowedUnique(
+            AppUserDetails actor,
+            long unitId,
+            List<DashboardWidgetPlacement> source,
+            boolean fallbackToDefaultIfEmpty) {
+        List<DashboardWidgetPlacement> visible = new ArrayList<>();
+        Set<DashboardWidgetType> seen = new LinkedHashSet<>();
+        for (DashboardWidgetPlacement placement : source) {
+            if (placement == null || placement.type() == null) {
+                continue;
+            }
+            if (!isAllowed(actor, unitId, placement.type()) || !seen.add(placement.type())) {
+                continue;
+            }
+            visible.add(placement);
+        }
+        if (visible.isEmpty() && fallbackToDefaultIfEmpty) {
+            for (DashboardWidgetPlacement placement : DEFAULT_LAYOUT) {
+                if (isAllowed(actor, unitId, placement.type()) && seen.add(placement.type())) {
+                    visible.add(placement);
+                }
+            }
+        }
+        return List.copyOf(visible);
+    }
+
+    private List<DashboardWidgetPlacement> parseLayout(String json) {
         if (json == null || json.isBlank()) {
             return List.of();
         }
         try {
-            List<String> raw = objectMapper.readValue(json, new TypeReference<>() {});
-            List<DashboardWidgetType> result = new ArrayList<>();
-            for (String id : raw) {
-                DashboardWidgetType type = DashboardWidgetType.fromId(id);
-                if (type != null && !result.contains(type)) {
-                    result.add(type);
+            JsonNode root = objectMapper.readTree(json);
+            if (!root.isArray()) {
+                return List.of();
+            }
+            List<DashboardWidgetPlacement> result = new ArrayList<>();
+            Set<DashboardWidgetType> seen = new LinkedHashSet<>();
+            for (JsonNode node : root) {
+                DashboardWidgetType type;
+                DashboardWidgetSize size;
+                if (node.isTextual()) {
+                    type = DashboardWidgetType.fromId(node.asText());
+                    size = DashboardWidgetSize.defaultFor(type);
+                } else if (node.isObject()) {
+                    type = DashboardWidgetType.fromId(textOrNull(node.get("type")));
+                    size = DashboardWidgetSize.fromId(textOrNull(node.get("size")));
+                    if (size == null) {
+                        size = DashboardWidgetSize.defaultFor(type);
+                    }
+                } else {
+                    continue;
                 }
+                if (type == null || !seen.add(type)) {
+                    continue;
+                }
+                result.add(new DashboardWidgetPlacement(type, size));
             }
             return result;
         } catch (Exception e) {
@@ -132,42 +179,7 @@ public class DashboardLayoutService {
         }
     }
 
-    public List<DashboardQuickLink> buildQuickLinks(AppUserDetails actor, long unitId) {
-        List<DashboardQuickLink> links = new ArrayList<>();
-        links.add(new DashboardQuickLink("Startseite", "/?unit=" + unitId, null));
-        if (moduleSettingsService.isEnabled(AppModule.PERSONAL, unitId)
-                && userPermissionService.hasPermission(actor, unitId, "personal.read")) {
-            links.add(new DashboardQuickLink("Personal", "/personal?unit=" + unitId, null));
-        }
-        if (moduleSettingsService.isEnabled(AppModule.TERMINE, unitId)
-                && userPermissionService.hasPermission(actor, unitId, "termine.read")) {
-            links.add(new DashboardQuickLink("Termine", "/termine?unit=" + unitId, null));
-        }
-        if (moduleSettingsService.isEnabled(AppModule.BERICHTE, unitId)
-                && userPermissionService.hasPermission(actor, unitId, "berichte.read")) {
-            links.add(new DashboardQuickLink("Berichte", "/berichte?unit=" + unitId, null));
-        }
-        if (moduleSettingsService.isEnabled(AppModule.RESERVIERUNGEN, unitId)
-                && userPermissionService.hasPermission(actor, unitId, "reservierungen.read")) {
-            links.add(new DashboardQuickLink(
-                    "Reservierungen", "/reservierungen?unit=" + unitId, null));
-        }
-        if (moduleSettingsService.isEnabled(AppModule.ATEMSCHUTZ, unitId)
-                && userPermissionService.hasPermission(actor, unitId, "atemschutz.read")) {
-            links.add(new DashboardQuickLink("Atemschutz", "/atemschutz?unit=" + unitId, null));
-        }
-        if (moduleSettingsService.isEnabled(AppModule.AUSWERTUNG, unitId)
-                && userPermissionService.hasPermission(actor, unitId, "auswertung.read")) {
-            links.add(new DashboardQuickLink("Auswertung", "/auswertung?unit=" + unitId, null));
-        }
-        if (moduleSettingsService.isEnabled(AppModule.EINSATZAPP, unitId)
-                && userPermissionService.hasPermission(actor, unitId, "einsatzapp.read")) {
-            links.add(new DashboardQuickLink("Einsatz-App", "/settings/einsatzapp?unit=" + unitId, "Einstellungen"));
-        }
-        if (actor.getRole().isAdminLevel()) {
-            links.add(new DashboardQuickLink("Administration", "/admin?scope=einheit&unit=" + unitId, null));
-        }
-        links.add(new DashboardQuickLink("Einstellungen", "/settings", null));
-        return List.copyOf(links);
+    private static String textOrNull(JsonNode node) {
+        return node != null && node.isTextual() ? node.asText() : null;
     }
 }

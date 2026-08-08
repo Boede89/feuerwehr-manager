@@ -8,6 +8,7 @@ import de.feuerwehr.manager.berichte.AttendanceCheckInService;
 import de.feuerwehr.manager.berichte.UnitAddressSupport;
 import de.feuerwehr.manager.dashboard.DashboardLayoutService;
 import de.feuerwehr.manager.dashboard.DashboardWidgetCatalogItem;
+import de.feuerwehr.manager.dashboard.DashboardWidgetPlacement;
 import de.feuerwehr.manager.dashboard.DashboardWidgetType;
 import de.feuerwehr.manager.divera.DiveraAlarmsResponse;
 import de.feuerwehr.manager.divera.DiveraService;
@@ -23,6 +24,7 @@ import de.feuerwehr.manager.termine.TermineService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -78,9 +80,9 @@ public class DashboardController {
         model.addAttribute("unitId", resolvedUnitId);
         model.addAttribute("currentUnitName", resolved.getName());
 
-        List<DashboardWidgetType> widgets =
-                dashboardLayoutService.resolveActiveWidgets(currentUser, resolvedUnitId);
-        model.addAttribute("dashboardWidgets", widgets);
+        List<DashboardWidgetPlacement> placements =
+                dashboardLayoutService.resolveActivePlacements(currentUser, resolvedUnitId);
+        model.addAttribute("dashboardWidgets", placements);
         model.addAttribute("dashboardCatalog", dashboardLayoutService.catalog(currentUser, resolvedUnitId));
         try {
             model.addAttribute(
@@ -91,9 +93,11 @@ public class DashboardController {
             model.addAttribute("dashboardCatalogJson", "[]");
         }
 
-        Set<DashboardWidgetType> needed = new LinkedHashSet<>(widgets);
+        Set<DashboardWidgetType> needed = new LinkedHashSet<>();
+        for (DashboardWidgetPlacement p : placements) {
+            needed.add(p.type());
+        }
         model.addAttribute("canManageManualAlarms", currentUser.getRole().isAdminLevel());
-        // Daten nur laden, wenn Widget aktiv ist
         if (needed.contains(DashboardWidgetType.DIVERA)
                 || needed.contains(DashboardWidgetType.PLANNED_ALARMS)) {
             loadEinsatzData(model, currentUser, resolved);
@@ -124,14 +128,6 @@ public class DashboardController {
             model.addAttribute("unitOverviewYear", LocalDate.now().getYear());
         }
 
-        if (needed.contains(DashboardWidgetType.QUICK_LINKS)) {
-            model.addAttribute(
-                    "dashboardQuickLinks",
-                    dashboardLayoutService.buildQuickLinks(currentUser, resolvedUnitId));
-        } else {
-            model.addAttribute("dashboardQuickLinks", List.of());
-        }
-
         return "dashboard";
     }
 
@@ -145,18 +141,44 @@ public class DashboardController {
         if (unit.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("message", "Keine Einheit ausgewählt"));
         }
-        @SuppressWarnings("unchecked")
-        List<String> widgets = body.get("widgets") instanceof List<?> list
-                ? list.stream().map(String::valueOf).toList()
-                : List.of();
-        List<DashboardWidgetType> saved =
+        List<Map<String, String>> widgets = parseWidgetPayload(body.get("widgets"));
+        List<DashboardWidgetPlacement> saved =
                 dashboardLayoutService.saveLayout(currentUser, unit.get().getId(), widgets);
         List<DashboardWidgetCatalogItem> catalog =
                 dashboardLayoutService.catalog(currentUser, unit.get().getId());
+        List<Map<String, String>> responseWidgets = saved.stream()
+                .map(p -> Map.of("type", p.type().name(), "size", p.size().name()))
+                .toList();
         return ResponseEntity.ok(Map.of(
                 "message", "Startseite gespeichert",
-                "widgets", saved.stream().map(Enum::name).toList(),
+                "widgets", responseWidgets,
                 "catalog", catalog));
+    }
+
+    private static List<Map<String, String>> parseWidgetPayload(Object raw) {
+        if (!(raw instanceof List<?> list)) {
+            return List.of();
+        }
+        List<Map<String, String>> result = new ArrayList<>();
+        for (Object item : list) {
+            if (item instanceof String s) {
+                result.add(Map.of("type", s));
+                continue;
+            }
+            if (item instanceof Map<?, ?> map) {
+                Object type = map.get("type");
+                Object size = map.get("size");
+                if (type == null) {
+                    continue;
+                }
+                if (size == null) {
+                    result.add(Map.of("type", String.valueOf(type)));
+                } else {
+                    result.add(Map.of("type", String.valueOf(type), "size", String.valueOf(size)));
+                }
+            }
+        }
+        return result;
     }
 
     private void loadEinsatzData(Model model, AppUserDetails currentUser, Unit unit) {

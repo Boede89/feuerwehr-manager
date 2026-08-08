@@ -17,7 +17,7 @@
   <div th:replace="~{fragments/testmode-banner :: banner}"></div>
 
   <div id="dashboard-edit-bar" class="dashboard-edit-bar" hidden>
-    <p class="hint">Widgets ziehen zum Sortieren. Entfernen oder neue Widgets hinzufügen — Speichern mit „Fertig“.</p>
+    <p class="hint">Ziehen zum Sortieren · Größe ändern · Entfernen · Neu hinzufügen — Speichern mit „Fertig“.</p>
     <button type="button" class="btn btn--primary btn--sm" id="dashboard-add-btn">+ Widget hinzufügen</button>
   </div>
 
@@ -26,23 +26,28 @@
        th:attr="data-unit-id=${unitId}">
     <th:block th:each="w : ${dashboardWidgets}">
       <article class="dashboard-widget widget-card"
-               th:classappend="${
-                 w.name() == 'MY_STATS' ? ' widget-card--meine-statistik' : (
-                 w.name() == 'DIVERA' or w.name() == 'PLANNED_ALARMS' ? ' widget-card--einsatz' : (
-                 w.name() == 'TERMINE' ? ' widget-card--termine' : (
-                 w.name() == 'UNIT_OVERVIEW' ? ' widget-card--unit-overview' : (
-                 w.name() == 'QUICK_LINKS' ? ' widget-card--quick-links' : ''))))}"
-               th:attr="data-widget-type=${w.name()}"
+               th:classappend="${w.sizeCssClass() + (
+                 w.type().name() == 'MY_STATS' ? ' widget-card--meine-statistik' : (
+                 w.type().name() == 'DIVERA' or w.type().name() == 'PLANNED_ALARMS' ? ' widget-card--einsatz' : (
+                 w.type().name() == 'TERMINE' ? ' widget-card--termine' : (
+                 w.type().name() == 'UNIT_OVERVIEW' ? ' widget-card--unit-overview' : ''))))}"
+               th:attr="data-widget-type=${w.type().name()}, data-widget-size=${w.size().name()}"
                draggable="false">
         <div class="dashboard-widget__chrome" hidden>
           <span class="dashboard-widget__drag" title="Ziehen zum Verschieben" aria-hidden="true">⋮⋮</span>
-          <button type="button" class="btn btn--outline btn--sm dashboard-widget__remove"
-                  aria-label="Widget entfernen">Entfernen</button>
+          <div class="dashboard-widget__chrome-actions">
+            <button type="button" class="btn btn--outline btn--sm dashboard-widget__resize"
+                    th:text="|Größe: ${w.size().label()}|"
+                    th:attr="aria-label=|Größe ändern (${w.size().label()})|">Größe</button>
+            <button type="button" class="btn btn--outline btn--sm dashboard-widget__remove"
+                    aria-label="Widget entfernen">Entfernen</button>
+          </div>
         </div>
 
-        <th:block th:if="${w.name() == 'MY_STATS'}">
+        <th:block th:if="${w.type().name() == 'MY_STATS'}">
           <div class="widget-card__header">
-            <h3>Meine Beteiligung <span class="text-muted text-sm" th:text="${participationYear}">2026</span></h3>
+            <h3>Meine Beteiligung</h3>
+            <span class="meine-statistik-year" th:text="${participationYear}">2026</span>
           </div>
           <div class="widget-card__body">
             <p class="text-muted text-sm" th:if="${!participationHasPerson}">
@@ -52,32 +57,33 @@
               Für dieses Jahr liegen keine auswertbaren Daten vor.
             </p>
             <div class="meine-statistik-grid" th:if="${myParticipation != null}">
-              <div class="meine-statistik-card">
+              <div class="meine-statistik-card meine-statistik-card--uebung">
                 <span class="meine-statistik-card__label">Übungsdienste</span>
-                <strong class="meine-statistik-card__value" th:text="${myParticipation.uebungQuote()}">0/0</strong>
-                <span class="meine-statistik-card__pct" th:text="${myParticipation.uebungPct()}">—</span>
+                <div class="meine-statistik-card__main">
+                  <strong class="meine-statistik-card__value" th:text="${myParticipation.uebungQuote()}">0/0</strong>
+                  <span class="meine-statistik-card__pct" th:text="${myParticipation.uebungPct()}">—</span>
+                </div>
                 <div class="meine-statistik-card__bar" role="presentation" aria-hidden="true">
                   <div class="meine-statistik-card__bar-fill"
                        th:style="|width: ${myParticipation.uebungPct() == '—' ? 0 : myParticipation.uebungPctValue()}%|"></div>
                 </div>
               </div>
-              <div class="meine-statistik-card">
+              <div class="meine-statistik-card meine-statistik-card--einsatz">
                 <span class="meine-statistik-card__label">Einsätze</span>
-                <strong class="meine-statistik-card__value" th:text="${myParticipation.einsatzQuote()}">0/0</strong>
-                <span class="meine-statistik-card__pct" th:text="${myParticipation.einsatzPct()}">—</span>
+                <div class="meine-statistik-card__main">
+                  <strong class="meine-statistik-card__value" th:text="${myParticipation.einsatzQuote()}">0/0</strong>
+                  <span class="meine-statistik-card__pct" th:text="${myParticipation.einsatzPct()}">—</span>
+                </div>
                 <div class="meine-statistik-card__bar" role="presentation" aria-hidden="true">
                   <div class="meine-statistik-card__bar-fill meine-statistik-card__bar-fill--einsatz"
                        th:style="|width: ${myParticipation.einsatzPct() == '—' ? 0 : myParticipation.einsatzPctValue()}%|"></div>
                 </div>
               </div>
             </div>
-            <p class="hint hint--compact" th:if="${myParticipation != null}">
-              Freigegebene Anwesenheitslisten (Übungsdienst bis heute) und freigegebene Einsatzberichte.
-            </p>
           </div>
         </th:block>
 
-        <th:block th:if="${w.name() == 'DIVERA'}">
+        <th:block th:if="${w.type().name() == 'DIVERA'}">
           <div class="widget-card__header">
             <h3>Divera – aktuelle Einsätze</h3>
             <a th:if="${canManageManualAlarms}" class="btn btn--primary btn--sm"
@@ -122,7 +128,7 @@
           </div>
         </th:block>
 
-        <th:block th:if="${w.name() == 'PLANNED_ALARMS'}">
+        <th:block th:if="${w.type().name() == 'PLANNED_ALARMS'}">
           <div class="widget-card__header">
             <h3>Geplante Einsätze</h3>
             <a class="btn btn--primary btn--sm" th:href="@{/einsatz/manuell(unit=${unitId})}">+ Einsatz anlegen</a>
@@ -157,7 +163,7 @@
           </div>
         </th:block>
 
-        <th:block th:if="${w.name() == 'TERMINE'}">
+        <th:block th:if="${w.type().name() == 'TERMINE'}">
           <div class="widget-card__header">
             <h3>Termine</h3>
             <a th:href="@{/termine(unit=${unitId}, tab='meine')}">Alle anzeigen →</a>
@@ -193,7 +199,7 @@
           </div>
         </th:block>
 
-        <th:block th:if="${w.name() == 'UNIT_OVERVIEW'}">
+        <th:block th:if="${w.type().name() == 'UNIT_OVERVIEW'}">
           <div class="widget-card__header">
             <h3>Einheiten-Kennzahlen <span class="text-muted text-sm" th:text="${unitOverviewYear}">2026</span></h3>
             <a th:href="@{/auswertung(unit=${unitId})}">Zur Auswertung →</a>
@@ -218,18 +224,6 @@
                 <span class="meine-statistik-card__label">Taugliche PA-Träger</span>
                 <strong class="meine-statistik-card__value" th:text="${unitOverviewStats.tauglichePaTraeger()}">0</strong>
               </div>
-            </div>
-          </div>
-        </th:block>
-
-        <th:block th:if="${w.name() == 'QUICK_LINKS'}">
-          <div class="widget-card__header">
-            <h3>Schnellzugriff</h3>
-          </div>
-          <div class="widget-card__body">
-            <div class="dashboard-quick-links">
-              <a class="dashboard-quick-link" th:each="link : ${dashboardQuickLinks}"
-                 th:href="${link.href()}" th:text="${link.label()}">Link</a>
             </div>
           </div>
         </th:block>
