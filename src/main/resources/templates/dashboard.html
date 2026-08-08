@@ -283,12 +283,10 @@
         <div id="dashboard-catalog-list" class="dashboard-catalog-list">
           <button type="button" class="dashboard-catalog-item"
                   th:each="item : ${dashboardCatalog}"
-                  th:attr="data-widget-id=${item.id()}, data-already=${item.alreadyActive()}"
-                  th:disabled="${item.alreadyActive()}"
-                  th:classappend="${item.alreadyActive()} ? ' dashboard-catalog-item--disabled' : ''">
+                  th:unless="${item.alreadyActive()}"
+                  th:attr="data-widget-id=${item.id()}">
             <strong th:text="${item.label()}">Widget</strong>
             <span th:text="${item.description()}">Beschreibung</span>
-            <em th:if="${item.alreadyActive()}">bereits aktiv</em>
           </button>
         </div>
       </div>
@@ -439,6 +437,6 @@
 
   <script th:src="@{/js/combo-suggest.js}" defer></script>
   <script th:src="@{/js/dashboard-manual-alarms.js}" defer></script>
-  <script th:src="@{/js/dashboard-layout.js(v='20260808b')}" defer></script>
+  <script th:src="@{/js/dashboard-layout.js(v='20260808d')}" defer></script>
 </main>
 </html>

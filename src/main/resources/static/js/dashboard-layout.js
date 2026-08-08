@@ -32,27 +32,27 @@
 
   function catalog() {
     var el = document.getElementById('dashboard-catalog-json');
-    var items = [];
-    if (el) {
-      try {
-        items = JSON.parse(el.textContent || '[]');
-      } catch (e) {
-        items = [];
-      }
+    if (!el) return [];
+    try {
+      var items = JSON.parse(el.textContent || '[]');
+      return Array.isArray(items) ? items : [];
+    } catch (e) {
+      return [];
     }
-    if (!Array.isArray(items)) items = [];
-    var hasAtemschutz = items.some(function (item) {
-      return item && item.id === 'ATEMSCHUTZ';
+  }
+
+  function activeWidgetTypes() {
+    var active = {};
+    currentLayout().forEach(function (item) {
+      if (item && item.type) active[item.type] = true;
     });
-    if (!hasAtemschutz) {
-      items.push({
-        id: 'ATEMSCHUTZ',
-        label: 'Atemschutz',
-        description: 'Tauglichkeiten der Geräteträger - Zahlen und optional Namen',
-        alreadyActive: false,
-      });
-    }
-    return items;
+    // Auch Dom-Knoten ohne Layout-Eintrag (z. B. nur Platzhalter) berücksichtigen
+    widgetNodes().forEach(function (node) {
+      if (node.hasAttribute('data-removed')) return;
+      var type = node.getAttribute('data-widget-type');
+      if (type) active[type] = true;
+    });
+    return active;
   }
 
   function atemschutzDefaults() {
@@ -203,28 +203,29 @@
   function renderCatalog() {
     var list = document.getElementById('dashboard-catalog-list');
     if (!list) return;
-    var active = {};
-    currentLayout().forEach(function (item) {
-      active[item.type] = true;
+    var active = activeWidgetTypes();
+    var available = catalog().filter(function (item) {
+      if (!item || !item.id) return false;
+      if (active[item.id]) return false;
+      if (item.alreadyActive === true) return false;
+      return true;
     });
-    list.innerHTML = catalog()
+    if (available.length === 0) {
+      list.innerHTML = '<p class="hint" style="margin:0;">Alle verfügbaren Widgets sind bereits auf der Startseite.</p>';
+      return;
+    }
+    list.innerHTML = available
       .map(function (item) {
-        var already = !!active[item.id];
         return (
-          '<button type="button" class="dashboard-catalog-item' +
-          (already ? ' dashboard-catalog-item--disabled' : '') +
-          '" data-widget-id="' +
-          item.id +
-          '" ' +
-          (already ? 'disabled' : '') +
-          '>' +
+          '<button type="button" class="dashboard-catalog-item" data-widget-id="' +
+          escapeHtml(item.id) +
+          '">' +
           '<strong>' +
           escapeHtml(item.label) +
           '</strong>' +
           '<span>' +
           escapeHtml(item.description || '') +
           '</span>' +
-          (already ? '<em>bereits aktiv</em>' : '') +
           '</button>'
         );
       })
