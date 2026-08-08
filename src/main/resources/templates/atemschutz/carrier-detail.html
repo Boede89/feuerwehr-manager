@@ -88,7 +88,10 @@
             <a th:if="${rec.incidentReportId != null}"
                th:href="@{/berichte/einsatzberichte/{id}(id=${rec.incidentReportId},unit=${unitId},returnUrl=|/atemschutz/carriers/${carrier.id}|)}"
                th:text="${rec.sourceLabel != null ? rec.sourceLabel : 'Einsatzbericht'}">Einsatzbericht</a>
-            <span th:unless="${rec.incidentReportId != null}"
+            <a th:if="${rec.incidentReportId == null and rec.attendanceReportId != null}"
+               th:href="@{/berichte/anwesenheitslisten/{id}(id=${rec.attendanceReportId},unit=${unitId},returnUrl=|/atemschutz/carriers/${carrier.id}|)}"
+               th:text="${rec.sourceLabel != null ? rec.sourceLabel : 'Anwesenheitsliste'}">Anwesenheitsliste</a>
+            <span th:if="${rec.incidentReportId == null and rec.attendanceReportId == null}"
                   th:text="${rec.sourceLabel != null ? rec.sourceLabel : '—'}">—</span>
           </td>
           <td>

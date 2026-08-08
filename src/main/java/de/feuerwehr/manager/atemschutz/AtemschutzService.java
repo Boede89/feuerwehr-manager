@@ -43,6 +43,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AtemschutzService {
 
     public static final String FITNESS_SOURCE_INCIDENT_REPORT = "INCIDENT_REPORT";
+    public static final String FITNESS_SOURCE_ATTENDANCE_REPORT = "ATTENDANCE_REPORT";
 
     private final UnitRepository unitRepository;
     private final PersonalService personalService;
@@ -155,9 +156,10 @@ public class AtemschutzService {
         return carrierRepository.findShadowByProductionSourceId(prod.getId()).orElse(prod);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public CarrierDetailView loadCarrierDetail(long carrierId) {
         AtemschutzCarrier carrier = requireCarrier(carrierId);
+        reconcileAttendancePaFitness(carrier);
         List<AtemschutzFitnessRecord> records = fitnessRecordsForCarrier(carrier.getId());
         long unitId = carrier.getUnit().getId();
         LocalDate today = LocalDate.now();
@@ -176,6 +178,50 @@ public class AtemschutzService {
                 .map(this::toRecordView)
                 .toList();
         return new CarrierDetailView(carrier, summaries, recordViews);
+    }
+
+    /**
+     * Nachzug: PA-Markierungen aus Anwesenheitslisten in Übung/Einsatz-Nachweise übernehmen
+     * (auch wenn die Markierung früher gesetzt wurde, bevor der Sync existierte).
+     */
+    private void reconcileAttendancePaFitness(AtemschutzCarrier carrier) {
+        if (carrier == null || carrier.getPerson() == null || carrier.getUnit() == null) {
+            return;
+        }
+        long unitId = carrier.getUnit().getId();
+        long personId = carrier.getPerson().getId();
+        boolean testData = testModeService.isEnabled();
+        for (Integer year : attendanceReportRepository.findDistinctYearsByUnitId(unitId, testData)) {
+            if (year == null) {
+                continue;
+            }
+            LocalDate yearStart = LocalDate.of(year, 1, 1);
+            LocalDate yearEnd = yearStart.plusYears(1);
+            for (AttendanceReport report :
+                    attendanceReportRepository.findByUnitIdAndYear(unitId, yearStart, yearEnd, testData)) {
+                boolean hasPa = crewJsonContainsPaPerson(report.getCrewAssignmentsJson(), personId);
+                Optional<AtemschutzFitnessRecord> existing = fitnessRecordRepository.findBySourceRefAndPersonId(
+                        FITNESS_SOURCE_ATTENDANCE_REPORT, report.getId(), personId, testData);
+                if (!hasPa) {
+                    existing.ifPresent(fitnessRecordRepository::delete);
+                    continue;
+                }
+                if (report.getEventDate() == null) {
+                    continue;
+                }
+                String label = report.getTitle() != null && !report.getTitle().isBlank()
+                        ? report.getTitle().trim()
+                        : "Anwesenheitsliste";
+                upsertPaSourceRecord(
+                        carrier,
+                        FITNESS_SOURCE_ATTENDANCE_REPORT,
+                        report.getId(),
+                        report.getEventDate(),
+                        label,
+                        null,
+                        testData);
+            }
+        }
     }
 
     /**
@@ -461,13 +507,60 @@ public class AtemschutzService {
             LocalDate incidentDate,
             String sourceLabel,
             Long createdByUserId) {
-        if (incidentDate == null) {
+        syncPaFitnessRecords(
+                unitId,
+                FITNESS_SOURCE_INCIDENT_REPORT,
+                reportId,
+                paPersonIds,
+                incidentDate,
+                sourceLabel,
+                createdByUserId);
+    }
+
+    /** PA-Zuordnung in der Anwesenheitsliste → Übung/Einsatz-Nachweis; entfernt verwaiste Einträge. */
+    @Transactional
+    public void syncAttendancePaFitnessRecords(
+            long unitId,
+            long reportId,
+            Set<Long> paPersonIds,
+            LocalDate eventDate,
+            String sourceLabel,
+            Long createdByUserId) {
+        syncPaFitnessRecords(
+                unitId,
+                FITNESS_SOURCE_ATTENDANCE_REPORT,
+                reportId,
+                paPersonIds,
+                eventDate,
+                sourceLabel,
+                createdByUserId);
+    }
+
+    @Transactional
+    public void deleteIncidentPaFitnessRecords(long reportId) {
+        deletePaFitnessRecords(FITNESS_SOURCE_INCIDENT_REPORT, reportId);
+    }
+
+    @Transactional
+    public void deleteAttendancePaFitnessRecords(long reportId) {
+        deletePaFitnessRecords(FITNESS_SOURCE_ATTENDANCE_REPORT, reportId);
+    }
+
+    private void syncPaFitnessRecords(
+            long unitId,
+            String sourceRefType,
+            long reportId,
+            Set<Long> paPersonIds,
+            LocalDate eventDate,
+            String sourceLabel,
+            Long createdByUserId) {
+        if (eventDate == null || sourceRefType == null || sourceRefType.isBlank()) {
             return;
         }
         boolean testData = testModeService.isEnabled();
         Set<Long> desiredPersonIds = paPersonIds != null ? paPersonIds : Set.of();
-        List<AtemschutzFitnessRecord> existing = fitnessRecordRepository.findBySourceRefTypeAndSourceRefId(
-                FITNESS_SOURCE_INCIDENT_REPORT, reportId, testData);
+        List<AtemschutzFitnessRecord> existing =
+                fitnessRecordRepository.findBySourceRefTypeAndSourceRefId(sourceRefType, reportId, testData);
         for (AtemschutzFitnessRecord record : existing) {
             long personId = record.getCarrier().getPerson().getId();
             if (!desiredPersonIds.contains(personId)) {
@@ -486,38 +579,38 @@ public class AtemschutzService {
             carrierRepository
                     .findByPersonIdAndTestData(personId, testData)
                     .filter(carrier -> carrier.getUnit().getId() == unitId)
-                    .ifPresent(carrier -> upsertIncidentPaRecord(
-                            carrier, reportId, incidentDate, label, createdBy, testData));
+                    .ifPresent(carrier -> upsertPaSourceRecord(
+                            carrier, sourceRefType, reportId, eventDate, label, createdBy, testData));
         }
     }
 
-    @Transactional
-    public void deleteIncidentPaFitnessRecords(long reportId) {
+    private void deletePaFitnessRecords(String sourceRefType, long reportId) {
         boolean testData = testModeService.isEnabled();
-        List<AtemschutzFitnessRecord> existing = fitnessRecordRepository.findBySourceRefTypeAndSourceRefId(
-                FITNESS_SOURCE_INCIDENT_REPORT, reportId, testData);
+        List<AtemschutzFitnessRecord> existing =
+                fitnessRecordRepository.findBySourceRefTypeAndSourceRefId(sourceRefType, reportId, testData);
         if (!existing.isEmpty()) {
             fitnessRecordRepository.deleteAll(existing);
         }
     }
 
-    private void upsertIncidentPaRecord(
+    private void upsertPaSourceRecord(
             AtemschutzCarrier carrier,
+            String sourceRefType,
             long reportId,
-            LocalDate incidentDate,
+            LocalDate eventDate,
             String sourceLabel,
             User createdBy,
             boolean testData) {
         long personId = carrier.getPerson().getId();
         Optional<AtemschutzFitnessRecord> existing = fitnessRecordRepository.findBySourceRefAndPersonId(
-                FITNESS_SOURCE_INCIDENT_REPORT, reportId, personId, testData);
+                sourceRefType, reportId, personId, testData);
         LocalDate validUntil =
-                computeValidUntil(AtemschutzFitnessType.UEBUNG, incidentDate, carrier.getPerson().getBirthdate());
+                computeValidUntil(AtemschutzFitnessType.UEBUNG, eventDate, carrier.getPerson().getBirthdate());
         if (existing.isPresent()) {
             AtemschutzFitnessRecord record = existing.get();
             boolean changed = false;
-            if (!Objects.equals(record.getValidFrom(), incidentDate)) {
-                record.setValidFrom(incidentDate);
+            if (!Objects.equals(record.getValidFrom(), eventDate)) {
+                record.setValidFrom(eventDate);
                 record.setValidUntil(validUntil);
                 changed = true;
             }
@@ -533,12 +626,12 @@ public class AtemschutzService {
         AtemschutzFitnessRecord record = new AtemschutzFitnessRecord();
         record.setCarrier(carrier);
         record.setRecordType(AtemschutzFitnessType.UEBUNG);
-        record.setValidFrom(incidentDate);
+        record.setValidFrom(eventDate);
         record.setValidUntil(validUntil);
         record.setCreatedBy(createdBy);
         record.setTestData(testData);
         record.setSourceLabel(sourceLabel);
-        record.setSourceRefType(FITNESS_SOURCE_INCIDENT_REPORT);
+        record.setSourceRefType(sourceRefType);
         record.setSourceRefId(reportId);
         fitnessRecordRepository.save(record);
     }
@@ -661,8 +754,12 @@ public class AtemschutzService {
                 record.getCarrier().getUnit().getId(), record.getRecordType());
         AtemschutzFitnessLevel level = computeLevel(record.getValidUntil(), warnDays, LocalDate.now());
         Long incidentReportId = null;
+        Long attendanceReportId = null;
         if (FITNESS_SOURCE_INCIDENT_REPORT.equals(record.getSourceRefType()) && record.getSourceRefId() != null) {
             incidentReportId = record.getSourceRefId();
+        } else if (FITNESS_SOURCE_ATTENDANCE_REPORT.equals(record.getSourceRefType())
+                && record.getSourceRefId() != null) {
+            attendanceReportId = record.getSourceRefId();
         }
         return new FitnessRecordView(
                 record.getId(),
@@ -672,7 +769,8 @@ public class AtemschutzService {
                 record.getValidUntil(),
                 formatCreatedBy(record),
                 blankToNull(record.getSourceLabel()),
-                incidentReportId);
+                incidentReportId,
+                attendanceReportId);
     }
 
     private static String formatCreatedBy(AtemschutzFitnessRecord record) {
@@ -870,7 +968,8 @@ public class AtemschutzService {
             LocalDate validUntil,
             String createdByDisplay,
             String sourceLabel,
-            Long incidentReportId) {}
+            Long incidentReportId,
+            Long attendanceReportId) {}
 
     public record PaEinsatzRow(
             String kind,

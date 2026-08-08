@@ -2,6 +2,7 @@ package de.feuerwehr.manager.berichte;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import de.feuerwehr.manager.atemschutz.AtemschutzService;
 import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.personal.PersonGroup;
 import de.feuerwehr.manager.personal.PersonRepository;
@@ -46,6 +47,7 @@ public class AnwesenheitslisteService {
     private final PersonalService personalService;
     private final TestModeService testModeService;
     private final EinsatzberichtService einsatzberichtService;
+    private final AtemschutzService atemschutzService;
     private final UnitTerminRepository unitTerminRepository;
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
@@ -386,6 +388,7 @@ public class AnwesenheitslisteService {
         AttendanceReport saved = attendanceReportRepository.save(report);
         saveCrewAsPersonnel(saved, crewAssignments, unitId);
         syncLinkedTerminFromReport(saved);
+        syncPaAtemschutzRecords(saved, crewAssignments, actor);
         return saved;
     }
 
@@ -413,6 +416,7 @@ public class AnwesenheitslisteService {
         AttendanceReport saved = attendanceReportRepository.save(report);
         saveCrewAsPersonnel(saved, crewAssignments, unitId);
         syncLinkedTerminFromReport(saved);
+        syncPaAtemschutzRecords(saved, crewAssignments, actor);
         return saved;
     }
 
@@ -519,6 +523,7 @@ public class AnwesenheitslisteService {
         if (!AnwesenheitslisteAccess.canDelete(report, actor, canApprove)) {
             throw new IllegalArgumentException("Diese Anwesenheitsliste kann nicht gelöscht werden.");
         }
+        atemschutzService.deleteAttendancePaFitnessRecords(report.getId());
         attendanceReportPersonnelRepository.deleteByReportId(report.getId());
         attendanceReportRepository.delete(report);
     }
@@ -556,10 +561,10 @@ public class AnwesenheitslisteService {
         validateStatusTransition(report.getStatus(), newStatus);
         if (newStatus == IncidentReportStatus.FREIGEGEBEN && assignRemainingToWache) {
             assignRemainingPersonnelToWache(report);
-            saveCrewAsPersonnel(
-                    report,
-                    einsatzberichtService.parseCrewAssignments(report.getCrewAssignmentsJson()),
-                    unitId);
+            List<CrewAssignment> crew =
+                    einsatzberichtService.parseCrewAssignments(report.getCrewAssignmentsJson());
+            saveCrewAsPersonnel(report, crew, unitId);
+            syncPaAtemschutzRecords(report, crew, actor);
         }
         report.setStatus(newStatus);
         if (newStatus == IncidentReportStatus.FREIGEGEBEN) {
@@ -614,6 +619,7 @@ public class AnwesenheitslisteService {
         attendanceReportRepository
                 .findByUnitIdAndUnitTerminId(unitId, terminId, includeTestReports())
                 .ifPresent(report -> {
+                    atemschutzService.deleteAttendancePaFitnessRecords(report.getId());
                     attendanceReportPersonnelRepository.deleteByReportId(report.getId());
                     attendanceReportRepository.delete(report);
                 });
@@ -947,6 +953,47 @@ public class AnwesenheitslisteService {
     public void saveCrewAsPersonnelPublic(
             AttendanceReport report, List<CrewAssignment> crewAssignments, long unitId) {
         saveCrewAsPersonnel(report, crewAssignments, unitId);
+        syncPaAtemschutzRecords(report, crewAssignments, null);
+    }
+
+    private void syncPaAtemschutzRecords(
+            AttendanceReport report, List<CrewAssignment> crewAssignments, AppUserDetails actor) {
+        if (report == null || report.getId() == null || report.getUnit() == null) {
+            return;
+        }
+        Set<Long> paPersonIds = collectPaPersonIds(crewAssignments);
+        Long userId = actor != null ? actor.getUserId() : null;
+        atemschutzService.syncAttendancePaFitnessRecords(
+                report.getUnit().getId(),
+                report.getId(),
+                paPersonIds,
+                report.getEventDate(),
+                attendancePaSourceLabel(report),
+                userId);
+    }
+
+    private static Set<Long> collectPaPersonIds(List<CrewAssignment> assignments) {
+        Set<Long> result = new LinkedHashSet<>();
+        if (assignments == null) {
+            return result;
+        }
+        for (CrewAssignment assignment : assignments) {
+            if (assignment.paPersonIds() == null) {
+                continue;
+            }
+            assignment.paPersonIds().stream()
+                    .filter(Objects::nonNull)
+                    .filter(id -> !IncidentPersonnelRefs.isUcrRef(id))
+                    .forEach(result::add);
+        }
+        return result;
+    }
+
+    private static String attendancePaSourceLabel(AttendanceReport report) {
+        if (report.getTitle() != null && !report.getTitle().isBlank()) {
+            return report.getTitle().trim();
+        }
+        return "Anwesenheitsliste";
     }
 
     private void touchTerminAudience(UnitTermin termin) {
