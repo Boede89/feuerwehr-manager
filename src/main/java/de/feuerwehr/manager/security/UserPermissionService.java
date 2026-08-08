@@ -38,10 +38,8 @@ public class UserPermissionService {
         if (actor.getRole().isAdminLevel()) {
             return allPermissionKeys();
         }
-        User user = userRepository
-                .findByIdWithUnit(actor.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("Benutzer nicht gefunden"));
-        if (user.getUnit() == null || !user.getUnit().getId().equals(unitId)) {
+        User user = userRepository.findByIdWithUnit(actor.getUserId()).orElse(null);
+        if (user == null || user.getUnit() == null || !user.getUnit().getId().equals(unitId)) {
             return Set.of();
         }
         Set<String> base = basePermissionsForUser(user, unitId);
@@ -59,10 +57,8 @@ public class UserPermissionService {
         if (actor.getRole().isAdminLevel()) {
             return allPermissionKeys();
         }
-        User user = userRepository
-                .findByIdWithUnit(actor.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("Benutzer nicht gefunden"));
-        if (user.getUnit() == null || !user.getUnit().getId().equals(unitId)) {
+        User user = userRepository.findByIdWithUnit(actor.getUserId()).orElse(null);
+        if (user == null || user.getUnit() == null || !user.getUnit().getId().equals(unitId)) {
             return Set.of();
         }
         return basePermissionsForUser(user, unitId);
@@ -70,9 +66,10 @@ public class UserPermissionService {
 
     @Transactional(readOnly = true)
     public Set<String> basePermissionsForUser(long userId, long unitId) {
-        User user = userRepository
-                .findByIdWithUnit(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Benutzer nicht gefunden"));
+        User user = userRepository.findByIdWithUnit(userId).orElse(null);
+        if (user == null) {
+            return Set.of();
+        }
         if (user.getRole().isAdminLevel()) {
             return allPermissionKeys();
         }
@@ -100,7 +97,11 @@ public class UserPermissionService {
         if (actor != null && actor.getRole().isAdminLevel()) {
             return true;
         }
-        return effectivePermissions(actor, unitId).contains(permission);
+        try {
+            return effectivePermissions(actor, unitId).contains(permission);
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     /** Modul sichtbar/nutzbar, wenn Lesen, Schreiben oder Genehmigen vorhanden ist. */
@@ -108,10 +109,14 @@ public class UserPermissionService {
         if (actor != null && actor.getRole().isAdminLevel()) {
             return true;
         }
-        Set<String> effective = effectivePermissions(actor, unitId);
-        return effective.contains(moduleKey + ".read")
-                || effective.contains(moduleKey + ".write")
-                || effective.contains(moduleKey + ".approve");
+        try {
+            Set<String> effective = effectivePermissions(actor, unitId);
+            return effective.contains(moduleKey + ".read")
+                    || effective.contains(moduleKey + ".write")
+                    || effective.contains(moduleKey + ".approve");
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     public void requirePermission(AppUserDetails actor, long unitId, String permission) {

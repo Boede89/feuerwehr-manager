@@ -4,8 +4,8 @@ import de.feuerwehr.manager.dsgvo.AuditEventType;
 import de.feuerwehr.manager.dsgvo.AuditService;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
+import de.feuerwehr.manager.security.PermissionEffectiveSupport;
 import de.feuerwehr.manager.security.SecurityProperties;
-import de.feuerwehr.manager.security.UserPermissionService;
 import de.feuerwehr.manager.personal.PersonUserLinkService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
@@ -21,10 +21,12 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,7 +49,6 @@ public class UserManagementService {
     private final UnitRoleService unitRoleService;
     private final UserUnitFunctionRepository userUnitFunctionRepository;
     private final UserPermissionOverrideRepository permissionOverrideRepository;
-    private final UserPermissionService userPermissionService;
     private final UserTotpService userTotpService;
 
     public List<User> listAccounts(AppUserDetails actor) {
@@ -601,7 +602,7 @@ public class UserManagementService {
             throw new IllegalArgumentException("Benutzer ohne Einheit.");
         }
         long unitId = user.getUnit().getId();
-        Set<String> base = userPermissionService.basePermissionsForUser(userId, unitId);
+        Set<String> base = resolveBasePermissions(user, unitId);
         Map<String, String> overrides = new LinkedHashMap<>();
         for (UserPermissionOverride row : permissionOverrideRepository.findByUserIdOrderByPermissionAsc(userId)) {
             overrides.put(row.getPermission(), row.getEffect().name());
@@ -622,6 +623,24 @@ public class UserManagementService {
         result.put("overrides", overrides);
         result.put("options", options);
         return result;
+    }
+
+    private Set<String> resolveBasePermissions(User user, long unitId) {
+        LinkedHashSet<String> permissions = new LinkedHashSet<>();
+        UnitRole orgRole = user.getOrganizationalRole();
+        if (orgRole != null) {
+            permissions.addAll(unitRoleService.parsePermissions(orgRole));
+        } else {
+            unitRoleService.listRoles(unitId).stream()
+                    .filter(UnitRole::isSystemRole)
+                    .findFirst()
+                    .ifPresent(role -> permissions.addAll(unitRoleService.parsePermissions(role)));
+        }
+        for (UserUnitFunction link :
+                userUnitFunctionRepository.findByUserIdWithRoleOrderByRoleNameAsc(user.getId())) {
+            permissions.addAll(unitRoleService.parsePermissions(link.getRole()));
+        }
+        return PermissionEffectiveSupport.expandImpliedReads(permissions);
     }
 
     @Transactional
@@ -661,7 +680,6 @@ public class UserManagementService {
             row.setEffect(effect);
             permissionOverrideRepository.save(row);
         }
-        // Nicht mehr gesetzte Overrides entfernen (Replace-All auf erlaubte Keys).
         for (UserPermissionOverride leftover : existing.values()) {
             permissionOverrideRepository.delete(leftover);
         }
