@@ -178,7 +178,10 @@
     document.body.classList.toggle('dashboard-editing', editing);
     if (editBtn) editBtn.hidden = editing;
     if (doneBtn) doneBtn.hidden = !editing;
-    if (editBar) editBar.hidden = !editing;
+    if (editBar) {
+      editBar.hidden = !editing;
+      editBar.setAttribute('aria-hidden', editing ? 'false' : 'true');
+    }
     widgetNodes().forEach(function (node) {
       node.classList.toggle('dashboard-widget--editing', editing);
     });
@@ -561,4 +564,5 @@
   widgetNodes().forEach(ensureHandles);
   updateBoardRows();
   updateEmptyHint();
+  setEditing(false);
 })();

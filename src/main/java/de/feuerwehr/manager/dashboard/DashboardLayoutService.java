@@ -176,9 +176,15 @@ public class DashboardLayoutService {
         if (type.adminOnly() && !actor.getRole().isAdminLevel()) {
             return false;
         }
-        if (type.requiredModule() != null
-                && !moduleSettingsService.isEnabled(type.requiredModule(), unitId)) {
-            return false;
+        if (type.requiredModule() != null) {
+            if (!moduleSettingsService.isEnabled(type.requiredModule(), unitId)) {
+                return false;
+            }
+            // Wie Top-Navigation: Modulzugriff (read/write/approve), nicht nur *.read
+            if (!userPermissionService.hasModuleAccess(actor, unitId, type.requiredModule().key())) {
+                return false;
+            }
+            return true;
         }
         if (type.requiredPermission() != null
                 && !userPermissionService.hasPermission(actor, unitId, type.requiredPermission())) {
