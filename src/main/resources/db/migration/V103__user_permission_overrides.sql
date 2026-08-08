@@ -1,4 +1,4 @@
--- Idempotent: auch nach fehlgeschlagenem Erstversuch / manueller Reparatur erneut anwendbar.
+-- Individuelle Modulrechte (GRANT/DENY) zusätzlich zu Dienstgrad/Funktionen.
 CREATE TABLE IF NOT EXISTS user_permission_overrides (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NOT NULL,
