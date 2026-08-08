@@ -127,14 +127,16 @@
       return;
     }
     stack.innerHTML = '';
-    Object.keys(vehicleState).forEach(function (vehicleId) {
-      if (!vehicleState[vehicleId].selected) {
+    // Alle Einheitsfahrzeuge bereitstellen, damit Geräte auch ohne „Eingesetzt“ wählbar sind.
+    parseJsonScript('gwm-vehicles-data', []).forEach(function (vehicle) {
+      if (!vehicle || vehicle.id == null) {
         return;
       }
+      var state = ensureVehicleState(vehicle.id);
       var card = document.createElement('article');
       card.className = 'incident-vehicle-card';
-      card.dataset.vehicleId = vehicleId;
-      card.dataset.involvedInIncident = 'true';
+      card.dataset.vehicleId = vehicle.id;
+      card.dataset.involvedInIncident = state.selected ? 'true' : 'false';
       stack.appendChild(card);
     });
     if (window.BerichteGeraete) {
@@ -202,7 +204,8 @@
     var vehicles = parseJsonScript('gwm-vehicles-data', []);
     if (readonly) {
       vehicles = vehicles.filter(function (vehicle) {
-        return vehicleState[String(vehicle.id)] && vehicleState[String(vehicle.id)].selected;
+        var state = vehicleState[String(vehicle.id)];
+        return state && (state.selected || (state.equipmentIds && state.equipmentIds.length > 0));
       });
     }
     if (!vehicles.length) {
@@ -231,9 +234,6 @@
           return;
         }
         var state = ensureVehicleState(row.vehicleId);
-        if (!state.selected) {
-          return;
-        }
         state.equipmentIds = (row.equipmentIds || []).map(Number).filter(function (id) {
           return !isNaN(id);
         });
@@ -417,7 +417,11 @@
     }
     mergeEquipmentFromHidden();
     var vehicles = parseJsonScript('gwm-vehicles-data', []).filter(function (vehicle) {
-      return vehicleState[String(vehicle.id)] && vehicleState[String(vehicle.id)].selected;
+      var state = vehicleState[String(vehicle.id)];
+      if (!state) {
+        return false;
+      }
+      return state.selected || (state.equipmentIds && state.equipmentIds.length > 0);
     });
     if (!vehicles.length) {
       container.innerHTML = '';
@@ -481,11 +485,13 @@
     var equipmentRows = [];
     Object.keys(vehicleState).forEach(function (vehicleId) {
       var state = vehicleState[vehicleId];
-      if (!state.selected) {
-        return;
-      }
       var vid = Number(vehicleId);
       var equipmentIds = (state.equipmentIds || []).slice();
+      var custom = customByVehicleId[vid] || [];
+      // Eingesetzte Fahrzeuge immer speichern; sonst nur, wenn Geräte gewählt wurden.
+      if (!state.selected && equipmentIds.length === 0 && custom.length === 0) {
+        return;
+      }
       var equipmentIdSet = {};
       equipmentIds.forEach(function (id) {
         equipmentIdSet[id] = true;
@@ -506,16 +512,17 @@
       });
       rows.push({
         vehicleId: vid,
-        maschinistPersonId: state.maschinistPersonId || null,
-        einheitsfuehrerPersonId: state.einheitsfuehrerPersonId || null,
+        maschinistPersonId: state.selected ? (state.maschinistPersonId || null) : null,
+        einheitsfuehrerPersonId: state.selected ? (state.einheitsfuehrerPersonId || null) : null,
         equipmentIds: equipmentIds,
         defectiveEquipmentIds: defectiveIds,
-        defectiveMangelByEquipmentId: mangelByEquipment
+        defectiveMangelByEquipmentId: mangelByEquipment,
+        customEquipment: custom
       });
       equipmentRows.push({
         vehicleId: vid,
         equipmentIds: equipmentIds,
-        customEquipment: customByVehicleId[vid] || []
+        customEquipment: custom
       });
       delete customByVehicleId[vid];
     });
@@ -524,6 +531,16 @@
       equipmentRows.push({
         vehicleId: vid,
         equipmentIds: [],
+        customEquipment: customByVehicleId[vid]
+      });
+      // Auch in vehiclesDataJson, damit PDF/Anzeige die Geräte behalten.
+      rows.push({
+        vehicleId: vid,
+        maschinistPersonId: null,
+        einheitsfuehrerPersonId: null,
+        equipmentIds: [],
+        defectiveEquipmentIds: [],
+        defectiveMangelByEquipmentId: {},
         customEquipment: customByVehicleId[vid]
       });
     });
@@ -541,15 +558,9 @@
     if (!checked) {
       state.maschinistPersonId = null;
       state.einheitsfuehrerPersonId = null;
-      state.equipmentIds = [];
-      state.defectiveEquipmentIds = [];
-      state.defectiveMangelByEquipmentId = {};
+      // Geräte bleiben erhalten – sie können unabhängig von „Eingesetzt“ erfasst werden.
     }
     syncHiddenJson();
-    if (!checked && window.BerichteGeraete &&
-        typeof window.BerichteGeraete.clearVehicleSelection === 'function') {
-      window.BerichteGeraete.clearVehicleSelection(vehicleId);
-    }
     var card = document.querySelector('.incident-gwm-vehicle-card[data-vehicle-id="' + vehicleId + '"]');
     if (card) {
       card.classList.toggle('incident-vehicle-card--einsatz-beteiligt', checked);

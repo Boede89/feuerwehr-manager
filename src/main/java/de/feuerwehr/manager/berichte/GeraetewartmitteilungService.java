@@ -17,7 +17,6 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -29,7 +28,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class GeraetewartmitteilungService {
 
     private final EquipmentMaintenanceReportRepository reportRepository;
-    private final IncidentReportEquipmentRepository incidentReportEquipmentRepository;
     private final UnitRepository unitRepository;
     private final UserRepository userRepository;
     private final PersonRepository personRepository;
@@ -151,8 +149,8 @@ public class GeraetewartmitteilungService {
             long unitId, long attendanceReportId, AttendanceReport attendance) {
         KraefteFahrzeugeState state =
                 anwesenheitslisteService.buildKraefteFahrzeugeState(unitId, attendanceReportId);
-        Map<Long, List<Long>> equipmentByVehicleId =
-                loadEquipmentByVehicleIdFromJson(attendance.getDeployedEquipmentJson());
+        Map<Long, DeployedEquipmentAssignment> equipmentByVehicleId =
+                loadEquipmentAssignmentsFromJson(attendance.getDeployedEquipmentJson());
         Map<Long, KraefteFahrzeugeState.KraefteVehicleView> vehicleViewById = new LinkedHashMap<>();
         for (KraefteFahrzeugeState.KraefteVehicleView vehicle : state.vehicles()) {
             vehicleViewById.put(vehicle.vehicleId(), vehicle);
@@ -171,7 +169,15 @@ public class GeraetewartmitteilungService {
         List<GwmVehicleData> gwmVehicles = new ArrayList<>();
         for (Long vehicleId : vehicleIds) {
             KraefteFahrzeugeState.KraefteVehicleView view = vehicleViewById.get(vehicleId);
-            List<Long> equipmentIds = equipmentByVehicleId.getOrDefault(vehicleId, List.of());
+            DeployedEquipmentAssignment assignment = equipmentByVehicleId.get(vehicleId);
+            List<Long> equipmentIds =
+                    assignment != null && assignment.equipmentIds() != null
+                            ? assignment.equipmentIds()
+                            : List.of();
+            List<CustomDeployedEquipment> customEquipment =
+                    assignment != null && assignment.customEquipment() != null
+                            ? assignment.customEquipment()
+                            : List.of();
             gwmVehicles.add(new GwmVehicleData(
                     vehicleId,
                     view != null ? resolvePersonRef(view.maschinistPersonId()) : null,
@@ -180,7 +186,8 @@ public class GeraetewartmitteilungService {
                     List.of(),
                     Map.of(),
                     null,
-                    null));
+                    null,
+                    customEquipment));
         }
 
         GeraetewartmitteilungForm form = new GeraetewartmitteilungForm();
@@ -196,16 +203,19 @@ public class GeraetewartmitteilungService {
         return form;
     }
 
-    private Map<Long, List<Long>> loadEquipmentByVehicleIdFromJson(String deployedEquipmentJson) {
-        Map<Long, List<Long>> result = new LinkedHashMap<>();
+    private Map<Long, DeployedEquipmentAssignment> loadEquipmentAssignmentsFromJson(String deployedEquipmentJson) {
+        Map<Long, DeployedEquipmentAssignment> result = new LinkedHashMap<>();
         for (DeployedEquipmentAssignment assignment :
                 einsatzberichtService.parseDeployedEquipment(deployedEquipmentJson)) {
             if (assignment.vehicleId() <= 0) {
                 continue;
             }
-            List<Long> ids = assignment.equipmentIds() != null ? assignment.equipmentIds() : List.of();
-            if (!ids.isEmpty()) {
-                result.put(assignment.vehicleId(), ids);
+            boolean hasCatalog =
+                    assignment.equipmentIds() != null && !assignment.equipmentIds().isEmpty();
+            boolean hasCustom =
+                    assignment.customEquipment() != null && !assignment.customEquipment().isEmpty();
+            if (hasCatalog || hasCustom) {
+                result.put(assignment.vehicleId(), assignment);
             }
         }
         return result;
@@ -215,7 +225,8 @@ public class GeraetewartmitteilungService {
     public GeraetewartmitteilungForm buildFormFromIncidentReport(
             long unitId, long incidentReportId, IncidentReport incident) {
         KraefteFahrzeugeState state = einsatzberichtService.buildKraefteFahrzeugeState(unitId, incidentReportId);
-        Map<Long, List<Long>> equipmentByVehicleId = loadEquipmentByVehicleId(incidentReportId);
+        Map<Long, DeployedEquipmentAssignment> equipmentByVehicleId =
+                loadEquipmentAssignments(incidentReportId);
         Map<Long, KraefteFahrzeugeState.KraefteVehicleView> vehicleViewById = new LinkedHashMap<>();
         for (KraefteFahrzeugeState.KraefteVehicleView vehicle : state.vehicles()) {
             vehicleViewById.put(vehicle.vehicleId(), vehicle);
@@ -236,7 +247,15 @@ public class GeraetewartmitteilungService {
         boolean damageAssigned = false;
         for (Long vehicleId : vehicleIds) {
             KraefteFahrzeugeState.KraefteVehicleView view = vehicleViewById.get(vehicleId);
-            List<Long> equipmentIds = equipmentByVehicleId.getOrDefault(vehicleId, List.of());
+            DeployedEquipmentAssignment assignment = equipmentByVehicleId.get(vehicleId);
+            List<Long> equipmentIds =
+                    assignment != null && assignment.equipmentIds() != null
+                            ? assignment.equipmentIds()
+                            : List.of();
+            List<CustomDeployedEquipment> customEquipment =
+                    assignment != null && assignment.customEquipment() != null
+                            ? assignment.customEquipment()
+                            : List.of();
             String defectiveFreitext = null;
             if (!damageAssigned && equipmentDamage != null && !equipmentDamage.isBlank()) {
                 defectiveFreitext = equipmentDamage.trim();
@@ -250,7 +269,8 @@ public class GeraetewartmitteilungService {
                     List.of(),
                     Map.of(),
                     defectiveFreitext,
-                    null));
+                    null,
+                    customEquipment));
         }
 
         GeraetewartmitteilungForm form = new GeraetewartmitteilungForm();
@@ -333,12 +353,10 @@ public class GeraetewartmitteilungService {
     }
 
     public List<GwmVehicleData> parseVehicles(GeraetewartmitteilungForm form) {
-        List<GwmVehicleData> vehicles =
-                GwmVehicleDataSupport.parseVehiclesJson(form.getVehiclesDataJson(), objectMapper);
-        if (!vehicles.isEmpty()) {
-            return vehicles;
-        }
-        return GwmVehicleDataSupport.parse(null, form.getDeployedEquipmentJson(), objectMapper);
+        // vehiclesDataJson und deployedEquipmentJson mergen, damit Geräte von
+        // nicht als „eingesetzt“ markierten Fahrzeugen nicht verlorengehen.
+        return GwmVehicleDataSupport.parse(
+                form.getVehiclesDataJson(), form.getDeployedEquipmentJson(), objectMapper);
     }
 
     private Map<Long, Person> loadPersonsForVehicles(long unitId, List<GwmVehicleData> vehicles) {
@@ -365,22 +383,31 @@ public class GeraetewartmitteilungService {
     }
 
     private List<String> resolveEquipmentNames(long unitId, GwmVehicleData vehicle) {
-        if (vehicle.equipmentIds() == null || vehicle.equipmentIds().isEmpty()) {
-            return List.of();
+        List<String> names = new ArrayList<>();
+        if (vehicle.equipmentIds() != null && !vehicle.equipmentIds().isEmpty()) {
+            List<VehicleEquipmentView> equipmentViews =
+                    einsatzberichtService.listVehicleEquipment(unitId, List.of(vehicle.vehicleId()));
+            Map<Long, String> nameById = new LinkedHashMap<>();
+            if (!equipmentViews.isEmpty()) {
+                for (VehicleEquipmentView.EquipmentItemView item : equipmentViews.get(0).equipment()) {
+                    nameById.put(item.id(), item.name());
+                }
+            }
+            for (Long equipmentId : vehicle.equipmentIds()) {
+                String name = nameById.get(equipmentId);
+                if (name != null) {
+                    names.add(name);
+                }
+            }
         }
-        List<VehicleEquipmentView> equipmentViews =
-                einsatzberichtService.listVehicleEquipment(unitId, List.of(vehicle.vehicleId()));
-        if (equipmentViews.isEmpty()) {
-            return List.of();
+        if (vehicle.customEquipment() != null) {
+            for (CustomDeployedEquipment custom : vehicle.customEquipment()) {
+                if (custom != null && custom.name() != null && !custom.name().isBlank()) {
+                    names.add(custom.name().trim());
+                }
+            }
         }
-        Map<Long, String> nameById = new LinkedHashMap<>();
-        for (VehicleEquipmentView.EquipmentItemView item : equipmentViews.get(0).equipment()) {
-            nameById.put(item.id(), item.name());
-        }
-        return vehicle.equipmentIds().stream()
-                .map(nameById::get)
-                .filter(Objects::nonNull)
-                .toList();
+        return names;
     }
 
     private String formatDefects(long unitId, GwmVehicleData vehicle) {
@@ -507,17 +534,8 @@ public class GeraetewartmitteilungService {
         return testModeService.isEnabled();
     }
 
-    private Map<Long, List<Long>> loadEquipmentByVehicleId(long incidentReportId) {
-        Map<Long, List<Long>> equipmentByVehicleId = new LinkedHashMap<>();
-        for (IncidentReportEquipment row : incidentReportEquipmentRepository.findByIncidentReportId(incidentReportId)) {
-            if (row.getVehicle() == null || row.getVehicleEquipment() == null) {
-                continue;
-            }
-            equipmentByVehicleId
-                    .computeIfAbsent(row.getVehicle().getId(), ignored -> new ArrayList<>())
-                    .add(row.getVehicleEquipment().getId());
-        }
-        return equipmentByVehicleId;
+    private Map<Long, DeployedEquipmentAssignment> loadEquipmentAssignments(long incidentReportId) {
+        return loadEquipmentAssignmentsFromJson(einsatzberichtService.buildDeployedEquipmentJson(incidentReportId));
     }
 
     private static Long resolvePersonRef(Long refId) {

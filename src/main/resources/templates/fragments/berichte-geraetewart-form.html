@@ -103,13 +103,18 @@
     <!-- Tab 2: Eingesetzte Geräte -->
     <div class="incident-tab-panel" data-panel="2" hidden>
       <p class="hint" id="deployed-equipment-no-vehicles" hidden>
-        Markieren Sie zuerst im Reiter Fahrzeuge die eingesetzten Fahrzeuge.
+        Es sind keine Fahrzeuge in dieser Einheit hinterlegt.
+      </p>
+      <p class="hint" id="deployed-equipment-anwesenheit-hint">
+        Hier können Geräte auch von Fahrzeugen erfasst werden, die selbst nicht als eingesetzt markiert sind
+        (z.&nbsp;B. Gerät aus dem Fahrzeuglager).
       </p>
       <p class="hint" id="deployed-equipment-empty" hidden>
-        Für die eingesetzten Fahrzeuge sind noch keine Geräte in der Technik-Verwaltung hinterlegt.
+        Für die Fahrzeuge sind noch keine Geräte in der Technik-Verwaltung hinterlegt.
       </p>
       <div id="incident-deployed-equipment" class="incident-deployed-equipment"
            th:data-readonly="${formMode == 'view' ? 'true' : 'false'}"
+           th:data-show-all-vehicles="true"
            th:data-initial="${form.deployedEquipmentJson}"></div>
     </div>
 
