@@ -53,6 +53,10 @@ public class User {
     @Column(nullable = false, length = 8)
     private String theme = "light";
 
+    /** Persönliches Startseiten-Layout (JSON-Array von Widget-IDs). */
+    @Column(name = "dashboard_layout_json", columnDefinition = "TEXT")
+    private String dashboardLayoutJson;
+
     /** BCrypt-Hash; null möglich für reine RFID-Nutzer (später). */
     @Column(name = "password_hash", length = 255)
     private String passwordHash;

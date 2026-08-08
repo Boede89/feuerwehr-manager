@@ -2,169 +2,268 @@
 <html lang="de" xmlns:th="http://www.thymeleaf.org"
       th:replace="~{fragments/layout :: layout('Startseite', ~{::main})}">
 <main>
-  <div class="page-header">
+  <div class="page-header page-header--dashboard">
     <div>
       <h2 th:text="${currentUser != null ? 'Willkommen, ' + currentUser.displayName : 'Startseite'}">Willkommen</h2>
       <p>Feuerwehr-Manager · Einheit: <strong th:text="${currentUnitName}">—</strong></p>
+    </div>
+    <div class="page-header__actions">
+      <button type="button" class="btn btn--outline btn--sm" id="dashboard-edit-btn">Startseite anpassen</button>
+      <button type="button" class="btn btn--primary btn--sm" id="dashboard-done-btn" hidden>Fertig</button>
     </div>
   </div>
 
   <div th:replace="~{fragments/flash-messages :: alerts}"></div>
   <div th:replace="~{fragments/testmode-banner :: banner}"></div>
 
-  <div class="widget-card widget-card--meine-statistik" th:if="${showParticipationStats}">
-    <div class="widget-card__header">
-      <h3>Meine Beteiligung <span class="text-muted text-sm" th:text="${participationYear}">2026</span></h3>
-    </div>
-    <div class="widget-card__body">
-      <p class="text-muted text-sm" th:if="${!participationHasPerson}">
-        Ihr Benutzerkonto ist keiner Person zugeordnet — Statistik nicht verfügbar.
-      </p>
-      <p class="text-muted text-sm" th:if="${participationHasPerson and myParticipation == null}">
-        Für dieses Jahr liegen keine auswertbaren Daten vor.
-      </p>
-      <div class="meine-statistik-grid" th:if="${myParticipation != null}">
-        <div class="meine-statistik-card">
-          <span class="meine-statistik-card__label">Übungsdienste</span>
-          <strong class="meine-statistik-card__value" th:text="${myParticipation.uebungQuote()}">0/0</strong>
-          <span class="meine-statistik-card__pct" th:text="${myParticipation.uebungPct()}">—</span>
-          <div class="meine-statistik-card__bar" role="presentation"
-               th:attr="aria-hidden='true'">
-            <div class="meine-statistik-card__bar-fill"
-                 th:style="|width: ${myParticipation.uebungPct() == '—' ? 0 : myParticipation.uebungPctValue()}%|"></div>
-          </div>
-        </div>
-        <div class="meine-statistik-card">
-          <span class="meine-statistik-card__label">Einsätze</span>
-          <strong class="meine-statistik-card__value" th:text="${myParticipation.einsatzQuote()}">0/0</strong>
-          <span class="meine-statistik-card__pct" th:text="${myParticipation.einsatzPct()}">—</span>
-          <div class="meine-statistik-card__bar" role="presentation" aria-hidden="true">
-            <div class="meine-statistik-card__bar-fill meine-statistik-card__bar-fill--einsatz"
-                 th:style="|width: ${myParticipation.einsatzPct() == '—' ? 0 : myParticipation.einsatzPctValue()}%|"></div>
-          </div>
-        </div>
-      </div>
-      <p class="hint hint--compact" th:if="${myParticipation != null}">
-        Zählt freigegebene Anwesenheitslisten (Übungsdienst bis heute) und freigegebene Einsatzberichte.
-      </p>
-    </div>
+  <div id="dashboard-edit-bar" class="dashboard-edit-bar" hidden>
+    <p class="hint">Widgets ziehen zum Sortieren. Entfernen oder neue Widgets hinzufügen — Speichern mit „Fertig“.</p>
+    <button type="button" class="btn btn--primary btn--sm" id="dashboard-add-btn">+ Widget hinzufügen</button>
   </div>
 
-  <div class="home-grid">
-    <div class="home-grid__main">
-      <div class="widget-card widget-card--einsatz" th:if="${canManageManualAlarms and manualDraftAlarms != null and !#lists.isEmpty(manualDraftAlarms)}">
-        <div class="widget-card__header">
-          <h3>Geplante Einsätze</h3>
-          <a class="btn btn--primary btn--sm" th:href="@{/einsatz/manuell(unit=${unitId})}">+ Einsatz anlegen</a>
+  <div id="dashboard-widgets"
+       class="dashboard-widgets"
+       th:attr="data-unit-id=${unitId}">
+    <th:block th:each="w : ${dashboardWidgets}">
+      <article class="dashboard-widget widget-card"
+               th:classappend="${
+                 w.name() == 'MY_STATS' ? ' widget-card--meine-statistik' : (
+                 w.name() == 'DIVERA' or w.name() == 'PLANNED_ALARMS' ? ' widget-card--einsatz' : (
+                 w.name() == 'TERMINE' ? ' widget-card--termine' : (
+                 w.name() == 'UNIT_OVERVIEW' ? ' widget-card--unit-overview' : (
+                 w.name() == 'QUICK_LINKS' ? ' widget-card--quick-links' : ''))))}"
+               th:attr="data-widget-type=${w.name()}"
+               draggable="false">
+        <div class="dashboard-widget__chrome" hidden>
+          <span class="dashboard-widget__drag" title="Ziehen zum Verschieben" aria-hidden="true">⋮⋮</span>
+          <button type="button" class="btn btn--outline btn--sm dashboard-widget__remove"
+                  aria-label="Widget entfernen">Entfernen</button>
         </div>
-        <div class="widget-card__body">
-          <div class="list-row" th:each="a : ${manualDraftAlarms}">
-            <span>
-              <strong th:text="${a.title}">Titel</strong>
-              <span th:if="${a.address != null and !#strings.isEmpty(a.address)}"> · </span>
-              <span th:text="${a.address}">Adresse</span>
-            </span>
-            <span class="btn-group btn-group--inline">
-              <span class="badge badge-muted" th:if="${a.exercise}">Übung</span>
-              <span class="badge badge-warning">Geplant</span>
-              <a class="btn btn--outline btn--sm"
-                 th:href="@{/einsatz/manuell/{id}/bearbeiten(id=${a.manualRecordId}, unit=${unitId})}">Bearbeiten</a>
-              <button type="button" class="btn btn--primary btn--sm manual-alarm-start-btn"
-                      th:attr="data-alarm-id=${a.manualRecordId},data-alarm-title=${a.title}">Einsatz starten</button>
-              <button type="button" class="btn btn--outline btn--sm manual-alarm-depesche-btn"
-                      th:attr="data-alarm-id=${a.manualRecordId},data-alarm-title=${a.title}">Depesche</button>
-              <form method="post" th:action="@{/einsatz/manuell/{id}/delete(id=${a.manualRecordId})}" class="table-inline-form"
-                    onsubmit="return confirm('Geplanten Einsatz wirklich löschen?');">
-                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-                <input type="hidden" name="unit" th:value="${unitId}"/>
-                <button type="submit" class="btn btn--outline btn--sm btn--danger">Löschen</button>
-              </form>
-            </span>
-          </div>
-        </div>
-      </div>
 
-      <div class="widget-card widget-card--einsatz">
-        <div class="widget-card__header">
-          <h3>Divera – aktuelle Einsätze</h3>
-          <a th:if="${canManageManualAlarms}" class="btn btn--primary btn--sm"
-             th:href="@{/einsatz/manuell(unit=${unitId})}">+ Einsatz anlegen</a>
-        </div>
-        <div class="widget-card__body">
-          <div class="list-row" th:if="${!divera.success}">
-            <span th:text="${divera.message}">Fehler</span>
-            <span class="badge inactive">Prüfen</span>
+        <th:block th:if="${w.name() == 'MY_STATS'}">
+          <div class="widget-card__header">
+            <h3>Meine Beteiligung <span class="text-muted text-sm" th:text="${participationYear}">2026</span></h3>
           </div>
-          <th:block th:if="${divera.success}">
-            <div class="list-row" th:if="${#lists.isEmpty(divera.alarms)}">
-              <span>Keine laufenden Einsätze.</span>
-              <span class="badge active">OK</span>
+          <div class="widget-card__body">
+            <p class="text-muted text-sm" th:if="${!participationHasPerson}">
+              Ihr Benutzerkonto ist keiner Person zugeordnet — Statistik nicht verfügbar.
+            </p>
+            <p class="text-muted text-sm" th:if="${participationHasPerson and myParticipation == null}">
+              Für dieses Jahr liegen keine auswertbaren Daten vor.
+            </p>
+            <div class="meine-statistik-grid" th:if="${myParticipation != null}">
+              <div class="meine-statistik-card">
+                <span class="meine-statistik-card__label">Übungsdienste</span>
+                <strong class="meine-statistik-card__value" th:text="${myParticipation.uebungQuote()}">0/0</strong>
+                <span class="meine-statistik-card__pct" th:text="${myParticipation.uebungPct()}">—</span>
+                <div class="meine-statistik-card__bar" role="presentation" aria-hidden="true">
+                  <div class="meine-statistik-card__bar-fill"
+                       th:style="|width: ${myParticipation.uebungPct() == '—' ? 0 : myParticipation.uebungPctValue()}%|"></div>
+                </div>
+              </div>
+              <div class="meine-statistik-card">
+                <span class="meine-statistik-card__label">Einsätze</span>
+                <strong class="meine-statistik-card__value" th:text="${myParticipation.einsatzQuote()}">0/0</strong>
+                <span class="meine-statistik-card__pct" th:text="${myParticipation.einsatzPct()}">—</span>
+                <div class="meine-statistik-card__bar" role="presentation" aria-hidden="true">
+                  <div class="meine-statistik-card__bar-fill meine-statistik-card__bar-fill--einsatz"
+                       th:style="|width: ${myParticipation.einsatzPct() == '—' ? 0 : myParticipation.einsatzPctValue()}%|"></div>
+                </div>
+              </div>
             </div>
-            <div class="list-row" th:each="a : ${divera.alarms}">
+            <p class="hint hint--compact" th:if="${myParticipation != null}">
+              Freigegebene Anwesenheitslisten (Übungsdienst bis heute) und freigegebene Einsatzberichte.
+            </p>
+          </div>
+        </th:block>
+
+        <th:block th:if="${w.name() == 'DIVERA'}">
+          <div class="widget-card__header">
+            <h3>Divera – aktuelle Einsätze</h3>
+            <a th:if="${canManageManualAlarms}" class="btn btn--primary btn--sm"
+               th:href="@{/einsatz/manuell(unit=${unitId})}">+ Einsatz anlegen</a>
+          </div>
+          <div class="widget-card__body">
+            <div class="list-row" th:if="${!divera.success}">
+              <span th:text="${divera.message}">Fehler</span>
+              <span class="badge inactive">Prüfen</span>
+            </div>
+            <th:block th:if="${divera.success}">
+              <div class="list-row" th:if="${#lists.isEmpty(divera.alarms)}">
+                <span>Keine laufenden Einsätze.</span>
+                <span class="badge active">OK</span>
+              </div>
+              <div class="list-row" th:each="a : ${divera.alarms}">
+                <span>
+                  <strong th:text="${a.title}">Titel</strong>
+                  <span th:if="${a.address != null and !#strings.isEmpty(a.address)}"> · </span>
+                  <span th:text="${a.address}">Adresse</span>
+                  <span class="hint hint--inline" th:if="${a.closed}"> (geschlossen)</span>
+                </span>
+                <span class="btn-group btn-group--inline">
+                  <span class="badge active" th:if="${!a.testAlarm and !a.manualAlarm}" th:text="${a.id}">ID</span>
+                  <span class="badge badge-warning" th:if="${a.testAlarm}">Test</span>
+                  <span class="badge badge-muted" th:if="${a.manualAlarm and a.exercise}">Übung</span>
+                  <span class="badge badge-warning" th:if="${a.manualAlarm}">Manuell</span>
+                  <button type="button" class="btn btn--outline btn--sm manual-alarm-depesche-btn"
+                          th:if="${canManageManualAlarms and a.manualAlarm and a.manualRecordId != null}"
+                          th:attr="data-alarm-id=${a.manualRecordId},data-alarm-title=${a.title}">Depesche</button>
+                  <form th:if="${canManageManualAlarms and a.manualAlarm and a.manualRecordId != null}"
+                        method="post" th:action="@{/einsatz/manuell/{id}/close(id=${a.manualRecordId})}"
+                        class="table-inline-form"
+                        onsubmit="return confirm('Einsatz beenden?');">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <input type="hidden" name="unit" th:value="${unitId}"/>
+                    <button type="submit" class="btn btn--outline btn--sm">Beenden</button>
+                  </form>
+                </span>
+              </div>
+            </th:block>
+          </div>
+        </th:block>
+
+        <th:block th:if="${w.name() == 'PLANNED_ALARMS'}">
+          <div class="widget-card__header">
+            <h3>Geplante Einsätze</h3>
+            <a class="btn btn--primary btn--sm" th:href="@{/einsatz/manuell(unit=${unitId})}">+ Einsatz anlegen</a>
+          </div>
+          <div class="widget-card__body">
+            <div class="list-row" th:if="${manualDraftAlarms == null or #lists.isEmpty(manualDraftAlarms)}">
+              <span>Keine geplanten Einsätze.</span>
+            </div>
+            <div class="list-row" th:each="a : ${manualDraftAlarms}">
               <span>
                 <strong th:text="${a.title}">Titel</strong>
                 <span th:if="${a.address != null and !#strings.isEmpty(a.address)}"> · </span>
                 <span th:text="${a.address}">Adresse</span>
-                <span class="hint hint--inline" th:if="${a.closed}"> (geschlossen)</span>
               </span>
               <span class="btn-group btn-group--inline">
-                <span class="badge active" th:if="${!a.testAlarm and !a.manualAlarm}" th:text="${a.id}">ID</span>
-                <span class="badge badge-warning" th:if="${a.testAlarm}">Test</span>
-                <span class="badge badge-muted" th:if="${a.manualAlarm and a.exercise}">Übung</span>
-                <span class="badge badge-warning" th:if="${a.manualAlarm}">Manuell</span>
+                <span class="badge badge-muted" th:if="${a.exercise}">Übung</span>
+                <span class="badge badge-warning">Geplant</span>
+                <a class="btn btn--outline btn--sm"
+                   th:href="@{/einsatz/manuell/{id}/bearbeiten(id=${a.manualRecordId}, unit=${unitId})}">Bearbeiten</a>
+                <button type="button" class="btn btn--primary btn--sm manual-alarm-start-btn"
+                        th:attr="data-alarm-id=${a.manualRecordId},data-alarm-title=${a.title}">Einsatz starten</button>
                 <button type="button" class="btn btn--outline btn--sm manual-alarm-depesche-btn"
-                        th:if="${canManageManualAlarms and a.manualAlarm and a.manualRecordId != null}"
                         th:attr="data-alarm-id=${a.manualRecordId},data-alarm-title=${a.title}">Depesche</button>
-                <form th:if="${canManageManualAlarms and a.manualAlarm and a.manualRecordId != null}"
-                      method="post" th:action="@{/einsatz/manuell/{id}/close(id=${a.manualRecordId})}"
-                      class="table-inline-form"
-                      onsubmit="return confirm('Einsatz beenden?');">
+                <form method="post" th:action="@{/einsatz/manuell/{id}/delete(id=${a.manualRecordId})}" class="table-inline-form"
+                      onsubmit="return confirm('Geplanten Einsatz wirklich löschen?');">
                   <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
                   <input type="hidden" name="unit" th:value="${unitId}"/>
-                  <button type="submit" class="btn btn--outline btn--sm">Beenden</button>
+                  <button type="submit" class="btn btn--outline btn--sm btn--danger">Löschen</button>
                 </form>
               </span>
             </div>
-          </th:block>
-        </div>
-      </div>
-    </div>
+          </div>
+        </th:block>
 
-    <div class="home-grid__side" th:if="${showTermineWidget}">
-      <div class="widget-card widget-card--termine">
-        <div class="widget-card__header">
-          <h3>Termine</h3>
-          <a th:href="@{/termine(unit=${unitId}, tab='meine')}">Alle anzeigen →</a>
-        </div>
-        <div class="widget-card__body widget-card__body--termine">
-          <p class="text-muted text-sm dashboard-termine-empty" th:if="${!hasLinkedPerson}">
-            Ihr Benutzerkonto ist keiner Person zugeordnet.
-          </p>
-          <p class="text-muted text-sm dashboard-termine-empty"
-             th:if="${hasLinkedPerson and #lists.isEmpty(dashboardTermine)}">
-            Keine bevorstehenden Termine.
-          </p>
-          <div class="termine-row" th:each="termin : ${dashboardTermine}">
-            <div class="termine-row__date">
-              <div class="termine-row__day" th:text="${termin.day()}">01</div>
-              <div class="termine-row__month" th:text="${termin.monthShort()}">Jun</div>
-            </div>
-            <div class="termine-row__body">
-              <div class="termine-row__title">
-                <span class="termine-tag" th:text="${termin.categoryLabel()}">Dienstplan</span>
-                <span th:text="${termin.title()}">Übung</span>
+        <th:block th:if="${w.name() == 'TERMINE'}">
+          <div class="widget-card__header">
+            <h3>Termine</h3>
+            <a th:href="@{/termine(unit=${unitId}, tab='meine')}">Alle anzeigen →</a>
+          </div>
+          <div class="widget-card__body widget-card__body--termine">
+            <p class="text-muted text-sm dashboard-termine-empty" th:if="${!hasLinkedPerson}">
+              Ihr Benutzerkonto ist keiner Person zugeordnet.
+            </p>
+            <p class="text-muted text-sm dashboard-termine-empty"
+               th:if="${hasLinkedPerson and #lists.isEmpty(dashboardTermine)}">
+              Keine bevorstehenden Termine.
+            </p>
+            <div class="termine-row" th:each="termin : ${dashboardTermine}">
+              <div class="termine-row__date">
+                <div class="termine-row__day" th:text="${termin.day()}">01</div>
+                <div class="termine-row__month" th:text="${termin.monthShort()}">Jun</div>
               </div>
-              <div class="termine-row__meta">
-                <span th:text="${termin.time() + ' Uhr'}">19:00 Uhr</span>
+              <div class="termine-row__body">
+                <div class="termine-row__title">
+                  <span class="termine-tag" th:text="${termin.categoryLabel()}">Dienstplan</span>
+                  <span th:text="${termin.title()}">Übung</span>
+                </div>
+                <div class="termine-row__meta">
+                  <span th:text="${termin.time() + ' Uhr'}">19:00 Uhr</span>
+                </div>
+                <a class="btn btn--danger btn--sm termine-row__checkin"
+                   th:if="${termin.checkInAvailable()}"
+                   th:href="@{/berichte/anwesenheitslisten/check-in(unit=${unitId}, terminId=${termin.terminId()})}">
+                  Check In starten
+                </a>
               </div>
-              <a class="btn btn--danger btn--sm termine-row__checkin"
-                 th:if="${termin.checkInAvailable()}"
-                 th:href="@{/berichte/anwesenheitslisten/check-in(unit=${unitId}, terminId=${termin.terminId()})}">
-                Check In starten
-              </a>
             </div>
           </div>
+        </th:block>
+
+        <th:block th:if="${w.name() == 'UNIT_OVERVIEW'}">
+          <div class="widget-card__header">
+            <h3>Einheiten-Kennzahlen <span class="text-muted text-sm" th:text="${unitOverviewYear}">2026</span></h3>
+            <a th:href="@{/auswertung(unit=${unitId})}">Zur Auswertung →</a>
+          </div>
+          <div class="widget-card__body">
+            <div class="unit-overview-grid" th:if="${unitOverviewStats != null}">
+              <div class="meine-statistik-card">
+                <span class="meine-statistik-card__label">Einsätze</span>
+                <strong class="meine-statistik-card__value" th:text="${unitOverviewStats.einsaetze()}">0</strong>
+                <span class="meine-statistik-card__pct" th:text="${unitOverviewStats.einsaetzeStunden()}">0 Std.</span>
+              </div>
+              <div class="meine-statistik-card">
+                <span class="meine-statistik-card__label">Übungsdienste</span>
+                <strong class="meine-statistik-card__value" th:text="${unitOverviewStats.uebungsdienste()}">0</strong>
+                <span class="meine-statistik-card__pct" th:text="${unitOverviewStats.uebungsdiensteStunden()}">0 Std.</span>
+              </div>
+              <div class="meine-statistik-card">
+                <span class="meine-statistik-card__label">Mitglieder</span>
+                <strong class="meine-statistik-card__value" th:text="${unitOverviewStats.mitglieder()}">0</strong>
+              </div>
+              <div class="meine-statistik-card">
+                <span class="meine-statistik-card__label">Taugliche PA-Träger</span>
+                <strong class="meine-statistik-card__value" th:text="${unitOverviewStats.tauglichePaTraeger()}">0</strong>
+              </div>
+            </div>
+          </div>
+        </th:block>
+
+        <th:block th:if="${w.name() == 'QUICK_LINKS'}">
+          <div class="widget-card__header">
+            <h3>Schnellzugriff</h3>
+          </div>
+          <div class="widget-card__body">
+            <div class="dashboard-quick-links">
+              <a class="dashboard-quick-link" th:each="link : ${dashboardQuickLinks}"
+                 th:href="${link.href()}" th:text="${link.label()}">Link</a>
+            </div>
+          </div>
+        </th:block>
+      </article>
+    </th:block>
+
+    <p class="text-muted dashboard-widgets-empty" id="dashboard-widgets-empty"
+       th:if="${#lists.isEmpty(dashboardWidgets)}">
+      Noch keine Widgets. Klicken Sie auf „Startseite anpassen“, um Widgets hinzuzufügen.
+    </p>
+  </div>
+
+  <div id="modal-dashboard-add" class="modal-overlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-labelledby="modal-dashboard-add-title">
+      <div class="modal__header">
+        <h3 id="modal-dashboard-add-title">Widget hinzufügen</h3>
+        <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal__body">
+        <p class="hint">Nur Widgets, für die Sie berechtigt sind.</p>
+        <div id="dashboard-catalog-list" class="dashboard-catalog-list">
+          <button type="button" class="dashboard-catalog-item"
+                  th:each="item : ${dashboardCatalog}"
+                  th:attr="data-widget-id=${item.id()}, data-already=${item.alreadyActive()}"
+                  th:disabled="${item.alreadyActive()}"
+                  th:classappend="${item.alreadyActive()} ? ' dashboard-catalog-item--disabled' : ''">
+            <strong th:text="${item.label()}">Widget</strong>
+            <span th:text="${item.description()}">Beschreibung</span>
+            <em th:if="${item.alreadyActive()}">bereits aktiv</em>
+          </button>
         </div>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--outline" data-close-modal>Schließen</button>
       </div>
     </div>
   </div>
@@ -250,7 +349,13 @@
     </div>
   </div>
 
+  <script id="dashboard-catalog-json" type="application/json" th:text="${dashboardCatalogJson}">[]</script>
+
+  <div id="dashboard-meta" hidden
+       th:attr="data-unit-id=${unitId}, data-csrf-token=${_csrf.token}"></div>
+
   <script th:src="@{/js/combo-suggest.js}" defer></script>
   <script th:src="@{/js/dashboard-manual-alarms.js}" defer></script>
+  <script th:src="@{/js/dashboard-layout.js}" defer></script>
 </main>
 </html>
