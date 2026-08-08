@@ -976,6 +976,8 @@ input:focus, select:focus, textarea:focus {
   justify-content: space-between;
   gap: 8px;
   padding: 8px 12px 0;
+  position: relative;
+  z-index: 4;
 }
 
 .dashboard-widget__chrome-actions {

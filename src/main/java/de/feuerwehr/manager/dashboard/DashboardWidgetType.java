@@ -45,8 +45,8 @@ public enum DashboardWidgetType {
     OPEN_REPORTS(
             "Offene Berichte",
             "Noch nicht freigegebene Einsatzberichte und Anwesenheitslisten",
-            AppModule.BERICHTE,
-            "berichte.read",
+            null,
+            null,
             false);
 
     private final String label;

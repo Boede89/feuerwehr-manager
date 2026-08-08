@@ -33,12 +33,36 @@
 
   function catalog() {
     var el = document.getElementById('dashboard-catalog-json');
-    if (!el) return [];
-    try {
-      var items = JSON.parse(el.textContent || '[]');
-      return Array.isArray(items) ? items : [];
-    } catch (e) {
-      return [];
+    var items = [];
+    if (el) {
+      try {
+        items = JSON.parse(el.textContent || '[]');
+      } catch (e) {
+        items = [];
+      }
+    }
+    if (!Array.isArray(items)) items = [];
+    ensureCatalogFallback(items, 'ATEMSCHUTZ', 'Atemschutz', 'Tauglichkeiten der Geräteträger - Zahlen und optional Namen');
+    ensureCatalogFallback(
+      items,
+      'OPEN_REPORTS',
+      'Offene Berichte',
+      'Noch nicht freigegebene Einsatzberichte und Anwesenheitslisten'
+    );
+    return items;
+  }
+
+  function ensureCatalogFallback(items, id, label, description) {
+    var exists = items.some(function (item) {
+      return item && item.id === id;
+    });
+    if (!exists) {
+      items.push({
+        id: id,
+        label: label,
+        description: description,
+        alreadyActive: false,
+      });
     }
   }
 
@@ -619,6 +643,7 @@
     var removeBtn = e.target.closest('.dashboard-widget__remove');
     if (removeBtn) {
       e.preventDefault();
+      e.stopPropagation();
       removeWidget(removeBtn.closest('.dashboard-widget'));
       return;
     }
@@ -635,6 +660,24 @@
     e.preventDefault();
     widget.setPointerCapture(e.pointerId);
     startMove(widget, e.clientX, e.clientY);
+  });
+
+  // Klick zusätzlich absichern (falls Pointer-Events an Handles „kleben“)
+  board.addEventListener('click', function (e) {
+    if (!editing) return;
+    var configureBtn = e.target.closest('.dashboard-widget__configure');
+    if (configureBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      openWidgetConfig(configureBtn.closest('.dashboard-widget'));
+      return;
+    }
+    var removeBtn = e.target.closest('.dashboard-widget__remove');
+    if (removeBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      removeWidget(removeBtn.closest('.dashboard-widget'));
+    }
   });
 
   board.addEventListener('pointermove', onPointerMove);
