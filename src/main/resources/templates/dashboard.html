@@ -494,15 +494,15 @@
     </div>
   </div>
 
-  <script id="dashboard-catalog-json" type="application/json" th:text="${dashboardCatalogJson}">[]</script>
-  <script id="atemschutz-widget-defaults" type="application/json" th:text="${atemschutzWidgetDefaultsJson}">{}</script>
-  <script id="open-reports-widget-defaults" type="application/json" th:text="${openReportsWidgetDefaultsJson}">{}</script>
+  <script id="dashboard-catalog-json" type="application/json" th:utext="${dashboardCatalogJson}">[]</script>
+  <script id="atemschutz-widget-defaults" type="application/json" th:utext="${atemschutzWidgetDefaultsJson}">{}</script>
+  <script id="open-reports-widget-defaults" type="application/json" th:utext="${openReportsWidgetDefaultsJson}">{}</script>
 
   <div id="dashboard-meta" hidden
        th:attr="data-unit-id=${unitId}, data-csrf-token=${_csrf.token}"></div>
 
   <script th:src="@{/js/combo-suggest.js}" defer></script>
   <script th:src="@{/js/dashboard-manual-alarms.js}" defer></script>
-  <script th:src="@{/js/dashboard-layout.js(v='20260808i')}" defer></script>
+  <script th:src="@{/js/dashboard-layout.js(v='20260808j')}" defer></script>
 </main>
 </html>

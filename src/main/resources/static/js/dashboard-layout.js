@@ -36,19 +36,21 @@
     var items = [];
     if (el) {
       try {
-        items = JSON.parse(el.textContent || '[]');
+        var raw = (el.textContent || '').trim();
+        // Falls Thymeleaf Quotes als &quot; escaped hat
+        if (raw.indexOf('&quot;') >= 0) {
+          raw = raw.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#39;/g, "'");
+        }
+        items = JSON.parse(raw || '[]');
       } catch (e) {
         items = [];
       }
     }
     if (!Array.isArray(items)) items = [];
-    ensureCatalogFallback(items, 'ATEMSCHUTZ', 'Atemschutz', 'Tauglichkeiten der Geräteträger - Zahlen und optional Namen');
-    ensureCatalogFallback(
-      items,
-      'OPEN_REPORTS',
-      'Offene Berichte',
-      'Noch nicht freigegebene Einsatzberichte und Anwesenheitslisten'
-    );
+    var builtins = builtinCatalog();
+    builtins.forEach(function (fallback) {
+      ensureCatalogFallback(items, fallback.id, fallback.label, fallback.description);
+    });
     // alreadyActive vom Server ist nur der Seitenstand beim Laden —
     // maßgeblich ist der aktuelle DOM (activeWidgetTypes).
     return items.map(function (item) {
@@ -60,6 +62,46 @@
         alreadyActive: false,
       };
     });
+  }
+
+  function builtinCatalog() {
+    return [
+      {
+        id: 'MY_STATS',
+        label: 'Meine Beteiligung',
+        description: 'Persönliche Übungsdienst- und Einsatzquote im laufenden Jahr',
+      },
+      {
+        id: 'DIVERA',
+        label: 'Aktuelle Einsätze',
+        description: 'Laufende Einsätze aus Divera (und manuelle Alarme)',
+      },
+      {
+        id: 'TERMINE',
+        label: 'Meine Termine',
+        description: 'Kommende Termine Ihrer Person',
+      },
+      {
+        id: 'PLANNED_ALARMS',
+        label: 'Geplante Einsätze',
+        description: 'Noch nicht gestartete manuelle Einsätze',
+      },
+      {
+        id: 'UNIT_OVERVIEW',
+        label: 'Einheiten-Kennzahlen',
+        description: 'Einsätze, Übungsdienste und Mitglieder der Einheit',
+      },
+      {
+        id: 'ATEMSCHUTZ',
+        label: 'Atemschutz',
+        description: 'Tauglichkeiten der Geräteträger - Zahlen und optional Namen',
+      },
+      {
+        id: 'OPEN_REPORTS',
+        label: 'Offene Berichte',
+        description: 'Noch nicht freigegebene Einsatzberichte und Anwesenheitslisten',
+      },
+    ];
   }
 
   function ensureCatalogFallback(items, id, label, description) {
