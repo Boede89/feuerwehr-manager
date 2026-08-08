@@ -5,10 +5,12 @@ import de.feuerwehr.manager.dsgvo.AuditService;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.SecurityProperties;
+import de.feuerwehr.manager.security.UserPermissionService;
 import de.feuerwehr.manager.personal.PersonUserLinkService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
 import de.feuerwehr.manager.unit.UnitRole;
+import de.feuerwehr.manager.unit.UnitRolePermission;
 import de.feuerwehr.manager.unit.UnitRoleService;
 import de.feuerwehr.manager.unit.UserUnitFunction;
 import de.feuerwehr.manager.unit.UserUnitFunctionId;
@@ -17,7 +19,11 @@ import de.feuerwehr.manager.web.dto.UserDataExport;
 import jakarta.servlet.http.HttpServletRequest;
 import java.security.SecureRandom;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -40,6 +46,8 @@ public class UserManagementService {
     private final UserService userService;
     private final UnitRoleService unitRoleService;
     private final UserUnitFunctionRepository userUnitFunctionRepository;
+    private final UserPermissionOverrideRepository permissionOverrideRepository;
+    private final UserPermissionService userPermissionService;
     private final UserTotpService userTotpService;
 
     public List<User> listAccounts(AppUserDetails actor) {
@@ -205,7 +213,7 @@ public class UserManagementService {
         user.setActive(active);
         applyUnit(user, unitId, actor);
         clearFunctionsIfPrivileged(user);
-        applyDienstgrad(user, organizationalRoleId);
+        // organizationalRoleId absichtlich ignoriert: Dienstgrad nur über /dienstgrad, Create und Personal-Sync.
         User saved = userRepository.findByIdWithUnit(userRepository.save(user).getId()).orElseThrow();
         personUserLinkService.ensurePersonForUser(saved);
         auditService.record(
@@ -578,7 +586,102 @@ public class UserManagementService {
         if (user.getRole() != UserRole.USER) {
             user.setOrganizationalRole(null);
             userUnitFunctionRepository.deleteByUserId(user.getId());
+            permissionOverrideRepository.deleteByUserId(user.getId());
         }
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> getPermissionEditorState(long userId, AppUserDetails actor) {
+        User user = userRepository.findByIdWithUnit(userId).orElseThrow();
+        accessControlService.requireCanManageUser(actor, user);
+        if (user.getRole() != UserRole.USER) {
+            throw new IllegalArgumentException("Individuelle Rechte sind nur für normale Benutzer verfügbar.");
+        }
+        if (user.getUnit() == null) {
+            throw new IllegalArgumentException("Benutzer ohne Einheit.");
+        }
+        long unitId = user.getUnit().getId();
+        Set<String> base = userPermissionService.basePermissionsForUser(userId, unitId);
+        Map<String, String> overrides = new LinkedHashMap<>();
+        for (UserPermissionOverride row : permissionOverrideRepository.findByUserIdOrderByPermissionAsc(userId)) {
+            overrides.put(row.getPermission(), row.getEffect().name());
+        }
+        List<Map<String, Object>> options = new ArrayList<>();
+        for (var option : UnitRolePermission.permissionOptions()) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("value", option.value());
+            item.put("label", option.label());
+            item.put("fromRole", base.contains(option.value()));
+            item.put("effect", overrides.getOrDefault(option.value(), ""));
+            options.add(item);
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("userId", userId);
+        result.put("username", user.getUsername());
+        result.put("basePermissions", List.copyOf(base));
+        result.put("overrides", overrides);
+        result.put("options", options);
+        return result;
+    }
+
+    @Transactional
+    public void savePermissionOverrides(
+            long userId,
+            Map<String, String> effectsByPermission,
+            AppUserDetails actor,
+            HttpServletRequest request) {
+        User user = userRepository.findByIdWithUnit(userId).orElseThrow();
+        accessControlService.requireCanManageUser(actor, user);
+        if (user.getRole() != UserRole.USER) {
+            throw new IllegalArgumentException("Individuelle Rechte sind nur für normale Benutzer verfügbar.");
+        }
+        Map<String, String> incoming = effectsByPermission != null ? effectsByPermission : Map.of();
+        List<String> allowed = UnitRolePermission.filterAllowed(List.copyOf(incoming.keySet()));
+        Map<String, UserPermissionOverride> existing = new LinkedHashMap<>();
+        for (UserPermissionOverride row : permissionOverrideRepository.findByUserIdOrderByPermissionAsc(userId)) {
+            existing.put(row.getPermission(), row);
+        }
+
+        for (String permission : allowed) {
+            String rawEffect = incoming.get(permission);
+            PermissionOverrideEffect effect = parseEffect(rawEffect);
+            if (effect == null) {
+                UserPermissionOverride row = existing.remove(permission);
+                if (row != null) {
+                    permissionOverrideRepository.delete(row);
+                }
+                continue;
+            }
+            UserPermissionOverride row = existing.remove(permission);
+            if (row == null) {
+                row = new UserPermissionOverride();
+                row.setUser(user);
+                row.setPermission(permission);
+            }
+            row.setEffect(effect);
+            permissionOverrideRepository.save(row);
+        }
+        // Nicht mehr gesetzte Overrides entfernen (Replace-All auf erlaubte Keys).
+        for (UserPermissionOverride leftover : existing.values()) {
+            permissionOverrideRepository.delete(leftover);
+        }
+        auditService.record(
+                AuditEventType.USER_UPDATED,
+                actor.getUserId(),
+                userId,
+                request,
+                "Individuelle Berechtigungen aktualisiert");
+    }
+
+    private static PermissionOverrideEffect parseEffect(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String normalized = raw.trim().toUpperCase();
+        if ("GRANT".equals(normalized) || "DENY".equals(normalized)) {
+            return PermissionOverrideEffect.valueOf(normalized);
+        }
+        throw new IllegalArgumentException("Ungültiger Rechte-Effekt: " + raw);
     }
 
     /** Dienstgrad am Benutzer setzen (z. B. aus Qualifikation der Person). */

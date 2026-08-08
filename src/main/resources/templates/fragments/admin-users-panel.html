@@ -59,6 +59,9 @@
                         th:data-username="${u.username}">Funktionen</button>
                 <span class="text-muted text-xs user-fn-count" th:if="${!#lists.isEmpty(functionsByUserId.get(u.id))}"
                       th:text="${'(' + #lists.size(functionsByUserId.get(u.id)) + ')'}"></span>
+                <button type="button" class="btn btn--outline btn--sm" data-open-permissions-modal
+                        th:data-user-id="${u.id}"
+                        th:data-username="${u.username}">Rechte</button>
               </th:block>
               <span class="text-muted text-sm" th:if="${!u.role.adminLevel and canManageUserById != null and !canManageUserById.get(u.id)}">
                 <th:block th:if="${#lists.isEmpty(functionsByUserId.get(u.id))}">—</th:block>
@@ -382,6 +385,29 @@
       </div>
       <div class="modal__footer">
         <button type="button" class="btn btn--outline" data-close-modal>Schließen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Individuelle Rechte -->
+  <div id="modal-permissions" class="modal-overlay" th:if="${showUnitUserRoles}">
+    <div class="modal modal--lg" role="dialog">
+      <div class="modal__header">
+        <h3>Individuelle Rechte — <span id="modal-permissions-username"></span></h3>
+        <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal__body">
+        <p class="hint">
+          Basis kommen aus Dienstgrad und Zusatzfunktionen. Hier können Sie einzelne Rechte
+          zusätzlich erlauben oder trotz Rolle entziehen.
+        </p>
+        <div id="permissions-matrix-loading" class="hint" hidden>Rechte werden geladen …</div>
+        <div id="permissions-matrix-error" class="error-msg" hidden></div>
+        <div id="permissions-matrix" class="admin-permissions-matrix"></div>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--primary" id="permissions-save-btn">Speichern</button>
+        <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
       </div>
     </div>
   </div>

@@ -3,6 +3,7 @@ package de.feuerwehr.manager.web;
 import de.feuerwehr.manager.mail.AccountMailService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.SecurityProperties;
+import de.feuerwehr.manager.security.UserPermissionService;
 import de.feuerwehr.manager.settings.AppModule;
 import de.feuerwehr.manager.settings.GlobalSettingsService;
 import de.feuerwehr.manager.settings.ModuleSettingsService;
@@ -37,6 +38,7 @@ public class WebUiAdvice {
     private final ModuleSettingsService moduleSettingsService;
     private final GlobalSettingsService globalSettingsService;
     private final UserRepository userRepository;
+    private final UserPermissionService userPermissionService;
 
     @ModelAttribute("brandName")
     public String brandName() {
@@ -141,6 +143,7 @@ public class WebUiAdvice {
         }
         try {
             boolean superAdmin = user != null && user.getRole().isSuperAdmin();
+            boolean adminLevel = user != null && user.getRole().isAdminLevel();
             for (AppModule module : AppModule.values()) {
                 boolean enabled = activeUnitId != null && moduleSettingsService.isEnabled(module, activeUnitId);
                 String state;
@@ -150,6 +153,10 @@ public class WebUiAdvice {
                 } else if (activeUnitId == null) {
                     state = module == AppModule.PERSONAL && module.implemented() ? "link" : "hidden";
                 } else if (!enabled) {
+                    state = "hidden";
+                } else if (!adminLevel
+                        && user != null
+                        && !userPermissionService.hasModuleAccess(user, activeUnitId, module.key())) {
                     state = "hidden";
                 } else if (module.implemented()) {
                     state = "link";

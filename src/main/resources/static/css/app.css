@@ -2532,6 +2532,35 @@ code {
   gap: 6px;
 }
 
+.admin-permissions-matrix {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.admin-permissions-matrix__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 220px);
+  gap: 10px 16px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border, rgba(0, 0, 0, 0.08));
+}
+
+.admin-permissions-matrix__label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .admin-permissions-matrix__row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .admin-check-list .check-label,
 .fn-check-label {
   display: flex;

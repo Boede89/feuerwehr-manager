@@ -322,6 +322,36 @@ public class AdminPanelController {
         }
     }
 
+    @GetMapping("/users/{id}/permissions")
+    @org.springframework.web.bind.annotation.ResponseBody
+    public org.springframework.http.ResponseEntity<?> getUserPermissions(
+            @AuthenticationPrincipal AppUserDetails actor, @PathVariable long id) {
+        try {
+            return org.springframework.http.ResponseEntity.ok(
+                    userManagementService.getPermissionEditorState(id, actor));
+        } catch (IllegalArgumentException e) {
+            return org.springframework.http.ResponseEntity.badRequest()
+                    .body(java.util.Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/users/{id}/permissions")
+    @org.springframework.web.bind.annotation.ResponseBody
+    public org.springframework.http.ResponseEntity<java.util.Map<String, String>> saveUserPermissions(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @org.springframework.web.bind.annotation.RequestBody java.util.Map<String, String> effectsByPermission,
+            HttpServletRequest request) {
+        try {
+            userManagementService.savePermissionOverrides(id, effectsByPermission, actor, request);
+            return org.springframework.http.ResponseEntity.ok(
+                    java.util.Map.of("message", "Individuelle Rechte gespeichert"));
+        } catch (IllegalArgumentException e) {
+            return org.springframework.http.ResponseEntity.badRequest()
+                    .body(java.util.Map.of("message", e.getMessage()));
+        }
+    }
+
     @PostMapping("/users/{id}/password")
     public String resetUserPassword(
             @AuthenticationPrincipal AppUserDetails actor,

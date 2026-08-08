@@ -2,6 +2,8 @@
   var meta = document.getElementById('functions-modal-meta');
   if (!meta) return;
 
+  var permissionsUserId = null;
+
   function getCsrfToken() {
     var fromMeta = meta.getAttribute('data-csrf-token');
     if (fromMeta) return fromMeta;
@@ -126,10 +128,152 @@
       });
   }
 
+  function esc(text) {
+    var div = document.createElement('div');
+    div.textContent = text == null ? '' : String(text);
+    return div.innerHTML;
+  }
+
+  function renderPermissionsMatrix(options) {
+    var container = document.getElementById('permissions-matrix');
+    if (!container) return;
+    if (!options || !options.length) {
+      container.innerHTML = '<p class="hint">Keine Modulrechte verfügbar.</p>';
+      return;
+    }
+    var rows = options.map(function (opt) {
+      var effect = opt.effect || '';
+      return '<div class="admin-permissions-matrix__row" data-permission="' + esc(opt.value) + '">' +
+        '<div class="admin-permissions-matrix__label">' +
+        '<strong>' + esc(opt.label) + '</strong>' +
+        '<span class="text-muted text-xs">' +
+        (opt.fromRole ? 'aus Rolle' : 'nicht aus Rolle') +
+        '</span></div>' +
+        '<select class="field field--sm permission-effect-select">' +
+        '<option value=""' + (effect === '' ? ' selected' : '') + '>Wie Rolle</option>' +
+        '<option value="GRANT"' + (effect === 'GRANT' ? ' selected' : '') + '>Zusätzlich erlauben</option>' +
+        '<option value="DENY"' + (effect === 'DENY' ? ' selected' : '') + '>Entziehen</option>' +
+        '</select></div>';
+    });
+    container.innerHTML = rows.join('');
+  }
+
+  function openPermissionsModal(userId, username) {
+    var modal = document.getElementById('modal-permissions');
+    var title = document.getElementById('modal-permissions-username');
+    var loading = document.getElementById('permissions-matrix-loading');
+    var error = document.getElementById('permissions-matrix-error');
+    var matrix = document.getElementById('permissions-matrix');
+    if (!modal) return;
+    permissionsUserId = userId;
+    if (title) title.textContent = username || '—';
+    if (error) {
+      error.hidden = true;
+      error.textContent = '';
+    }
+    if (matrix) matrix.innerHTML = '';
+    if (loading) loading.hidden = false;
+    modal.classList.add('active');
+    document.body.classList.add('modal-open');
+
+    fetch('/admin/users/' + encodeURIComponent(userId) + '/permissions', {
+      credentials: 'same-origin',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    })
+      .then(function (res) {
+        if (!res.ok) {
+          return res.json().then(function (data) {
+            throw new Error(data.message || 'Rechte konnten nicht geladen werden');
+          });
+        }
+        return res.json();
+      })
+      .then(function (data) {
+        if (loading) loading.hidden = true;
+        renderPermissionsMatrix(data.options || []);
+      })
+      .catch(function (err) {
+        if (loading) loading.hidden = true;
+        if (error) {
+          error.hidden = false;
+          error.textContent = err.message || 'Fehler beim Laden';
+        }
+      });
+  }
+
+  function savePermissions() {
+    if (!permissionsUserId) return;
+    var matrix = document.getElementById('permissions-matrix');
+    var saveBtn = document.getElementById('permissions-save-btn');
+    if (!matrix) return;
+    var payload = {};
+    matrix.querySelectorAll('.admin-permissions-matrix__row').forEach(function (row) {
+      var key = row.getAttribute('data-permission');
+      var select = row.querySelector('.permission-effect-select');
+      if (key && select) {
+        payload[key] = select.value || '';
+      }
+    });
+    var headers = {
+      'Content-Type': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
+    };
+    var csrf = getCsrfToken();
+    if (csrf) {
+      headers['X-XSRF-TOKEN'] = csrf;
+    }
+    if (saveBtn) saveBtn.disabled = true;
+    fetch('/admin/users/' + encodeURIComponent(permissionsUserId) + '/permissions', {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(payload),
+      credentials: 'same-origin',
+    })
+      .then(function (res) {
+        if (!res.ok) {
+          return res.json().then(function (data) {
+            throw new Error(data.message || 'Speichern fehlgeschlagen');
+          });
+        }
+        return res.json();
+      })
+      .then(function (data) {
+        if (typeof window.toast === 'function') {
+          window.toast(data.message || 'Individuelle Rechte gespeichert');
+        }
+        var modal = document.getElementById('modal-permissions');
+        if (modal) modal.classList.remove('active');
+        document.body.classList.remove('modal-open');
+      })
+      .catch(function (err) {
+        if (typeof window.toast === 'function') {
+          window.toast(err.message || 'Fehler', 'error');
+        }
+      })
+      .finally(function () {
+        if (saveBtn) saveBtn.disabled = false;
+      });
+  }
+
   document.querySelectorAll('[data-open-functions-modal]').forEach(function (btn) {
     btn.addEventListener('click', function (e) {
       e.preventDefault();
       openFunctionsModal(btn.getAttribute('data-user-id'), btn.getAttribute('data-username'));
     });
   });
+
+  document.querySelectorAll('[data-open-permissions-modal]').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      openPermissionsModal(btn.getAttribute('data-user-id'), btn.getAttribute('data-username'));
+    });
+  });
+
+  var saveBtn = document.getElementById('permissions-save-btn');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      savePermissions();
+    });
+  }
 })();

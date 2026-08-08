@@ -22,6 +22,7 @@ import de.feuerwehr.manager.personal.PersonalService.PersonDetailView;
 import de.feuerwehr.manager.personal.PersonalService.StammdatenUpdateResult;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
+import de.feuerwehr.manager.security.UserPermissionService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
 import de.feuerwehr.manager.util.PersonMembership;
@@ -66,6 +67,7 @@ public class PersonalController {
     private final PersonalInstructorGroupService personalInstructorGroupService;
     private final AnwesenheitslisteService anwesenheitslisteService;
     private final AccessControlService accessControlService;
+    private final UserPermissionService userPermissionService;
     private final AccountMailService accountMailService;
 
     @GetMapping
@@ -133,7 +135,7 @@ public class PersonalController {
     @ResponseBody
     public List<Map<String, Object>> foreignUnits(
             @AuthenticationPrincipal AppUserDetails actor, @RequestParam(name = "unit") long unitId) {
-        accessControlService.requireUnitAccess(actor, unitId);
+        requirePersonalRead(actor, unitId);
         return personalGroupService.listOtherUnits(unitId);
     }
 
@@ -144,7 +146,7 @@ public class PersonalController {
             @RequestParam(name = "unit") long unitId,
             @RequestParam(name = "sourceUnit") long sourceUnitId,
             @RequestParam(name = "q", required = false) String query) {
-        accessControlService.requireUnitAccess(actor, unitId);
+        requirePersonalRead(actor, unitId);
         return personalGroupService.listOtherUnitPersonnel(unitId, sourceUnitId, query);
     }
 
@@ -156,7 +158,7 @@ public class PersonalController {
             @RequestParam(name = "personIds", required = false) List<Long> personIds,
             RedirectAttributes redirectAttributes) {
         try {
-            accessControlService.requireUnitAccess(actor, unit);
+            requirePersonalWrite(actor, unit);
             personalGroupService.createGroup(unit, name, personIds);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Gruppe wurde angelegt.");
@@ -175,7 +177,7 @@ public class PersonalController {
             @RequestParam(name = "personIds", required = false) List<Long> personIds,
             RedirectAttributes redirectAttributes) {
         try {
-            accessControlService.requireUnitAccess(actor, unit);
+            requirePersonalWrite(actor, unit);
             personalGroupService.updateGroup(groupId, name, personIds);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Gruppe wurde gespeichert.");
@@ -192,7 +194,7 @@ public class PersonalController {
             @RequestParam long unit,
             RedirectAttributes redirectAttributes) {
         try {
-            accessControlService.requireUnitAccess(actor, unit);
+            requirePersonalWrite(actor, unit);
             personalGroupService.deleteGroup(groupId);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Gruppe wurde gelöscht.");
@@ -210,7 +212,7 @@ public class PersonalController {
             @RequestParam(name = "personIds", required = false) List<Long> personIds,
             RedirectAttributes redirectAttributes) {
         try {
-            accessControlService.requireUnitAccess(actor, unit);
+            requirePersonalWrite(actor, unit);
             personalInstructorGroupService.createGroup(unit, thema, personIds);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Ausbildergruppe wurde angelegt.");
@@ -229,7 +231,7 @@ public class PersonalController {
             @RequestParam(name = "personIds", required = false) List<Long> personIds,
             RedirectAttributes redirectAttributes) {
         try {
-            accessControlService.requireUnitAccess(actor, unit);
+            requirePersonalWrite(actor, unit);
             personalInstructorGroupService.updateGroup(groupId, thema, personIds);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Ausbildergruppe wurde gespeichert.");
@@ -246,7 +248,7 @@ public class PersonalController {
             @RequestParam long unit,
             RedirectAttributes redirectAttributes) {
         try {
-            accessControlService.requireUnitAccess(actor, unit);
+            requirePersonalWrite(actor, unit);
             personalInstructorGroupService.deleteGroup(groupId);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Ausbildergruppe wurde gelöscht.");
@@ -263,6 +265,7 @@ public class PersonalController {
             @RequestParam(name = "tab", defaultValue = "stammdaten") String tab,
             Model model) {
         Unit unit = resolveUnit(unitId, actor, model);
+        userPermissionService.requirePermission(actor, unit.getId(), "personal.write");
         personalService.seedDefaultQualificationsIfEmpty(unit.getId());
         populateNewPersonModel(model, unit, normalizeTab(tab));
         return "personal/person-detail";
@@ -291,6 +294,7 @@ public class PersonalController {
                             "Für „Login erlauben“ ist eine E-Mail-Adresse erforderlich.");
                 }
             }
+            requirePersonalWrite(actor, unit);
             PersonCreateResult result = personalService.createPersonComplete(
                     unit,
                     firstName,
@@ -345,7 +349,7 @@ public class PersonalController {
             @RequestParam(name = "tab", defaultValue = "stammdaten") String tab,
             Model model) {
         Person person = personalService.requirePerson(id);
-        accessControlService.requireUnitAccess(actor, person.getUnit().getId());
+        requirePersonalRead(actor, person.getUnit().getId());
         Unit unit = person.getUnit();
         model.addAttribute("unitId", unit.getId());
         model.addAttribute("currentUnitName", unit.getName());
@@ -377,6 +381,7 @@ public class PersonalController {
             RedirectAttributes redirectAttributes) {
         String tab = normalizeTab(section);
         try {
+            requirePersonalWrite(actor, unit);
             switch (tab) {
                 case "divera", "schnittstellen" ->
                         personalService.updateDivera(id, diveraUcrId, ricCodes);
@@ -721,7 +726,7 @@ public class PersonalController {
     public ResponseEntity<byte[]> exportAttendance(
             @AuthenticationPrincipal AppUserDetails actor, @PathVariable long id, @RequestParam long unit) {
         Person person = personalService.requirePerson(id);
-        accessControlService.requireUnitAccess(actor, person.getUnit().getId());
+        requirePersonalRead(actor, person.getUnit().getId());
         byte[] body = personalMemberService.exportAttendanceCsv(id);
         String filename = "anwesenheit_" + person.getLastName() + ".csv";
         return ResponseEntity.ok()
@@ -820,7 +825,7 @@ public class PersonalController {
             Runnable action) {
         try {
             Person person = personalService.requirePerson(personId);
-            accessControlService.requireUnitAccess(actor, person.getUnit().getId());
+            requirePersonalWrite(actor, person.getUnit().getId());
             action.run();
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Gespeichert.");
@@ -975,6 +980,17 @@ public class PersonalController {
         model.addAttribute("currentUnitName", resolved.getName());
         model.addAttribute("units", unitService.findActiveOrdered(actor));
         model.addAttribute("unitSwitchDisabled", actor != null && !actor.getRole().isSuperAdmin());
+        userPermissionService.requirePermission(actor, resolved.getId(), "personal.read");
         return resolved;
+    }
+
+    private void requirePersonalRead(AppUserDetails actor, long unitId) {
+        accessControlService.requireUnitAccess(actor, unitId);
+        userPermissionService.requirePermission(actor, unitId, "personal.read");
+    }
+
+    private void requirePersonalWrite(AppUserDetails actor, long unitId) {
+        accessControlService.requireUnitAccess(actor, unitId);
+        userPermissionService.requirePermission(actor, unitId, "personal.write");
     }
 }
