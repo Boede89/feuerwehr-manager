@@ -24,9 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class DashboardLayoutService {
 
     private static final List<DashboardWidgetPlacement> DEFAULT_LAYOUT = List.of(
-            DashboardWidgetPlacement.of(DashboardWidgetType.MY_STATS),
-            new DashboardWidgetPlacement(DashboardWidgetType.DIVERA, DashboardWidgetSize.WIDE),
-            new DashboardWidgetPlacement(DashboardWidgetType.TERMINE, DashboardWidgetSize.NARROW));
+            DashboardWidgetPlacement.defaultFor(DashboardWidgetType.MY_STATS, 0),
+            DashboardWidgetPlacement.defaultFor(DashboardWidgetType.DIVERA, 5),
+            DashboardWidgetPlacement.defaultFor(DashboardWidgetType.TERMINE, 5));
 
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
@@ -62,32 +62,30 @@ public class DashboardLayoutService {
 
     @Transactional
     public List<DashboardWidgetPlacement> saveLayout(
-            AppUserDetails actor, long unitId, List<Map<String, String>> widgets) {
+            AppUserDetails actor, long unitId, List<Map<String, Object>> widgets) {
         User user = userRepository.findById(actor.getUserId()).orElseThrow();
-        LinkedHashMap<DashboardWidgetType, DashboardWidgetSize> cleaned = new LinkedHashMap<>();
+        LinkedHashMap<DashboardWidgetType, DashboardWidgetPlacement> cleaned = new LinkedHashMap<>();
         if (widgets != null) {
-            for (Map<String, String> raw : widgets) {
-                if (raw == null) {
+            for (Map<String, Object> raw : widgets) {
+                DashboardWidgetPlacement placement = fromRawMap(raw);
+                if (placement == null
+                        || !isAllowed(actor, unitId, placement.type())
+                        || cleaned.containsKey(placement.type())) {
                     continue;
                 }
-                DashboardWidgetType type = DashboardWidgetType.fromId(raw.get("type"));
-                if (type == null || !isAllowed(actor, unitId, type) || cleaned.containsKey(type)) {
-                    continue;
-                }
-                DashboardWidgetSize size = DashboardWidgetSize.fromId(raw.get("size"));
-                if (size == null) {
-                    size = DashboardWidgetSize.defaultFor(type);
-                }
-                cleaned.put(type, size);
+                cleaned.put(placement.type(), placement);
             }
         }
-        List<DashboardWidgetPlacement> layout = cleaned.entrySet().stream()
-                .map(e -> new DashboardWidgetPlacement(e.getKey(), e.getValue()))
-                .toList();
+        List<DashboardWidgetPlacement> layout = List.copyOf(cleaned.values());
         try {
-            List<Map<String, String>> payload = new ArrayList<>();
+            List<Map<String, Object>> payload = new ArrayList<>();
             for (DashboardWidgetPlacement p : layout) {
-                payload.add(Map.of("type", p.type().name(), "size", p.size().name()));
+                payload.add(Map.of(
+                        "type", p.type().name(),
+                        "x", p.x(),
+                        "y", p.y(),
+                        "w", p.w(),
+                        "h", p.h()));
             }
             user.setDashboardLayoutJson(objectMapper.writeValueAsString(payload));
         } catch (Exception e) {
@@ -113,6 +111,15 @@ public class DashboardLayoutService {
             return false;
         }
         return true;
+    }
+
+    /** Nächste freie Zeile unterhalb aller vorhandenen Widgets. */
+    public static int nextFreeRow(List<DashboardWidgetPlacement> existing) {
+        int max = 0;
+        for (DashboardWidgetPlacement p : existing) {
+            max = Math.max(max, p.y() + p.h());
+        }
+        return max;
     }
 
     private List<DashboardWidgetPlacement> filterAllowedUnique(
@@ -152,25 +159,14 @@ public class DashboardLayoutService {
             }
             List<DashboardWidgetPlacement> result = new ArrayList<>();
             Set<DashboardWidgetType> seen = new LinkedHashSet<>();
+            int cascadeY = 0;
             for (JsonNode node : root) {
-                DashboardWidgetType type;
-                DashboardWidgetSize size;
-                if (node.isTextual()) {
-                    type = DashboardWidgetType.fromId(node.asText());
-                    size = DashboardWidgetSize.defaultFor(type);
-                } else if (node.isObject()) {
-                    type = DashboardWidgetType.fromId(textOrNull(node.get("type")));
-                    size = DashboardWidgetSize.fromId(textOrNull(node.get("size")));
-                    if (size == null) {
-                        size = DashboardWidgetSize.defaultFor(type);
-                    }
-                } else {
+                DashboardWidgetPlacement placement = fromJsonNode(node, cascadeY);
+                if (placement == null || !seen.add(placement.type())) {
                     continue;
                 }
-                if (type == null || !seen.add(type)) {
-                    continue;
-                }
-                result.add(new DashboardWidgetPlacement(type, size));
+                result.add(placement);
+                cascadeY = Math.max(cascadeY, placement.y() + placement.h());
             }
             return result;
         } catch (Exception e) {
@@ -179,7 +175,97 @@ public class DashboardLayoutService {
         }
     }
 
+    private static DashboardWidgetPlacement fromJsonNode(JsonNode node, int cascadeY) {
+        if (node == null) {
+            return null;
+        }
+        if (node.isTextual()) {
+            DashboardWidgetType type = DashboardWidgetType.fromId(node.asText());
+            return type == null ? null : DashboardWidgetPlacement.defaultFor(type, cascadeY);
+        }
+        if (!node.isObject()) {
+            return null;
+        }
+        DashboardWidgetType type = DashboardWidgetType.fromId(textOrNull(node.get("type")));
+        if (type == null) {
+            return null;
+        }
+        if (node.has("x") || node.has("y") || node.has("w") || node.has("h")) {
+            return new DashboardWidgetPlacement(
+                    type,
+                    intOr(node.get("x"), 0),
+                    intOr(node.get("y"), cascadeY),
+                    intOr(node.get("w"), DashboardWidgetPlacement.defaultFor(type, 0).w()),
+                    intOr(node.get("h"), DashboardWidgetPlacement.defaultFor(type, 0).h()));
+        }
+        if (node.has("size")) {
+            int w = DashboardWidgetPlacement.widthFromLegacySize(textOrNull(node.get("size")));
+            int h = DashboardWidgetPlacement.defaultFor(type, 0).h();
+            int x = Math.max(0, DashboardWidgetPlacement.COLS - w);
+            if (w >= 8) {
+                x = 0;
+            } else if (w == 6) {
+                x = 0;
+            }
+            // Termine legacy "NARROW" → rechts
+            if (type == DashboardWidgetType.TERMINE && w <= 4) {
+                x = 8;
+            }
+            return new DashboardWidgetPlacement(type, x, cascadeY, w, h);
+        }
+        return DashboardWidgetPlacement.defaultFor(type, cascadeY);
+    }
+
+    private static DashboardWidgetPlacement fromRawMap(Map<String, Object> raw) {
+        if (raw == null) {
+            return null;
+        }
+        Object typeRaw = raw.get("type");
+        DashboardWidgetType type = DashboardWidgetType.fromId(typeRaw == null ? null : String.valueOf(typeRaw));
+        if (type == null) {
+            return null;
+        }
+        DashboardWidgetPlacement defaults = DashboardWidgetPlacement.defaultFor(type, 0);
+        return new DashboardWidgetPlacement(
+                type,
+                toInt(raw.get("x"), defaults.x()),
+                toInt(raw.get("y"), defaults.y()),
+                toInt(raw.get("w"), defaults.w()),
+                toInt(raw.get("h"), defaults.h()));
+    }
+
     private static String textOrNull(JsonNode node) {
         return node != null && node.isTextual() ? node.asText() : null;
+    }
+
+    private static int intOr(JsonNode node, int fallback) {
+        if (node == null || node.isNull()) {
+            return fallback;
+        }
+        if (node.isNumber()) {
+            return node.asInt();
+        }
+        if (node.isTextual()) {
+            try {
+                return Integer.parseInt(node.asText().trim());
+            } catch (NumberFormatException e) {
+                return fallback;
+            }
+        }
+        return fallback;
+    }
+
+    private static int toInt(Object value, int fallback) {
+        if (value == null) {
+            return fallback;
+        }
+        if (value instanceof Number n) {
+            return n.intValue();
+        }
+        try {
+            return Integer.parseInt(String.valueOf(value).trim());
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
     }
 }

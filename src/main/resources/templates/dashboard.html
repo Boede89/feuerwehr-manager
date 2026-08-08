@@ -17,31 +17,36 @@
   <div th:replace="~{fragments/testmode-banner :: banner}"></div>
 
   <div id="dashboard-edit-bar" class="dashboard-edit-bar" hidden>
-    <p class="hint">Ziehen zum Sortieren · Größe ändern · Entfernen · Neu hinzufügen — Speichern mit „Fertig“.</p>
+    <p class="hint">Ziehen zum Verschieben · an den Rändern in Breite/Höhe ziehen · Lücken sind erlaubt — Speichern mit „Fertig“.</p>
     <button type="button" class="btn btn--primary btn--sm" id="dashboard-add-btn">+ Widget hinzufügen</button>
   </div>
 
   <div id="dashboard-widgets"
        class="dashboard-widgets"
-       th:attr="data-unit-id=${unitId}">
+       th:attr="data-unit-id=${unitId}, data-cols=${T(de.feuerwehr.manager.dashboard.DashboardWidgetPlacement).COLS}">
     <th:block th:each="w : ${dashboardWidgets}">
       <article class="dashboard-widget widget-card"
-               th:classappend="${w.sizeCssClass() + (
+               th:classappend="${
                  w.type().name() == 'MY_STATS' ? ' widget-card--meine-statistik' : (
                  w.type().name() == 'DIVERA' or w.type().name() == 'PLANNED_ALARMS' ? ' widget-card--einsatz' : (
                  w.type().name() == 'TERMINE' ? ' widget-card--termine' : (
-                 w.type().name() == 'UNIT_OVERVIEW' ? ' widget-card--unit-overview' : ''))))}"
-               th:attr="data-widget-type=${w.type().name()}, data-widget-size=${w.size().name()}"
-               draggable="false">
-        <div class="dashboard-widget__chrome" hidden>
-          <span class="dashboard-widget__drag" title="Ziehen zum Verschieben" aria-hidden="true">⋮⋮</span>
-          <div class="dashboard-widget__chrome-actions">
-            <button type="button" class="btn btn--outline btn--sm dashboard-widget__resize"
-                    th:text="|Größe: ${w.size().label()}|"
-                    th:attr="aria-label=|Größe ändern (${w.size().label()})|">Größe</button>
-            <button type="button" class="btn btn--outline btn--sm dashboard-widget__remove"
-                    aria-label="Widget entfernen">Entfernen</button>
-          </div>
+                 w.type().name() == 'UNIT_OVERVIEW' ? ' widget-card--unit-overview' : '')))}"
+               th:style="${w.gridStyle()}"
+               th:attr="data-widget-type=${w.type().name()}, data-x=${w.x()}, data-y=${w.y()}, data-w=${w.w()}, data-h=${w.h()}">
+        <div class="dashboard-widget__chrome">
+          <span class="dashboard-widget__drag" title="Verschieben" aria-hidden="true">⋮⋮</span>
+          <button type="button" class="btn btn--outline btn--sm dashboard-widget__remove"
+                  aria-label="Widget entfernen">Entfernen</button>
+        </div>
+        <div class="dashboard-widget__handles" aria-hidden="true">
+          <span class="dashboard-widget__handle dashboard-widget__handle--e" data-resize="e"></span>
+          <span class="dashboard-widget__handle dashboard-widget__handle--s" data-resize="s"></span>
+          <span class="dashboard-widget__handle dashboard-widget__handle--se" data-resize="se"></span>
+          <span class="dashboard-widget__handle dashboard-widget__handle--w" data-resize="w"></span>
+          <span class="dashboard-widget__handle dashboard-widget__handle--n" data-resize="n"></span>
+          <span class="dashboard-widget__handle dashboard-widget__handle--sw" data-resize="sw"></span>
+          <span class="dashboard-widget__handle dashboard-widget__handle--ne" data-resize="ne"></span>
+          <span class="dashboard-widget__handle dashboard-widget__handle--nw" data-resize="nw"></span>
         </div>
 
         <th:block th:if="${w.type().name() == 'MY_STATS'}">

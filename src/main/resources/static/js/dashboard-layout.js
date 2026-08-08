@@ -3,13 +3,10 @@
   var board = document.getElementById('dashboard-widgets');
   if (!meta || !board) return;
 
-  var SIZE_ORDER = ['NARROW', 'HALF', 'WIDE', 'FULL'];
-  var SIZE_LABEL = {
-    NARROW: 'Schmal',
-    HALF: 'Halb',
-    WIDE: 'Breit',
-    FULL: 'Ganz',
-  };
+  var COLS = parseInt(board.getAttribute('data-cols') || '12', 10) || 12;
+  var MIN_W = 2;
+  var MIN_H = 3;
+  var ROW_PX = 48;
 
   var editBtn = document.getElementById('dashboard-edit-btn');
   var doneBtn = document.getElementById('dashboard-done-btn');
@@ -18,7 +15,7 @@
   var addModal = document.getElementById('modal-dashboard-add');
   var emptyHint = document.getElementById('dashboard-widgets-empty');
   var editing = false;
-  var dragEl = null;
+  var interaction = null;
 
   function csrfToken() {
     var fromMeta = meta.getAttribute('data-csrf-token');
@@ -45,11 +42,30 @@
     return Array.prototype.slice.call(board.querySelectorAll('.dashboard-widget'));
   }
 
-  function defaultSizeFor(type) {
-    if (type === 'TERMINE') return 'NARROW';
-    if (type === 'MY_STATS') return 'HALF';
-    if (type === 'UNIT_OVERVIEW') return 'FULL';
-    return 'WIDE';
+  function readGeom(node) {
+    return {
+      x: parseInt(node.getAttribute('data-x') || '0', 10) || 0,
+      y: parseInt(node.getAttribute('data-y') || '0', 10) || 0,
+      w: parseInt(node.getAttribute('data-w') || '6', 10) || 6,
+      h: parseInt(node.getAttribute('data-h') || '5', 10) || 5,
+    };
+  }
+
+  function applyGeom(node, geom) {
+    var x = Math.max(0, Math.min(COLS - MIN_W, geom.x));
+    var w = Math.max(MIN_W, Math.min(COLS - x, geom.w));
+    var y = Math.max(0, geom.y);
+    var h = Math.max(MIN_H, Math.min(24, geom.h));
+    if (x + w > COLS) {
+      x = Math.max(0, COLS - w);
+    }
+    node.setAttribute('data-x', String(x));
+    node.setAttribute('data-y', String(y));
+    node.setAttribute('data-w', String(w));
+    node.setAttribute('data-h', String(h));
+    node.style.gridColumn = x + 1 + ' / span ' + w;
+    node.style.gridRow = y + 1 + ' / span ' + h;
+    updateBoardRows();
   }
 
   function currentLayout() {
@@ -58,9 +74,13 @@
         return !n.hasAttribute('data-removed');
       })
       .map(function (n) {
+        var g = readGeom(n);
         return {
           type: n.getAttribute('data-widget-type'),
-          size: n.getAttribute('data-widget-size') || defaultSizeFor(n.getAttribute('data-widget-type')),
+          x: g.x,
+          y: g.y,
+          w: g.w,
+          h: g.h,
         };
       })
       .filter(function (item) {
@@ -68,28 +88,45 @@
       });
   }
 
+  function nextFreeRow() {
+    var max = 0;
+    currentLayout().forEach(function (item) {
+      max = Math.max(max, item.y + item.h);
+    });
+    return max;
+  }
+
+  function updateBoardRows() {
+    var max = 8;
+    currentLayout().forEach(function (item) {
+      max = Math.max(max, item.y + item.h + 2);
+    });
+    board.style.gridTemplateRows = 'repeat(' + max + ', ' + ROW_PX + 'px)';
+    board.style.minHeight = max * ROW_PX + 'px';
+  }
+
   function updateEmptyHint() {
     if (!emptyHint) return;
     emptyHint.hidden = currentLayout().length > 0;
   }
 
-  function applySizeClass(node, size) {
-    SIZE_ORDER.forEach(function (s) {
-      node.classList.remove('dashboard-widget--size-' + s.toLowerCase());
-    });
-    node.classList.add('dashboard-widget--size-' + String(size).toLowerCase());
-    node.setAttribute('data-widget-size', size);
-    var btn = node.querySelector('.dashboard-widget__resize');
-    if (btn) {
-      btn.textContent = 'Größe: ' + (SIZE_LABEL[size] || size);
-    }
+  function cellFromPoint(clientX, clientY) {
+    var rect = board.getBoundingClientRect();
+    var colW = rect.width / COLS;
+    var x = Math.floor((clientX - rect.left) / colW);
+    var y = Math.floor((clientY - rect.top) / ROW_PX);
+    return {
+      x: Math.max(0, Math.min(COLS - 1, x)),
+      y: Math.max(0, y),
+    };
   }
 
-  function cycleSize(node) {
-    var current = node.getAttribute('data-widget-size') || 'FULL';
-    var idx = SIZE_ORDER.indexOf(current);
-    var next = SIZE_ORDER[(idx + 1) % SIZE_ORDER.length];
-    applySizeClass(node, next);
+  function defaultsFor(type, row) {
+    if (type === 'MY_STATS') return { x: 0, y: row, w: 6, h: 5 };
+    if (type === 'TERMINE') return { x: 8, y: row, w: 4, h: 8 };
+    if (type === 'UNIT_OVERVIEW') return { x: 0, y: row, w: 12, h: 5 };
+    if (type === 'PLANNED_ALARMS') return { x: 0, y: row, w: 8, h: 7 };
+    return { x: 0, y: row, w: 8, h: 8 };
   }
 
   function setEditing(on) {
@@ -99,9 +136,6 @@
     if (doneBtn) doneBtn.hidden = !editing;
     if (editBar) editBar.hidden = !editing;
     widgetNodes().forEach(function (node) {
-      var chrome = node.querySelector('.dashboard-widget__chrome');
-      if (chrome) chrome.hidden = !editing;
-      node.draggable = editing;
       node.classList.toggle('dashboard-widget--editing', editing);
     });
   }
@@ -113,8 +147,7 @@
     currentLayout().forEach(function (item) {
       active[item.type] = true;
     });
-    var items = catalog();
-    list.innerHTML = items
+    list.innerHTML = catalog()
       .map(function (item) {
         var already = !!active[item.id];
         return (
@@ -161,45 +194,48 @@
     }
   }
 
+  function ensureHandles(node) {
+    if (node.querySelector('.dashboard-widget__handles')) return;
+    var handles = document.createElement('div');
+    handles.className = 'dashboard-widget__handles';
+    handles.setAttribute('aria-hidden', 'true');
+    ['e', 's', 'se', 'w', 'n', 'sw', 'ne', 'nw'].forEach(function (dir) {
+      var span = document.createElement('span');
+      span.className = 'dashboard-widget__handle dashboard-widget__handle--' + dir;
+      span.setAttribute('data-resize', dir);
+      handles.appendChild(span);
+    });
+    node.appendChild(handles);
+  }
+
   function addWidget(type) {
     if (!type) return;
-    var exists = currentLayout().some(function (item) {
-      return item.type === type;
-    });
-    if (exists) return;
+    if (currentLayout().some(function (item) { return item.type === type; })) return;
     var existing = board.querySelector('.dashboard-widget[data-widget-type="' + type + '"]');
-    var size = defaultSizeFor(type);
+    var geom = defaultsFor(type, nextFreeRow());
     if (existing) {
       existing.removeAttribute('data-removed');
       existing.hidden = false;
       existing.classList.remove('dashboard-widget--removed');
-      applySizeClass(existing, existing.getAttribute('data-widget-size') || size);
-      board.appendChild(existing);
+      applyGeom(existing, geom);
+      existing.classList.add('dashboard-widget--editing');
     } else {
-      var item = catalog().find(function (c) {
-        return c.id === type;
-      });
+      var item = catalog().find(function (c) { return c.id === type; });
       var article = document.createElement('article');
-      article.className =
-        'dashboard-widget widget-card dashboard-widget--placeholder dashboard-widget--editing dashboard-widget--size-' +
-        size.toLowerCase();
+      article.className = 'dashboard-widget widget-card dashboard-widget--placeholder dashboard-widget--editing';
       article.setAttribute('data-widget-type', type);
-      article.setAttribute('data-widget-size', size);
-      article.draggable = true;
       article.innerHTML =
         '<div class="dashboard-widget__chrome">' +
         '<span class="dashboard-widget__drag" aria-hidden="true">⋮⋮</span>' +
-        '<div class="dashboard-widget__chrome-actions">' +
-        '<button type="button" class="btn btn--outline btn--sm dashboard-widget__resize">Größe: ' +
-        escapeHtml(SIZE_LABEL[size]) +
-        '</button>' +
         '<button type="button" class="btn btn--outline btn--sm dashboard-widget__remove">Entfernen</button>' +
-        '</div></div>' +
+        '</div>' +
         '<div class="widget-card__header"><h3>' +
         escapeHtml(item ? item.label : type) +
         '</h3></div>' +
         '<div class="widget-card__body"><p class="hint">Wird nach „Fertig“ geladen.</p></div>';
+      ensureHandles(article);
       board.appendChild(article);
+      applyGeom(article, geom);
     }
     updateEmptyHint();
     renderCatalog();
@@ -215,6 +251,7 @@
       node.classList.add('dashboard-widget--removed');
     }
     updateEmptyHint();
+    updateBoardRows();
     renderCatalog();
   }
 
@@ -225,9 +262,8 @@
     };
     var csrf = csrfToken();
     if (csrf) headers['X-XSRF-TOKEN'] = csrf;
-    var url = '/dashboard/layout?unit=' + encodeURIComponent(unitId());
     if (doneBtn) doneBtn.disabled = true;
-    fetch(url, {
+    fetch('/dashboard/layout?unit=' + encodeURIComponent(unitId()), {
       method: 'POST',
       headers: headers,
       credentials: 'same-origin',
@@ -242,18 +278,113 @@
         return res.json();
       })
       .then(function () {
-        if (typeof window.toast === 'function') {
-          window.toast('Startseite gespeichert');
-        }
+        if (typeof window.toast === 'function') window.toast('Startseite gespeichert');
         window.location.reload();
       })
       .catch(function (err) {
-        if (typeof window.toast === 'function') {
-          window.toast(err.message || 'Fehler', 'error');
-        }
+        if (typeof window.toast === 'function') window.toast(err.message || 'Fehler', 'error');
         if (doneBtn) doneBtn.disabled = false;
       });
   }
+
+  function startMove(node, clientX, clientY) {
+    var geom = readGeom(node);
+    var cell = cellFromPoint(clientX, clientY);
+    interaction = {
+      mode: 'move',
+      node: node,
+      startGeom: geom,
+      grabOffsetX: cell.x - geom.x,
+      grabOffsetY: cell.y - geom.y,
+    };
+    node.classList.add('dashboard-widget--dragging');
+  }
+
+  function startResize(node, dir, clientX, clientY) {
+    interaction = {
+      mode: 'resize',
+      node: node,
+      dir: dir,
+      startGeom: readGeom(node),
+      startCell: cellFromPoint(clientX, clientY),
+    };
+    node.classList.add('dashboard-widget--resizing');
+  }
+
+  function onPointerMove(e) {
+    if (!interaction) return;
+    e.preventDefault();
+    var cell = cellFromPoint(e.clientX, e.clientY);
+    var g = interaction.startGeom;
+    if (interaction.mode === 'move') {
+      applyGeom(interaction.node, {
+        x: cell.x - interaction.grabOffsetX,
+        y: cell.y - interaction.grabOffsetY,
+        w: g.w,
+        h: g.h,
+      });
+      return;
+    }
+    var dir = interaction.dir;
+    var x = g.x;
+    var y = g.y;
+    var w = g.w;
+    var h = g.h;
+    var right = g.x + g.w - 1;
+    var bottom = g.y + g.h - 1;
+    if (dir.indexOf('e') >= 0) {
+      w = Math.max(MIN_W, cell.x - g.x + 1);
+    }
+    if (dir.indexOf('s') >= 0) {
+      h = Math.max(MIN_H, cell.y - g.y + 1);
+    }
+    if (dir.indexOf('w') >= 0) {
+      var newX = Math.min(cell.x, right - MIN_W + 1);
+      newX = Math.max(0, newX);
+      w = right - newX + 1;
+      x = newX;
+    }
+    if (dir.indexOf('n') >= 0) {
+      var newY = Math.min(cell.y, bottom - MIN_H + 1);
+      newY = Math.max(0, newY);
+      h = bottom - newY + 1;
+      y = newY;
+    }
+    applyGeom(interaction.node, { x: x, y: y, w: w, h: h });
+  }
+
+  function onPointerUp() {
+    if (!interaction) return;
+    interaction.node.classList.remove('dashboard-widget--dragging', 'dashboard-widget--resizing');
+    interaction = null;
+  }
+
+  board.addEventListener('pointerdown', function (e) {
+    if (!editing) return;
+    var removeBtn = e.target.closest('.dashboard-widget__remove');
+    if (removeBtn) {
+      e.preventDefault();
+      removeWidget(removeBtn.closest('.dashboard-widget'));
+      return;
+    }
+    var handle = e.target.closest('[data-resize]');
+    var widget = e.target.closest('.dashboard-widget');
+    if (!widget || widget.hasAttribute('data-removed')) return;
+    if (handle) {
+      e.preventDefault();
+      widget.setPointerCapture(e.pointerId);
+      startResize(widget, handle.getAttribute('data-resize'), e.clientX, e.clientY);
+      return;
+    }
+    if (e.target.closest('a, button, input, select, textarea, label')) return;
+    e.preventDefault();
+    widget.setPointerCapture(e.pointerId);
+    startMove(widget, e.clientX, e.clientY);
+  });
+
+  board.addEventListener('pointermove', onPointerMove);
+  board.addEventListener('pointerup', onPointerUp);
+  board.addEventListener('pointercancel', onPointerUp);
 
   if (editBtn) {
     editBtn.addEventListener('click', function () {
@@ -261,27 +392,11 @@
     });
   }
   if (doneBtn) {
-    doneBtn.addEventListener('click', function () {
-      saveAndReload();
-    });
+    doneBtn.addEventListener('click', saveAndReload);
   }
   if (addBtn) {
     addBtn.addEventListener('click', openAddModal);
   }
-
-  board.addEventListener('click', function (e) {
-    var removeBtn = e.target.closest('.dashboard-widget__remove');
-    if (removeBtn && editing) {
-      e.preventDefault();
-      removeWidget(removeBtn.closest('.dashboard-widget'));
-      return;
-    }
-    var resizeBtn = e.target.closest('.dashboard-widget__resize');
-    if (resizeBtn && editing) {
-      e.preventDefault();
-      cycleSize(resizeBtn.closest('.dashboard-widget'));
-    }
-  });
 
   var catalogList = document.getElementById('dashboard-catalog-list');
   if (catalogList) {
@@ -293,39 +408,6 @@
     });
   }
 
-  board.addEventListener('dragstart', function (e) {
-    if (!editing) return;
-    var widget = e.target.closest('.dashboard-widget');
-    if (!widget || widget.hasAttribute('data-removed')) return;
-    dragEl = widget;
-    widget.classList.add('dashboard-widget--dragging');
-    e.dataTransfer.effectAllowed = 'move';
-    try {
-      e.dataTransfer.setData('text/plain', widget.getAttribute('data-widget-type') || '');
-    } catch (err) {
-      /* ignore */
-    }
-  });
-
-  board.addEventListener('dragend', function () {
-    if (dragEl) dragEl.classList.remove('dashboard-widget--dragging');
-    dragEl = null;
-  });
-
-  board.addEventListener('dragover', function (e) {
-    if (!editing || !dragEl) return;
-    e.preventDefault();
-    var target = e.target.closest('.dashboard-widget');
-    if (!target || target === dragEl || target.hasAttribute('data-removed')) return;
-    var rect = target.getBoundingClientRect();
-    var before = e.clientY < rect.top + rect.height / 2;
-    if (before) {
-      board.insertBefore(dragEl, target);
-    } else {
-      board.insertBefore(dragEl, target.nextSibling);
-    }
-  });
-
   if (addModal) {
     addModal.querySelectorAll('[data-close-modal]').forEach(function (btn) {
       btn.addEventListener('click', closeAddModal);
@@ -335,5 +417,7 @@
     });
   }
 
+  widgetNodes().forEach(ensureHandles);
+  updateBoardRows();
   updateEmptyHint();
 })();

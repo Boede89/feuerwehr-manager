@@ -141,25 +141,31 @@ public class DashboardController {
         if (unit.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("message", "Keine Einheit ausgewählt"));
         }
-        List<Map<String, String>> widgets = parseWidgetPayload(body.get("widgets"));
+        List<Map<String, Object>> widgets = parseWidgetPayload(body.get("widgets"));
         List<DashboardWidgetPlacement> saved =
                 dashboardLayoutService.saveLayout(currentUser, unit.get().getId(), widgets);
         List<DashboardWidgetCatalogItem> catalog =
                 dashboardLayoutService.catalog(currentUser, unit.get().getId());
-        List<Map<String, String>> responseWidgets = saved.stream()
-                .map(p -> Map.of("type", p.type().name(), "size", p.size().name()))
-                .toList();
+        List<Map<String, Object>> responseWidgets = new ArrayList<>();
+        for (DashboardWidgetPlacement p : saved) {
+            responseWidgets.add(Map.of(
+                    "type", p.type().name(),
+                    "x", p.x(),
+                    "y", p.y(),
+                    "w", p.w(),
+                    "h", p.h()));
+        }
         return ResponseEntity.ok(Map.of(
                 "message", "Startseite gespeichert",
                 "widgets", responseWidgets,
                 "catalog", catalog));
     }
 
-    private static List<Map<String, String>> parseWidgetPayload(Object raw) {
+    private static List<Map<String, Object>> parseWidgetPayload(Object raw) {
         if (!(raw instanceof List<?> list)) {
             return List.of();
         }
-        List<Map<String, String>> result = new ArrayList<>();
+        List<Map<String, Object>> result = new ArrayList<>();
         for (Object item : list) {
             if (item instanceof String s) {
                 result.add(Map.of("type", s));
@@ -167,15 +173,17 @@ public class DashboardController {
             }
             if (item instanceof Map<?, ?> map) {
                 Object type = map.get("type");
-                Object size = map.get("size");
                 if (type == null) {
                     continue;
                 }
-                if (size == null) {
-                    result.add(Map.of("type", String.valueOf(type)));
-                } else {
-                    result.add(Map.of("type", String.valueOf(type), "size", String.valueOf(size)));
+                Map<String, Object> entry = new java.util.LinkedHashMap<>();
+                entry.put("type", String.valueOf(type));
+                for (String key : List.of("x", "y", "w", "h", "size")) {
+                    if (map.get(key) != null) {
+                        entry.put(key, map.get(key));
+                    }
                 }
+                result.add(entry);
             }
         }
         return result;
