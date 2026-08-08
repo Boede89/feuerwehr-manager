@@ -911,6 +911,36 @@ input:focus, select:focus, textarea:focus {
   min-height: 0;
   overflow: auto;
   touch-action: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-widget.widget-card {
+  height: 100%;
+  overflow: hidden;
+}
+
+.dashboard-widget .widget-card__header {
+  flex: 0 0 auto;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+.dashboard-widget .widget-card__header a,
+.dashboard-widget .meine-statistik-year {
+  min-height: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.dashboard-widget .widget-card__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .dashboard-widget__chrome {
@@ -1041,26 +1071,32 @@ body.dashboard-editing .dashboard-widget {
 .widget-card--atemschutz .widget-card__body--atemschutz {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   min-height: 0;
 }
 
 .dash-atemschutz-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 10px;
-  align-content: start;
+  gap: 12px;
+  align-content: stretch;
+  align-items: stretch;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .dash-atemschutz-metric {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 10px 12px;
+  gap: 8px;
+  padding: 14px 14px 12px;
   border: 1px solid var(--border, rgba(0, 0, 0, 0.08));
   border-radius: var(--radius-md, 8px);
   background: var(--bg, #fff);
   min-width: 0;
+  min-height: 0;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .dash-atemschutz-metric--success {
@@ -1092,15 +1128,16 @@ body.dashboard-editing .dashboard-widget {
 }
 
 .dash-atemschutz-metric__label {
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: var(--text-muted, #6b7280);
   font-weight: 600;
 }
 
 .dash-atemschutz-metric__value {
-  font-size: 1.6rem;
+  font-size: 1.75rem;
   line-height: 1.1;
   font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .dash-atemschutz-metric--success .dash-atemschutz-metric__value { color: var(--gruen, #16a34a); }
@@ -1110,6 +1147,7 @@ body.dashboard-editing .dashboard-widget {
 
 .dash-atemschutz-names {
   margin: 0;
+  margin-top: auto;
   padding: 0;
   list-style: none;
   display: flex;
@@ -1182,16 +1220,25 @@ body.dashboard-editing .dashboard-widget {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+  flex: 1 1 auto;
+  align-content: stretch;
+  align-items: stretch;
+  min-height: 0;
 }
 
 .widget-card--meine-statistik .meine-statistik-card {
   position: relative;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
   padding: 14px 14px 12px;
   border-radius: var(--radius-md, 8px);
   background: var(--bg, #fff);
   border: 1px solid var(--border, rgba(0, 0, 0, 0.08));
   box-shadow: none;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
 }
 
 .meine-statistik-card--uebung {
@@ -1223,6 +1270,7 @@ body.dashboard-editing .dashboard-widget {
 .widget-card--meine-statistik .meine-statistik-card__bar {
   height: 8px;
   background: rgba(0, 0, 0, 0.06);
+  margin-top: auto;
 }
 
 .widget-card--meine-statistik .meine-statistik-card__bar-fill {
