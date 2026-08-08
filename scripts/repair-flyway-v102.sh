@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
-# Repariert doppelte/fehlgeschlagene V102-Permissions-Migration und wendet V103 an.
+# Behebt V102-Doppelkonflikt und startet mit frischem Image (ohne Build-Cache).
 set -euo pipefail
 cd "$(dirname "$0")/.."
+
+echo "==> Git-Stand"
+git pull --ff-only
+ls -1 src/main/resources/db/migration/V102*.sql src/main/resources/db/migration/V103*.sql
 
 echo "==> App stoppen"
 docker compose stop app
 
 echo "==> Fehlerhafte Flyway-Einträge zu user_permission_overrides entfernen"
 docker compose exec -T mysql mysql -uff -pffsecret feuerwehr_manager -e \
-  "DELETE FROM flyway_schema_history WHERE version IN ('102','103') AND (script LIKE '%user_permission_overrides%' OR success=0);"
+  "DELETE FROM flyway_schema_history WHERE script LIKE '%user_permission_overrides%';" || true
 
-# Falls jemand fälschlich die Permissions-Datei als V102 angewendet hat und die echte V102 (Fahrzeuge) fehlt:
-# Nur den falschen Description-Eintrag löschen, echte vehicle_reservation V102 behalten.
-docker compose exec -T mysql mysql -uff -pffsecret feuerwehr_manager -e \
-  "DELETE FROM flyway_schema_history WHERE version='102' AND script LIKE '%user_permission_overrides%';"
-
-echo "==> App neu bauen und starten"
-docker compose up -d --build app
+echo "==> App OHNE Cache neu bauen (wichtig – sonst bleibt alte V102 im JAR)"
+docker compose build --no-cache app
+docker compose up -d app
 
 echo "==> Kurz warten und Status prüfen"
-sleep 12
+sleep 15
 docker compose ps app
 echo "---- letzte App-Logs ----"
 docker logs ffm_app --tail 40
