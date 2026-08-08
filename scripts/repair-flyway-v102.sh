@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Repariert fehlgeschlagene Migration V102 (user_permission_overrides) und startet die App neu.
+# Repariert Migration V102 (user_permission_overrides) nach Fehlschlag oder Checksum-Mismatch.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 echo "==> App stoppen"
 docker compose stop app
 
-echo "==> Fehlgeschlagenen Flyway-Eintrag V102 entfernen (falls vorhanden)"
+echo "==> Flyway-Eintrag V102 entfernen (fehlgeschlagen oder veraltete Checksum)"
 docker compose exec -T mysql mysql -uff -pffsecret feuerwehr_manager -e \
-  "DELETE FROM flyway_schema_history WHERE version='102' AND success=0;"
+  "DELETE FROM flyway_schema_history WHERE version='102';"
 
-echo "==> App neu bauen und starten (Flyway wendet V102 erneut an)"
+echo "==> App neu bauen und starten (Flyway wendet V102 erneut an, idempotent)"
 docker compose up -d --build app
 
 echo "==> Kurz warten und Status prüfen"
