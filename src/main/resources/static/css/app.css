@@ -2555,6 +2555,19 @@ code {
   min-width: 0;
 }
 
+.admin-permissions-matrix__role {
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+.admin-permissions-matrix__role--allow {
+  color: var(--success, #1f7a3f);
+}
+
+.admin-permissions-matrix__role--deny {
+  color: var(--text-muted, #6b7280);
+}
+
 @media (max-width: 640px) {
   .admin-permissions-matrix__row {
     grid-template-columns: 1fr;

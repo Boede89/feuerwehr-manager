@@ -143,14 +143,17 @@
     }
     var rows = options.map(function (opt) {
       var effect = opt.effect || '';
+      var fromRole = !!opt.fromRole;
+      var roleLabel = fromRole ? 'erlaubt' : 'kein Recht';
+      var roleClass = fromRole
+        ? 'admin-permissions-matrix__role admin-permissions-matrix__role--allow'
+        : 'admin-permissions-matrix__role admin-permissions-matrix__role--deny';
       return '<div class="admin-permissions-matrix__row" data-permission="' + esc(opt.value) + '">' +
         '<div class="admin-permissions-matrix__label">' +
         '<strong>' + esc(opt.label) + '</strong>' +
-        '<span class="text-muted text-xs">' +
-        (opt.fromRole ? 'aus Rolle' : 'nicht aus Rolle') +
-        '</span></div>' +
+        '<span class="' + roleClass + '">Rolle: ' + roleLabel + '</span></div>' +
         '<select class="field field--sm permission-effect-select">' +
-        '<option value=""' + (effect === '' ? ' selected' : '') + '>Wie Rolle</option>' +
+        '<option value=""' + (effect === '' ? ' selected' : '') + '>Wie Rolle (' + roleLabel + ')</option>' +
         '<option value="GRANT"' + (effect === 'GRANT' ? ' selected' : '') + '>Zusätzlich erlauben</option>' +
         '<option value="DENY"' + (effect === 'DENY' ? ' selected' : '') + '>Entziehen</option>' +
         '</select></div>';
