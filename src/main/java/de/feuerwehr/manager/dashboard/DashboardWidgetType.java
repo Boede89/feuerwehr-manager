@@ -35,6 +35,12 @@ public enum DashboardWidgetType {
             "Einsätze, Übungsdienste und Mitglieder der Einheit",
             AppModule.AUSWERTUNG,
             "auswertung.read",
+            false),
+    ATEMSCHUTZ(
+            "Atemschutz",
+            "Tauglichkeiten der Geräteträger – Zahlen und optional Namen",
+            AppModule.ATEMSCHUTZ,
+            "atemschutz.read",
             false);
 
     private final String label;

@@ -27,11 +27,16 @@
     <th:block th:each="w : ${dashboardWidgets}">
       <article class="dashboard-widget widget-card"
                th:classappend="${' ' + w.cardModifierClass()}"
-               th:attr="style=${w.gridStyle()}, data-widget-type=${w.type().name()}, data-x=${w.x()}, data-y=${w.y()}, data-w=${w.w()}, data-h=${w.h()}">
+               th:attr="style=${w.gridStyle()}, data-widget-type=${w.type().name()}, data-x=${w.x()}, data-y=${w.y()}, data-w=${w.w()}, data-h=${w.h()}, data-config=${w.configJson()}">
         <div class="dashboard-widget__chrome">
           <span class="dashboard-widget__drag" title="Verschieben" aria-hidden="true">⋮⋮</span>
-          <button type="button" class="btn btn--outline btn--sm dashboard-widget__remove"
-                  aria-label="Widget entfernen">Entfernen</button>
+          <span class="dashboard-widget__chrome-actions">
+            <button type="button" class="btn btn--outline btn--sm dashboard-widget__configure"
+                    th:if="${w.type().name() == 'ATEMSCHUTZ'}"
+                    aria-label="Widget konfigurieren">Konfigurieren</button>
+            <button type="button" class="btn btn--outline btn--sm dashboard-widget__remove"
+                    aria-label="Widget entfernen">Entfernen</button>
+          </span>
         </div>
         <div class="dashboard-widget__handles" aria-hidden="true">
           <span class="dashboard-widget__handle dashboard-widget__handle--e" data-resize="e"></span>
@@ -227,6 +232,37 @@
             </div>
           </div>
         </th:block>
+
+        <th:block th:if="${w.type().name() == 'ATEMSCHUTZ'}">
+          <div class="widget-card__header">
+            <h3>Atemschutz</h3>
+            <a th:href="@{/atemschutz(unit=${unitId})}">Zur Übersicht →</a>
+          </div>
+          <div class="widget-card__body widget-card__body--atemschutz">
+            <p class="hint hint--inline" th:if="${atemschutzIncludePaused}">Inkl. pausierte Geräteträger</p>
+            <p class="text-muted text-sm" th:if="${#lists.isEmpty(atemschutzMetrics)}">
+              Keine Kennzahlen konfiguriert oder keine Daten vorhanden.
+            </p>
+            <div class="dash-atemschutz-grid" th:if="${!#lists.isEmpty(atemschutzMetrics)}">
+              <div class="dash-atemschutz-metric"
+                   th:each="m : ${atemschutzMetrics}"
+                   th:classappend="${(m.cssModifier() != null and !#strings.isEmpty(m.cssModifier())) ? ' dash-atemschutz-metric--' + m.cssModifier() : ''}">
+                <a class="dash-atemschutz-metric__head"
+                   th:href="@{/atemschutz(unit=${unitId}, filter=${m.filter()})}">
+                  <span class="dash-atemschutz-metric__label" th:text="${m.label()}">Gesamt</span>
+                  <strong class="dash-atemschutz-metric__value" th:text="${m.count()}">0</strong>
+                </a>
+                <ul class="dash-atemschutz-names" th:if="${m.showNames() and !#lists.isEmpty(m.names())}">
+                  <li th:each="name : ${m.names()}" th:text="${name}">Name</li>
+                </ul>
+                <p class="dash-atemschutz-names-empty"
+                   th:if="${m.showNames() and #lists.isEmpty(m.names()) and m.count() == 0}">
+                  Niemand
+                </p>
+              </div>
+            </div>
+          </div>
+        </th:block>
       </article>
     </th:block>
 
@@ -258,6 +294,58 @@
       </div>
       <div class="modal__footer">
         <button type="button" class="btn btn--outline" data-close-modal>Schließen</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-dashboard-atemschutz-config" class="modal-overlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-labelledby="modal-dashboard-atemschutz-title">
+      <div class="modal__header">
+        <h3 id="modal-dashboard-atemschutz-title">Atemschutz-Widget</h3>
+        <button type="button" class="modal__close" data-close-atemschutz-config aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal__body">
+        <p class="hint">Wählen Sie, welche Kennzahlen und Namen angezeigt werden. Nach „Fertig“ werden die Daten neu geladen.</p>
+        <label class="checkbox-inline dash-atemschutz-config-paused">
+          <input type="checkbox" id="atemschutz-config-include-paused"/>
+          Pausierte Geräteträger mitzählen
+        </label>
+        <div class="dash-atemschutz-config-table" role="table" aria-label="Kennzahlen">
+          <div class="dash-atemschutz-config-row dash-atemschutz-config-row--head" role="row">
+            <span role="columnheader">Kennzahl</span>
+            <span role="columnheader">Anzeigen</span>
+            <span role="columnheader">Namen</span>
+          </div>
+          <div class="dash-atemschutz-config-row" role="row" data-metric-key="total">
+            <span role="cell">Gesamt</span>
+            <label role="cell"><input type="checkbox" data-cfg="show"/></label>
+            <label role="cell"><input type="checkbox" data-cfg="showNames"/></label>
+          </div>
+          <div class="dash-atemschutz-config-row" role="row" data-metric-key="tauglich">
+            <span role="cell">Tauglich</span>
+            <label role="cell"><input type="checkbox" data-cfg="show"/></label>
+            <label role="cell"><input type="checkbox" data-cfg="showNames"/></label>
+          </div>
+          <div class="dash-atemschutz-config-row" role="row" data-metric-key="warnung">
+            <span role="cell">Warnung</span>
+            <label role="cell"><input type="checkbox" data-cfg="show"/></label>
+            <label role="cell"><input type="checkbox" data-cfg="showNames"/></label>
+          </div>
+          <div class="dash-atemschutz-config-row" role="row" data-metric-key="uebungAbgelaufen">
+            <span role="cell">Übung abgelaufen</span>
+            <label role="cell"><input type="checkbox" data-cfg="show"/></label>
+            <label role="cell"><input type="checkbox" data-cfg="showNames"/></label>
+          </div>
+          <div class="dash-atemschutz-config-row" role="row" data-metric-key="nichtTauglich">
+            <span role="cell">Nicht tauglich</span>
+            <label role="cell"><input type="checkbox" data-cfg="show"/></label>
+            <label role="cell"><input type="checkbox" data-cfg="showNames"/></label>
+          </div>
+        </div>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--primary" id="atemschutz-config-save">Übernehmen</button>
+        <button type="button" class="btn btn--outline" data-close-atemschutz-config>Abbrechen</button>
       </div>
     </div>
   </div>
@@ -344,6 +432,7 @@
   </div>
 
   <script id="dashboard-catalog-json" type="application/json" th:text="${dashboardCatalogJson}">[]</script>
+  <script id="atemschutz-widget-defaults" type="application/json" th:text="${atemschutzWidgetDefaultsJson}">{}</script>
 
   <div id="dashboard-meta" hidden
        th:attr="data-unit-id=${unitId}, data-csrf-token=${_csrf.token}"></div>

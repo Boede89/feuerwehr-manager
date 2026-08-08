@@ -13,9 +13,11 @@
   var addBtn = document.getElementById('dashboard-add-btn');
   var editBar = document.getElementById('dashboard-edit-bar');
   var addModal = document.getElementById('modal-dashboard-add');
+  var atemschutzModal = document.getElementById('modal-dashboard-atemschutz-config');
   var emptyHint = document.getElementById('dashboard-widgets-empty');
   var editing = false;
   var interaction = null;
+  var configTarget = null;
 
   function csrfToken() {
     var fromMeta = meta.getAttribute('data-csrf-token');
@@ -36,6 +38,44 @@
     } catch (e) {
       return [];
     }
+  }
+
+  function atemschutzDefaults() {
+    var el = document.getElementById('atemschutz-widget-defaults');
+    if (!el) {
+      return {
+        includePaused: false,
+        metrics: [
+          { key: 'total', show: true, showNames: false },
+          { key: 'tauglich', show: true, showNames: false },
+          { key: 'warnung', show: true, showNames: true },
+          { key: 'uebungAbgelaufen', show: true, showNames: true },
+          { key: 'nichtTauglich', show: true, showNames: true },
+        ],
+      };
+    }
+    try {
+      return JSON.parse(el.textContent || '{}');
+    } catch (e) {
+      return { includePaused: false, metrics: [] };
+    }
+  }
+
+  function parseConfig(raw) {
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function readConfig(node) {
+    var parsed = parseConfig(node.getAttribute('data-config'));
+    if (node.getAttribute('data-widget-type') === 'ATEMSCHUTZ') {
+      return parsed && typeof parsed === 'object' ? parsed : atemschutzDefaults();
+    }
+    return parsed && typeof parsed === 'object' ? parsed : null;
   }
 
   function widgetNodes() {
@@ -75,13 +115,16 @@
       })
       .map(function (n) {
         var g = readGeom(n);
-        return {
+        var item = {
           type: n.getAttribute('data-widget-type'),
           x: g.x,
           y: g.y,
           w: g.w,
           h: g.h,
         };
+        var cfg = readConfig(n);
+        if (cfg) item.config = cfg;
+        return item;
       })
       .filter(function (item) {
         return !!item.type;
@@ -126,6 +169,7 @@
     if (type === 'TERMINE') return { x: 8, y: row, w: 4, h: 8 };
     if (type === 'UNIT_OVERVIEW') return { x: 0, y: row, w: 12, h: 5 };
     if (type === 'PLANNED_ALARMS') return { x: 0, y: row, w: 8, h: 7 };
+    if (type === 'ATEMSCHUTZ') return { x: 0, y: row, w: 6, h: 10 };
     return { x: 0, y: row, w: 8, h: 8 };
   }
 
@@ -194,6 +238,72 @@
     }
   }
 
+  function fillAtemschutzConfigForm(cfg) {
+    var include = document.getElementById('atemschutz-config-include-paused');
+    if (include) include.checked = !!cfg.includePaused;
+    var byKey = {};
+    (cfg.metrics || []).forEach(function (m) {
+      if (m && m.key) byKey[m.key] = m;
+    });
+    if (!atemschutzModal) return;
+    atemschutzModal.querySelectorAll('[data-metric-key]').forEach(function (row) {
+      var key = row.getAttribute('data-metric-key');
+      var m = byKey[key] || {};
+      var show = row.querySelector('[data-cfg="show"]');
+      var names = row.querySelector('[data-cfg="showNames"]');
+      if (show) show.checked = m.show !== false;
+      if (names) names.checked = !!m.showNames;
+    });
+  }
+
+  function readAtemschutzConfigForm() {
+    var metrics = [];
+    if (atemschutzModal) {
+      atemschutzModal.querySelectorAll('[data-metric-key]').forEach(function (row) {
+        var show = row.querySelector('[data-cfg="show"]');
+        var names = row.querySelector('[data-cfg="showNames"]');
+        metrics.push({
+          key: row.getAttribute('data-metric-key'),
+          show: !!(show && show.checked),
+          showNames: !!(names && names.checked),
+        });
+      });
+    }
+    var include = document.getElementById('atemschutz-config-include-paused');
+    return {
+      includePaused: !!(include && include.checked),
+      metrics: metrics,
+    };
+  }
+
+  function openAtemschutzConfig(node) {
+    configTarget = node;
+    fillAtemschutzConfigForm(readConfig(node) || atemschutzDefaults());
+    if (atemschutzModal) {
+      atemschutzModal.classList.add('active');
+      atemschutzModal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('modal-open');
+    }
+  }
+
+  function closeAtemschutzConfig() {
+    configTarget = null;
+    if (atemschutzModal) {
+      atemschutzModal.classList.remove('active');
+      atemschutzModal.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('modal-open');
+    }
+  }
+
+  function saveAtemschutzConfig() {
+    if (!configTarget) return;
+    configTarget.setAttribute('data-config', JSON.stringify(readAtemschutzConfigForm()));
+    closeAtemschutzConfig();
+    if (typeof window.toast === 'function') {
+      window.toast('Einstellungen übernommen – mit „Fertig“ speichern');
+    }
+  }
+
   function ensureHandles(node) {
     if (node.querySelector('.dashboard-widget__handles')) return;
     var handles = document.createElement('div');
@@ -219,16 +329,29 @@
       existing.classList.remove('dashboard-widget--removed');
       applyGeom(existing, geom);
       existing.classList.add('dashboard-widget--editing');
+      if (type === 'ATEMSCHUTZ' && !existing.getAttribute('data-config')) {
+        existing.setAttribute('data-config', JSON.stringify(atemschutzDefaults()));
+      }
     } else {
       var item = catalog().find(function (c) { return c.id === type; });
       var article = document.createElement('article');
       article.className = 'dashboard-widget widget-card dashboard-widget--placeholder dashboard-widget--editing';
+      if (type === 'ATEMSCHUTZ') article.classList.add('widget-card--atemschutz');
       article.setAttribute('data-widget-type', type);
+      if (type === 'ATEMSCHUTZ') {
+        article.setAttribute('data-config', JSON.stringify(atemschutzDefaults()));
+      }
+      var configureBtn =
+        type === 'ATEMSCHUTZ'
+          ? '<button type="button" class="btn btn--outline btn--sm dashboard-widget__configure">Konfigurieren</button>'
+          : '';
       article.innerHTML =
         '<div class="dashboard-widget__chrome">' +
         '<span class="dashboard-widget__drag" aria-hidden="true">⋮⋮</span>' +
+        '<span class="dashboard-widget__chrome-actions">' +
+        configureBtn +
         '<button type="button" class="btn btn--outline btn--sm dashboard-widget__remove">Entfernen</button>' +
-        '</div>' +
+        '</span></div>' +
         '<div class="widget-card__header"><h3>' +
         escapeHtml(item ? item.label : type) +
         '</h3></div>' +
@@ -361,6 +484,13 @@
 
   board.addEventListener('pointerdown', function (e) {
     if (!editing) return;
+    var configureBtn = e.target.closest('.dashboard-widget__configure');
+    if (configureBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      openAtemschutzConfig(configureBtn.closest('.dashboard-widget'));
+      return;
+    }
     var removeBtn = e.target.closest('.dashboard-widget__remove');
     if (removeBtn) {
       e.preventDefault();
@@ -415,6 +545,17 @@
     addModal.addEventListener('click', function (e) {
       if (e.target === addModal) closeAddModal();
     });
+  }
+
+  if (atemschutzModal) {
+    atemschutzModal.querySelectorAll('[data-close-atemschutz-config]').forEach(function (btn) {
+      btn.addEventListener('click', closeAtemschutzConfig);
+    });
+    atemschutzModal.addEventListener('click', function (e) {
+      if (e.target === atemschutzModal) closeAtemschutzConfig();
+    });
+    var saveCfg = document.getElementById('atemschutz-config-save');
+    if (saveCfg) saveCfg.addEventListener('click', saveAtemschutzConfig);
   }
 
   widgetNodes().forEach(ensureHandles);

@@ -6,6 +6,7 @@ import de.feuerwehr.manager.auswertung.AuswertungService;
 import de.feuerwehr.manager.auswertung.DashboardParticipationStats;
 import de.feuerwehr.manager.berichte.AttendanceCheckInService;
 import de.feuerwehr.manager.berichte.UnitAddressSupport;
+import de.feuerwehr.manager.dashboard.AtemschutzWidgetConfig;
 import de.feuerwehr.manager.dashboard.DashboardLayoutService;
 import de.feuerwehr.manager.dashboard.DashboardWidgetCatalogItem;
 import de.feuerwehr.manager.dashboard.DashboardWidgetPlacement;
@@ -139,7 +140,45 @@ public class DashboardController {
             model.addAttribute("unitOverviewYear", LocalDate.now().getYear());
         }
 
+        if (needed.contains(DashboardWidgetType.ATEMSCHUTZ)) {
+            loadAtemschutzWidget(resolvedUnitId, placements, model);
+        } else {
+            model.addAttribute("atemschutzMetrics", List.of());
+            model.addAttribute("atemschutzIncludePaused", false);
+            model.addAttribute("atemschutzConfigJson", "{}");
+        }
+        try {
+            model.addAttribute(
+                    "atemschutzWidgetDefaultsJson",
+                    objectMapper.writeValueAsString(AtemschutzWidgetConfig.defaults()));
+        } catch (Exception e) {
+            model.addAttribute("atemschutzWidgetDefaultsJson", "{}");
+        }
+
         return "dashboard";
+    }
+
+    private void loadAtemschutzWidget(
+            long unitId, List<DashboardWidgetPlacement> placements, Model model) {
+        try {
+            DashboardWidgetPlacement atemschutz = placements.stream()
+                    .filter(p -> p.type() == DashboardWidgetType.ATEMSCHUTZ)
+                    .findFirst()
+                    .orElse(null);
+            Map<String, Object> config =
+                    atemschutz != null ? atemschutz.config() : AtemschutzWidgetConfig.defaults();
+            model.addAttribute(
+                    "atemschutzMetrics",
+                    dashboardLayoutService.buildAtemschutzMetrics(unitId, config));
+            model.addAttribute("atemschutzIncludePaused", AtemschutzWidgetConfig.includePaused(config));
+            model.addAttribute("atemschutzConfigJson", objectMapper.writeValueAsString(
+                    AtemschutzWidgetConfig.normalize(config)));
+        } catch (Exception e) {
+            log.warn("Atemschutz-Widget konnte nicht geladen werden: {}", e.getMessage(), e);
+            model.addAttribute("atemschutzMetrics", List.of());
+            model.addAttribute("atemschutzIncludePaused", false);
+            model.addAttribute("atemschutzConfigJson", "{}");
+        }
     }
 
     @PostMapping("/dashboard/layout")
@@ -159,12 +198,16 @@ public class DashboardController {
                 dashboardLayoutService.catalog(currentUser, unit.get().getId());
         List<Map<String, Object>> responseWidgets = new ArrayList<>();
         for (DashboardWidgetPlacement p : saved) {
-            responseWidgets.add(Map.of(
-                    "type", p.type().name(),
-                    "x", p.x(),
-                    "y", p.y(),
-                    "w", p.w(),
-                    "h", p.h()));
+            Map<String, Object> entry = new java.util.LinkedHashMap<>();
+            entry.put("type", p.type().name());
+            entry.put("x", p.x());
+            entry.put("y", p.y());
+            entry.put("w", p.w());
+            entry.put("h", p.h());
+            if (p.config() != null && !p.config().isEmpty()) {
+                entry.put("config", p.config());
+            }
+            responseWidgets.add(entry);
         }
         return ResponseEntity.ok(Map.of(
                 "message", "Startseite gespeichert",
@@ -189,7 +232,7 @@ public class DashboardController {
                 }
                 Map<String, Object> entry = new java.util.LinkedHashMap<>();
                 entry.put("type", String.valueOf(type));
-                for (String key : List.of("x", "y", "w", "h", "size")) {
+                for (String key : List.of("x", "y", "w", "h", "size", "config")) {
                     if (map.get(key) != null) {
                         entry.put(key, map.get(key));
                     }

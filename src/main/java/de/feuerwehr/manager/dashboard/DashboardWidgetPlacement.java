@@ -3,8 +3,10 @@ package de.feuerwehr.manager.dashboard;
 /**
  * Freie Platzierung eines Widgets auf dem 12-Spalten-Raster.
  * {@code x}/{@code y} = Startzelle (0-basiert), {@code w}/{@code h} = Span.
+ * {@code config} = optionale Widget-Einstellungen (z. B. Atemschutz).
  */
-public record DashboardWidgetPlacement(DashboardWidgetType type, int x, int y, int w, int h) {
+public record DashboardWidgetPlacement(
+        DashboardWidgetType type, int x, int y, int w, int h, java.util.Map<String, Object> config) {
 
     public static final int COLS = 12;
     public static final int MIN_W = 2;
@@ -22,6 +24,17 @@ public record DashboardWidgetPlacement(DashboardWidgetType type, int x, int y, i
         if (x + w > COLS) {
             x = Math.max(0, COLS - w);
         }
+        if (config == null || config.isEmpty()) {
+            config = defaultConfigFor(type);
+        } else if (type == DashboardWidgetType.ATEMSCHUTZ) {
+            config = AtemschutzWidgetConfig.normalize(config);
+        } else {
+            config = java.util.Map.copyOf(config);
+        }
+    }
+
+    public DashboardWidgetPlacement(DashboardWidgetType type, int x, int y, int w, int h) {
+        this(type, x, y, w, h, defaultConfigFor(type));
     }
 
     public static DashboardWidgetPlacement of(DashboardWidgetType type) {
@@ -38,10 +51,10 @@ public record DashboardWidgetPlacement(DashboardWidgetType type, int x, int y, i
             case TERMINE -> new DashboardWidgetPlacement(type, 8, Math.max(rowHint, 5), 4, 8);
             case PLANNED_ALARMS -> new DashboardWidgetPlacement(type, 0, rowHint, 8, 7);
             case UNIT_OVERVIEW -> new DashboardWidgetPlacement(type, 0, rowHint, 12, 5);
+            case ATEMSCHUTZ -> new DashboardWidgetPlacement(type, 0, rowHint, 6, 10);
         };
     }
 
-    /** Legacy-Größenname → Breite. */
     public static int widthFromLegacySize(String sizeId) {
         if (sizeId == null) {
             return 6;
@@ -65,7 +78,23 @@ public record DashboardWidgetPlacement(DashboardWidgetType type, int x, int y, i
             case DIVERA, PLANNED_ALARMS -> "widget-card--einsatz";
             case TERMINE -> "widget-card--termine";
             case UNIT_OVERVIEW -> "widget-card--unit-overview";
+            case ATEMSCHUTZ -> "widget-card--atemschutz";
         };
+    }
+
+    public String configJson() {
+        try {
+            return new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(config);
+        } catch (Exception e) {
+            return "{}";
+        }
+    }
+
+    private static java.util.Map<String, Object> defaultConfigFor(DashboardWidgetType type) {
+        if (type == DashboardWidgetType.ATEMSCHUTZ) {
+            return AtemschutzWidgetConfig.defaults();
+        }
+        return java.util.Map.of();
     }
 
     private static int clamp(int value, int min, int max) {

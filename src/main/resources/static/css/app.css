@@ -933,6 +933,13 @@ body.dashboard-editing .dashboard-edit-bar {
   padding: 8px 12px 0;
 }
 
+.dashboard-widget__chrome-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
 .dashboard-widget__drag {
   cursor: grab;
   user-select: none;
@@ -1041,6 +1048,135 @@ body.dashboard-editing .dashboard-widget {
 
 .dashboard-widget--placeholder {
   border-style: dashed;
+}
+
+.widget-card--atemschutz .widget-card__body--atemschutz {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.dash-atemschutz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  align-content: start;
+}
+
+.dash-atemschutz-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.08));
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg, #fff);
+  min-width: 0;
+}
+
+.dash-atemschutz-metric--success {
+  border-left: 3px solid var(--gruen, #16a34a);
+}
+
+.dash-atemschutz-metric--warn {
+  border-left: 3px solid var(--gelb, #ca8a04);
+}
+
+.dash-atemschutz-metric--warning {
+  border-left: 3px solid var(--gelb, #d97706);
+}
+
+.dash-atemschutz-metric--danger {
+  border-left: 3px solid var(--error, #dc2626);
+}
+
+.dash-atemschutz-metric__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.dash-atemschutz-metric__head:hover .dash-atemschutz-metric__label {
+  text-decoration: underline;
+}
+
+.dash-atemschutz-metric__label {
+  font-size: 0.8rem;
+  color: var(--text-muted, #6b7280);
+  font-weight: 600;
+}
+
+.dash-atemschutz-metric__value {
+  font-size: 1.6rem;
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+.dash-atemschutz-metric--success .dash-atemschutz-metric__value { color: var(--gruen, #16a34a); }
+.dash-atemschutz-metric--warn .dash-atemschutz-metric__value { color: var(--gelb, #ca8a04); }
+.dash-atemschutz-metric--warning .dash-atemschutz-metric__value { color: var(--gelb, #d97706); }
+.dash-atemschutz-metric--danger .dash-atemschutz-metric__value { color: var(--error, #dc2626); }
+
+.dash-atemschutz-names {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 9rem;
+  overflow: auto;
+  font-size: 0.82rem;
+  line-height: 1.25;
+}
+
+.dash-atemschutz-names-empty {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted, #6b7280);
+}
+
+.dash-atemschutz-config-paused {
+  display: inline-flex;
+  margin-bottom: 14px;
+}
+
+.dash-atemschutz-config-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.1));
+  border-radius: var(--radius-md, 8px);
+  overflow: hidden;
+}
+
+.dash-atemschutz-config-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border, rgba(0, 0, 0, 0.08));
+}
+
+.dash-atemschutz-config-row:first-child {
+  border-top: none;
+}
+
+.dash-atemschutz-config-row--head {
+  background: var(--bg-card-hover, rgba(0, 0, 0, 0.04));
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted, #6b7280);
+}
+
+.dash-atemschutz-config-row label {
+  display: inline-flex;
+  justify-content: center;
+  margin: 0;
 }
 
 .meine-statistik-year {

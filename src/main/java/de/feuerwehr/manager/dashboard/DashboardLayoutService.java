@@ -2,6 +2,8 @@ package de.feuerwehr.manager.dashboard;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import de.feuerwehr.manager.atemschutz.AtemschutzService;
+import de.feuerwehr.manager.atemschutz.CarrierTauglichkeitStatus;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.UserPermissionService;
 import de.feuerwehr.manager.settings.ModuleSettingsService;
@@ -32,6 +34,7 @@ public class DashboardLayoutService {
     private final ObjectMapper objectMapper;
     private final ModuleSettingsService moduleSettingsService;
     private final UserPermissionService userPermissionService;
+    private final AtemschutzService atemschutzService;
 
     @Transactional(readOnly = true)
     public List<DashboardWidgetPlacement> resolveActivePlacements(AppUserDetails actor, long unitId) {
@@ -80,12 +83,16 @@ public class DashboardLayoutService {
         try {
             List<Map<String, Object>> payload = new ArrayList<>();
             for (DashboardWidgetPlacement p : layout) {
-                payload.add(Map.of(
-                        "type", p.type().name(),
-                        "x", p.x(),
-                        "y", p.y(),
-                        "w", p.w(),
-                        "h", p.h()));
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("type", p.type().name());
+                row.put("x", p.x());
+                row.put("y", p.y());
+                row.put("w", p.w());
+                row.put("h", p.h());
+                if (p.config() != null && !p.config().isEmpty()) {
+                    row.put("config", p.config());
+                }
+                payload.add(row);
             }
             user.setDashboardLayoutJson(objectMapper.writeValueAsString(payload));
         } catch (Exception e) {
@@ -93,6 +100,73 @@ public class DashboardLayoutService {
         }
         userRepository.save(user);
         return layout;
+    }
+
+    @Transactional
+    public List<DashboardAtemschutzMetricView> buildAtemschutzMetrics(long unitId, Map<String, Object> config) {
+        Map<String, Object> cfg = AtemschutzWidgetConfig.normalize(config);
+        boolean includePaused = AtemschutzWidgetConfig.includePaused(cfg);
+        AtemschutzService.CarrierListResult result = atemschutzService.listCarrierOverviews(unitId, "all");
+        AtemschutzService.CarrierListStats stats = includePaused ? result.statsAll() : result.stats();
+
+        List<AtemschutzService.CarrierOverview> carriers = result.carriers().stream()
+                .filter(row -> row != null && row.carrier() != null)
+                .filter(row -> de.feuerwehr.manager.util.PersonMembership.isCurrentlyMember(
+                        row.carrier().getPerson()))
+                .filter(row -> includePaused
+                        || row.carrier().getStatus()
+                                == de.feuerwehr.manager.atemschutz.AtemschutzCarrierStatus.ACTIVE)
+                .toList();
+
+        List<DashboardAtemschutzMetricView> views = new ArrayList<>();
+        for (Map<String, Object> metricCfg : AtemschutzWidgetConfig.metrics(cfg)) {
+            if (!Boolean.TRUE.equals(metricCfg.get("show"))) {
+                continue;
+            }
+            AtemschutzWidgetConfig.Metric metric =
+                    AtemschutzWidgetConfig.Metric.fromKey(String.valueOf(metricCfg.get("key")));
+            if (metric == null) {
+                continue;
+            }
+            boolean showNames = Boolean.TRUE.equals(metricCfg.get("showNames"));
+            int count = switch (metric) {
+                case TOTAL -> stats.total();
+                case TAUGLICH -> stats.tauglich();
+                case WARNUNG -> stats.warnung();
+                case UEBUNG_ABGELAUFEN -> stats.uebungAbgelaufen();
+                case NICHT_TAUGLICH -> stats.nichtTauglich();
+            };
+            List<String> names = List.of();
+            if (showNames) {
+                names = carriers.stream()
+                        .filter(row -> matchesMetric(row, metric))
+                        .map(row -> row.carrier().getPerson().anwesenheitDisplayName())
+                        .filter(n -> n != null && !n.isBlank())
+                        .sorted(String.CASE_INSENSITIVE_ORDER)
+                        .toList();
+            }
+            views.add(new DashboardAtemschutzMetricView(
+                    metric.key(),
+                    metric.label(),
+                    metric.cssModifier(),
+                    metric.filter(),
+                    count,
+                    showNames,
+                    names));
+        }
+        return List.copyOf(views);
+    }
+
+    private static boolean matchesMetric(
+            AtemschutzService.CarrierOverview row, AtemschutzWidgetConfig.Metric metric) {
+        CarrierTauglichkeitStatus status = row.tauglichkeit();
+        return switch (metric) {
+            case TOTAL -> true;
+            case TAUGLICH -> status == CarrierTauglichkeitStatus.TAUGLICH;
+            case WARNUNG -> status == CarrierTauglichkeitStatus.WARNUNG;
+            case UEBUNG_ABGELAUFEN -> status == CarrierTauglichkeitStatus.UEBUNG_ABGELAUFEN;
+            case NICHT_TAUGLICH -> status == CarrierTauglichkeitStatus.NICHT_TAUGLICH;
+        };
     }
 
     public boolean isAllowed(AppUserDetails actor, long unitId, DashboardWidgetType type) {
@@ -113,7 +187,6 @@ public class DashboardLayoutService {
         return true;
     }
 
-    /** Nächste freie Zeile unterhalb aller vorhandenen Widgets. */
     public static int nextFreeRow(List<DashboardWidgetPlacement> existing) {
         int max = 0;
         for (DashboardWidgetPlacement p : existing) {
@@ -175,7 +248,7 @@ public class DashboardLayoutService {
         }
     }
 
-    private static DashboardWidgetPlacement fromJsonNode(JsonNode node, int cascadeY) {
+    private DashboardWidgetPlacement fromJsonNode(JsonNode node, int cascadeY) {
         if (node == null) {
             return null;
         }
@@ -190,33 +263,29 @@ public class DashboardLayoutService {
         if (type == null) {
             return null;
         }
+        Map<String, Object> config = readConfig(node.get("config"), type);
         if (node.has("x") || node.has("y") || node.has("w") || node.has("h")) {
             return new DashboardWidgetPlacement(
                     type,
                     intOr(node.get("x"), 0),
                     intOr(node.get("y"), cascadeY),
                     intOr(node.get("w"), DashboardWidgetPlacement.defaultFor(type, 0).w()),
-                    intOr(node.get("h"), DashboardWidgetPlacement.defaultFor(type, 0).h()));
+                    intOr(node.get("h"), DashboardWidgetPlacement.defaultFor(type, 0).h()),
+                    config);
         }
         if (node.has("size")) {
             int w = DashboardWidgetPlacement.widthFromLegacySize(textOrNull(node.get("size")));
             int h = DashboardWidgetPlacement.defaultFor(type, 0).h();
-            int x = Math.max(0, DashboardWidgetPlacement.COLS - w);
-            if (w >= 8) {
-                x = 0;
-            } else if (w == 6) {
-                x = 0;
-            }
-            // Termine legacy "NARROW" → rechts
+            int x = 0;
             if (type == DashboardWidgetType.TERMINE && w <= 4) {
                 x = 8;
             }
-            return new DashboardWidgetPlacement(type, x, cascadeY, w, h);
+            return new DashboardWidgetPlacement(type, x, cascadeY, w, h, config);
         }
         return DashboardWidgetPlacement.defaultFor(type, cascadeY);
     }
 
-    private static DashboardWidgetPlacement fromRawMap(Map<String, Object> raw) {
+    private DashboardWidgetPlacement fromRawMap(Map<String, Object> raw) {
         if (raw == null) {
             return null;
         }
@@ -226,12 +295,40 @@ public class DashboardLayoutService {
             return null;
         }
         DashboardWidgetPlacement defaults = DashboardWidgetPlacement.defaultFor(type, 0);
+        Map<String, Object> config = Map.of();
+        Object configRaw = raw.get("config");
+        if (configRaw instanceof Map<?, ?> map) {
+            Map<String, Object> copy = new LinkedHashMap<>();
+            map.forEach((k, v) -> copy.put(String.valueOf(k), v));
+            config = type == DashboardWidgetType.ATEMSCHUTZ
+                    ? AtemschutzWidgetConfig.normalize(copy)
+                    : copy;
+        } else if (type == DashboardWidgetType.ATEMSCHUTZ) {
+            config = AtemschutzWidgetConfig.defaults();
+        }
         return new DashboardWidgetPlacement(
                 type,
                 toInt(raw.get("x"), defaults.x()),
                 toInt(raw.get("y"), defaults.y()),
                 toInt(raw.get("w"), defaults.w()),
-                toInt(raw.get("h"), defaults.h()));
+                toInt(raw.get("h"), defaults.h()),
+                config);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> readConfig(JsonNode node, DashboardWidgetType type) {
+        if (node == null || node.isNull()) {
+            return type == DashboardWidgetType.ATEMSCHUTZ ? AtemschutzWidgetConfig.defaults() : Map.of();
+        }
+        try {
+            Map<String, Object> map = objectMapper.convertValue(node, Map.class);
+            if (type == DashboardWidgetType.ATEMSCHUTZ) {
+                return AtemschutzWidgetConfig.normalize(map);
+            }
+            return map != null ? map : Map.of();
+        } catch (Exception e) {
+            return type == DashboardWidgetType.ATEMSCHUTZ ? AtemschutzWidgetConfig.defaults() : Map.of();
+        }
     }
 
     private static String textOrNull(JsonNode node) {
