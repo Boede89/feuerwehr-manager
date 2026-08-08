@@ -23,16 +23,11 @@
 
   <div id="dashboard-widgets"
        class="dashboard-widgets"
-       th:attr="data-unit-id=${unitId}, data-cols=${T(de.feuerwehr.manager.dashboard.DashboardWidgetPlacement).COLS}">
+       th:attr="data-unit-id=${unitId}, data-cols=${dashboardCols}">
     <th:block th:each="w : ${dashboardWidgets}">
       <article class="dashboard-widget widget-card"
-               th:classappend="${
-                 w.type().name() == 'MY_STATS' ? ' widget-card--meine-statistik' : (
-                 w.type().name() == 'DIVERA' or w.type().name() == 'PLANNED_ALARMS' ? ' widget-card--einsatz' : (
-                 w.type().name() == 'TERMINE' ? ' widget-card--termine' : (
-                 w.type().name() == 'UNIT_OVERVIEW' ? ' widget-card--unit-overview' : '')))}"
-               th:style="${w.gridStyle()}"
-               th:attr="data-widget-type=${w.type().name()}, data-x=${w.x()}, data-y=${w.y()}, data-w=${w.w()}, data-h=${w.h()}">
+               th:classappend="${' ' + w.cardModifierClass()}"
+               th:attr="style=${w.gridStyle()}, data-widget-type=${w.type().name()}, data-x=${w.x()}, data-y=${w.y()}, data-w=${w.w()}, data-h=${w.h()}">
         <div class="dashboard-widget__chrome">
           <span class="dashboard-widget__drag" title="Verschieben" aria-hidden="true">⋮⋮</span>
           <button type="button" class="btn btn--outline btn--sm dashboard-widget__remove"

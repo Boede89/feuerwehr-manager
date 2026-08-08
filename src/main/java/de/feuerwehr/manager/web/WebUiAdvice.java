@@ -97,10 +97,15 @@ public class WebUiAdvice {
         if (user == null) {
             return null;
         }
-        return userRepository.findById(user.getUserId())
-                .map(User::getTheme)
-                .filter(t -> "light".equals(t) || "dark".equals(t))
-                .orElse("light");
+        try {
+            return userRepository.findById(user.getUserId())
+                    .map(User::getTheme)
+                    .filter(t -> "light".equals(t) || "dark".equals(t))
+                    .orElse("light");
+        } catch (Exception e) {
+            log.warn("Benutzer-Theme konnte nicht geladen werden: {}", e.getMessage());
+            return "light";
+        }
     }
 
     @ModelAttribute

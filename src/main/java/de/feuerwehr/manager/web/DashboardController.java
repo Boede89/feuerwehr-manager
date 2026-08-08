@@ -79,17 +79,28 @@ public class DashboardController {
         long resolvedUnitId = resolved.getId();
         model.addAttribute("unitId", resolvedUnitId);
         model.addAttribute("currentUnitName", resolved.getName());
+        model.addAttribute("dashboardCols", DashboardWidgetPlacement.COLS);
 
-        List<DashboardWidgetPlacement> placements =
-                dashboardLayoutService.resolveActivePlacements(currentUser, resolvedUnitId);
-        model.addAttribute("dashboardWidgets", placements);
-        model.addAttribute("dashboardCatalog", dashboardLayoutService.catalog(currentUser, resolvedUnitId));
+        List<DashboardWidgetPlacement> placements;
         try {
+            placements = dashboardLayoutService.resolveActivePlacements(currentUser, resolvedUnitId);
+        } catch (Exception e) {
+            log.warn("Dashboard-Layout konnte nicht geladen werden: {}", e.getMessage(), e);
+            placements = List.of(
+                    DashboardWidgetPlacement.defaultFor(DashboardWidgetType.MY_STATS, 0),
+                    DashboardWidgetPlacement.defaultFor(DashboardWidgetType.DIVERA, 5),
+                    DashboardWidgetPlacement.defaultFor(DashboardWidgetType.TERMINE, 5));
+        }
+        model.addAttribute("dashboardWidgets", placements);
+        try {
+            model.addAttribute("dashboardCatalog", dashboardLayoutService.catalog(currentUser, resolvedUnitId));
             model.addAttribute(
                     "dashboardCatalogJson",
                     objectMapper.writeValueAsString(
                             dashboardLayoutService.catalog(currentUser, resolvedUnitId)));
         } catch (Exception e) {
+            log.warn("Dashboard-Katalog konnte nicht geladen werden: {}", e.getMessage());
+            model.addAttribute("dashboardCatalog", List.of());
             model.addAttribute("dashboardCatalogJson", "[]");
         }
 

@@ -59,6 +59,15 @@ public record DashboardWidgetPlacement(DashboardWidgetType type, int x, int y, i
         return "grid-column:" + (x + 1) + " / span " + w + ";grid-row:" + (y + 1) + " / span " + h + ";";
     }
 
+    public String cardModifierClass() {
+        return switch (type) {
+            case MY_STATS -> "widget-card--meine-statistik";
+            case DIVERA, PLANNED_ALARMS -> "widget-card--einsatz";
+            case TERMINE -> "widget-card--termine";
+            case UNIT_OVERVIEW -> "widget-card--unit-overview";
+        };
+    }
+
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
     }
