@@ -12,6 +12,44 @@
   <div th:replace="~{fragments/flash-messages :: alerts}"></div>
   <div th:replace="~{fragments/testmode-banner :: banner}"></div>
 
+  <div class="widget-card widget-card--meine-statistik" th:if="${showParticipationStats}">
+    <div class="widget-card__header">
+      <h3>Meine Beteiligung <span class="text-muted text-sm" th:text="${participationYear}">2026</span></h3>
+    </div>
+    <div class="widget-card__body">
+      <p class="text-muted text-sm" th:if="${!participationHasPerson}">
+        Ihr Benutzerkonto ist keiner Person zugeordnet — Statistik nicht verfügbar.
+      </p>
+      <p class="text-muted text-sm" th:if="${participationHasPerson and myParticipation == null}">
+        Für dieses Jahr liegen keine auswertbaren Daten vor.
+      </p>
+      <div class="meine-statistik-grid" th:if="${myParticipation != null}">
+        <div class="meine-statistik-card">
+          <span class="meine-statistik-card__label">Übungsdienste</span>
+          <strong class="meine-statistik-card__value" th:text="${myParticipation.uebungQuote()}">0/0</strong>
+          <span class="meine-statistik-card__pct" th:text="${myParticipation.uebungPct()}">—</span>
+          <div class="meine-statistik-card__bar" role="presentation"
+               th:attr="aria-hidden='true'">
+            <div class="meine-statistik-card__bar-fill"
+                 th:style="|width: ${myParticipation.uebungPct() == '—' ? 0 : myParticipation.uebungPctValue()}%|"></div>
+          </div>
+        </div>
+        <div class="meine-statistik-card">
+          <span class="meine-statistik-card__label">Einsätze</span>
+          <strong class="meine-statistik-card__value" th:text="${myParticipation.einsatzQuote()}">0/0</strong>
+          <span class="meine-statistik-card__pct" th:text="${myParticipation.einsatzPct()}">—</span>
+          <div class="meine-statistik-card__bar" role="presentation" aria-hidden="true">
+            <div class="meine-statistik-card__bar-fill meine-statistik-card__bar-fill--einsatz"
+                 th:style="|width: ${myParticipation.einsatzPct() == '—' ? 0 : myParticipation.einsatzPctValue()}%|"></div>
+          </div>
+        </div>
+      </div>
+      <p class="hint hint--compact" th:if="${myParticipation != null}">
+        Zählt freigegebene Anwesenheitslisten (Übungsdienst bis heute) und freigegebene Einsatzberichte.
+      </p>
+    </div>
+  </div>
+
   <div class="home-grid">
     <div class="home-grid__main">
       <div class="widget-card widget-card--einsatz" th:if="${canManageManualAlarms and manualDraftAlarms != null and !#lists.isEmpty(manualDraftAlarms)}">

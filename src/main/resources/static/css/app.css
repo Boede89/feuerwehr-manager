@@ -865,6 +865,71 @@ input:focus, select:focus, textarea:focus {
   align-items: start;
 }
 
+.widget-card--meine-statistik {
+  margin-bottom: 24px;
+}
+
+.meine-statistik-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.meine-statistik-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  background: var(--bg-card-hover, rgba(0, 0, 0, 0.03));
+  border-radius: var(--radius-md, 8px);
+}
+
+.meine-statistik-card__label {
+  font-size: 0.85rem;
+  color: var(--text-muted, #6b7280);
+}
+
+.meine-statistik-card__value {
+  font-size: 1.6rem;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.meine-statistik-card__pct {
+  font-size: 0.9rem;
+  color: var(--text-muted, #6b7280);
+}
+
+.meine-statistik-card__bar {
+  margin-top: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.meine-statistik-card__bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary, #b91c1c);
+  min-width: 0;
+}
+
+.meine-statistik-card__bar-fill--einsatz {
+  background: var(--accent, #1d4ed8);
+}
+
+.hint--compact {
+  margin: 12px 0 0;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 640px) {
+  .meine-statistik-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .home-grid__main > * + * {
   margin-top: 1.5rem;
 }

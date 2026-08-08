@@ -1,5 +1,7 @@
 package de.feuerwehr.manager.web;
 
+import de.feuerwehr.manager.auswertung.AuswertungService;
+import de.feuerwehr.manager.auswertung.DashboardParticipationStats;
 import de.feuerwehr.manager.berichte.AttendanceCheckInService;
 import de.feuerwehr.manager.berichte.UnitAddressSupport;
 import de.feuerwehr.manager.divera.DiveraAlarmsResponse;
@@ -15,6 +17,7 @@ import de.feuerwehr.manager.termine.DashboardTerminWidgetView;
 import de.feuerwehr.manager.termine.TermineService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +44,7 @@ public class DashboardController {
     private final PersonRepository personRepository;
     private final TestModeService testModeService;
     private final AttendanceCheckInService attendanceCheckInService;
+    private final AuswertungService auswertungService;
 
     @GetMapping("/")
     public String dashboard(
@@ -78,7 +82,31 @@ public class DashboardController {
             log.warn("Termine-Widget konnte nicht geladen werden: {}", e.getMessage(), e);
             model.addAttribute("showTermineWidget", false);
         }
+        try {
+            addParticipationStatsModel(currentUser, resolved.getId(), model);
+        } catch (Exception e) {
+            log.warn("Beteiligungsstatistik konnte nicht geladen werden: {}", e.getMessage(), e);
+            model.addAttribute("showParticipationStats", false);
+        }
         return "dashboard";
+    }
+
+    private void addParticipationStatsModel(AppUserDetails currentUser, long unitId, Model model) {
+        int year = LocalDate.now().getYear();
+        model.addAttribute("participationYear", year);
+        var linkedPerson = personRepository.findActiveByUserIdAndUnitId(
+                currentUser.getUserId(), unitId, testModeService.isEnabled());
+        if (linkedPerson.isEmpty()) {
+            model.addAttribute("showParticipationStats", true);
+            model.addAttribute("participationHasPerson", false);
+            model.addAttribute("myParticipation", null);
+            return;
+        }
+        Optional<DashboardParticipationStats> stats = auswertungService.participationStatsForPerson(
+                unitId, linkedPerson.get().getId(), year);
+        model.addAttribute("showParticipationStats", true);
+        model.addAttribute("participationHasPerson", true);
+        model.addAttribute("myParticipation", stats.orElse(null));
     }
 
     private void addTermineWidgetModel(AppUserDetails currentUser, long unitId, Model model) {

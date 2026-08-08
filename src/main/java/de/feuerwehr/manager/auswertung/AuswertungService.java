@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -186,6 +187,61 @@ public class AuswertungService {
             return List.of();
         }
 
+        ParticipationMaps maps = buildParticipationMaps(unitId, yearStart, yearEndExclusive, includeTest);
+
+        List<AuswertungPersonRow> rows = new ArrayList<>(persons.size());
+        for (Person person : persons) {
+            rows.add(toPersonRow(person, maps));
+        }
+        return rows;
+    }
+
+    /**
+     * Persönliche Beteiligung für die Startseite (gleiche Zählregeln wie {@link #listPersonRows}).
+     */
+    @Transactional(readOnly = true)
+    public Optional<DashboardParticipationStats> participationStatsForPerson(
+            long unitId, long personId, int year) {
+        boolean includeTest = testModeService.isEnabled();
+        Person person = personRepository.findActiveById(personId, includeTest).orElse(null);
+        if (person == null
+                || person.getUnit() == null
+                || person.getUnit().getId() != unitId
+                || !PersonMembership.wasMemberDuringYear(person, year)) {
+            return Optional.empty();
+        }
+        LocalDate yearStart = LocalDate.of(year, 1, 1);
+        LocalDate yearEndExclusive = LocalDate.of(year + 1, 1, 1);
+        ParticipationMaps maps = buildParticipationMaps(unitId, yearStart, yearEndExclusive, includeTest);
+        LocalDate entryDate = person.getEntryDate();
+        LocalDate exitDate = person.getExitDate();
+        int totalUebungen =
+                countEventsInMembership(maps.uebungen(), AttendanceReport::getEventDate, entryDate, exitDate);
+        int totalEinsaetze =
+                countEventsInMembership(maps.einsaetze(), IncidentReport::getIncidentDate, entryDate, exitDate);
+        int attendedUebungen =
+                filterTeilnahmen(maps.diensteByPerson().get(person.getId()), entryDate, exitDate).size();
+        int attendedEinsaetze =
+                filterTeilnahmen(maps.einsaetzeByPerson().get(person.getId()), entryDate, exitDate).size();
+        double uebungPct = totalUebungen > 0 ? (attendedUebungen * 100.0) / totalUebungen : 0;
+        double einsatzPct = totalEinsaetze > 0 ? (attendedEinsaetze * 100.0) / totalEinsaetze : 0;
+        return Optional.of(new DashboardParticipationStats(
+                year,
+                person.anwesenheitDisplayName(),
+                attendedUebungen,
+                totalUebungen,
+                formatBeteiligungQuote(attendedUebungen, totalUebungen),
+                formatBeteiligungPct(attendedUebungen, totalUebungen),
+                uebungPct,
+                attendedEinsaetze,
+                totalEinsaetze,
+                formatBeteiligungQuote(attendedEinsaetze, totalEinsaetze),
+                formatBeteiligungPct(attendedEinsaetze, totalEinsaetze),
+                einsatzPct));
+    }
+
+    private ParticipationMaps buildParticipationMaps(
+            long unitId, LocalDate yearStart, LocalDate yearEndExclusive, boolean includeTest) {
         List<AttendanceReport> uebungen = List.of();
         LocalDateRange uebungRange = uebungDateRange(yearStart, yearEndExclusive, LocalDate.now());
         if (uebungRange != null) {
@@ -200,10 +256,10 @@ public class AuswertungService {
                     : "Übungsdienst";
             AnwesenheitslisteService.AnwesenheitPersonIds ids =
                     anwesenheitslisteService.presentAndPaPersonIds(unitId, report.getId());
-            for (Long personId : ids.presentIds()) {
-                boolean pa = ids.paIds().contains(personId);
+            for (Long pid : ids.presentIds()) {
+                boolean pa = ids.paIds().contains(pid);
                 diensteByPerson
-                        .computeIfAbsent(personId, id -> new ArrayList<>())
+                        .computeIfAbsent(pid, id -> new ArrayList<>())
                         .add(new DatedTeilnahme(eventDate, label, pa));
             }
         }
@@ -223,7 +279,7 @@ public class AuswertungService {
                 if (row.getPerson() == null || row.getIncidentReport() == null) {
                     continue;
                 }
-                long personId = row.getPerson().getId();
+                long pid = row.getPerson().getId();
                 long reportId = row.getIncidentReport().getId();
                 IncidentReport report = einsatzById.get(reportId);
                 if (report == null) {
@@ -233,7 +289,7 @@ public class AuswertungService {
                         ? report.getStichwort().trim()
                         : "Einsatz";
                 Map<Long, DatedTeilnahme> byReport =
-                        einsatzTeilnahmeByPerson.computeIfAbsent(personId, id -> new HashMap<>());
+                        einsatzTeilnahmeByPerson.computeIfAbsent(pid, id -> new HashMap<>());
                 DatedTeilnahme existing = byReport.get(reportId);
                 boolean pa = row.isUsesPa() || (existing != null && existing.pa());
                 byReport.put(reportId, new DatedTeilnahme(report.getIncidentDate(), label, pa));
@@ -242,37 +298,43 @@ public class AuswertungService {
                 einsaetzeByPerson.put(entry.getKey(), new ArrayList<>(entry.getValue().values()));
             }
         }
-
-        List<AuswertungPersonRow> rows = new ArrayList<>(persons.size());
-        for (Person person : persons) {
-            LocalDate entryDate = person.getEntryDate();
-            LocalDate exitDate = person.getExitDate();
-            int totalUebungen = countEventsInMembership(uebungen, AttendanceReport::getEventDate, entryDate, exitDate);
-            int totalEinsaetze =
-                    countEventsInMembership(einsaetze, IncidentReport::getIncidentDate, entryDate, exitDate);
-
-            List<DatedTeilnahme> dienste =
-                    filterTeilnahmen(diensteByPerson.get(person.getId()), entryDate, exitDate);
-            List<DatedTeilnahme> einsatzTeilnahmen =
-                    filterTeilnahmen(einsaetzeByPerson.get(person.getId()), entryDate, exitDate);
-            int dienst = dienste.size();
-            int einsatz = einsatzTeilnahmen.size();
-            double dienstPct = totalUebungen > 0 ? (dienst * 100.0) / totalUebungen : 0;
-            double einsatzPct = totalEinsaetze > 0 ? (einsatz * 100.0) / totalEinsaetze : 0;
-            rows.add(new AuswertungPersonRow(
-                    person.getId(),
-                    person.anwesenheitDisplayName(),
-                    formatBeteiligungPct(dienst, totalUebungen),
-                    formatBeteiligungPct(einsatz, totalEinsaetze),
-                    dienstPct,
-                    einsatzPct,
-                    formatBeteiligungQuote(dienst, totalUebungen),
-                    formatBeteiligungQuote(einsatz, totalEinsaetze),
-                    toTeilnahmeList(dienste),
-                    toTeilnahmeList(einsatzTeilnahmen)));
-        }
-        return rows;
+        return new ParticipationMaps(uebungen, einsaetze, diensteByPerson, einsaetzeByPerson);
     }
+
+    private AuswertungPersonRow toPersonRow(Person person, ParticipationMaps maps) {
+        LocalDate entryDate = person.getEntryDate();
+        LocalDate exitDate = person.getExitDate();
+        int totalUebungen =
+                countEventsInMembership(maps.uebungen(), AttendanceReport::getEventDate, entryDate, exitDate);
+        int totalEinsaetze =
+                countEventsInMembership(maps.einsaetze(), IncidentReport::getIncidentDate, entryDate, exitDate);
+
+        List<DatedTeilnahme> dienste =
+                filterTeilnahmen(maps.diensteByPerson().get(person.getId()), entryDate, exitDate);
+        List<DatedTeilnahme> einsatzTeilnahmen =
+                filterTeilnahmen(maps.einsaetzeByPerson().get(person.getId()), entryDate, exitDate);
+        int dienst = dienste.size();
+        int einsatz = einsatzTeilnahmen.size();
+        double dienstPct = totalUebungen > 0 ? (dienst * 100.0) / totalUebungen : 0;
+        double einsatzPct = totalEinsaetze > 0 ? (einsatz * 100.0) / totalEinsaetze : 0;
+        return new AuswertungPersonRow(
+                person.getId(),
+                person.anwesenheitDisplayName(),
+                formatBeteiligungPct(dienst, totalUebungen),
+                formatBeteiligungPct(einsatz, totalEinsaetze),
+                dienstPct,
+                einsatzPct,
+                formatBeteiligungQuote(dienst, totalUebungen),
+                formatBeteiligungQuote(einsatz, totalEinsaetze),
+                toTeilnahmeList(dienste),
+                toTeilnahmeList(einsatzTeilnahmen));
+    }
+
+    private record ParticipationMaps(
+            List<AttendanceReport> uebungen,
+            List<IncidentReport> einsaetze,
+            Map<Long, List<DatedTeilnahme>> diensteByPerson,
+            Map<Long, List<DatedTeilnahme>> einsaetzeByPerson) {}
 
     private static <T> int countEventsInMembership(
             List<T> events,
