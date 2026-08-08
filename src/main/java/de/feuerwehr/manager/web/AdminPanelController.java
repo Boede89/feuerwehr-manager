@@ -272,22 +272,21 @@ public class AdminPanelController {
     }
 
     @PostMapping("/users/{id}/dienstgrad")
-    public String assignDienstgrad(
+    @org.springframework.web.bind.annotation.ResponseBody
+    public org.springframework.http.ResponseEntity<java.util.Map<String, String>> assignDienstgrad(
             @AuthenticationPrincipal AppUserDetails actor,
             @PathVariable long id,
-            @RequestParam(name = "scope") String scope,
-            @RequestParam(name = "unit", required = false) Long unitId,
-            @RequestParam(name = "dienstgradRoleId", required = false) Long dienstgradRoleId,
-            HttpServletRequest request,
-            RedirectAttributes redirectAttributes) {
+            @RequestParam(name = "dienstgradRoleId", required = false) String dienstgradRoleIdRaw,
+            HttpServletRequest request) {
         try {
+            Long dienstgradRoleId = parseOptionalLong(dienstgradRoleIdRaw);
             userManagementService.assignDienstgrad(id, dienstgradRoleId, actor, request);
-            redirectAttributes.addFlashAttribute("saved", true);
-            redirectAttributes.addFlashAttribute("message", "Dienstgrad gespeichert.");
+            return org.springframework.http.ResponseEntity.ok(
+                    java.util.Map.of("message", "Dienstgrad gespeichert"));
         } catch (IllegalArgumentException e) {
-            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return org.springframework.http.ResponseEntity.badRequest()
+                    .body(java.util.Map.of("message", e.getMessage()));
         }
-        return redirectAfterUser(scope, unitId, actor);
     }
 
     @PostMapping("/users/{id}/functions/assign")
@@ -720,5 +719,16 @@ public class AdminPanelController {
             case "checklisten" -> "checklisten";
             default -> "uebersicht";
         };
+    }
+
+    private static Long parseOptionalLong(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return Long.parseLong(raw.trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Ungültige Dienstgrad-Auswahl.");
+        }
     }
 }

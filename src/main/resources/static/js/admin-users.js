@@ -27,6 +27,62 @@
     syncDienstgradVisibility(sel);
   });
 
+  function submitDienstgradChange(selectEl) {
+    var userId = selectEl.getAttribute('data-user-id');
+    if (!userId) return;
+    var previous = selectEl.getAttribute('data-previous-value');
+    if (previous === null || previous === undefined) {
+      previous = '';
+    }
+    var headers = {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'X-Requested-With': 'XMLHttpRequest',
+    };
+    var csrf = getCsrfToken();
+    if (csrf) {
+      headers['X-XSRF-TOKEN'] = csrf;
+    }
+    var body = new URLSearchParams();
+    body.set('dienstgradRoleId', selectEl.value || '');
+    selectEl.disabled = true;
+    fetch('/admin/users/' + encodeURIComponent(userId) + '/dienstgrad', {
+      method: 'POST',
+      headers: headers,
+      body: body,
+      credentials: 'same-origin',
+    })
+      .then(function (res) {
+        if (!res.ok) {
+          return res.json().then(function (data) {
+            throw new Error(data.message || 'Dienstgrad konnte nicht gespeichert werden');
+          });
+        }
+        return res.json();
+      })
+      .then(function (data) {
+        selectEl.setAttribute('data-previous-value', selectEl.value || '');
+        if (typeof window.toast === 'function') {
+          window.toast(data.message || 'Dienstgrad gespeichert');
+        }
+      })
+      .catch(function (err) {
+        selectEl.value = previous;
+        if (typeof window.toast === 'function') {
+          window.toast(err.message || 'Fehler', 'error');
+        }
+      })
+      .finally(function () {
+        selectEl.disabled = false;
+      });
+  }
+
+  document.querySelectorAll('[data-dienstgrad-select]').forEach(function (sel) {
+    sel.setAttribute('data-previous-value', sel.value || '');
+    sel.addEventListener('change', function () {
+      submitDienstgradChange(sel);
+    });
+  });
+
   function updateAssignedInDom(userId, roleId, assign) {
     var src = document.getElementById('user-functions-src-' + userId);
     if (!src) return;

@@ -35,19 +35,16 @@
             </td>
             <td th:if="${showUnitUserRoles}">
               <span class="text-subtle text-xs" th:if="${u.role.adminLevel}">alle (Systemrolle)</span>
-              <form th:if="${!u.role.adminLevel and (canManageUserById == null or canManageUserById.get(u.id))}"
-                    method="post" class="table-inline-form"
-                    th:action="@{/admin/users/{id}/dienstgrad(id=${u.id})}">
-                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-                <input type="hidden" name="scope" th:value="${adminScope}"/>
-                <input type="hidden" name="unit" th:if="${unitId != null}" th:value="${unitId}"/>
-                <select name="dienstgradRoleId" class="field field--sm user-dienstgrad-select" onchange="this.form.submit()">
-                  <option value="">— kein Dienstgrad —</option>
-                  <option th:each="dg : ${unitDienstgrade}" th:value="${dg.id}"
-                          th:selected="${u.organizationalRole != null and u.organizationalRole.id == dg.id}"
-                          th:text="${dg.name}">DG</option>
-                </select>
-              </form>
+              <select th:if="${!u.role.adminLevel and (canManageUserById == null or canManageUserById.get(u.id))}"
+                      class="field field--sm user-dienstgrad-select"
+                      data-dienstgrad-select
+                      th:data-user-id="${u.id}"
+                      th:aria-label="'Dienstgrad für ' + ${u.username}">
+                <option value="">— kein Dienstgrad —</option>
+                <option th:each="dg : ${unitDienstgrade}" th:value="${dg.id}"
+                        th:selected="${u.organizationalRole != null and u.organizationalRole.id == dg.id}"
+                        th:text="${dg.name}">DG</option>
+              </select>
               <span th:if="${!u.role.adminLevel and canManageUserById != null and !canManageUserById.get(u.id)}"
                     th:text="${u.organizationalRole != null ? u.organizationalRole.name : '—'}">—</span>
             </td>
