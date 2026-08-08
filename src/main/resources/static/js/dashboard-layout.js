@@ -49,7 +49,17 @@
       'Offene Berichte',
       'Noch nicht freigegebene Einsatzberichte und Anwesenheitslisten'
     );
-    return items;
+    // alreadyActive vom Server ist nur der Seitenstand beim Laden —
+    // maßgeblich ist der aktuelle DOM (activeWidgetTypes).
+    return items.map(function (item) {
+      if (!item || typeof item !== 'object') return item;
+      return {
+        id: item.id,
+        label: item.label,
+        description: item.description,
+        alreadyActive: false,
+      };
+    });
   }
 
   function ensureCatalogFallback(items, id, label, description) {
@@ -68,12 +78,8 @@
 
   function activeWidgetTypes() {
     var active = {};
-    currentLayout().forEach(function (item) {
-      if (item && item.type) active[item.type] = true;
-    });
-    // Auch Dom-Knoten ohne Layout-Eintrag (z. B. nur Platzhalter) berücksichtigen
     widgetNodes().forEach(function (node) {
-      if (node.hasAttribute('data-removed')) return;
+      if (node.hasAttribute('data-removed') || node.hidden) return;
       var type = node.getAttribute('data-widget-type');
       if (type) active[type] = true;
     });
@@ -261,7 +267,6 @@
     var available = catalog().filter(function (item) {
       if (!item || !item.id) return false;
       if (active[item.id]) return false;
-      if (item.alreadyActive === true) return false;
       return true;
     });
     if (available.length === 0) {
@@ -462,13 +467,12 @@
 
   function addWidget(type) {
     if (!type) return;
-    if (currentLayout().some(function (item) { return item.type === type; })) return;
-    var existing = board.querySelector('.dashboard-widget[data-widget-type="' + type + '"]');
+    if (activeWidgetTypes()[type]) return;
+    var existing = board.querySelector(
+      '.dashboard-widget[data-widget-type="' + type + '"]:not([data-removed])'
+    );
     var geom = defaultsFor(type, nextFreeRow());
-    if (existing) {
-      existing.removeAttribute('data-removed');
-      existing.hidden = false;
-      existing.classList.remove('dashboard-widget--removed');
+    if (existing && !existing.hidden) {
       applyGeom(existing, geom);
       existing.classList.add('dashboard-widget--editing');
       if ((type === 'ATEMSCHUTZ' || type === 'OPEN_REPORTS') && !existing.getAttribute('data-config')) {
@@ -478,9 +482,23 @@
         );
       }
     } else {
+      if (existing) existing.remove();
       var item = catalog().find(function (c) { return c.id === type; });
+      var labels = {
+        MY_STATS: 'Meine Beteiligung',
+        DIVERA: 'Aktuelle Einsätze',
+        TERMINE: 'Meine Termine',
+        PLANNED_ALARMS: 'Geplante Einsätze',
+        UNIT_OVERVIEW: 'Einheiten-Kennzahlen',
+        ATEMSCHUTZ: 'Atemschutz',
+        OPEN_REPORTS: 'Offene Berichte',
+      };
       var article = document.createElement('article');
       article.className = 'dashboard-widget widget-card dashboard-widget--placeholder dashboard-widget--editing';
+      if (type === 'MY_STATS') article.classList.add('widget-card--meine-statistik');
+      if (type === 'DIVERA' || type === 'PLANNED_ALARMS') article.classList.add('widget-card--einsatz');
+      if (type === 'TERMINE') article.classList.add('widget-card--termine');
+      if (type === 'UNIT_OVERVIEW') article.classList.add('widget-card--unit-overview');
       if (type === 'ATEMSCHUTZ') article.classList.add('widget-card--atemschutz');
       if (type === 'OPEN_REPORTS') article.classList.add('widget-card--open-reports');
       article.setAttribute('data-widget-type', type);
@@ -502,7 +520,7 @@
         '<button type="button" class="btn btn--outline btn--sm dashboard-widget__remove">Entfernen</button>' +
         '</span></div>' +
         '<div class="widget-card__header"><h3>' +
-        escapeHtml(item ? item.label : type) +
+        escapeHtml((item && item.label) || labels[type] || type) +
         '</h3></div>' +
         '<div class="widget-card__body"><p class="hint">Wird nach „Fertig“ geladen.</p></div>';
       ensureHandles(article);
@@ -515,13 +533,8 @@
 
   function removeWidget(node) {
     if (!node) return;
-    if (node.classList.contains('dashboard-widget--placeholder')) {
-      node.remove();
-    } else {
-      node.setAttribute('data-removed', '1');
-      node.hidden = true;
-      node.classList.add('dashboard-widget--removed');
-    }
+    // Sofort aus dem Raster entfernen (hidden reicht nicht: display:flex überschreibt [hidden]).
+    node.remove();
     updateEmptyHint();
     updateBoardRows();
     renderCatalog();

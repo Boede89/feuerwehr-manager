@@ -1093,8 +1093,9 @@ body.dashboard-editing .dashboard-widget {
   outline-color: var(--rot, #b91c1c) !important;
 }
 
-.dashboard-widget--placeholder {
-  border-style: dashed;
+.dashboard-widget[hidden],
+.dashboard-widget--removed {
+  display: none !important;
 }
 
 .widget-card--atemschutz .widget-card__body--atemschutz {
