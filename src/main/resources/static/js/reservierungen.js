@@ -486,9 +486,16 @@
     openOverlay(loeschModal);
   }
 
-  document.querySelectorAll('.reservierung-open-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      openModal(btn.dataset.kind, btn.dataset.id, btn.dataset.name || '');
+  document.querySelectorAll('.reservierungen-resource-row--clickable').forEach(function (row) {
+    function openFromRow() {
+      openModal(row.dataset.kind, row.dataset.id, row.dataset.name || '');
+    }
+    row.addEventListener('click', openFromRow);
+    row.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter' || ev.key === ' ') {
+        ev.preventDefault();
+        openFromRow();
+      }
     });
   });
 
