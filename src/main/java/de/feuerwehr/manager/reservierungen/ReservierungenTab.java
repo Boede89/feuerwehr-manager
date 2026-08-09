@@ -4,10 +4,10 @@ import java.util.Locale;
 
 public enum ReservierungenTab {
     UEBERSICHT("uebersicht", "Übersicht"),
+    VERWALTUNG("verwaltung", "Verwaltung"),
     FAHRZEUGE("fahrzeuge", "Fahrzeuge"),
     RAEUME("raeume", "Räume"),
-    MEINE("meine", "Meine Anträge"),
-    VERWALTUNG("verwaltung", "Verwaltung");
+    MEINE("meine", "Meine Anträge");
 
     private final String key;
     private final String label;
