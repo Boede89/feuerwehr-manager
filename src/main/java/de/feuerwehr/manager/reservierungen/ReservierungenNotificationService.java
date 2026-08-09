@@ -20,8 +20,11 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class ReservierungenNotificationService {
 
-    private static final DateTimeFormatter DISPLAY =
-            DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm", Locale.GERMANY).withZone(ZoneId.of("Europe/Berlin"));
+    private static final ZoneId ZONE = ZoneId.of("Europe/Berlin");
+    private static final DateTimeFormatter DATE =
+            DateTimeFormatter.ofPattern("dd.MM.yyyy", Locale.GERMANY).withZone(ZONE);
+    private static final DateTimeFormatter TIME =
+            DateTimeFormatter.ofPattern("HH:mm", Locale.GERMANY).withZone(ZONE);
 
     private final UnitMailService unitMailService;
     private final UserRepository userRepository;
@@ -131,7 +134,7 @@ public class ReservierungenNotificationService {
                   <tr><td style="padding:6px 0;font-weight:600;">%s</td><td>%s</td></tr>
                   <tr><td style="padding:6px 0;font-weight:600;">Grund</td><td>%s</td></tr>
                   <tr><td style="padding:6px 0;font-weight:600;">Ort</td><td>%s</td></tr>
-                  <tr><td style="padding:6px 0;font-weight:600;">Zeitraum</td><td>%s – %s</td></tr>
+                  <tr><td style="padding:6px 0;font-weight:600;">Zeitraum</td><td>%s</td></tr>
                 </table>
                 <p style="margin-top:14px;color:#64748b;font-size:13px;">
                   Ein ggf. angelegter Termin in DIVERA bzw. im Google-Kalender wurde entfernt.
@@ -143,8 +146,7 @@ public class ReservierungenNotificationService {
                         escape(resourceName),
                         escape(blankToDash(reason)),
                         escape(blankToDash(location)),
-                        startAt != null ? DISPLAY.format(startAt) : "—",
-                        endAt != null ? DISPLAY.format(endAt) : "—");
+                        escape(formatTimeRange(startAt, endAt)));
         unitMailService.sendHtmlMail(unitId, email, subject, wrapHtml(subject, body));
     }
 
@@ -177,7 +179,7 @@ public class ReservierungenNotificationService {
                   <tr><td style="padding:6px 0;font-weight:600;">%s</td><td>%s</td></tr>
                   <tr><td style="padding:6px 0;font-weight:600;">Grund</td><td>%s</td></tr>
                   <tr><td style="padding:6px 0;font-weight:600;">Ort</td><td>%s</td></tr>
-                  <tr><td style="padding:6px 0;font-weight:600;">Zeitraum</td><td>%s – %s</td></tr>
+                  <tr><td style="padding:6px 0;font-weight:600;">Zeitraum</td><td>%s</td></tr>
                   %s
                 </table>
                 """
@@ -186,8 +188,7 @@ public class ReservierungenNotificationService {
                                 escape(resourceName),
                                 escape(reason),
                                 escape(blankToDash(location)),
-                                DISPLAY.format(startAt),
-                                DISPLAY.format(endAt),
+                                escape(formatTimeRange(startAt, endAt)),
                                 reasonBlock);
         unitMailService.sendHtmlMail(unitId, email, subject, wrapHtml(subject, body));
     }
@@ -264,7 +265,7 @@ public class ReservierungenNotificationService {
                   <tr><td style="padding:6px 0;font-weight:600;">E-Mail</td><td>%s</td></tr>
                   <tr><td style="padding:6px 0;font-weight:600;">Grund</td><td>%s</td></tr>
                   <tr><td style="padding:6px 0;font-weight:600;">Ort</td><td>%s</td></tr>
-                  <tr><td style="padding:6px 0;font-weight:600;">Zeitraum (Beispiel)</td><td>%s – %s</td></tr>
+                  <tr><td style="padding:6px 0;font-weight:600;">Zeitraum (Beispiel)</td><td>%s</td></tr>
                 </table>
                 %s
                 """
@@ -277,8 +278,7 @@ public class ReservierungenNotificationService {
                         escape(requesterEmail),
                         escape(reason),
                         escape(blankToDash(location)),
-                        DISPLAY.format(startAt),
-                        DISPLAY.format(endAt),
+                        escape(formatTimeRange(startAt, endAt)),
                         cta);
     }
 
@@ -313,6 +313,26 @@ public class ReservierungenNotificationService {
             return user.getLoginEmail().trim();
         }
         return null;
+    }
+
+    private static String formatTimeRange(Instant startAt, Instant endAt) {
+        if (startAt == null && endAt == null) {
+            return "—";
+        }
+        if (startAt == null) {
+            return TIME.format(endAt) + " Uhr";
+        }
+        if (endAt == null) {
+            return DATE.format(startAt) + " " + TIME.format(startAt) + " Uhr";
+        }
+        String startDate = DATE.format(startAt);
+        String endDate = DATE.format(endAt);
+        String startTime = TIME.format(startAt) + " Uhr";
+        String endTime = TIME.format(endAt) + " Uhr";
+        if (startDate.equals(endDate)) {
+            return startDate + " " + startTime + " – " + endTime;
+        }
+        return startDate + " " + startTime + " – " + endDate + " " + endTime;
     }
 
     private static String blankToDash(String value) {
