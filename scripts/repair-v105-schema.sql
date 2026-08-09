@@ -1,4 +1,4 @@
--- Testmodus-Kennzeichnung für Reservierungen (idempotent).
+-- Idempotente Schema-Reparatur für V105 (reservation test_data).
 
 SET @col_exists := (
     SELECT COUNT(1)
