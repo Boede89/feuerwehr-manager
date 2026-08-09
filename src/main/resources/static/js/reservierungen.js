@@ -1042,22 +1042,42 @@
     btn.addEventListener('click', function () {
       var row = btn.closest('tr');
       if (!row || !canWrite) return;
-      var confirmMsg = 'Reservierung wirklich löschen?\n\n'
-        + 'Falls vorhanden, wird der Termin auch aus DIVERA und dem Google-Kalender entfernt.\n'
-        + 'Der Antragsteller erhält eine E-Mail, dass die Reservierung storniert wurde.';
-      if (!window.confirm(confirmMsg)) return;
-      btn.disabled = true;
-      deleteReservation(row.dataset.kind, row.dataset.id).then(function (data) {
-        if (data.ok) {
-          notify(data.message || 'Reservierung gelöscht.', 'success');
-          window.location.reload();
-        } else {
-          notify(data.message || 'Löschen fehlgeschlagen.', 'error');
-          btn.disabled = false;
-        }
-      }).catch(function () {
-        notify('Löschen fehlgeschlagen.', 'error');
-        btn.disabled = false;
+      var ask =
+        window.FwConfirm && typeof window.FwConfirm.show === 'function'
+          ? window.FwConfirm.show({
+              title: 'Reservierung löschen?',
+              message:
+                'Soll diese Reservierung wirklich gelöscht werden?\n\n' +
+                'Falls vorhanden, wird der Termin auch aus DIVERA und dem Google-Kalender entfernt.\n' +
+                'Der Antragsteller erhält eine E-Mail, dass die Reservierung storniert wurde.',
+              confirmLabel: 'Löschen',
+              cancelLabel: 'Abbrechen',
+              variant: 'danger',
+            })
+          : Promise.resolve(
+              window.confirm(
+                'Reservierung wirklich löschen?\n\n' +
+                  'Falls vorhanden, wird der Termin auch aus DIVERA und dem Google-Kalender entfernt.\n' +
+                  'Der Antragsteller erhält eine E-Mail, dass die Reservierung storniert wurde.'
+              )
+            );
+      ask.then(function (ok) {
+        if (!ok) return;
+        btn.disabled = true;
+        deleteReservation(row.dataset.kind, row.dataset.id)
+          .then(function (data) {
+            if (data.ok) {
+              notify(data.message || 'Reservierung gelöscht.', 'success');
+              window.location.reload();
+            } else {
+              notify(data.message || 'Löschen fehlgeschlagen.', 'error');
+              btn.disabled = false;
+            }
+          })
+          .catch(function () {
+            notify('Löschen fehlgeschlagen.', 'error');
+            btn.disabled = false;
+          });
       });
     });
   });
