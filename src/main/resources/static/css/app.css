@@ -7680,6 +7680,24 @@ span.required { color: var(--error); }
   min-width: 7rem;
 }
 
+.reservierungen-slot-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.reservierungen-slot-field__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted, #6b7280);
+}
+
+.reservierungen-slot-remove {
+  align-self: end;
+  margin-bottom: 1px;
+}
+
 .reservierungen-pick-list {
   display: flex;
   flex-direction: column;
@@ -7699,12 +7717,18 @@ span.required { color: var(--error); }
 }
 
 .reservierungen-multi-row--slot {
-  grid-template-columns: 1.2fr 1fr 0.8fr auto;
+  grid-template-columns: 1.1fr 0.85fr 0.85fr 1fr auto;
+  align-items: end;
 }
 
 @media (max-width: 640px) {
   .reservierungen-multi-row--slot {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .reservierungen-slot-remove {
+    grid-column: 1 / -1;
+    justify-self: stretch;
   }
 }
 
