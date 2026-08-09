@@ -127,7 +127,11 @@ public class ReservierungenNotificationService {
             String location,
             Instant startAt,
             Instant endAt,
-            String introMessage) {
+            String introMessage,
+            String cancellationReason) {
+        if (!isFutureReservation(startAt)) {
+            return;
+        }
         if (!unitMailService.canSendForUnit(unitId) || email == null || email.isBlank()) {
             return;
         }
@@ -136,6 +140,12 @@ public class ReservierungenNotificationService {
             return;
         }
         String subject = "Reservierung storniert – " + resourceName;
+        String cancellationBlock =
+                cancellationReason != null && !cancellationReason.isBlank()
+                        ? "<tr><td style=\"padding:6px 0;font-weight:600;\">Stornierungsgrund</td><td>"
+                                + escape(cancellationReason.trim())
+                                + "</td></tr>"
+                        : "";
         String body = """
                 <p style="color:#b91c1c;font-weight:700;">%s</p>
                 <table style="width:100%%;border-collapse:collapse;margin-top:12px;">
@@ -143,10 +153,8 @@ public class ReservierungenNotificationService {
                   <tr><td style="padding:6px 0;font-weight:600;">Grund</td><td>%s</td></tr>
                   <tr><td style="padding:6px 0;font-weight:600;">Ort</td><td>%s</td></tr>
                   <tr><td style="padding:6px 0;font-weight:600;">Zeitraum</td><td>%s</td></tr>
+                  %s
                 </table>
-                <p style="margin-top:14px;color:#64748b;font-size:13px;">
-                  Ein ggf. angelegter Termin in DIVERA bzw. im Google-Kalender wurde entfernt.
-                </p>
                 """
                 .formatted(
                         escape(introMessage != null ? introMessage : "Ihre Reservierung wurde storniert."),
@@ -154,7 +162,8 @@ public class ReservierungenNotificationService {
                         escape(resourceName),
                         escape(blankToDash(reason)),
                         escape(blankToDash(location)),
-                        escape(formatTimeRange(startAt, endAt)));
+                        escape(formatTimeRange(startAt, endAt)),
+                        cancellationBlock);
         for (String recipient : recipients) {
             unitMailService.sendHtmlMail(unitId, recipient, subject, wrapHtml(subject, body));
         }
@@ -386,6 +395,10 @@ public class ReservierungenNotificationService {
             return startDate + " " + startTime + " – " + endTime;
         }
         return startDate + " " + startTime + " – " + endDate + " " + endTime;
+    }
+
+    private static boolean isFutureReservation(Instant startAt) {
+        return startAt != null && startAt.isAfter(Instant.now());
     }
 
     private static String blankToDash(String value) {

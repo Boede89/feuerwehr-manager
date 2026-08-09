@@ -77,6 +77,9 @@ public class RoomReservation {
     @Column(name = "divera_event_id")
     private Long diveraEventId;
 
+    @Column(name = "test_data", nullable = false)
+    private boolean testData;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;
 

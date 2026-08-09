@@ -239,14 +239,14 @@ public class ReservierungenController {
     public ActionResultDto deleteVehicle(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit") long unitId,
-            @PathVariable long id) {
+            @PathVariable long id,
+            @RequestParam(name = "deletionReason", required = false) String deletionReason) {
         try {
             requireModuleEnabled(unitId);
             requireWrite(actor, unitId);
             accessControlService.requireUnitAccess(actor, unitId);
-            reservierungenService.deleteVehicleReservation(unitId, id);
-            return ActionResultDto.success(
-                    "Reservierung gelöscht. Termin in DIVERA/Google (falls vorhanden) entfernt; Antragsteller benachrichtigt.");
+            reservierungenService.deleteVehicleReservation(unitId, id, deletionReason);
+            return ActionResultDto.success("Reservierung gelöscht.");
         } catch (IllegalArgumentException e) {
             return ActionResultDto.failure(e.getMessage());
         }
@@ -257,14 +257,14 @@ public class ReservierungenController {
     public ActionResultDto deleteRoom(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit") long unitId,
-            @PathVariable long id) {
+            @PathVariable long id,
+            @RequestParam(name = "deletionReason", required = false) String deletionReason) {
         try {
             requireModuleEnabled(unitId);
             requireWrite(actor, unitId);
             accessControlService.requireUnitAccess(actor, unitId);
-            reservierungenService.deleteRoomReservation(unitId, id);
-            return ActionResultDto.success(
-                    "Reservierung gelöscht. Termin in DIVERA/Google (falls vorhanden) entfernt; Antragsteller benachrichtigt.");
+            reservierungenService.deleteRoomReservation(unitId, id, deletionReason);
+            return ActionResultDto.success("Reservierung gelöscht.");
         } catch (IllegalArgumentException e) {
             return ActionResultDto.failure(e.getMessage());
         }

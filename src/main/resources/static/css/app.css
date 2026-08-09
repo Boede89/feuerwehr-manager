@@ -3726,6 +3726,26 @@ body.modal-open {
   flex-wrap: wrap;
 }
 
+.confirm-dialog__text-wrap {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.confirm-dialog__text-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.confirm-dialog__text-wrap .field {
+  width: 100%;
+  resize: vertical;
+  min-height: 72px;
+}
+
 .confirm-dialog__checkboxes {
   display: flex;
   flex-direction: column;

@@ -185,7 +185,7 @@
             <tbody>
             <tr th:each="r : ${allReservations}"
                 th:if="${r.status().name() != 'PENDING'}"
-                th:attr="data-kind=${r.kind().name()},data-id=${r.id()}">
+                th:attr="data-kind=${r.kind().name()},data-id=${r.id()},data-start-at=${r.startAt()}">
               <td th:text="${r.kind() == T(de.feuerwehr.manager.reservierungen.ReservationKind).VEHICLE ? 'Fahrzeug' : 'Raum'}">Fahrzeug</td>
               <td th:text="${r.resourceName()}">TLF</td>
               <td th:text="${r.requesterName()}">Name</td>
@@ -503,6 +503,6 @@
   <select id="reservierungen-rooms-template" hidden aria-hidden="true">
     <option th:each="r : ${roomOptions}" th:value="${r.id}" th:text="${r.name}">Raum</option>
   </select>
-  <script th:src="@{/js/reservierungen.js(v='20260809d')}" defer></script>
+  <script th:src="@{/js/reservierungen.js(v='20260809e')}" defer></script>
 </main>
 </html>

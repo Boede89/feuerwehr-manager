@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.reservierungen;
 
+import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.technik.Room;
 import de.feuerwehr.manager.technik.RoomRepository;
 import de.feuerwehr.manager.technik.Vehicle;
@@ -36,14 +37,23 @@ public class ReservierungenService {
     private final ReservierungenNotificationService notificationService;
     private final ReservierungenDiveraSyncService diveraSyncService;
     private final ReservierungenGoogleCalendarService googleCalendarService;
+    private final TestModeService testModeService;
 
     @Transactional(readOnly = true)
     public List<ReservationListItemView> listMine(long unitId, long userId) {
         List<ReservationListItemView> items = new ArrayList<>();
-        for (VehicleReservation reservation : vehicleReservationRepository.findByUnitIdAndRequesterUserIdOrderByStartAtDesc(unitId, userId)) {
+        for (VehicleReservation reservation :
+                vehicleReservationRepository.findByUnitIdAndRequesterUserIdOrderByStartAtDesc(unitId, userId)) {
+            if (!isVisible(reservation.isTestData())) {
+                continue;
+            }
             items.add(toView(reservation, userId));
         }
-        for (RoomReservation reservation : roomReservationRepository.findByUnitIdAndRequesterUserIdOrderByStartAtDesc(unitId, userId)) {
+        for (RoomReservation reservation :
+                roomReservationRepository.findByUnitIdAndRequesterUserIdOrderByStartAtDesc(unitId, userId)) {
+            if (!isVisible(reservation.isTestData())) {
+                continue;
+            }
             items.add(toView(reservation, userId));
         }
         items.sort(Comparator.comparing(ReservationListItemView::startAt).reversed());
@@ -53,10 +63,18 @@ public class ReservierungenService {
     @Transactional(readOnly = true)
     public List<ReservationListItemView> listPending(long unitId, long currentUserId) {
         List<ReservationListItemView> items = new ArrayList<>();
-        for (VehicleReservation reservation : vehicleReservationRepository.findByUnitIdAndStatusOrderByStartAtAsc(unitId, ReservationStatus.PENDING)) {
+        for (VehicleReservation reservation :
+                vehicleReservationRepository.findByUnitIdAndStatusOrderByStartAtAsc(unitId, ReservationStatus.PENDING)) {
+            if (!isVisible(reservation.isTestData())) {
+                continue;
+            }
             items.add(toView(reservation, currentUserId));
         }
-        for (RoomReservation reservation : roomReservationRepository.findByUnitIdAndStatusOrderByStartAtAsc(unitId, ReservationStatus.PENDING)) {
+        for (RoomReservation reservation :
+                roomReservationRepository.findByUnitIdAndStatusOrderByStartAtAsc(unitId, ReservationStatus.PENDING)) {
+            if (!isVisible(reservation.isTestData())) {
+                continue;
+            }
             items.add(toView(reservation, currentUserId));
         }
         items.sort(Comparator.comparing(ReservationListItemView::startAt));
@@ -67,9 +85,15 @@ public class ReservierungenService {
     public List<ReservationListItemView> listAll(long unitId, long currentUserId) {
         List<ReservationListItemView> items = new ArrayList<>();
         for (VehicleReservation reservation : vehicleReservationRepository.findByUnitIdOrderByStartAtDesc(unitId)) {
+            if (!isVisible(reservation.isTestData())) {
+                continue;
+            }
             items.add(toView(reservation, currentUserId));
         }
         for (RoomReservation reservation : roomReservationRepository.findByUnitIdOrderByStartAtDesc(unitId)) {
+            if (!isVisible(reservation.isTestData())) {
+                continue;
+            }
             items.add(toView(reservation, currentUserId));
         }
         items.sort(Comparator.comparing(ReservationListItemView::startAt).reversed());
@@ -134,6 +158,7 @@ public class ReservierungenService {
             reservation.setStartAt(slot.startAt());
             reservation.setEndAt(slot.endAt());
             reservation.setStatus(ReservationStatus.PENDING);
+            reservation.setTestData(testModeService.testDataScope());
             saved.add(vehicleReservationRepository.save(reservation));
         }
         if (!saved.isEmpty()) {
@@ -194,6 +219,7 @@ public class ReservierungenService {
                 reservation.setStartAt(slot.startAt());
                 reservation.setEndAt(slot.endAt());
                 reservation.setStatus(ReservationStatus.PENDING);
+                reservation.setTestData(testModeService.testDataScope());
                 saved.add(roomReservationRepository.save(reservation));
             }
         }
@@ -258,6 +284,7 @@ public class ReservierungenService {
             reservation.setStatus(ReservationStatus.APPROVED);
             reservation.setApprovedByUser(actor);
             reservation.setApprovedAt(Instant.now());
+            reservation.setTestData(testModeService.testDataScope());
             VehicleReservation saved = vehicleReservationRepository.save(reservation);
             if (request.syncCalendars()) {
                 notes.addAll(applyVehicleIntegrations(unitId, saved, actorUserId, null));
@@ -295,6 +322,7 @@ public class ReservierungenService {
         reservation.setStatus(ReservationStatus.APPROVED);
         reservation.setApprovedByUser(actor);
         reservation.setApprovedAt(Instant.now());
+        reservation.setTestData(testModeService.testDataScope());
         RoomReservation saved = roomReservationRepository.save(reservation);
         if (request.syncCalendars()) {
             notes.addAll(applyRoomIntegrations(unitId, saved, actorUserId));
@@ -356,7 +384,7 @@ public class ReservierungenService {
     }
 
     @Transactional
-    public void deleteVehicleReservation(long unitId, long reservationId) {
+    public void deleteVehicleReservation(long unitId, long reservationId, String deletionReason) {
         VehicleReservation reservation = vehicleReservationRepository
                 .findById(reservationId)
                 .filter(r -> r.getUnit().getId().equals(unitId))
@@ -382,12 +410,13 @@ public class ReservierungenService {
                     endAt,
                     status == ReservationStatus.APPROVED
                             ? "Ihre genehmigte Fahrzeugreservierung wurde storniert und gelöscht."
-                            : "Ihr Antrag auf eine Fahrzeugreservierung wurde gelöscht.");
+                            : "Ihr Antrag auf eine Fahrzeugreservierung wurde gelöscht.",
+                    deletionReason);
         }
     }
 
     @Transactional
-    public void deleteRoomReservation(long unitId, long reservationId) {
+    public void deleteRoomReservation(long unitId, long reservationId, String deletionReason) {
         RoomReservation reservation = roomReservationRepository
                 .findById(reservationId)
                 .filter(r -> r.getUnit().getId().equals(unitId))
@@ -413,7 +442,21 @@ public class ReservierungenService {
                     endAt,
                     status == ReservationStatus.APPROVED
                             ? "Ihre genehmigte Raumreservierung wurde storniert und gelöscht."
-                            : "Ihr Antrag auf eine Raumreservierung wurde gelöscht.");
+                            : "Ihr Antrag auf eine Raumreservierung wurde gelöscht.",
+                    deletionReason);
+        }
+    }
+
+    /** Beim Beenden des Testmodus: externe Termine entfernen und Testdaten löschen. */
+    @Transactional
+    public void purgeAllTestData() {
+        for (VehicleReservation reservation : vehicleReservationRepository.findByTestDataTrue()) {
+            cleanupVehicleReservation(reservation);
+            vehicleReservationRepository.delete(reservation);
+        }
+        for (RoomReservation reservation : roomReservationRepository.findByTestDataTrue()) {
+            cleanupRoomReservation(reservation);
+            roomReservationRepository.delete(reservation);
         }
     }
 
@@ -511,7 +554,8 @@ public class ReservierungenService {
                     existing.getLocation(),
                     existing.getStartAt(),
                     existing.getEndAt(),
-                    "Ihre genehmigte Fahrzeugreservierung wurde wegen eines Konflikts storniert.");
+                    "Ihre genehmigte Fahrzeugreservierung wurde wegen eines Konflikts storniert.",
+                    null);
         }
     }
 
@@ -536,7 +580,8 @@ public class ReservierungenService {
                     existing.getLocation(),
                     existing.getStartAt(),
                     existing.getEndAt(),
-                    "Ihre genehmigte Raumreservierung wurde wegen eines Konflikts storniert.");
+                    "Ihre genehmigte Raumreservierung wurde wegen eines Konflikts storniert.",
+                    null);
         }
     }
 
@@ -695,6 +740,10 @@ public class ReservierungenService {
                 reservation.getCreatedAt(),
                 reservation.getRequesterUser() != null
                         && Objects.equals(reservation.getRequesterUser().getId(), currentUserId));
+    }
+
+    private boolean isVisible(boolean testData) {
+        return !testData || testModeService.isEnabled();
     }
 
     private Unit requireUnit(long unitId) {

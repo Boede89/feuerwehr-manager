@@ -10,6 +10,7 @@
   var resolveFn = null;
   var activeCheckboxes = [];
   var emailSelectActive = false;
+  var textInputActive = false;
 
   function isTestMode() {
     return document.body && document.body.getAttribute('data-test-mode') === 'true';
@@ -75,6 +76,10 @@
       '  </div>' +
       '  <div class="modal__body">' +
       '    <div id="fw-confirm-dialog-message" class="confirm-dialog__message"></div>' +
+      '    <div id="fw-confirm-dialog-text-wrap" class="confirm-dialog__text-wrap" hidden>' +
+      '      <label for="fw-confirm-dialog-text" id="fw-confirm-dialog-text-label" class="confirm-dialog__text-label"></label>' +
+      '      <textarea id="fw-confirm-dialog-text" class="field" rows="3"></textarea>' +
+      '    </div>' +
       '    <div id="fw-confirm-dialog-checkboxes" class="confirm-dialog__checkboxes" hidden></div>' +
       '  </div>' +
       '  <div class="modal__footer confirm-dialog__footer">' +
@@ -89,6 +94,12 @@
     checkboxesEl = modalEl.querySelector('#fw-confirm-dialog-checkboxes');
     confirmBtn = modalEl.querySelector('#fw-confirm-dialog-confirm');
     cancelBtn = modalEl.querySelector('#fw-confirm-dialog-cancel');
+    var textWrapEl = modalEl.querySelector('#fw-confirm-dialog-text-wrap');
+    var textLabelEl = modalEl.querySelector('#fw-confirm-dialog-text-label');
+    var textInputEl = modalEl.querySelector('#fw-confirm-dialog-text');
+    modalEl._textWrapEl = textWrapEl;
+    modalEl._textLabelEl = textLabelEl;
+    modalEl._textInputEl = textInputEl;
 
     cancelBtn.addEventListener('click', function () {
       close(false);
@@ -144,6 +155,9 @@
     if (emailSelectActive || document.getElementById('fw-confirm-testmode-email')) {
       values.testModeEmailDelivery = collectTestModeEmailDelivery();
     }
+    if (textInputActive && modalEl && modalEl._textInputEl) {
+      values.textValue = (modalEl._textInputEl.value || '').trim();
+    }
     return values;
   }
 
@@ -155,13 +169,13 @@
     modalEl.classList.remove('active', 'confirm-dialog--release-validation');
     document.body.classList.remove('modal-open');
     if (resolveFn) {
-      if (result && (activeCheckboxes.length || emailSelectActive)) {
+      if (result && (activeCheckboxes.length || emailSelectActive || textInputActive)) {
         var values = collectCheckboxValues();
         if (!activeCheckboxes.length) {
           values.ok = true;
         }
         resolveFn(values);
-      } else if (activeCheckboxes.length || emailSelectActive) {
+      } else if (activeCheckboxes.length || emailSelectActive || textInputActive) {
         resolveFn({ ok: false });
       } else {
         resolveFn(!!result);
@@ -170,6 +184,7 @@
     }
     activeCheckboxes = [];
     emailSelectActive = false;
+    textInputActive = false;
   }
 
   function applyVariant(variant) {
@@ -194,7 +209,20 @@
       cancelBtn.textContent = opts.cancelLabel || 'Abbrechen';
       applyVariant(opts.variant || 'primary');
       emailSelectActive = false;
+      textInputActive = false;
       renderCheckboxes(opts.checkboxes);
+      if (modalEl._textWrapEl && modalEl._textInputEl && modalEl._textLabelEl) {
+        if (opts.textInputLabel) {
+          textInputActive = true;
+          modalEl._textWrapEl.hidden = false;
+          modalEl._textLabelEl.textContent = opts.textInputLabel;
+          modalEl._textInputEl.value = opts.textInputValue || '';
+          modalEl._textInputEl.placeholder = opts.textInputPlaceholder || '';
+        } else {
+          modalEl._textWrapEl.hidden = true;
+          modalEl._textInputEl.value = '';
+        }
+      }
       if (opts.emailSelect && isTestMode()) {
         emailSelectActive = true;
         if (checkboxesEl) {
@@ -207,7 +235,11 @@
       modalEl.classList.add('active');
       document.body.classList.add('modal-open');
       window.setTimeout(function () {
-        confirmBtn.focus();
+        if (textInputActive && modalEl._textInputEl) {
+          modalEl._textInputEl.focus();
+        } else {
+          confirmBtn.focus();
+        }
       }, 0);
     });
   }

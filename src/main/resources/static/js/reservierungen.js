@@ -1011,15 +1011,24 @@
     return true;
   }
 
-  function deleteReservation(kind, id, testModeEmailDelivery) {
+  function deleteReservation(kind, id, testModeEmailDelivery, deletionReason) {
     var url = (kind === 'VEHICLE' ? '/reservierungen/api/fahrzeuge/' : '/reservierungen/api/raeume/')
       + id + '?unit=' + encodeURIComponent(unitId);
     url = appendTestModeEmailParam(url, testModeEmailDelivery);
+    if (deletionReason) {
+      url += '&deletionReason=' + encodeURIComponent(deletionReason);
+    }
     return fetch(url, {
       method: 'DELETE',
       credentials: 'same-origin',
       headers: Object.assign({ Accept: 'application/json' }, csrfHeaders())
     }).then(parseJsonResponse);
+  }
+
+  function isFutureStartAt(startAtIso) {
+    if (!startAtIso) return false;
+    var startMs = Date.parse(startAtIso);
+    return !Number.isNaN(startMs) && startMs > Date.now();
   }
 
   document.getElementById('pending-reservations-table')?.addEventListener('click', function (event) {
@@ -1087,26 +1096,30 @@
       var inTestMode = window.FwConfirm && typeof window.FwConfirm.isTestMode === 'function'
         ? window.FwConfirm.isTestMode()
         : false;
+      var future = isFutureStartAt(row.dataset.startAt);
+      var message =
+        'Soll diese Reservierung wirklich gelöscht werden?\n\n' +
+        'Falls vorhanden, wird der Termin auch aus DIVERA und dem Google-Kalender entfernt.';
+      if (future) {
+        message +=
+          '\n\nDer Antragsteller erhält eine Stornierungs-E-Mail (optional mit Begründung).';
+      }
+      var confirmOpts = {
+        title: 'Reservierung löschen?',
+        message: message,
+        confirmLabel: 'Löschen',
+        cancelLabel: 'Abbrechen',
+        variant: 'danger',
+        emailSelect: inTestMode,
+      };
+      if (future) {
+        confirmOpts.textInputLabel = 'Stornierungsgrund (optional)';
+        confirmOpts.textInputPlaceholder = 'Wird dem Antragsteller in der E-Mail mitgeteilt';
+      }
       var ask =
         window.FwConfirm && typeof window.FwConfirm.show === 'function'
-          ? window.FwConfirm.show({
-              title: 'Reservierung löschen?',
-              message:
-                'Soll diese Reservierung wirklich gelöscht werden?\n\n' +
-                'Falls vorhanden, wird der Termin auch aus DIVERA und dem Google-Kalender entfernt.\n' +
-                'Der Antragsteller erhält eine E-Mail, dass die Reservierung storniert wurde.',
-              confirmLabel: 'Löschen',
-              cancelLabel: 'Abbrechen',
-              variant: 'danger',
-              emailSelect: inTestMode,
-            })
-          : Promise.resolve(
-              window.confirm(
-                'Reservierung wirklich löschen?\n\n' +
-                  'Falls vorhanden, wird der Termin auch aus DIVERA und dem Google-Kalender entfernt.\n' +
-                  'Der Antragsteller erhält eine E-Mail, dass die Reservierung storniert wurde.'
-              )
-            );
+          ? window.FwConfirm.show(confirmOpts)
+          : Promise.resolve(window.confirm(message));
       ask.then(function (result) {
         var ok = result === true || (result && result.ok);
         if (!ok) return;
@@ -1114,8 +1127,9 @@
         if (window.FwConfirm && window.FwConfirm.applyTestModeEmailExtra) {
           delivery = window.FwConfirm.applyTestModeEmailExtra({}, result).testModeEmailDelivery || 'NONE';
         }
+        var deletionReason = future && result && result.textValue ? result.textValue : '';
         btn.disabled = true;
-        deleteReservation(row.dataset.kind, row.dataset.id, delivery)
+        deleteReservation(row.dataset.kind, row.dataset.id, delivery, deletionReason)
           .then(function (data) {
             if (data.ok) {
               notify(data.message || 'Reservierung gelöscht.', 'success');

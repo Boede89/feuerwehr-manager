@@ -13,6 +13,7 @@ import de.feuerwehr.manager.personal.InstructorGroupRepository;
 import de.feuerwehr.manager.personal.PersonGroupRepository;
 import de.feuerwehr.manager.personal.PersonRepository;
 import de.feuerwehr.manager.personal.QualificationTypeRepository;
+import de.feuerwehr.manager.reservierungen.ReservierungenService;
 import de.feuerwehr.manager.technik.RoomRepository;
 import de.feuerwehr.manager.technik.VehicleRepository;
 import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
@@ -25,6 +26,7 @@ import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,6 +52,7 @@ public class TestModeService {
     private final AtemschutzCarrierRepository carrierRepository;
     private final VehicleRepository vehicleRepository;
     private final RoomRepository roomRepository;
+    private final ObjectProvider<ReservierungenService> reservierungenService;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -82,6 +85,10 @@ public class TestModeService {
 
     @Transactional
     public void purgeAllTestData() {
+        ReservierungenService reservations = reservierungenService.getIfAvailable();
+        if (reservations != null) {
+            reservations.purgeAllTestData();
+        }
         List<Long> testReportIds = entityManager
                 .createQuery("SELECT r.id FROM IncidentReport r WHERE r.testData = true", Long.class)
                 .getResultList();

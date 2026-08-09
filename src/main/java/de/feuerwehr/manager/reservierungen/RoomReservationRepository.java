@@ -13,4 +13,6 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
     List<RoomReservation> findByUnitIdAndRequesterUserIdOrderByStartAtDesc(long unitId, long requesterUserId);
 
     List<RoomReservation> findByRoomIdInAndStatus(Collection<Long> roomIds, ReservationStatus status);
+
+    List<RoomReservation> findByTestDataTrue();
 }

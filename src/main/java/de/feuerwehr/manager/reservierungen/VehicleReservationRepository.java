@@ -14,6 +14,8 @@ public interface VehicleReservationRepository extends JpaRepository<VehicleReser
 
     List<VehicleReservation> findByUnitIdAndRequesterUserIdOrderByStartAtDesc(long unitId, long requesterUserId);
 
+    List<VehicleReservation> findByTestDataTrue();
+
     @Query("""
             SELECT DISTINCT r FROM VehicleReservation r
             LEFT JOIN r.vehicles v
