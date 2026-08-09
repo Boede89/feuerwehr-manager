@@ -7389,7 +7389,7 @@ span.required { color: var(--error); }
 .reservierungen-resource-row {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 1rem;
   padding: 0.9rem 1.1rem;
   border-bottom: 1px solid var(--border);
@@ -7413,10 +7413,10 @@ span.required { color: var(--error); }
 .reservierungen-resource-row__main {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.2rem;
   min-width: 0;
-  text-align: center;
+  text-align: left;
 }
 
 .reservierungen-resource-row__main strong {
@@ -7434,7 +7434,7 @@ span.required { color: var(--error); }
 @media (max-width: 640px) {
   .reservierungen-resource-row {
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
   }
 }
 
