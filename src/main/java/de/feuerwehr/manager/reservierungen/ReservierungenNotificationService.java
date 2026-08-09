@@ -1,7 +1,10 @@
 package de.feuerwehr.manager.reservierungen;
 
+import de.feuerwehr.manager.berichte.TestModeEmailContext;
+import de.feuerwehr.manager.berichte.TestModeEmailDelivery;
 import de.feuerwehr.manager.mail.UnitMailService;
 import de.feuerwehr.manager.settings.GlobalSettingsService;
+import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
 import java.time.Instant;
@@ -30,6 +33,7 @@ public class ReservierungenNotificationService {
     private final UserRepository userRepository;
     private final ReservierungenSettingsService settingsService;
     private final GlobalSettingsService globalSettingsService;
+    private final TestModeService testModeService;
 
     public void notifyAdminsNewVehicleReservation(long unitId, VehicleReservation reservation) {
         notifyAdminsNewVehicleReservation(unitId, reservation, 1);
@@ -127,6 +131,10 @@ public class ReservierungenNotificationService {
         if (!unitMailService.canSendForUnit(unitId) || email == null || email.isBlank()) {
             return;
         }
+        List<String> recipients = resolveMailRecipients(unitId, List.of(email.trim()));
+        if (recipients.isEmpty()) {
+            return;
+        }
         String subject = "Reservierung storniert – " + resourceName;
         String body = """
                 <p style="color:#b91c1c;font-weight:700;">%s</p>
@@ -147,7 +155,9 @@ public class ReservierungenNotificationService {
                         escape(blankToDash(reason)),
                         escape(blankToDash(location)),
                         escape(formatTimeRange(startAt, endAt)));
-        unitMailService.sendHtmlMail(unitId, email, subject, wrapHtml(subject, body));
+        for (String recipient : recipients) {
+            unitMailService.sendHtmlMail(unitId, recipient, subject, wrapHtml(subject, body));
+        }
     }
 
     private void sendDecisionMail(
@@ -162,6 +172,10 @@ public class ReservierungenNotificationService {
             Instant endAt,
             String rejectionReason) {
         if (!unitMailService.canSendForUnit(unitId) || email == null || email.isBlank()) {
+            return;
+        }
+        List<String> recipients = resolveMailRecipients(unitId, List.of(email.trim()));
+        if (recipients.isEmpty()) {
             return;
         }
         String subject = (approved ? "Reservierung genehmigt" : "Reservierung abgelehnt") + " – " + resourceName;
@@ -190,7 +204,9 @@ public class ReservierungenNotificationService {
                                 escape(blankToDash(location)),
                                 escape(formatTimeRange(startAt, endAt)),
                                 reasonBlock);
-        unitMailService.sendHtmlMail(unitId, email, subject, wrapHtml(subject, body));
+        for (String recipient : recipients) {
+            unitMailService.sendHtmlMail(unitId, recipient, subject, wrapHtml(subject, body));
+        }
     }
 
     private void notifyAdmins(
@@ -198,36 +214,73 @@ public class ReservierungenNotificationService {
             ReservierungenSettingsService.NotificationRecipients recipients,
             String subject,
             String htmlBody) {
-        if (recipients == null || recipients.isEmpty()) {
-            return;
-        }
         if (!unitMailService.canSendForUnit(unitId)) {
             log.debug("SMTP nicht konfiguriert – Reservierungsbenachrichtigung übersprungen (Einheit {}).", unitId);
             return;
         }
-        Set<String> sent = new LinkedHashSet<>();
-        List<Long> userIds = recipients.userIds() != null ? recipients.userIds() : List.of();
-        for (Long userId : userIds) {
-            if (userId == null || userId <= 0) {
-                continue;
+        Set<String> configured = new LinkedHashSet<>();
+        if (recipients != null) {
+            List<Long> userIds = recipients.userIds() != null ? recipients.userIds() : List.of();
+            for (Long userId : userIds) {
+                if (userId == null || userId <= 0) {
+                    continue;
+                }
+                User user = userRepository.findById(userId).orElse(null);
+                if (user == null || !user.isActive()) {
+                    continue;
+                }
+                String email = resolveEmail(user);
+                if (email == null || email.isBlank()) {
+                    continue;
+                }
+                configured.add(email.trim());
             }
-            User user = userRepository.findById(userId).orElse(null);
-            if (user == null || !user.isActive()) {
-                continue;
+            List<String> extraEmails = recipients.emails() != null ? recipients.emails() : List.of();
+            for (String email : extraEmails) {
+                if (email == null || email.isBlank()) {
+                    continue;
+                }
+                configured.add(email.trim());
             }
-            String email = resolveEmail(user);
-            if (email == null || email.isBlank() || !sent.add(email.toLowerCase(Locale.ROOT))) {
-                continue;
-            }
+        }
+        List<String> targets = resolveMailRecipients(unitId, List.copyOf(configured));
+        for (String email : targets) {
             unitMailService.sendHtmlMail(unitId, email, subject, wrapHtml(subject, htmlBody));
         }
-        List<String> extraEmails = recipients.emails() != null ? recipients.emails() : List.of();
-        for (String email : extraEmails) {
-            if (email == null || email.isBlank() || !sent.add(email.toLowerCase(Locale.ROOT))) {
-                continue;
-            }
-            unitMailService.sendHtmlMail(unitId, email.trim(), subject, wrapHtml(subject, htmlBody));
+    }
+
+    /**
+     * Im Testmodus: NONE = keine Mail, SELF = nur aktuelle Login-E-Mail,
+     * CONFIGURED = hinterlegte Empfänger. Außerhalb Testmodus unverändert.
+     */
+    private List<String> resolveMailRecipients(long unitId, List<String> configuredRecipients) {
+        if (!testModeService.isEnabled()) {
+            return configuredRecipients == null ? List.of() : configuredRecipients;
         }
+        TestModeEmailDelivery delivery = TestModeEmailContext.getDelivery();
+        if (delivery == TestModeEmailDelivery.NONE) {
+            log.info(
+                    "Testmodus: Reservierungs-E-Mail nicht gesendet (Auswahl: keine E-Mail, Einheit {}).",
+                    unitId);
+            return List.of();
+        }
+        if (delivery == TestModeEmailDelivery.SELF) {
+            String actorEmail = TestModeEmailContext.getActorEmail();
+            if (actorEmail == null || actorEmail.isBlank()) {
+                log.warn(
+                        "Testmodus: Reservierungs-E-Mail nicht gesendet — keine Login-E-Mail (Einheit {}).",
+                        unitId);
+                return List.of();
+            }
+            return List.of(actorEmail.trim());
+        }
+        if (configuredRecipients == null || configuredRecipients.isEmpty()) {
+            log.info(
+                    "Testmodus: Reservierungs-E-Mail nicht gesendet — keine hinterlegten Empfänger (Einheit {}).",
+                    unitId);
+            return List.of();
+        }
+        return configuredRecipients;
     }
 
     private String buildNewRequestHtml(

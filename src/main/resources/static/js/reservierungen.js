@@ -21,7 +21,7 @@
   var chipsBox = document.getElementById('reservierung-selected-chips');
   var importChipsBox = document.getElementById('import-selected-chips');
   var resourceCatalog = loadResourceCatalog();
-  var pendingCreateFlags = { forceConflict: false, forceLoesch: false };
+  var pendingCreateFlags = { forceConflict: false, forceLoesch: false, testModeEmailDelivery: null };
   var selectedResources = [];
   var importExtraResources = [];
   var pickContext = 'create'; // create | import
@@ -480,7 +480,7 @@
     if (!modal || !form) {
       return;
     }
-    pendingCreateFlags = { forceConflict: false, forceLoesch: false };
+    pendingCreateFlags = { forceConflict: false, forceLoesch: false, testModeEmailDelivery: null };
     document.getElementById('reservierung-kind').value = kind;
     document.getElementById('reservierung-modal-title').textContent =
       (kind === 'vehicle' ? 'Fahrzeug' : 'Raum') + ' reservieren' + (name ? ': ' + name : '');
@@ -705,6 +705,30 @@
     submitCreate();
   });
 
+  function appendTestModeEmailParam(url, delivery) {
+    if (!delivery) return url;
+    var sep = url.indexOf('?') >= 0 ? '&' : '?';
+    return url + sep + 'testModeEmailDelivery=' + encodeURIComponent(delivery);
+  }
+
+  function askTestModeEmailDelivery(cached) {
+    if (cached) {
+      return Promise.resolve(cached);
+    }
+    if (window.FwConfirm && typeof window.FwConfirm.askTestModeEmail === 'function') {
+      return window.FwConfirm.askTestModeEmail().then(function (result) {
+        if (result === false || (result && result.ok === false)) {
+          return null;
+        }
+        if (result === true) {
+          return 'NONE';
+        }
+        return (result && result.testModeEmailDelivery) || 'NONE';
+      });
+    }
+    return Promise.resolve('NONE');
+  }
+
   function submitCreate() {
     var kind = currentKind();
     var resourceIds = selectedResources.map(function (r) { return Number(r.id); }).filter(Boolean);
@@ -730,54 +754,62 @@
       return;
     }
 
-    var payload = {
-      resourceIds: resourceIds,
-      resourceId: resourceIds[0],
-      requesterName: requesterName,
-      requesterEmail: requesterEmail,
-      reason: reason,
-      location: location,
-      slots: slots,
-      startAt: slots[0].startAt,
-      endAt: slots[0].endAt,
-      forceAvailabilityOverride: !!pendingCreateFlags.forceLoesch,
-      forceConflictOverride: !!pendingCreateFlags.forceConflict
-    };
-    var url = kind === 'vehicle'
-      ? '/reservierungen/api/fahrzeuge?unit=' + encodeURIComponent(unitId)
-      : '/reservierungen/api/raeume?unit=' + encodeURIComponent(unitId);
-    if (submitBtn) submitBtn.disabled = true;
-    fetch(url, {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: Object.assign({ 'Content-Type': 'application/json', Accept: 'application/json' }, csrfHeaders()),
-      body: JSON.stringify(payload)
-    })
-      .then(parseJsonResponse)
-      .then(function (data) {
-        if (data.code === 'LOESCH_WARNING') {
-          showLoeschModal(data);
-          return;
-        }
-        if (data.code === 'CONFLICTS') {
-          showConflictModal(data);
-          return;
-        }
-        if (!data.ok) {
-          notify(data.message || 'Fehler beim Einreichen.', 'error');
-          return;
-        }
-        pendingCreateFlags = { forceConflict: false, forceLoesch: false };
-        closeModal();
-        notify(data.message || 'Antrag eingereicht.', 'success');
-        window.location.href = '/reservierungen?unit=' + encodeURIComponent(unitId) + '&tab=meine';
+    askTestModeEmailDelivery(pendingCreateFlags.testModeEmailDelivery).then(function (delivery) {
+      if (delivery == null) {
+        return;
+      }
+      pendingCreateFlags.testModeEmailDelivery = delivery;
+
+      var payload = {
+        resourceIds: resourceIds,
+        resourceId: resourceIds[0],
+        requesterName: requesterName,
+        requesterEmail: requesterEmail,
+        reason: reason,
+        location: location,
+        slots: slots,
+        startAt: slots[0].startAt,
+        endAt: slots[0].endAt,
+        forceAvailabilityOverride: !!pendingCreateFlags.forceLoesch,
+        forceConflictOverride: !!pendingCreateFlags.forceConflict
+      };
+      var url = kind === 'vehicle'
+        ? '/reservierungen/api/fahrzeuge?unit=' + encodeURIComponent(unitId)
+        : '/reservierungen/api/raeume?unit=' + encodeURIComponent(unitId);
+      url = appendTestModeEmailParam(url, delivery);
+      if (submitBtn) submitBtn.disabled = true;
+      fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: Object.assign({ 'Content-Type': 'application/json', Accept: 'application/json' }, csrfHeaders()),
+        body: JSON.stringify(payload)
       })
-      .catch(function () {
-        notify('Antrag konnte nicht gesendet werden.', 'error');
-      })
-      .finally(function () {
-        if (submitBtn) submitBtn.disabled = false;
-      });
+        .then(parseJsonResponse)
+        .then(function (data) {
+          if (data.code === 'LOESCH_WARNING') {
+            showLoeschModal(data);
+            return;
+          }
+          if (data.code === 'CONFLICTS') {
+            showConflictModal(data);
+            return;
+          }
+          if (!data.ok) {
+            notify(data.message || 'Fehler beim Einreichen.', 'error');
+            return;
+          }
+          pendingCreateFlags = { forceConflict: false, forceLoesch: false, testModeEmailDelivery: null };
+          closeModal();
+          notify(data.message || 'Antrag eingereicht.', 'success');
+          window.location.href = '/reservierungen?unit=' + encodeURIComponent(unitId) + '&tab=meine';
+        })
+        .catch(function () {
+          notify('Antrag konnte nicht gesendet werden.', 'error');
+        })
+        .finally(function () {
+          if (submitBtn) submitBtn.disabled = false;
+        });
+    });
   }
 
   form?.addEventListener('submit', function (event) {
@@ -786,7 +818,7 @@
       notify('Bitte alle Pflichtfelder ausfüllen.', 'error');
       return;
     }
-    pendingCreateFlags = { forceConflict: false, forceLoesch: false };
+    pendingCreateFlags = { forceConflict: false, forceLoesch: false, testModeEmailDelivery: null };
     submitCreate();
   });
 
@@ -920,9 +952,10 @@
       });
   });
 
-  function processReservation(kind, id, action, reason, forceLoesch, conflictIds) {
+  function processReservation(kind, id, action, reason, forceLoesch, conflictIds, testModeEmailDelivery) {
     var url = (kind === 'VEHICLE' ? '/reservierungen/api/fahrzeuge/' : '/reservierungen/api/raeume/')
       + id + '/process?unit=' + encodeURIComponent(unitId);
+    url = appendTestModeEmailParam(url, testModeEmailDelivery);
     return fetch(url, {
       method: 'POST',
       credentials: 'same-origin',
@@ -978,9 +1011,10 @@
     return true;
   }
 
-  function deleteReservation(kind, id) {
+  function deleteReservation(kind, id, testModeEmailDelivery) {
     var url = (kind === 'VEHICLE' ? '/reservierungen/api/fahrzeuge/' : '/reservierungen/api/raeume/')
       + id + '?unit=' + encodeURIComponent(unitId);
+    url = appendTestModeEmailParam(url, testModeEmailDelivery);
     return fetch(url, {
       method: 'DELETE',
       credentials: 'same-origin',
@@ -996,10 +1030,11 @@
     var kind = row.dataset.kind;
     var id = row.dataset.id;
     var action = btn.dataset.action;
+    var processEmailDelivery = null;
 
     function runApprove(approveAction, forceLoesch, conflictIds) {
       btn.disabled = true;
-      processReservation(kind, id, approveAction, '', forceLoesch, conflictIds)
+      processReservation(kind, id, approveAction, '', forceLoesch, conflictIds, processEmailDelivery)
         .then(function (data) {
           if (handleProcessResult(data, function (nextAction, nextForce, nextIds) {
             runApprove(nextAction, nextForce, nextIds);
@@ -1016,25 +1051,32 @@
     }
 
     if (action === 'approve') {
-      runApprove('approve', false, []);
+      askTestModeEmailDelivery(null).then(function (delivery) {
+        if (delivery == null) return;
+        processEmailDelivery = delivery;
+        runApprove('approve', false, []);
+      });
       return;
     }
     if (action === 'reject') {
       var reason = window.prompt('Begründung für die Ablehnung (optional):', '') || '';
-      btn.disabled = true;
-      processReservation(kind, id, 'reject', reason, false, [])
-        .then(function (data) {
-          if (data.ok) {
-            window.location.reload();
-          } else {
-            notify(data.message || 'Ablehnung fehlgeschlagen.', 'error');
+      askTestModeEmailDelivery(null).then(function (delivery) {
+        if (delivery == null) return;
+        btn.disabled = true;
+        processReservation(kind, id, 'reject', reason, false, [], delivery)
+          .then(function (data) {
+            if (data.ok) {
+              window.location.reload();
+            } else {
+              notify(data.message || 'Ablehnung fehlgeschlagen.', 'error');
+              btn.disabled = false;
+            }
+          })
+          .catch(function () {
+            notify('Ablehnung fehlgeschlagen.', 'error');
             btn.disabled = false;
-          }
-        })
-        .catch(function () {
-          notify('Ablehnung fehlgeschlagen.', 'error');
-          btn.disabled = false;
-        });
+          });
+      });
     }
   });
 
@@ -1042,6 +1084,9 @@
     btn.addEventListener('click', function () {
       var row = btn.closest('tr');
       if (!row || !canWrite) return;
+      var inTestMode = window.FwConfirm && typeof window.FwConfirm.isTestMode === 'function'
+        ? window.FwConfirm.isTestMode()
+        : false;
       var ask =
         window.FwConfirm && typeof window.FwConfirm.show === 'function'
           ? window.FwConfirm.show({
@@ -1053,6 +1098,7 @@
               confirmLabel: 'Löschen',
               cancelLabel: 'Abbrechen',
               variant: 'danger',
+              emailSelect: inTestMode,
             })
           : Promise.resolve(
               window.confirm(
@@ -1061,10 +1107,15 @@
                   'Der Antragsteller erhält eine E-Mail, dass die Reservierung storniert wurde.'
               )
             );
-      ask.then(function (ok) {
+      ask.then(function (result) {
+        var ok = result === true || (result && result.ok);
         if (!ok) return;
+        var delivery = 'NONE';
+        if (window.FwConfirm && window.FwConfirm.applyTestModeEmailExtra) {
+          delivery = window.FwConfirm.applyTestModeEmailExtra({}, result).testModeEmailDelivery || 'NONE';
+        }
         btn.disabled = true;
-        deleteReservation(row.dataset.kind, row.dataset.id)
+        deleteReservation(row.dataset.kind, row.dataset.id, delivery)
           .then(function (data) {
             if (data.ok) {
               notify(data.message || 'Reservierung gelöscht.', 'success');
