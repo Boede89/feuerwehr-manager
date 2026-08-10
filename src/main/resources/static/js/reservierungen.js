@@ -572,6 +572,14 @@
     return slots;
   }
 
+  function statusLabel(status) {
+    if (status === 'APPROVED') return 'Genehmigt';
+    if (status === 'PENDING') return 'Offener Antrag';
+    if (status === 'CANCELLED') return 'Storniert';
+    if (status === 'REJECTED') return 'Abgelehnt';
+    return status || '—';
+  }
+
   function fillConflictList(listEl, conflicts) {
     if (!listEl) return;
     listEl.innerHTML = '';
@@ -580,6 +588,8 @@
       li.className = 'reservierungen-conflict-item';
       li.innerHTML =
         '<strong>' + escapeHtml(c.resourceName || 'Ressource') + '</strong>'
+        + ' <span class="badge ' + (c.status === 'PENDING' ? 'badge-warning' : 'badge-success') + '">'
+        + escapeHtml(statusLabel(c.status)) + '</span>'
         + '<span class="reservierungen-conflict-item__meta">'
         + '<span>Grund: ' + escapeHtml(c.reason || '—') + '</span>'
         + '<span>Antragsteller: ' + escapeHtml(c.requesterName || '—') + '</span>'

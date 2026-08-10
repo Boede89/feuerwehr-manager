@@ -24,4 +24,14 @@ public interface VehicleReservationRepository extends JpaRepository<VehicleReser
             """)
     List<VehicleReservation> findByStatusAndAnyVehicleIdIn(
             @Param("status") ReservationStatus status, @Param("vehicleIds") Collection<Long> vehicleIds);
+
+    @Query("""
+            SELECT DISTINCT r FROM VehicleReservation r
+            LEFT JOIN r.vehicles v
+            WHERE r.status IN :statuses
+              AND (r.vehicle.id IN :vehicleIds OR v.id IN :vehicleIds)
+            """)
+    List<VehicleReservation> findByStatusInAndAnyVehicleIdIn(
+            @Param("statuses") Collection<ReservationStatus> statuses,
+            @Param("vehicleIds") Collection<Long> vehicleIds);
 }

@@ -14,5 +14,7 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
 
     List<RoomReservation> findByRoomIdInAndStatus(Collection<Long> roomIds, ReservationStatus status);
 
+    List<RoomReservation> findByRoomIdInAndStatusIn(Collection<Long> roomIds, Collection<ReservationStatus> statuses);
+
     List<RoomReservation> findByTestDataTrue();
 }

@@ -141,7 +141,7 @@ public class ReservierungenService {
         }
         if (!allConflicts.isEmpty() && !request.forceConflictOverride()) {
             throw new ReservationConflictException(
-                    "Mindestens ein Fahrzeug ist in einem der Zeiträume bereits vergeben.",
+                    "Mindestens ein Fahrzeug ist in einem der Zeiträume bereits vergeben oder beantragt.",
                     distinctConflicts(allConflicts),
                     List.copyOf(conflictingRequestedIds));
         }
@@ -216,7 +216,7 @@ public class ReservierungenService {
         }
         if (!allConflicts.isEmpty() && !request.forceConflictOverride()) {
             throw new ReservationConflictException(
-                    "Mindestens ein Raum ist in einem der Zeiträume bereits vergeben.",
+                    "Mindestens ein Raum ist in einem der Zeiträume bereits vergeben oder beantragt.",
                     distinctConflicts(allConflicts),
                     List.copyOf(conflictingRequestedIds));
         }
@@ -532,7 +532,7 @@ public class ReservierungenService {
                 vehicleIds, reservation.getStartAt(), reservation.getEndAt(), reservation.getId());
         if (!conflicts.isEmpty() && !resolveConflicts) {
             throw new ReservationConflictException(
-                    "Das Fahrzeug ist in diesem Zeitraum bereits genehmigt belegt.",
+                    "Das Fahrzeug ist in diesem Zeitraum bereits genehmigt belegt oder beantragt.",
                     conflicts,
                     vehicleIds);
         }
@@ -658,9 +658,12 @@ public class ReservierungenService {
                 continue;
             }
             VehicleReservation existing = vehicleReservationRepository.findById(conflict.id()).orElse(null);
-            if (existing == null || existing.getStatus() != ReservationStatus.APPROVED) {
+            if (existing == null
+                    || (existing.getStatus() != ReservationStatus.APPROVED
+                            && existing.getStatus() != ReservationStatus.PENDING)) {
                 continue;
             }
+            boolean wasApproved = existing.getStatus() == ReservationStatus.APPROVED;
             existing.setStatus(ReservationStatus.CANCELLED);
             vehicleReservationRepository.save(existing);
             cleanupVehicleReservation(existing);
@@ -673,7 +676,9 @@ public class ReservierungenService {
                     existing.getLocation(),
                     existing.getStartAt(),
                     existing.getEndAt(),
-                    "Ihre genehmigte Fahrzeugreservierung wurde wegen eines Konflikts storniert.",
+                    wasApproved
+                            ? "Ihre genehmigte Fahrzeugreservierung wurde wegen eines Konflikts storniert."
+                            : "Ihr Antrag auf eine Fahrzeugreservierung wurde wegen eines Konflikts storniert.",
                     null);
         }
     }
@@ -684,9 +689,12 @@ public class ReservierungenService {
                 continue;
             }
             RoomReservation existing = roomReservationRepository.findById(conflict.id()).orElse(null);
-            if (existing == null || existing.getStatus() != ReservationStatus.APPROVED) {
+            if (existing == null
+                    || (existing.getStatus() != ReservationStatus.APPROVED
+                            && existing.getStatus() != ReservationStatus.PENDING)) {
                 continue;
             }
+            boolean wasApproved = existing.getStatus() == ReservationStatus.APPROVED;
             existing.setStatus(ReservationStatus.CANCELLED);
             roomReservationRepository.save(existing);
             cleanupRoomReservation(existing);
@@ -699,7 +707,9 @@ public class ReservierungenService {
                     existing.getLocation(),
                     existing.getStartAt(),
                     existing.getEndAt(),
-                    "Ihre genehmigte Raumreservierung wurde wegen eines Konflikts storniert.",
+                    wasApproved
+                            ? "Ihre genehmigte Raumreservierung wurde wegen eines Konflikts storniert."
+                            : "Ihr Antrag auf eine Raumreservierung wurde wegen eines Konflikts storniert.",
                     null);
         }
     }

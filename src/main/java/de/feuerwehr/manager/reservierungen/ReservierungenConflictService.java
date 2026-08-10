@@ -25,6 +25,9 @@ public class ReservierungenConflictService {
     private final ReservierungenSettingsService settingsService;
     private final UnitAdminService unitAdminService;
 
+    private static final Set<ReservationStatus> BOOKING_BLOCKING_STATUSES =
+            Set.of(ReservationStatus.APPROVED, ReservationStatus.PENDING);
+
     @Transactional(readOnly = true)
     public List<ReservationConflictView> vehicleConflicts(
             long vehicleId, Instant startAt, Instant endAt, Long excludeId) {
@@ -34,14 +37,26 @@ public class ReservierungenConflictService {
     @Transactional(readOnly = true)
     public List<ReservationConflictView> vehicleConflicts(
             long vehicleId, Instant startAt, Instant endAt, Set<Long> excludeIds) {
+        return vehicleConflicts(vehicleId, startAt, endAt, excludeIds, BOOKING_BLOCKING_STATUSES);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReservationConflictView> vehicleConflicts(
+            long vehicleId,
+            Instant startAt,
+            Instant endAt,
+            Set<Long> excludeIds,
+            Set<ReservationStatus> statuses) {
         Vehicle vehicle = vehicleRepository.findById(vehicleId).orElse(null);
         if (vehicle == null) {
             return List.of();
         }
         Set<Long> excludes = excludeIds == null ? Set.of() : excludeIds;
+        Set<ReservationStatus> statusFilter =
+                statuses == null || statuses.isEmpty() ? BOOKING_BLOCKING_STATUSES : statuses;
         List<Long> relatedIds = relatedVehicleIds(vehicle);
         return vehicleReservationRepository
-                .findByStatusAndAnyVehicleIdIn(ReservationStatus.APPROVED, relatedIds)
+                .findByStatusInAndAnyVehicleIdIn(statusFilter, relatedIds)
                 .stream()
                 .filter(r -> r.getId() == null || !excludes.contains(r.getId()))
                 .filter(r -> overlaps(r.getStartAt(), r.getEndAt(), startAt, endAt))
@@ -93,7 +108,7 @@ public class ReservierungenConflictService {
         }
         List<Long> relatedIds = relatedRoomIds(room);
         return roomReservationRepository
-                .findByRoomIdInAndStatus(relatedIds, ReservationStatus.APPROVED)
+                .findByRoomIdInAndStatusIn(relatedIds, BOOKING_BLOCKING_STATUSES)
                 .stream()
                 .filter(r -> excludeId == null || !excludeId.equals(r.getId()))
                 .filter(r -> overlaps(r.getStartAt(), r.getEndAt(), startAt, endAt))
@@ -167,7 +182,10 @@ public class ReservierungenConflictService {
         int minAvailable = Math.max(0, settings.getVehicleLoeschMinAvailable());
         Set<Long> reservedLoesch = new HashSet<>();
         for (Long loeschId : loeschIds) {
-            if (vehicleConflicts(loeschId, startAt, endAt, excludes).isEmpty()) {
+            // Nur genehmigte Belegungen zählen für die Mindestverfügbarkeit
+            if (vehicleConflicts(
+                            loeschId, startAt, endAt, excludes, Set.of(ReservationStatus.APPROVED))
+                    .isEmpty()) {
                 continue;
             }
             reservedLoesch.add(loeschId);
