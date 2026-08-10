@@ -1,6 +1,7 @@
 package de.feuerwehr.manager.reservierungen;
 
 import java.time.Instant;
+import java.util.List;
 
 public record ReservationListItemView(
         long id,
@@ -18,4 +19,5 @@ public record ReservationListItemView(
         String approvedByName,
         Instant createdAt,
         boolean ownedByCurrentUser,
-        boolean hasConflict) {}
+        boolean hasConflict,
+        List<ReservationResourceItem> resources) {}

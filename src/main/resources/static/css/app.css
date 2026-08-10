@@ -7691,6 +7691,50 @@ span.required { color: var(--error); }
   border-top: 1px solid var(--border);
 }
 
+.reservierung-vehicle-decisions {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.reservierung-vehicle-decisions__title {
+  margin: 0 0 8px;
+  font-size: var(--fs-md, 14px);
+  font-weight: 700;
+}
+
+.reservierung-vehicle-decision-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.reservierung-vehicle-decision-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.reservierung-vehicle-decision-row__actions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.reservierung-vehicle-decision-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-sm, 13px);
+  cursor: pointer;
+}
+
 .reservierung-details-conflicts__title {
   margin: 0 0 10px;
   font-size: var(--fs-md, 14px);

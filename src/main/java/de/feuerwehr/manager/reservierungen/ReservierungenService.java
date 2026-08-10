@@ -17,6 +17,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -485,30 +486,125 @@ public class ReservierungenService {
 
     private List<String> approveVehicle(VehicleReservation reservation, long actorUserId, ProcessReservationRequest request) {
         long unitId = reservation.getUnit().getId();
-        List<Long> vehicleIds = reservation.resolvedVehicles().stream().map(Vehicle::getId).toList();
+        List<Vehicle> allVehicles = reservation.resolvedVehicles();
+        List<Long> allIds = allVehicles.stream().map(Vehicle::getId).toList();
+
+        LinkedHashSet<Long> approvedIds = new LinkedHashSet<>();
+        LinkedHashSet<Long> rejectedIds = new LinkedHashSet<>();
+        if (request.approvedVehicleIds() != null && !request.approvedVehicleIds().isEmpty()) {
+            for (Long id : request.approvedVehicleIds()) {
+                if (id != null && allIds.contains(id)) {
+                    approvedIds.add(id);
+                }
+            }
+            for (Long id : allIds) {
+                if (!approvedIds.contains(id)) {
+                    rejectedIds.add(id);
+                }
+            }
+        } else if (request.rejectedVehicleIds() != null && !request.rejectedVehicleIds().isEmpty()) {
+            for (Long id : request.rejectedVehicleIds()) {
+                if (id != null && allIds.contains(id)) {
+                    rejectedIds.add(id);
+                }
+            }
+            for (Long id : allIds) {
+                if (!rejectedIds.contains(id)) {
+                    approvedIds.add(id);
+                }
+            }
+        } else {
+            approvedIds.addAll(allIds);
+        }
+
+        if (approvedIds.isEmpty()) {
+            rejectVehicle(reservation, actorUserId, request.reason());
+            return List.of();
+        }
+
+        List<Vehicle> approvedVehicles = allVehicles.stream()
+                .filter(v -> approvedIds.contains(v.getId()))
+                .toList();
+        List<Long> vehicleIds = approvedVehicles.stream().map(Vehicle::getId).toList();
+
+        boolean resolveConflicts = "approve_with_conflict_resolution".equals(normalizeAction(request.action()));
         List<ReservationConflictView> conflicts = conflictService.vehicleConflictsForVehicles(
                 vehicleIds, reservation.getStartAt(), reservation.getEndAt(), reservation.getId());
-        if (!conflicts.isEmpty() && !"approve_with_conflict_resolution".equals(normalizeAction(request.action()))) {
+        if (!conflicts.isEmpty() && !resolveConflicts) {
             throw new ReservationConflictException(
-                    "Das Fahrzeug ist in diesem Zeitraum bereits genehmigt belegt.", conflicts);
+                    "Das Fahrzeug ist in diesem Zeitraum bereits genehmigt belegt.",
+                    conflicts,
+                    vehicleIds);
+        }
+
+        LinkedHashSet<Long> loeschExcludes = new LinkedHashSet<>();
+        loeschExcludes.add(reservation.getId());
+        if (resolveConflicts && request.conflictIds() != null) {
+            loeschExcludes.addAll(request.conflictIds());
         }
         LoeschfahrzeugWarningView warning = conflictService.checkLoeschfahrzeugWarning(
-                unitId, vehicleIds, reservation.getStartAt(), reservation.getEndAt(), reservation.getId());
+                unitId, vehicleIds, reservation.getStartAt(), reservation.getEndAt(), loeschExcludes);
         if (warning.warning() && !request.forceAvailabilityOverride()) {
             throw new LoeschfahrzeugWarningException(warning);
         }
-        if ("approve_with_conflict_resolution".equals(normalizeAction(request.action()))) {
+
+        if (resolveConflicts) {
             conflicts = conflictService.vehicleConflictsForVehicles(
                     vehicleIds, reservation.getStartAt(), reservation.getEndAt(), reservation.getId());
             cancelVehicleConflicts(unitId, conflicts, request.conflictIds());
         }
+
+        if (!rejectedIds.isEmpty()) {
+            List<Vehicle> rejectedVehicles = allVehicles.stream()
+                    .filter(v -> rejectedIds.contains(v.getId()))
+                    .toList();
+            createRejectedVehicleSibling(reservation, rejectedVehicles, actorUserId, request.reason());
+            reservation.setVehiclesOrdered(new ArrayList<>(approvedVehicles));
+        }
+
         reservation.setStatus(ReservationStatus.APPROVED);
         reservation.setApprovedByUser(requireUser(actorUserId));
         reservation.setApprovedAt(Instant.now());
         vehicleReservationRepository.save(reservation);
         List<String> syncNotes = applyVehicleIntegrations(unitId, reservation, actorUserId, request.diveraGroupIds());
-        notificationService.notifyRequesterDecision(unitId, reservation, true, null);
+        if (rejectedIds.isEmpty()) {
+            notificationService.notifyRequesterDecision(unitId, reservation, true, null);
+        } else {
+            String rejectedNames = allVehicles.stream()
+                    .filter(v -> rejectedIds.contains(v.getId()))
+                    .map(Vehicle::getName)
+                    .collect(Collectors.joining(", "));
+            notificationService.notifyRequesterPartialVehicleDecision(
+                    unitId,
+                    reservation,
+                    reservation.vehicleNamesJoined(),
+                    rejectedNames,
+                    request.reason());
+        }
         return syncNotes;
+    }
+
+    private void createRejectedVehicleSibling(
+            VehicleReservation source, List<Vehicle> rejectedVehicles, long actorUserId, String reason) {
+        if (rejectedVehicles == null || rejectedVehicles.isEmpty()) {
+            return;
+        }
+        VehicleReservation rejected = new VehicleReservation();
+        rejected.setUnit(source.getUnit());
+        rejected.setVehiclesOrdered(new ArrayList<>(rejectedVehicles));
+        rejected.setRequesterUser(source.getRequesterUser());
+        rejected.setRequesterName(source.getRequesterName());
+        rejected.setRequesterEmail(source.getRequesterEmail());
+        rejected.setReason(source.getReason());
+        rejected.setLocation(source.getLocation());
+        rejected.setStartAt(source.getStartAt());
+        rejected.setEndAt(source.getEndAt());
+        rejected.setStatus(ReservationStatus.REJECTED);
+        rejected.setRejectionReason(trimToNull(reason));
+        rejected.setApprovedByUser(requireUser(actorUserId));
+        rejected.setApprovedAt(Instant.now());
+        rejected.setTestData(source.isTestData());
+        vehicleReservationRepository.save(rejected);
     }
 
     private List<String> approveRoom(RoomReservation reservation, long actorUserId, ProcessReservationRequest request) {
@@ -726,6 +822,9 @@ public class ReservierungenService {
     }
 
     private ReservationListItemView toView(VehicleReservation reservation, long currentUserId, boolean hasConflict) {
+        List<ReservationResourceItem> resources = reservation.resolvedVehicles().stream()
+                .map(v -> new ReservationResourceItem(v.getId(), v.getName()))
+                .toList();
         return new ReservationListItemView(
                 reservation.getId(),
                 ReservationKind.VEHICLE,
@@ -743,10 +842,14 @@ public class ReservierungenService {
                 reservation.getCreatedAt(),
                 reservation.getRequesterUser() != null
                         && Objects.equals(reservation.getRequesterUser().getId(), currentUserId),
-                hasConflict);
+                hasConflict,
+                resources);
     }
 
     private ReservationListItemView toView(RoomReservation reservation, long currentUserId, boolean hasConflict) {
+        List<ReservationResourceItem> resources = reservation.getRoom() != null
+                ? List.of(new ReservationResourceItem(reservation.getRoom().getId(), reservation.getRoom().getName()))
+                : List.of();
         return new ReservationListItemView(
                 reservation.getId(),
                 ReservationKind.ROOM,
@@ -764,7 +867,8 @@ public class ReservierungenService {
                 reservation.getCreatedAt(),
                 reservation.getRequesterUser() != null
                         && Objects.equals(reservation.getRequesterUser().getId(), currentUserId),
-                hasConflict);
+                hasConflict,
+                resources);
     }
 
     private boolean hasVehicleConflict(VehicleReservation reservation) {

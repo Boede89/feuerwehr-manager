@@ -7,4 +7,8 @@ public record ProcessReservationRequest(
         String reason,
         boolean forceAvailabilityOverride,
         List<Long> conflictIds,
-        List<Integer> diveraGroupIds) {}
+        List<Integer> diveraGroupIds,
+        /** Bei Genehmigung: nur diese Fahrzeuge freigeben (null/leer = alle). */
+        List<Long> approvedVehicleIds,
+        /** Bei Genehmigung: diese Fahrzeuge ablehnen (optional, Rest = genehmigt). */
+        List<Long> rejectedVehicleIds) {}

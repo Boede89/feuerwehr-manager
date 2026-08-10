@@ -28,15 +28,22 @@ public class ReservierungenConflictService {
     @Transactional(readOnly = true)
     public List<ReservationConflictView> vehicleConflicts(
             long vehicleId, Instant startAt, Instant endAt, Long excludeId) {
+        return vehicleConflicts(vehicleId, startAt, endAt, excludeId == null ? Set.of() : Set.of(excludeId));
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReservationConflictView> vehicleConflicts(
+            long vehicleId, Instant startAt, Instant endAt, Set<Long> excludeIds) {
         Vehicle vehicle = vehicleRepository.findById(vehicleId).orElse(null);
         if (vehicle == null) {
             return List.of();
         }
+        Set<Long> excludes = excludeIds == null ? Set.of() : excludeIds;
         List<Long> relatedIds = relatedVehicleIds(vehicle);
         return vehicleReservationRepository
                 .findByStatusAndAnyVehicleIdIn(ReservationStatus.APPROVED, relatedIds)
                 .stream()
-                .filter(r -> excludeId == null || !excludeId.equals(r.getId()))
+                .filter(r -> r.getId() == null || !excludes.contains(r.getId()))
                 .filter(r -> overlaps(r.getStartAt(), r.getEndAt(), startAt, endAt))
                 .map(r -> new ReservationConflictView(
                         r.getId(),
@@ -53,6 +60,13 @@ public class ReservierungenConflictService {
     @Transactional(readOnly = true)
     public List<ReservationConflictView> vehicleConflictsForVehicles(
             List<Long> vehicleIds, Instant startAt, Instant endAt, Long excludeId) {
+        return vehicleConflictsForVehicles(
+                vehicleIds, startAt, endAt, excludeId == null ? Set.of() : Set.of(excludeId));
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReservationConflictView> vehicleConflictsForVehicles(
+            List<Long> vehicleIds, Instant startAt, Instant endAt, Set<Long> excludeIds) {
         LinkedHashSet<Long> seen = new LinkedHashSet<>();
         List<ReservationConflictView> result = new java.util.ArrayList<>();
         if (vehicleIds == null) {
@@ -62,7 +76,7 @@ public class ReservierungenConflictService {
             if (vehicleId == null) {
                 continue;
             }
-            for (ReservationConflictView conflict : vehicleConflicts(vehicleId, startAt, endAt, excludeId)) {
+            for (ReservationConflictView conflict : vehicleConflicts(vehicleId, startAt, endAt, excludeIds)) {
                 if (seen.add(conflict.id())) {
                     result.add(conflict);
                 }
@@ -104,6 +118,21 @@ public class ReservierungenConflictService {
     @Transactional(readOnly = true)
     public LoeschfahrzeugWarningView checkLoeschfahrzeugWarning(
             long unitId, List<Long> vehicleIds, Instant startAt, Instant endAt, Long excludeReservationId) {
+        return checkLoeschfahrzeugWarning(
+                unitId,
+                vehicleIds,
+                startAt,
+                endAt,
+                excludeReservationId == null ? Set.of() : Set.of(excludeReservationId));
+    }
+
+    @Transactional(readOnly = true)
+    public LoeschfahrzeugWarningView checkLoeschfahrzeugWarning(
+            long unitId,
+            List<Long> vehicleIds,
+            Instant startAt,
+            Instant endAt,
+            Set<Long> excludeReservationIds) {
         UnitReservierungenSettings settings = settingsService.ensureSettings(unitId);
         if (!settings.isVehicleLoeschWarnEnabled()) {
             return noWarning();
@@ -133,11 +162,12 @@ public class ReservierungenConflictService {
         if (requestedLoesch.isEmpty()) {
             return noWarning();
         }
+        Set<Long> excludes = excludeReservationIds == null ? Set.of() : excludeReservationIds;
         int total = loeschIds.size();
         int minAvailable = Math.max(0, settings.getVehicleLoeschMinAvailable());
         Set<Long> reservedLoesch = new HashSet<>();
         for (Long loeschId : loeschIds) {
-            if (vehicleConflicts(loeschId, startAt, endAt, excludeReservationId).isEmpty()) {
+            if (vehicleConflicts(loeschId, startAt, endAt, excludes).isEmpty()) {
                 continue;
             }
             reservedLoesch.add(loeschId);

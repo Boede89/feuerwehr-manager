@@ -144,7 +144,7 @@
             <tbody>
             <tr th:each="r : ${pendingReservations}"
                 class="reservierungen-row--clickable"
-                th:attr="data-kind=${r.kind().name()},data-id=${r.id()},data-open-details=${'reservierung-details-' + r.kind().name() + '-' + r.id()}">
+                th:attr="data-kind=${r.kind().name()},data-id=${r.id()},data-open-details=${'reservierung-details-' + r.kind().name() + '-' + r.id()},data-resource-count=${r.resources() != null ? #lists.size(r.resources()) : 1}">
               <td th:text="${r.kind() == T(de.feuerwehr.manager.reservierungen.ReservationKind).VEHICLE ? 'Fahrzeug' : 'Raum'}">Fahrzeug</td>
               <td th:text="${r.resourceName()}">TLF</td>
               <td>
@@ -298,6 +298,29 @@
             <h6 class="reservierung-details-conflicts__title">Zeitüberschneidungen</h6>
             <div class="reservierung-details-conflicts__list" data-details-conflicts-list></div>
           </div>
+          <div th:if="${r.status().name() == 'PENDING' and r.kind().name() == 'VEHICLE' and r.resources() != null and #lists.size(r.resources()) > 1}"
+               class="reservierung-vehicle-decisions"
+               data-vehicle-decisions>
+            <h6 class="reservierung-vehicle-decisions__title">Fahrzeuge einzeln entscheiden</h6>
+            <p class="hint">Genehmigen oder ablehnen Sie einzelne Fahrzeuge. Mindestens eine Entscheidung ist nötig.</p>
+            <div class="reservierung-vehicle-decision-list">
+              <div th:each="v : ${r.resources()}"
+                   class="reservierung-vehicle-decision-row"
+                   th:attr="data-vehicle-id=${v.id()}">
+                <strong th:text="${v.name()}">MTF</strong>
+                <div class="reservierung-vehicle-decision-row__actions">
+                  <label class="reservierung-vehicle-decision-option">
+                    <input type="radio" th:name="${'veh-dec-' + r.id() + '-' + v.id()}" value="approve" checked>
+                    Genehmigen
+                  </label>
+                  <label class="reservierung-vehicle-decision-option">
+                    <input type="radio" th:name="${'veh-dec-' + r.id() + '-' + v.id()}" value="reject">
+                    Ablehnen
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="modal__footer reservierung-details-modal__footer">
           <span class="badge badge--lg"
@@ -307,9 +330,9 @@
             <button type="button" class="btn btn--outline" data-close-details-modal>Schließen</button>
             <th:block th:if="${r.status().name() == 'PENDING'}">
               <button type="button" class="btn btn--outline" data-action="reject"
-                      th:attr="data-kind=${r.kind().name()},data-id=${r.id()}">Ablehnen</button>
+                      th:attr="data-kind=${r.kind().name()},data-id=${r.id()}">Alle ablehnen</button>
               <button type="button" class="btn btn--primary" data-action="approve"
-                      th:attr="data-kind=${r.kind().name()},data-id=${r.id()}">Genehmigen</button>
+                      th:attr="data-kind=${r.kind().name()},data-id=${r.id()}">Entscheidung speichern</button>
             </th:block>
           </div>
         </div>
@@ -552,6 +575,6 @@
   <select id="reservierungen-rooms-template" hidden aria-hidden="true">
     <option th:each="r : ${roomOptions}" th:value="${r.id}" th:text="${r.name}">Raum</option>
   </select>
-  <script th:src="@{/js/reservierungen.js(v='20260810f')}" defer></script>
+  <script th:src="@{/js/reservierungen.js(v='20260810g')}" defer></script>
 </main>
 </html>

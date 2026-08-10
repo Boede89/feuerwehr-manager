@@ -103,6 +103,45 @@ public class ReservierungenNotificationService {
                 rejectionReason);
     }
 
+    public void notifyRequesterPartialVehicleDecision(
+            long unitId,
+            VehicleReservation approvedReservation,
+            String approvedNames,
+            String rejectedNames,
+            String rejectionReason) {
+        if (!unitMailService.canSendForUnit(unitId)
+                || approvedReservation.getRequesterEmail() == null
+                || approvedReservation.getRequesterEmail().isBlank()) {
+            return;
+        }
+        List<String> recipients = resolveMailRecipients(unitId, List.of(approvedReservation.getRequesterEmail().trim()));
+        if (recipients.isEmpty()) {
+            return;
+        }
+        String subject = "Reservierung teilweise entschieden – " + approvedNames;
+        String body = """
+                <p style="color:#15803d;font-weight:700;">Ihre Reservierung wurde teilweise genehmigt.</p>
+                <table style="width:100%%;border-collapse:collapse;margin-top:12px;">
+                  <tr><td style="padding:6px 0;font-weight:600;">Genehmigt</td><td>%s</td></tr>
+                  <tr><td style="padding:6px 0;font-weight:600;">Abgelehnt</td><td>%s</td></tr>
+                  <tr><td style="padding:6px 0;font-weight:600;">Ablehnungsgrund</td><td>%s</td></tr>
+                  <tr><td style="padding:6px 0;font-weight:600;">Grund</td><td>%s</td></tr>
+                  <tr><td style="padding:6px 0;font-weight:600;">Ort</td><td>%s</td></tr>
+                  <tr><td style="padding:6px 0;font-weight:600;">Zeitraum</td><td>%s</td></tr>
+                </table>
+                """
+                .formatted(
+                        escape(approvedNames),
+                        escape(rejectedNames),
+                        escape(rejectionReason != null && !rejectionReason.isBlank() ? rejectionReason : "—"),
+                        escape(blankToDash(approvedReservation.getReason())),
+                        escape(blankToDash(approvedReservation.getLocation())),
+                        escape(formatTimeRange(approvedReservation.getStartAt(), approvedReservation.getEndAt())));
+        for (String recipient : recipients) {
+            unitMailService.sendHtmlMail(unitId, recipient, subject, wrapHtml(subject, body));
+        }
+    }
+
     public void notifyRequesterDecision(
             long unitId, RoomReservation reservation, boolean approved, String rejectionReason) {
         sendDecisionMail(
