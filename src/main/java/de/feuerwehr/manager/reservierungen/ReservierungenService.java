@@ -13,9 +13,11 @@ import de.feuerwehr.manager.user.UserRepository;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -723,15 +725,36 @@ public class ReservierungenService {
                     "Hinweis: DIVERA-/Google-Sync ist unter Reservierungen → Einstellungen nicht aktiviert.");
             return notes;
         }
+        List<VehicleReservation> siblings = findApprovedVehicleSlotSiblings(reservation);
+        List<VehicleReservation> group = new ArrayList<>(siblings);
+        group.add(reservation);
+        String combinedNames = combinedVehicleNames(group);
+        Long existingDiveraEventId = siblings.stream()
+                .map(VehicleReservation::getDiveraEventId)
+                .filter(Objects::nonNull)
+                .filter(id -> id > 0)
+                .findFirst()
+                .orElse(null);
+        Map<Long, String> existingGoogleByAccount = new LinkedHashMap<>();
+        for (VehicleReservation sibling : siblings) {
+            existingGoogleByAccount.putAll(
+                    googleCalendarService.googleEventIdsByAccount(ReservationKind.VEHICLE, sibling.getId()));
+        }
+        boolean merged = existingDiveraEventId != null || !existingGoogleByAccount.isEmpty();
+
         if (settings.isVehicleDiveraEnabled()) {
             List<Integer> groups = diveraGroupIds != null && !diveraGroupIds.isEmpty()
                     ? diveraGroupIds
                     : settingsService.defaultDiveraGroupIds(settings, false);
-            var synced = diveraSyncService.syncVehicleReservation(reservation, groups, actorUserId);
+            var synced = diveraSyncService.syncVehicleReservation(
+                    reservation, groups, actorUserId, combinedNames, existingDiveraEventId);
             if (synced.isPresent()) {
                 reservation.setDiveraEventId(synced.get());
                 vehicleReservationRepository.save(reservation);
-                notes.add("DIVERA: Termin angelegt.");
+                notes.add(
+                        merged && existingDiveraEventId != null
+                                ? "DIVERA: Fahrzeug dem bestehenden Termin hinzugefügt."
+                                : "DIVERA: Termin angelegt.");
             } else {
                 notes.add(
                         "DIVERA: Termin konnte nicht angelegt werden"
@@ -741,9 +764,19 @@ public class ReservierungenService {
         }
         if (settings.isVehicleGoogleCalendarEnabled()) {
             int created = googleCalendarService.syncVehicleReservation(
-                    unitId, reservation, settingsService.vehicleGoogleCalendarAccountIds(settings));
+                    unitId,
+                    reservation,
+                    settingsService.vehicleGoogleCalendarAccountIds(settings),
+                    combinedNames,
+                    existingGoogleByAccount);
             if (created > 0) {
-                notes.add("Google Kalender: " + created + (created == 1 ? " Termin" : " Termine") + " angelegt.");
+                notes.add(
+                        merged && !existingGoogleByAccount.isEmpty()
+                                ? "Google Kalender: Fahrzeug dem bestehenden Termin hinzugefügt."
+                                : "Google Kalender: "
+                                        + created
+                                        + (created == 1 ? " Termin" : " Termine")
+                                        + " angelegt.");
             } else {
                 notes.add(
                         "Google Kalender: kein Termin angelegt"
@@ -796,8 +829,54 @@ public class ReservierungenService {
         Long actorUserId = reservation.getApprovedByUser() != null
                 ? reservation.getApprovedByUser().getId()
                 : (reservation.getRequesterUser() != null ? reservation.getRequesterUser().getId() : null);
-        diveraSyncService.deleteEvent(unitId, reservation.getDiveraEventId(), actorUserId);
-        googleCalendarService.deleteReservationCalendarEvent(ReservationKind.VEHICLE, reservation.getId());
+        List<VehicleReservation> remaining = remainingApprovedVehicleCalendarSiblings(reservation);
+        String combinedNames = combinedVehicleNames(remaining);
+        Long diveraEventId = reservation.getDiveraEventId();
+
+        if (diveraEventId != null && diveraEventId > 0) {
+            if (remaining.isEmpty()) {
+                diveraSyncService.deleteEvent(unitId, diveraEventId, actorUserId);
+            } else {
+                UnitReservierungenSettings settings = settingsService.ensureSettings(unitId);
+                List<Integer> groups = settingsService.defaultDiveraGroupIds(settings, false);
+                VehicleReservation primary = remaining.get(0);
+                diveraSyncService.updateVehicleEvent(
+                        unitId,
+                        diveraEventId,
+                        primary.getId(),
+                        combinedNames,
+                        primary.getReason(),
+                        primary.getLocation(),
+                        primary.getStartAt(),
+                        primary.getEndAt(),
+                        groups,
+                        actorUserId);
+            }
+            reservation.setDiveraEventId(null);
+        }
+
+        if (remaining.isEmpty()) {
+            googleCalendarService.deleteReservationCalendarEvent(ReservationKind.VEHICLE, reservation.getId(), true);
+        } else {
+            UnitReservierungenSettings settings = settingsService.ensureSettings(unitId);
+            Map<Long, String> googleIds = new LinkedHashMap<>();
+            googleIds.putAll(
+                    googleCalendarService.googleEventIdsByAccount(ReservationKind.VEHICLE, reservation.getId()));
+            for (VehicleReservation sibling : remaining) {
+                googleIds.putAll(
+                        googleCalendarService.googleEventIdsByAccount(ReservationKind.VEHICLE, sibling.getId()));
+            }
+            VehicleReservation primary = remaining.get(0);
+            if (!googleIds.isEmpty()) {
+                googleCalendarService.syncVehicleReservation(
+                        unitId,
+                        primary,
+                        settingsService.vehicleGoogleCalendarAccountIds(settings),
+                        combinedNames,
+                        googleIds);
+            }
+            googleCalendarService.deleteReservationCalendarEvent(ReservationKind.VEHICLE, reservation.getId(), false);
+        }
     }
 
     private void cleanupRoomReservation(RoomReservation reservation) {
@@ -807,6 +886,55 @@ public class ReservierungenService {
                 : (reservation.getRequesterUser() != null ? reservation.getRequesterUser().getId() : null);
         diveraSyncService.deleteEvent(unitId, reservation.getDiveraEventId(), actorUserId);
         googleCalendarService.deleteReservationCalendarEvent(ReservationKind.ROOM, reservation.getId());
+    }
+
+    /** Andere genehmigte Fahrzeugreservierungen mit gleichem Grund und Zeitraum. */
+    private List<VehicleReservation> findApprovedVehicleSlotSiblings(VehicleReservation reservation) {
+        String reason = reservation.getReason() != null ? reservation.getReason() : "";
+        return vehicleReservationRepository.findApprovedSlotSiblings(
+                reservation.getUnit().getId(),
+                ReservationStatus.APPROVED,
+                reservation.getStartAt(),
+                reservation.getEndAt(),
+                reason,
+                reservation.getId());
+    }
+
+    /**
+     * Verbleibende genehmigte Reservierungen, die denselben Kalendertermin teilen
+     * (gleiche DIVERA-Event-ID oder gleicher Slot).
+     */
+    private List<VehicleReservation> remainingApprovedVehicleCalendarSiblings(VehicleReservation reservation) {
+        LinkedHashSet<Long> seen = new LinkedHashSet<>();
+        List<VehicleReservation> result = new ArrayList<>();
+        Long diveraEventId = reservation.getDiveraEventId();
+        if (diveraEventId != null && diveraEventId > 0) {
+            for (VehicleReservation sibling : vehicleReservationRepository.findByDiveraEventIdAndStatusAndIdNot(
+                    diveraEventId, ReservationStatus.APPROVED, reservation.getId())) {
+                if (seen.add(sibling.getId())) {
+                    result.add(sibling);
+                }
+            }
+        }
+        for (VehicleReservation sibling : findApprovedVehicleSlotSiblings(reservation)) {
+            if (seen.add(sibling.getId())) {
+                result.add(sibling);
+            }
+        }
+        result.sort(Comparator.comparing(VehicleReservation::getId));
+        return result;
+    }
+
+    private static String combinedVehicleNames(List<VehicleReservation> reservations) {
+        LinkedHashSet<String> names = new LinkedHashSet<>();
+        for (VehicleReservation reservation : reservations) {
+            for (Vehicle vehicle : reservation.resolvedVehicles()) {
+                if (vehicle.getName() != null && !vehicle.getName().isBlank()) {
+                    names.add(vehicle.getName().trim());
+                }
+            }
+        }
+        return String.join(", ", names);
     }
 
     private VehicleReservation requirePendingVehicle(long unitId, long reservationId) {

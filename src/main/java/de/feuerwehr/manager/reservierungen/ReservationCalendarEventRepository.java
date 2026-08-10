@@ -11,4 +11,7 @@ public interface ReservationCalendarEventRepository extends JpaRepository<Reserv
 
     Optional<ReservationCalendarEvent> findByReservationKindAndReservationIdAndCalendarAccountId(
             ReservationKind kind, long reservationId, Long calendarAccountId);
+
+    List<ReservationCalendarEvent> findByReservationKindAndGoogleEventIdAndCalendarAccountId(
+            ReservationKind kind, String googleEventId, Long calendarAccountId);
 }

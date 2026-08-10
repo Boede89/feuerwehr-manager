@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.reservierungen;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,6 +16,29 @@ public interface VehicleReservationRepository extends JpaRepository<VehicleReser
     List<VehicleReservation> findByUnitIdAndRequesterUserIdOrderByStartAtDesc(long unitId, long requesterUserId);
 
     List<VehicleReservation> findByTestDataTrue();
+
+    List<VehicleReservation> findByDiveraEventIdAndStatusAndIdNot(
+            Long diveraEventId, ReservationStatus status, Long excludeId);
+
+    /**
+     * Genehmigte Fahrzeugreservierungen mit gleichem Zeitraum und Grund (für gemeinsamen Kalendertermin).
+     */
+    @Query("""
+            SELECT r FROM VehicleReservation r
+            WHERE r.unit.id = :unitId
+              AND r.status = :status
+              AND r.startAt = :startAt
+              AND r.endAt = :endAt
+              AND LOWER(TRIM(r.reason)) = LOWER(TRIM(:reason))
+              AND r.id <> :excludeId
+            """)
+    List<VehicleReservation> findApprovedSlotSiblings(
+            @Param("unitId") long unitId,
+            @Param("status") ReservationStatus status,
+            @Param("startAt") Instant startAt,
+            @Param("endAt") Instant endAt,
+            @Param("reason") String reason,
+            @Param("excludeId") long excludeId);
 
     @Query("""
             SELECT DISTINCT r FROM VehicleReservation r

@@ -339,7 +339,25 @@ public class DiveraApiClient {
                 .encode(StandardCharsets.UTF_8)
                 .build()
                 .toUri();
-        return postJson(uri, body, base + "/api/v2/events?accesskey=…");
+        return writeJson(uri, body, "POST", base + "/api/v2/events?accesskey=…");
+    }
+
+    /** Termin in DIVERA aktualisieren ({@code PUT /api/v2/events/{id}}). */
+    public DiveraMutationResult updateEvent(String apiBaseUrl, String accessKey, long eventId, JsonNode body) {
+        if (eventId <= 0) {
+            return new DiveraMutationResult(false, "Ungültige Event-ID", null, 0);
+        }
+        String key = normalizeAccessKey(accessKey);
+        if (key.isEmpty()) {
+            return new DiveraMutationResult(false, "Divera Access Key fehlt", null, 0);
+        }
+        String base = normalizeApiBase(apiBaseUrl);
+        URI uri = UriComponentsBuilder.fromUriString(base + "/api/v2/events/" + eventId)
+                .queryParam("accesskey", key)
+                .encode(StandardCharsets.UTF_8)
+                .build()
+                .toUri();
+        return writeJson(uri, body, "PUT", base + "/api/v2/events/" + eventId + "?accesskey=…");
     }
 
     /** Termin in DIVERA löschen ({@code DELETE /api/v2/events/{id}}). */
@@ -372,13 +390,11 @@ public class DiveraApiClient {
         }
     }
 
-    private DiveraMutationResult postJson(URI uri, JsonNode body, String endpointLabel) {
+    private DiveraMutationResult writeJson(URI uri, JsonNode body, String method, String endpointLabel) {
         try {
             String jsonBody = objectMapper.writeValueAsString(body);
-            String raw = restClient
-                    .post()
-                    .uri(uri)
-                    .header("Content-Type", "application/json")
+            var spec = restClient.method(org.springframework.http.HttpMethod.valueOf(method)).uri(uri);
+            String raw = spec.header("Content-Type", "application/json")
                     .header("Accept", "application/json")
                     .body(jsonBody)
                     .retrieve()

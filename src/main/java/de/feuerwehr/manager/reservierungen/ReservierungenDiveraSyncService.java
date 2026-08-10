@@ -28,16 +28,34 @@ public class ReservierungenDiveraSyncService {
     private final ObjectMapper objectMapper;
 
     public Optional<Long> syncVehicleReservation(VehicleReservation reservation, List<Integer> groupIds, Long actorUserId) {
+        return syncVehicleReservation(reservation, groupIds, actorUserId, null, null);
+    }
+
+    /**
+     * @param combinedResourceNames Titel-Fahrzeuge (mehrere Reservierungen zusammen); null = nur diese Reservierung
+     * @param existingEventId vorhandener DIVERA-Termin zum Aktualisieren statt neu anzulegen
+     */
+    public Optional<Long> syncVehicleReservation(
+            VehicleReservation reservation,
+            List<Integer> groupIds,
+            Long actorUserId,
+            String combinedResourceNames,
+            Long existingEventId) {
+        String resourceName =
+                combinedResourceNames != null && !combinedResourceNames.isBlank()
+                        ? combinedResourceNames
+                        : reservation.vehicleNamesJoined();
         return syncReservation(
                 reservation.getUnit().getId(),
                 reservation.getId(),
-                reservation.vehicleNamesJoined(),
+                resourceName,
                 reservation.getReason(),
                 reservation.getLocation(),
                 reservation.getStartAt(),
                 reservation.getEndAt(),
                 groupIds,
-                actorUserId);
+                actorUserId,
+                existingEventId);
     }
 
     public Optional<Long> syncRoomReservation(RoomReservation reservation, List<Integer> groupIds, Long actorUserId) {
@@ -50,7 +68,43 @@ public class ReservierungenDiveraSyncService {
                 reservation.getStartAt(),
                 reservation.getEndAt(),
                 groupIds,
-                actorUserId);
+                actorUserId,
+                null);
+    }
+
+    public boolean updateVehicleEvent(
+            long unitId,
+            Long diveraEventId,
+            long foreignReservationId,
+            String resourceNames,
+            String reason,
+            String location,
+            Instant startAt,
+            Instant endAt,
+            List<Integer> groupIds,
+            Long actorUserId) {
+        if (diveraEventId == null || diveraEventId <= 0) {
+            return false;
+        }
+        List<DiveraCredentials> candidates = resolveCredentialCandidates(unitId, actorUserId);
+        if (candidates.isEmpty()) {
+            return false;
+        }
+        ObjectNode body = buildEventBody(foreignReservationId, resourceNames, reason, location, startAt, endAt, groupIds);
+        for (DiveraCredentials cred : candidates) {
+            DiveraApiClient.DiveraMutationResult result =
+                    diveraApiClient.updateEvent(cred.apiBaseUrl(), cred.accessKey(), diveraEventId, body);
+            if (result.success()) {
+                log.info("DIVERA-Termin {} aktualisiert (Fahrzeuge: {}).", diveraEventId, resourceNames);
+                return true;
+            }
+            log.warn(
+                    "Divera-Update Event {} fehlgeschlagen ({}): {}",
+                    diveraEventId,
+                    cred.source(),
+                    result.message());
+        }
+        return false;
     }
 
     public void deleteEvent(long unitId, Long diveraEventId, Long actorUserId) {
@@ -80,7 +134,8 @@ public class ReservierungenDiveraSyncService {
             Instant startAt,
             Instant endAt,
             List<Integer> groupIds,
-            Long actorUserId) {
+            Long actorUserId,
+            Long existingEventId) {
         List<DiveraCredentials> candidates = resolveCredentialCandidates(unitId, actorUserId);
         if (candidates.isEmpty()) {
             log.warn(
@@ -90,6 +145,36 @@ public class ReservierungenDiveraSyncService {
         }
 
         ObjectNode body = buildEventBody(reservationId, resourceName, reason, location, startAt, endAt, groupIds);
+        if (existingEventId != null && existingEventId > 0) {
+            DiveraApiClient.DiveraMutationResult lastFailure = null;
+            for (DiveraCredentials cred : candidates) {
+                DiveraApiClient.DiveraMutationResult result =
+                        diveraApiClient.updateEvent(cred.apiBaseUrl(), cred.accessKey(), existingEventId, body);
+                if (!result.success()) {
+                    lastFailure = result;
+                    log.warn(
+                            "Divera-Update Reservierung {} / Event {} fehlgeschlagen ({}): {}",
+                            reservationId,
+                            existingEventId,
+                            cred.source(),
+                            result.message());
+                    continue;
+                }
+                log.info(
+                        "DIVERA-Termin {} für Reservierung {} aktualisiert ({}).",
+                        existingEventId,
+                        reservationId,
+                        cred.source());
+                return Optional.of(existingEventId);
+            }
+            if (lastFailure != null) {
+                log.warn(
+                        "Divera-Update Reservierung {} konnte nicht durchgeführt werden, lege neuen Termin an: {}",
+                        reservationId,
+                        lastFailure.message());
+            }
+        }
+
         DiveraApiClient.DiveraMutationResult lastFailure = null;
         for (DiveraCredentials cred : candidates) {
             DiveraApiClient.DiveraMutationResult result =
