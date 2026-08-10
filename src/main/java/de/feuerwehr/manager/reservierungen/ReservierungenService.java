@@ -132,7 +132,7 @@ public class ReservierungenService {
             validateTimes(slot.startAt(), slot.endAt());
             for (Long vehicleId : vehicleIds) {
                 List<ReservationConflictView> conflicts = conflictService.vehicleConflicts(
-                        vehicleId, slot.startAt(), slot.endAt(), null);
+                        vehicleId, slot.startAt(), slot.endAt(), (Long) null);
                 if (!conflicts.isEmpty()) {
                     conflictingRequestedIds.add(vehicleId);
                     allConflicts.addAll(conflicts);
@@ -148,7 +148,7 @@ public class ReservierungenService {
 
         for (CreateReservationRequest.ReservationTimeSlot slot : slots) {
             LoeschfahrzeugWarningView warning = conflictService.checkLoeschfahrzeugWarning(
-                    unitId, vehicleIds, slot.startAt(), slot.endAt(), null);
+                    unitId, vehicleIds, slot.startAt(), slot.endAt(), (Long) null);
             if (warning.warning() && !request.forceAvailabilityOverride()) {
                 throw new LoeschfahrzeugWarningException(warning);
             }
