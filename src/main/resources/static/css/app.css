@@ -7793,11 +7793,29 @@ span.required { color: var(--error); }
 
 .reservierungen-conflict-list {
   margin: 0 0 12px;
-  padding-left: 1.2rem;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.reservierungen-conflict-list li {
-  margin: 4px 0;
+.reservierungen-conflict-list li,
+.reservierungen-conflict-item {
+  margin: 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--gelb, #eab308);
+  background: color-mix(in srgb, var(--gelb, #eab308) 12%, transparent);
+  border-radius: 0 8px 8px 0;
+}
+
+.reservierungen-conflict-item__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  font-size: var(--fs-sm, 13px);
+  color: var(--text-muted, #64748b);
 }
 
 .req {

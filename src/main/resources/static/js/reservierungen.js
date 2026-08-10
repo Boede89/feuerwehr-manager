@@ -107,8 +107,10 @@
       return '';
     }
     return conflicts.map(function (c) {
-      return '- ' + (c.resourceName || 'Ressource') + ' (' + (c.requesterName || '—') + '): '
-        + formatConflictTime(c.startAt) + ' – ' + formatConflictTime(c.endAt);
+      return '- ' + (c.resourceName || 'Ressource')
+        + ' · Grund: ' + (c.reason || '—')
+        + ' · ' + (c.requesterName || '—')
+        + ' · ' + formatConflictTime(c.startAt) + ' – ' + formatConflictTime(c.endAt);
     }).join('\n');
   }
 
@@ -578,8 +580,15 @@
       list.innerHTML = '';
       (data.conflicts || []).forEach(function (c) {
         var li = document.createElement('li');
-        li.textContent = (c.resourceName || 'Ressource') + ' · ' + (c.requesterName || '—') + ' · '
-          + formatConflictTime(c.startAt) + ' – ' + formatConflictTime(c.endAt);
+        li.className = 'reservierungen-conflict-item';
+        li.innerHTML =
+          '<strong>' + escapeHtml(c.resourceName || 'Ressource') + '</strong>'
+          + '<span class="reservierungen-conflict-item__meta">'
+          + '<span>Grund: ' + escapeHtml(c.reason || '—') + '</span>'
+          + '<span>Antragsteller: ' + escapeHtml(c.requesterName || '—') + '</span>'
+          + '<span>Zeitraum: ' + escapeHtml(formatConflictTime(c.startAt))
+          + ' – ' + escapeHtml(formatConflictTime(c.endAt)) + '</span>'
+          + '</span>';
         list.appendChild(li);
       });
     }
