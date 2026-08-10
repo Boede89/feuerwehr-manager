@@ -651,12 +651,100 @@
       if (overlay) closeOverlay(overlay);
     });
   });
-  document.querySelectorAll('[data-open-details]').forEach(function (btn) {
-    btn.addEventListener('click', function (ev) {
+
+  function formatBerlinDateTime(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '—';
+    return new Intl.DateTimeFormat('de-DE', {
+      timeZone: 'Europe/Berlin',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(d);
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function fetchConflicts(kind, id) {
+    var url = (kind === 'VEHICLE' ? '/reservierungen/api/fahrzeuge/' : '/reservierungen/api/raeume/')
+      + id + '/conflicts?unit=' + encodeURIComponent(unitId);
+    return fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+      .then(parseJsonResponse)
+      .then(function (data) {
+        return Array.isArray(data.conflicts) ? data.conflicts : [];
+      })
+      .catch(function () {
+        return [];
+      });
+  }
+
+  function renderDetailsConflicts(overlay, conflicts) {
+    if (!overlay) return;
+    var statusEl = overlay.querySelector('[data-details-status]');
+    var box = overlay.querySelector('[data-details-conflicts]');
+    var list = overlay.querySelector('[data-details-conflicts-list]');
+    if (!statusEl || !box || !list) return;
+
+    var statusBadge = statusEl.querySelector('.badge');
+    var statusHtml = statusBadge ? statusBadge.outerHTML : statusEl.innerHTML;
+    var conflictBadge = overlay.querySelector('[data-conflict-badge]');
+    if (conflictBadge) conflictBadge.remove();
+
+    if (conflicts.length > 0) {
+      statusEl.innerHTML = statusHtml
+        + ' <span class="badge badge--danger" data-conflict-badge>'
+        + conflicts.length + ' Konflikt' + (conflicts.length > 1 ? 'e' : '')
+        + '</span>';
+      list.innerHTML = conflicts.map(function (c) {
+        return '<div class="reservierung-details-conflict-item">'
+          + '<strong>' + escapeHtml(c.resourceName || 'Ressource') + '</strong><br>'
+          + '<small class="text-muted">'
+          + escapeHtml(formatBerlinDateTime(c.startAt)) + ' – ' + escapeHtml(formatBerlinDateTime(c.endAt))
+          + '<br>Antragsteller: ' + escapeHtml(c.requesterName || '—')
+          + '<br>Grund: ' + escapeHtml(c.reason || '—')
+          + '</small></div>';
+      }).join('');
+      box.hidden = false;
+    } else {
+      statusEl.innerHTML = statusHtml
+        + ' <span class="badge badge-success" data-conflict-badge>Kein Konflikt</span>';
+      list.innerHTML = '';
+      box.hidden = true;
+    }
+  }
+
+  function openDetailsOverlay(overlay) {
+    if (!overlay) return;
+    openOverlay(overlay);
+    var kind = overlay.dataset.kind;
+    var id = overlay.dataset.id;
+    if (!kind || !id) return;
+    var box = overlay.querySelector('[data-details-conflicts]');
+    var list = overlay.querySelector('[data-details-conflicts-list]');
+    if (list) list.innerHTML = '<p class="hint text-sm">Überschneidungen werden geprüft…</p>';
+    if (box) box.hidden = false;
+    fetchConflicts(kind, id).then(function (conflicts) {
+      renderDetailsConflicts(overlay, conflicts);
+    });
+  }
+
+  document.querySelectorAll('[data-open-details]').forEach(function (el) {
+    el.addEventListener('click', function (ev) {
+      if (ev.target.closest('[data-action]')) return;
       ev.preventDefault();
-      var id = btn.getAttribute('data-open-details');
+      ev.stopPropagation();
+      var id = el.getAttribute('data-open-details');
       var overlay = id ? document.getElementById(id) : null;
-      if (overlay) openOverlay(overlay);
+      openDetailsOverlay(overlay);
     });
   });
 
@@ -1030,31 +1118,24 @@
     return !Number.isNaN(startMs) && startMs > Date.now();
   }
 
-  document.getElementById('pending-reservations-table')?.addEventListener('click', function (event) {
-    var btn = event.target.closest('[data-action]');
-    if (!btn) return;
-    var row = btn.closest('tr');
-    if (!row) return;
-    var kind = row.dataset.kind;
-    var id = row.dataset.id;
-    var action = btn.dataset.action;
+  function runProcessAction(kind, id, action, sourceBtn) {
     var processEmailDelivery = null;
 
     function runApprove(approveAction, forceLoesch, conflictIds) {
-      btn.disabled = true;
+      if (sourceBtn) sourceBtn.disabled = true;
       processReservation(kind, id, approveAction, '', forceLoesch, conflictIds, processEmailDelivery)
         .then(function (data) {
           if (handleProcessResult(data, function (nextAction, nextForce, nextIds) {
             runApprove(nextAction, nextForce, nextIds);
           })) {
             window.location.reload();
-          } else {
-            btn.disabled = false;
+          } else if (sourceBtn) {
+            sourceBtn.disabled = false;
           }
         })
         .catch(function () {
           notify('Genehmigung fehlgeschlagen.', 'error');
-          btn.disabled = false;
+          if (sourceBtn) sourceBtn.disabled = false;
         });
     }
 
@@ -1070,22 +1151,39 @@
       var reason = window.prompt('Begründung für die Ablehnung (optional):', '') || '';
       askTestModeEmailDelivery(null).then(function (delivery) {
         if (delivery == null) return;
-        btn.disabled = true;
+        if (sourceBtn) sourceBtn.disabled = true;
         processReservation(kind, id, 'reject', reason, false, [], delivery)
           .then(function (data) {
             if (data.ok) {
               window.location.reload();
             } else {
               notify(data.message || 'Ablehnung fehlgeschlagen.', 'error');
-              btn.disabled = false;
+              if (sourceBtn) sourceBtn.disabled = false;
             }
           })
           .catch(function () {
             notify('Ablehnung fehlgeschlagen.', 'error');
-            btn.disabled = false;
+            if (sourceBtn) sourceBtn.disabled = false;
           });
       });
     }
+  }
+
+  document.getElementById('pending-reservations-table')?.addEventListener('click', function (event) {
+    var btn = event.target.closest('[data-action]');
+    if (!btn) return;
+    event.stopPropagation();
+    var row = btn.closest('tr');
+    if (!row) return;
+    runProcessAction(row.dataset.kind, row.dataset.id, btn.dataset.action, btn);
+  });
+
+  document.querySelectorAll('.reservierung-details-modal [data-action]').forEach(function (btn) {
+    btn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      runProcessAction(btn.dataset.kind, btn.dataset.id, btn.dataset.action, btn);
+    });
   });
 
   document.querySelectorAll('[data-action="delete"]').forEach(function (btn) {

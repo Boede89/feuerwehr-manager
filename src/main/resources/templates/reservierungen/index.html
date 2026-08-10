@@ -138,12 +138,13 @@
           <table class="table" id="pending-reservations-table">
             <thead>
             <tr>
-              <th>Art</th><th>Ressource</th><th>Antragsteller</th><th>Zeitraum</th><th>Grund</th><th></th>
+              <th>Art</th><th>Ressource</th><th>Antragsteller</th><th>Zeitraum</th><th>Überschneidung</th><th>Grund</th><th></th>
             </tr>
             </thead>
             <tbody>
             <tr th:each="r : ${pendingReservations}"
-                th:attr="data-kind=${r.kind().name()},data-id=${r.id()}">
+                class="reservierungen-row--clickable"
+                th:attr="data-kind=${r.kind().name()},data-id=${r.id()},data-open-details=${'reservierung-details-' + r.kind().name() + '-' + r.id()}">
               <td th:text="${r.kind() == T(de.feuerwehr.manager.reservierungen.ReservationKind).VEHICLE ? 'Fahrzeug' : 'Raum'}">Fahrzeug</td>
               <td th:text="${r.resourceName()}">TLF</td>
               <td>
@@ -155,9 +156,15 @@
                 <span class="text-muted">–</span>
                 <span th:text="${#temporals.format(r.endAt().atZone(T(java.time.ZoneId).of('Europe/Berlin')), 'dd.MM.yyyy HH:mm')}">—</span>
               </td>
+              <td>
+                <span th:if="${r.hasConflict()}" class="badge badge--danger">Konflikt</span>
+                <span th:unless="${r.hasConflict()}" class="badge badge-success">Frei</span>
+              </td>
               <td th:text="${r.reason()}">Übung</td>
               <td class="table-actions">
                 <div class="btn-group">
+                  <button type="button" class="btn btn--outline btn--sm"
+                          th:attr="data-open-details=${'reservierung-details-' + r.kind().name() + '-' + r.id()}">Details</button>
                   <button type="button" class="btn btn--primary btn--sm" data-action="approve">Genehmigen</button>
                   <button type="button" class="btn btn--outline btn--sm" data-action="reject">Ablehnen</button>
                 </div>
@@ -185,7 +192,8 @@
             <tbody>
             <tr th:each="r : ${allReservations}"
                 th:if="${r.status().name() != 'PENDING'}"
-                th:attr="data-kind=${r.kind().name()},data-id=${r.id()},data-start-at=${r.startAt()}">
+                class="reservierungen-row--clickable"
+                th:attr="data-kind=${r.kind().name()},data-id=${r.id()},data-start-at=${r.startAt()},data-open-details=${'reservierung-details-' + r.kind().name() + '-' + r.id()}">
               <td th:text="${r.kind() == T(de.feuerwehr.manager.reservierungen.ReservationKind).VEHICLE ? 'Fahrzeug' : 'Raum'}">Fahrzeug</td>
               <td th:text="${r.resourceName()}">TLF</td>
               <td th:text="${r.requesterName()}">Name</td>
@@ -198,6 +206,8 @@
                 <span class="badge"
                       th:classappend="${r.status().name() == 'APPROVED'} ? ' badge-success' : (${r.status().name() == 'CANCELLED'} ? ' badge-warning' : ' badge--danger')"
                       th:text="${r.status().name() == 'APPROVED'} ? 'Genehmigt' : (${r.status().name() == 'REJECTED'} ? 'Abgelehnt' : (${r.status().name() == 'CANCELLED'} ? 'Storniert' : ${r.status()}))">Genehmigt</span>
+                <span th:if="${r.status().name() == 'APPROVED' and r.hasConflict()}"
+                      class="badge badge--danger" style="margin-left:4px;">Konflikt</span>
               </td>
               <td class="table-actions">
                 <div class="btn-group">
@@ -213,12 +223,12 @@
       </div>
     </div>
 
-    <!-- Details-Modals (Historie), Layout analog Altprojekt -->
+    <!-- Details-Modals (Anträge + Historie), inkl. Überschneidungen -->
     <div th:each="r : ${allReservations}"
-         th:if="${r.status().name() != 'PENDING'}"
          th:id="${'reservierung-details-' + r.kind().name() + '-' + r.id()}"
          class="modal-overlay"
-         aria-hidden="true">
+         aria-hidden="true"
+         th:attr="data-kind=${r.kind().name()},data-id=${r.id()},data-status=${r.status().name()}">
       <div class="modal modal--wide reservierung-details-modal" role="dialog"
            th:attr="aria-labelledby=${'reservierung-details-title-' + r.kind().name() + '-' + r.id()}">
         <div class="modal__header">
@@ -266,10 +276,10 @@
               </div>
               <div class="reservierung-details-block">
                 <h6 class="reservierung-details-block__title reservierung-details-block__title--status">Status</h6>
-                <p>
+                <p class="reservierung-details-status" data-details-status>
                   <span class="badge"
-                        th:classappend="${r.status().name() == 'APPROVED'} ? ' badge-success' : (${r.status().name() == 'CANCELLED'} ? ' badge-warning' : ' badge--danger')"
-                        th:text="${r.status().name() == 'APPROVED'} ? 'Genehmigt' : (${r.status().name() == 'REJECTED'} ? 'Abgelehnt' : (${r.status().name() == 'CANCELLED'} ? 'Storniert' : ${r.status()}))">Genehmigt</span>
+                        th:classappend="${r.status().name() == 'APPROVED'} ? ' badge-success' : (${r.status().name() == 'PENDING'} ? ' badge-warning' : (${r.status().name() == 'CANCELLED'} ? ' badge-warning' : ' badge--danger'))"
+                        th:text="${r.status().name() == 'APPROVED'} ? 'Genehmigt' : (${r.status().name() == 'PENDING'} ? 'Ausstehend' : (${r.status().name() == 'REJECTED'} ? 'Abgelehnt' : (${r.status().name() == 'CANCELLED'} ? 'Storniert' : ${r.status()})))">Ausstehend</span>
                 </p>
               </div>
               <div class="reservierung-details-block" th:if="${r.createdAt() != null}">
@@ -284,12 +294,24 @@
               </div>
             </div>
           </div>
+          <div class="reservierung-details-conflicts" data-details-conflicts hidden>
+            <h6 class="reservierung-details-conflicts__title">Zeitüberschneidungen</h6>
+            <div class="reservierung-details-conflicts__list" data-details-conflicts-list></div>
+          </div>
         </div>
         <div class="modal__footer reservierung-details-modal__footer">
           <span class="badge badge--lg"
-                th:classappend="${r.status().name() == 'APPROVED'} ? ' badge-success' : (${r.status().name() == 'CANCELLED'} ? ' badge-warning' : ' badge--danger')"
-                th:text="${r.status().name() == 'APPROVED'} ? 'Genehmigt' : (${r.status().name() == 'REJECTED'} ? 'Abgelehnt' : (${r.status().name() == 'CANCELLED'} ? 'Storniert' : ${r.status()}))">Genehmigt</span>
-          <button type="button" class="btn btn--outline" data-close-details-modal>Schließen</button>
+                th:classappend="${r.status().name() == 'APPROVED'} ? ' badge-success' : (${r.status().name() == 'PENDING'} ? ' badge-warning' : (${r.status().name() == 'CANCELLED'} ? ' badge-warning' : ' badge--danger'))"
+                th:text="${r.status().name() == 'APPROVED'} ? 'Genehmigt' : (${r.status().name() == 'PENDING'} ? 'Ausstehend' : (${r.status().name() == 'REJECTED'} ? 'Abgelehnt' : (${r.status().name() == 'CANCELLED'} ? 'Storniert' : ${r.status()})))">Ausstehend</span>
+          <div class="btn-group">
+            <button type="button" class="btn btn--outline" data-close-details-modal>Schließen</button>
+            <th:block th:if="${r.status().name() == 'PENDING'}">
+              <button type="button" class="btn btn--outline" data-action="reject"
+                      th:attr="data-kind=${r.kind().name()},data-id=${r.id()}">Ablehnen</button>
+              <button type="button" class="btn btn--primary" data-action="approve"
+                      th:attr="data-kind=${r.kind().name()},data-id=${r.id()}">Genehmigen</button>
+            </th:block>
+          </div>
         </div>
       </div>
     </div>
@@ -503,6 +525,6 @@
   <select id="reservierungen-rooms-template" hidden aria-hidden="true">
     <option th:each="r : ${roomOptions}" th:value="${r.id}" th:text="${r.name}">Raum</option>
   </select>
-  <script th:src="@{/js/reservierungen.js(v='20260810b')}" defer></script>
+  <script th:src="@{/js/reservierungen.js(v='20260810c')}" defer></script>
 </main>
 </html>

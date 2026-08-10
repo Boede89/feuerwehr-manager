@@ -7685,6 +7685,40 @@ span.required { color: var(--error); }
   align-items: center;
 }
 
+.reservierung-details-conflicts {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.reservierung-details-conflicts__title {
+  margin: 0 0 10px;
+  font-size: var(--fs-md, 14px);
+  font-weight: 700;
+  color: var(--error, #b91c1c);
+}
+
+.reservierung-details-conflicts__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reservierung-details-conflict-item {
+  padding: 10px 12px;
+  border-left: 3px solid var(--gelb, #eab308);
+  background: color-mix(in srgb, var(--gelb, #eab308) 12%, transparent);
+  border-radius: 0 8px 8px 0;
+}
+
+.reservierungen-row--clickable {
+  cursor: pointer;
+}
+
+.reservierungen-row--clickable:hover {
+  background: color-mix(in srgb, var(--rot, #c1121f) 6%, transparent);
+}
+
 .badge--lg {
   font-size: var(--fs-sm, 12px);
   padding: 4px 12px;

@@ -7,6 +7,7 @@ public record ReservationConflictView(
         ReservationKind kind,
         String resourceName,
         String requesterName,
+        String reason,
         Instant startAt,
         Instant endAt,
         ReservationStatus status) {}

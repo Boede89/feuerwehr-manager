@@ -17,4 +17,5 @@ public record ReservationListItemView(
         Instant approvedAt,
         String approvedByName,
         Instant createdAt,
-        boolean ownedByCurrentUser) {}
+        boolean ownedByCurrentUser,
+        boolean hasConflict) {}

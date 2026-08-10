@@ -47,14 +47,14 @@ public class ReservierungenService {
             if (!isVisible(reservation.isTestData())) {
                 continue;
             }
-            items.add(toView(reservation, userId));
+            items.add(toView(reservation, userId, false));
         }
         for (RoomReservation reservation :
                 roomReservationRepository.findByUnitIdAndRequesterUserIdOrderByStartAtDesc(unitId, userId)) {
             if (!isVisible(reservation.isTestData())) {
                 continue;
             }
-            items.add(toView(reservation, userId));
+            items.add(toView(reservation, userId, false));
         }
         items.sort(Comparator.comparing(ReservationListItemView::startAt).reversed());
         return items;
@@ -68,14 +68,14 @@ public class ReservierungenService {
             if (!isVisible(reservation.isTestData())) {
                 continue;
             }
-            items.add(toView(reservation, currentUserId));
+            items.add(toView(reservation, currentUserId, hasVehicleConflict(reservation)));
         }
         for (RoomReservation reservation :
                 roomReservationRepository.findByUnitIdAndStatusOrderByStartAtAsc(unitId, ReservationStatus.PENDING)) {
             if (!isVisible(reservation.isTestData())) {
                 continue;
             }
-            items.add(toView(reservation, currentUserId));
+            items.add(toView(reservation, currentUserId, hasRoomConflict(reservation)));
         }
         items.sort(Comparator.comparing(ReservationListItemView::startAt));
         return items;
@@ -88,13 +88,13 @@ public class ReservierungenService {
             if (!isVisible(reservation.isTestData())) {
                 continue;
             }
-            items.add(toView(reservation, currentUserId));
+            items.add(toView(reservation, currentUserId, hasVehicleConflict(reservation)));
         }
         for (RoomReservation reservation : roomReservationRepository.findByUnitIdOrderByStartAtDesc(unitId)) {
             if (!isVisible(reservation.isTestData())) {
                 continue;
             }
-            items.add(toView(reservation, currentUserId));
+            items.add(toView(reservation, currentUserId, hasRoomConflict(reservation)));
         }
         items.sort(Comparator.comparing(ReservationListItemView::startAt).reversed());
         return items;
@@ -340,7 +340,11 @@ public class ReservierungenService {
 
     @Transactional(readOnly = true)
     public List<ReservationConflictView> checkVehicleConflicts(long unitId, long reservationId) {
-        VehicleReservation reservation = requirePendingVehicle(unitId, reservationId);
+        VehicleReservation reservation = vehicleReservationRepository
+                .findById(reservationId)
+                .filter(r -> r.getUnit().getId().equals(unitId))
+                .filter(r -> isVisible(r.isTestData()))
+                .orElseThrow(() -> new IllegalArgumentException("Reservierung nicht gefunden."));
         List<Long> vehicleIds = reservation.resolvedVehicles().stream().map(Vehicle::getId).toList();
         return conflictService.vehicleConflictsForVehicles(
                 vehicleIds, reservation.getStartAt(), reservation.getEndAt(), reservation.getId());
@@ -348,7 +352,11 @@ public class ReservierungenService {
 
     @Transactional(readOnly = true)
     public List<ReservationConflictView> checkRoomConflicts(long unitId, long reservationId) {
-        RoomReservation reservation = requirePendingRoom(unitId, reservationId);
+        RoomReservation reservation = roomReservationRepository
+                .findById(reservationId)
+                .filter(r -> r.getUnit().getId().equals(unitId))
+                .filter(r -> isVisible(r.isTestData()))
+                .orElseThrow(() -> new IllegalArgumentException("Reservierung nicht gefunden."));
         return conflictService.roomConflicts(
                 reservation.getRoom().getId(), reservation.getStartAt(), reservation.getEndAt(), reservation.getId());
     }
@@ -702,7 +710,7 @@ public class ReservierungenService {
         return reservation;
     }
 
-    private ReservationListItemView toView(VehicleReservation reservation, long currentUserId) {
+    private ReservationListItemView toView(VehicleReservation reservation, long currentUserId, boolean hasConflict) {
         return new ReservationListItemView(
                 reservation.getId(),
                 ReservationKind.VEHICLE,
@@ -719,10 +727,11 @@ public class ReservierungenService {
                 reservation.getApprovedByUser() != null ? reservation.getApprovedByUser().getDisplayName() : null,
                 reservation.getCreatedAt(),
                 reservation.getRequesterUser() != null
-                        && Objects.equals(reservation.getRequesterUser().getId(), currentUserId));
+                        && Objects.equals(reservation.getRequesterUser().getId(), currentUserId),
+                hasConflict);
     }
 
-    private ReservationListItemView toView(RoomReservation reservation, long currentUserId) {
+    private ReservationListItemView toView(RoomReservation reservation, long currentUserId, boolean hasConflict) {
         return new ReservationListItemView(
                 reservation.getId(),
                 ReservationKind.ROOM,
@@ -739,7 +748,26 @@ public class ReservierungenService {
                 reservation.getApprovedByUser() != null ? reservation.getApprovedByUser().getDisplayName() : null,
                 reservation.getCreatedAt(),
                 reservation.getRequesterUser() != null
-                        && Objects.equals(reservation.getRequesterUser().getId(), currentUserId));
+                        && Objects.equals(reservation.getRequesterUser().getId(), currentUserId),
+                hasConflict);
+    }
+
+    private boolean hasVehicleConflict(VehicleReservation reservation) {
+        List<Long> vehicleIds = reservation.resolvedVehicles().stream().map(Vehicle::getId).toList();
+        return !conflictService
+                .vehicleConflictsForVehicles(
+                        vehicleIds, reservation.getStartAt(), reservation.getEndAt(), reservation.getId())
+                .isEmpty();
+    }
+
+    private boolean hasRoomConflict(RoomReservation reservation) {
+        return !conflictService
+                .roomConflicts(
+                        reservation.getRoom().getId(),
+                        reservation.getStartAt(),
+                        reservation.getEndAt(),
+                        reservation.getId())
+                .isEmpty();
     }
 
     private boolean isVisible(boolean testData) {

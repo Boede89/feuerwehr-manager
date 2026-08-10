@@ -43,6 +43,7 @@ public class ReservierungenConflictService {
                         ReservationKind.VEHICLE,
                         r.vehicleNamesJoined(),
                         r.getRequesterName(),
+                        r.getReason(),
                         r.getStartAt(),
                         r.getEndAt(),
                         r.getStatus()))
@@ -87,6 +88,7 @@ public class ReservierungenConflictService {
                         ReservationKind.ROOM,
                         r.getRoom().getName(),
                         r.getRequesterName(),
+                        r.getReason(),
                         r.getStartAt(),
                         r.getEndAt(),
                         r.getStatus()))
