@@ -126,15 +126,23 @@ public class ReservierungenService {
         }
 
         List<ReservationConflictView> allConflicts = new ArrayList<>();
+        LinkedHashSet<Long> conflictingRequestedIds = new LinkedHashSet<>();
         for (CreateReservationRequest.ReservationTimeSlot slot : slots) {
             validateTimes(slot.startAt(), slot.endAt());
-            allConflicts.addAll(conflictService.vehicleConflictsForVehicles(
-                    vehicleIds, slot.startAt(), slot.endAt(), null));
+            for (Long vehicleId : vehicleIds) {
+                List<ReservationConflictView> conflicts = conflictService.vehicleConflicts(
+                        vehicleId, slot.startAt(), slot.endAt(), null);
+                if (!conflicts.isEmpty()) {
+                    conflictingRequestedIds.add(vehicleId);
+                    allConflicts.addAll(conflicts);
+                }
+            }
         }
         if (!allConflicts.isEmpty() && !request.forceConflictOverride()) {
             throw new ReservationConflictException(
                     "Mindestens ein Fahrzeug ist in einem der Zeiträume bereits vergeben.",
-                    distinctConflicts(allConflicts));
+                    distinctConflicts(allConflicts),
+                    List.copyOf(conflictingRequestedIds));
         }
 
         for (CreateReservationRequest.ReservationTimeSlot slot : slots) {
@@ -193,16 +201,23 @@ public class ReservierungenService {
         }
 
         List<ReservationConflictView> allConflicts = new ArrayList<>();
+        LinkedHashSet<Long> conflictingRequestedIds = new LinkedHashSet<>();
         for (CreateReservationRequest.ReservationTimeSlot slot : slots) {
             validateTimes(slot.startAt(), slot.endAt());
             for (Room room : rooms) {
-                allConflicts.addAll(conflictService.roomConflicts(room.getId(), slot.startAt(), slot.endAt(), null));
+                List<ReservationConflictView> conflicts =
+                        conflictService.roomConflicts(room.getId(), slot.startAt(), slot.endAt(), null);
+                if (!conflicts.isEmpty()) {
+                    conflictingRequestedIds.add(room.getId());
+                    allConflicts.addAll(conflicts);
+                }
             }
         }
         if (!allConflicts.isEmpty() && !request.forceConflictOverride()) {
             throw new ReservationConflictException(
                     "Mindestens ein Raum ist in einem der Zeiträume bereits vergeben.",
-                    distinctConflicts(allConflicts));
+                    distinctConflicts(allConflicts),
+                    List.copyOf(conflictingRequestedIds));
         }
 
         List<RoomReservation> saved = new ArrayList<>();

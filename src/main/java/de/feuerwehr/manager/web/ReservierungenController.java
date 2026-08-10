@@ -120,7 +120,8 @@ public class ReservierungenController {
         } catch (LoeschfahrzeugWarningException e) {
             return ReservationActionResultDto.loeschWarning(e.getWarning());
         } catch (ReservationConflictException e) {
-            return ReservationActionResultDto.conflicts(e.getMessage(), e.getConflicts());
+            return ReservationActionResultDto.conflicts(
+                    e.getMessage(), e.getConflicts(), e.getConflictingResourceIds());
         } catch (IllegalArgumentException e) {
             return ReservationActionResultDto.failure(e.getMessage());
         }
@@ -143,7 +144,8 @@ public class ReservierungenController {
                     : created.size() + " Raumtermine wurden eingereicht.";
             return ReservationActionResultDto.success(msg);
         } catch (ReservationConflictException e) {
-            return ReservationActionResultDto.conflicts(e.getMessage(), e.getConflicts());
+            return ReservationActionResultDto.conflicts(
+                    e.getMessage(), e.getConflicts(), e.getConflictingResourceIds());
         } catch (IllegalArgumentException e) {
             return ReservationActionResultDto.failure(e.getMessage());
         }
@@ -181,7 +183,8 @@ public class ReservierungenController {
                     reservierungenService.processVehicleReservation(unitId, id, actor.getUserId(), body);
             return ReservationActionResultDto.success("Fahrzeugreservierung wurde bearbeitet.", notes);
         } catch (ReservationConflictException e) {
-            return ReservationActionResultDto.conflicts(e.getMessage(), e.getConflicts());
+            return ReservationActionResultDto.conflicts(
+                    e.getMessage(), e.getConflicts(), e.getConflictingResourceIds());
         } catch (LoeschfahrzeugWarningException e) {
             return ReservationActionResultDto.loeschWarning(e.getWarning());
         } catch (IllegalArgumentException | IllegalStateException e) {
@@ -204,7 +207,8 @@ public class ReservierungenController {
                     reservierungenService.processRoomReservation(unitId, id, actor.getUserId(), body);
             return ReservationActionResultDto.success("Raumreservierung wurde bearbeitet.", notes);
         } catch (ReservationConflictException e) {
-            return ReservationActionResultDto.conflicts(e.getMessage(), e.getConflicts());
+            return ReservationActionResultDto.conflicts(
+                    e.getMessage(), e.getConflicts(), e.getConflictingResourceIds());
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ReservationActionResultDto.failure(e.getMessage());
         }

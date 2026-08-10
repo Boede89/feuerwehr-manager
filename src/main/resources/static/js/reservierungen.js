@@ -592,10 +592,40 @@
 
   function showConflictModal(data) {
     var msg = document.getElementById('reservierung-conflict-message');
+    var hint = document.getElementById('reservierung-conflict-hint');
+    var removeBtn = document.getElementById('reservierung-conflict-remove');
     if (msg) {
       msg.textContent = data.message || 'Mindestens eine Ressource ist bereits vergeben.';
     }
     fillConflictList(document.getElementById('reservierung-conflict-list'), data.conflicts);
+
+    var conflictingIds = (data.conflictingResourceIds || []).map(function (id) {
+      return String(id);
+    });
+    var remaining = selectedResources.filter(function (r) {
+      return conflictingIds.indexOf(String(r.id)) < 0;
+    });
+    var canRemove = conflictingIds.length > 0
+      && remaining.length > 0
+      && remaining.length < selectedResources.length;
+
+    if (removeBtn) {
+      removeBtn.hidden = !canRemove;
+      removeBtn.dataset.conflictingIds = conflictingIds.join(',');
+    }
+    if (hint) {
+      if (canRemove) {
+        var removedNames = selectedResources
+          .filter(function (r) { return conflictingIds.indexOf(String(r.id)) >= 0; })
+          .map(function (r) { return r.name; })
+          .join(', ');
+        hint.textContent = 'Sie können die belegten Einträge (' + removedNames
+          + ') aus dem Antrag entfernen und nur mit den freien fortfahren, '
+          + 'den Antrag trotzdem mit allen Fahrzeugen absenden, oder abbrechen.';
+      } else {
+        hint.textContent = 'Sie können den Antrag trotzdem absenden. Die Genehmigung prüft Konflikte erneut.';
+      }
+    }
     openOverlay(conflictModal);
   }
 
@@ -839,6 +869,28 @@
   document.getElementById('reservierung-conflict-force')?.addEventListener('click', function () {
     closeOverlay(conflictModal);
     pendingCreateFlags.forceConflict = true;
+    submitCreate();
+  });
+  document.getElementById('reservierung-conflict-remove')?.addEventListener('click', function () {
+    var removeBtn = document.getElementById('reservierung-conflict-remove');
+    var conflictingIds = ((removeBtn && removeBtn.dataset.conflictingIds) || '')
+      .split(',')
+      .map(function (id) { return id.trim(); })
+      .filter(Boolean);
+    if (!conflictingIds.length) {
+      return;
+    }
+    selectedResources = selectedResources.filter(function (r) {
+      return conflictingIds.indexOf(String(r.id)) < 0;
+    });
+    renderSelectedChips();
+    pendingCreateFlags.forceConflict = false;
+    pendingCreateFlags.forceLoesch = false;
+    closeOverlay(conflictModal);
+    if (!selectedResources.length) {
+      notify('Nach dem Entfernen ist keine Ressource mehr übrig.', 'error');
+      return;
+    }
     submitCreate();
   });
   document.getElementById('reservierung-approve-conflict-force')?.addEventListener('click', function () {

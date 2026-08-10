@@ -399,10 +399,13 @@
       <div class="modal__body">
         <p id="reservierung-conflict-message" class="reservierungen-conflict-lead">Das Fahrzeug ist in diesem Zeitraum bereits vergeben.</p>
         <ul id="reservierung-conflict-list" class="reservierungen-conflict-list"></ul>
-        <p class="hint">Sie können den Antrag trotzdem absenden. Die Genehmigung prüft Konflikte erneut.</p>
+        <p id="reservierung-conflict-hint" class="hint">Sie können den Antrag trotzdem absenden. Die Genehmigung prüft Konflikte erneut.</p>
       </div>
-      <div class="modal__footer">
+      <div class="modal__footer reservierungen-conflict-footer">
         <button type="button" class="btn btn--primary" id="reservierung-conflict-force">Trotzdem senden</button>
+        <button type="button" class="btn btn--outline" id="reservierung-conflict-remove" hidden>
+          Belegte entfernen &amp; senden
+        </button>
         <button type="button" class="btn btn--outline" data-close-conflict-modal>Abbrechen</button>
       </div>
     </div>
@@ -549,6 +552,6 @@
   <select id="reservierungen-rooms-template" hidden aria-hidden="true">
     <option th:each="r : ${roomOptions}" th:value="${r.id}" th:text="${r.name}">Raum</option>
   </select>
-  <script th:src="@{/js/reservierungen.js(v='20260810e')}" defer></script>
+  <script th:src="@{/js/reservierungen.js(v='20260810f')}" defer></script>
 </main>
 </html>
