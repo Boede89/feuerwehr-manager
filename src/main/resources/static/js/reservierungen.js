@@ -954,6 +954,33 @@
     return Promise.resolve('NONE');
   }
 
+  /** Optional Ablehnungsbegründung im App-Modal statt window.prompt. null = abgebrochen. */
+  function askRejectReason(options) {
+    var o = options || {};
+    var title = o.title || 'Begründung (optional)';
+    var message = o.message || 'Sie können dem Antragsteller optional eine Begründung mitteilen.';
+    var label = o.textInputLabel || 'Begründung (optional)';
+    var placeholder = o.textInputPlaceholder || 'Wird dem Antragsteller mitgeteilt';
+    var confirmLabel = o.confirmLabel || 'Weiter';
+    if (window.FwConfirm && typeof window.FwConfirm.show === 'function') {
+      return window.FwConfirm.show({
+        title: title,
+        message: message,
+        confirmLabel: confirmLabel,
+        cancelLabel: 'Abbrechen',
+        variant: o.variant || 'primary',
+        textInputLabel: label,
+        textInputPlaceholder: placeholder
+      }).then(function (result) {
+        var ok = result === true || (result && result.ok);
+        if (!ok) return null;
+        return (result && result.textValue) || '';
+      });
+    }
+    var fallback = window.prompt(label + ':', '');
+    return Promise.resolve(fallback === null ? null : (fallback || ''));
+  }
+
   function submitCreate() {
     var kind = currentKind();
     var resourceIds = selectedResources.map(function (r) { return Number(r.id); }).filter(Boolean);
@@ -1351,14 +1378,75 @@
         }
       }
       if (action === 'reject') {
-        var reasonAll = window.prompt('Begründung für die Ablehnung (optional):', '') || '';
+        askRejectReason({
+          title: 'Antrag ablehnen?',
+          message: 'Alle Fahrzeuge dieses Antrags werden abgelehnt. Optional können Sie eine Begründung angeben.',
+          textInputLabel: 'Begründung für die Ablehnung (optional)',
+          confirmLabel: 'Ablehnen',
+          variant: 'danger'
+        }).then(function (reasonAll) {
+          if (reasonAll == null) return;
+          askTestModeEmailDelivery(null).then(function (delivery) {
+            if (delivery == null) return;
+            if (sourceBtn) sourceBtn.disabled = true;
+            processReservation(kind, id, 'reject', reasonAll, false, [], delivery, [], [])
+              .then(function (data) {
+                if (data.ok) window.location.reload();
+                else {
+                  notify(data.message || 'Ablehnung fehlgeschlagen.', 'error');
+                  if (sourceBtn) sourceBtn.disabled = false;
+                }
+              })
+              .catch(function () {
+                notify('Ablehnung fehlgeschlagen.', 'error');
+                if (sourceBtn) sourceBtn.disabled = false;
+              });
+          });
+        });
+        return;
+      }
+      var continueApprove = function () {
+        askTestModeEmailDelivery(null).then(function (delivery) {
+          if (delivery == null) return;
+          processEmailDelivery = delivery;
+          runApproveWithContext('approve', false, []);
+        });
+      };
+      if (rejectedVehicleIds.length > 0 && !opts.rejectReason) {
+        askRejectReason({
+          title: 'Abgelehnte Fahrzeuge',
+          message:
+            'Einige Fahrzeuge werden abgelehnt, die übrigen genehmigt. ' +
+            'Optional können Sie eine Begründung für die abgelehnten Fahrzeuge angeben.',
+          textInputLabel: 'Begründung für abgelehnte Fahrzeuge (optional)',
+          confirmLabel: 'Weiter'
+        }).then(function (reason) {
+          if (reason == null) return;
+          opts.rejectReason = reason;
+          continueApprove();
+        });
+        return;
+      }
+      continueApprove();
+      return;
+    }
+    if (action === 'reject') {
+      askRejectReason({
+        title: 'Antrag ablehnen?',
+        message: 'Der Antrag wird abgelehnt. Optional können Sie eine Begründung angeben.',
+        textInputLabel: 'Begründung für die Ablehnung (optional)',
+        confirmLabel: 'Ablehnen',
+        variant: 'danger'
+      }).then(function (reason) {
+        if (reason == null) return;
         askTestModeEmailDelivery(null).then(function (delivery) {
           if (delivery == null) return;
           if (sourceBtn) sourceBtn.disabled = true;
-          processReservation(kind, id, 'reject', reasonAll, false, [], delivery, [], [])
+          processReservation(kind, id, 'reject', reason, false, [], delivery, [], [])
             .then(function (data) {
-              if (data.ok) window.location.reload();
-              else {
+              if (data.ok) {
+                window.location.reload();
+              } else {
                 notify(data.message || 'Ablehnung fehlgeschlagen.', 'error');
                 if (sourceBtn) sourceBtn.disabled = false;
               }
@@ -1368,36 +1456,6 @@
               if (sourceBtn) sourceBtn.disabled = false;
             });
         });
-        return;
-      }
-      if (rejectedVehicleIds.length > 0 && !opts.rejectReason) {
-        opts.rejectReason = window.prompt('Begründung für abgelehnte Fahrzeuge (optional):', '') || '';
-      }
-      askTestModeEmailDelivery(null).then(function (delivery) {
-        if (delivery == null) return;
-        processEmailDelivery = delivery;
-        runApproveWithContext('approve', false, []);
-      });
-      return;
-    }
-    if (action === 'reject') {
-      var reason = window.prompt('Begründung für die Ablehnung (optional):', '') || '';
-      askTestModeEmailDelivery(null).then(function (delivery) {
-        if (delivery == null) return;
-        if (sourceBtn) sourceBtn.disabled = true;
-        processReservation(kind, id, 'reject', reason, false, [], delivery, [], [])
-          .then(function (data) {
-            if (data.ok) {
-              window.location.reload();
-            } else {
-              notify(data.message || 'Ablehnung fehlgeschlagen.', 'error');
-              if (sourceBtn) sourceBtn.disabled = false;
-            }
-          })
-          .catch(function () {
-            notify('Ablehnung fehlgeschlagen.', 'error');
-            if (sourceBtn) sourceBtn.disabled = false;
-          });
       });
     }
   }
