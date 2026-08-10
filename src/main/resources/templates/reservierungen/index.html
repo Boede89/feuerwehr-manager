@@ -193,7 +193,7 @@
             <tr th:each="r : ${allReservations}"
                 th:if="${r.status().name() != 'PENDING'}"
                 class="reservierungen-row--clickable"
-                th:attr="data-kind=${r.kind().name()},data-id=${r.id()},data-start-at=${r.startAt()},data-open-details=${'reservierung-details-' + r.kind().name() + '-' + r.id()}">
+                th:attr="data-kind=${r.kind().name()},data-id=${r.id()},data-status=${r.status().name()},data-start-at=${r.startAt()},data-open-details=${'reservierung-details-' + r.kind().name() + '-' + r.id()}">
               <td th:text="${r.kind() == T(de.feuerwehr.manager.reservierungen.ReservationKind).VEHICLE ? 'Fahrzeug' : 'Raum'}">Fahrzeug</td>
               <td th:text="${r.resourceName()}">TLF</td>
               <td th:text="${r.requesterName()}">Name</td>

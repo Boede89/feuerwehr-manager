@@ -1485,13 +1485,23 @@
       var inTestMode = window.FwConfirm && typeof window.FwConfirm.isTestMode === 'function'
         ? window.FwConfirm.isTestMode()
         : false;
+      var status = (row.dataset.status || '').toUpperCase();
+      // Storno-Mail nur bei genehmigten/offenen Einträgen (Backend sendet bei REJECTED/CANCELLED keine Mail)
+      var canNotifyCancel = status === 'APPROVED' || status === 'PENDING' || !status;
       var future = isFutureStartAt(row.dataset.startAt);
+      var notifyCancel = canNotifyCancel && future;
       var message =
         'Soll diese Reservierung wirklich gelöscht werden?\n\n' +
         'Falls vorhanden, wird der Termin auch aus DIVERA und dem Google-Kalender entfernt.';
-      if (future) {
+      if (notifyCancel) {
         message +=
           '\n\nDer Antragsteller erhält eine Stornierungs-E-Mail (optional mit Begründung).';
+      } else if (status === 'REJECTED') {
+        message +=
+          '\n\nEs wird keine weitere E-Mail versendet (Ablehnung wurde bereits mitgeteilt).';
+      } else if (status === 'CANCELLED') {
+        message +=
+          '\n\nEs wird keine weitere E-Mail versendet.';
       }
       var confirmOpts = {
         title: 'Reservierung löschen?',
@@ -1499,9 +1509,9 @@
         confirmLabel: 'Löschen',
         cancelLabel: 'Abbrechen',
         variant: 'danger',
-        emailSelect: inTestMode,
+        emailSelect: inTestMode && notifyCancel,
       };
-      if (future) {
+      if (notifyCancel) {
         confirmOpts.textInputLabel = 'Stornierungsgrund (optional)';
         confirmOpts.textInputPlaceholder = 'Wird dem Antragsteller in der E-Mail mitgeteilt';
       }
@@ -1513,10 +1523,10 @@
         var ok = result === true || (result && result.ok);
         if (!ok) return;
         var delivery = 'NONE';
-        if (window.FwConfirm && window.FwConfirm.applyTestModeEmailExtra) {
+        if (notifyCancel && window.FwConfirm && window.FwConfirm.applyTestModeEmailExtra) {
           delivery = window.FwConfirm.applyTestModeEmailExtra({}, result).testModeEmailDelivery || 'NONE';
         }
-        var deletionReason = future && result && result.textValue ? result.textValue : '';
+        var deletionReason = notifyCancel && result && result.textValue ? result.textValue : '';
         btn.disabled = true;
         deleteReservation(row.dataset.kind, row.dataset.id, delivery, deletionReason)
           .then(function (data) {
