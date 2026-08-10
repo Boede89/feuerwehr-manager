@@ -11,9 +11,11 @@
   var modal = document.getElementById('reservierung-modal');
   var pickModal = document.getElementById('reservierung-pick-modal');
   var conflictModal = document.getElementById('reservierung-conflict-modal');
+  var approveConflictModal = document.getElementById('reservierung-approve-conflict-modal');
   var loeschModal = document.getElementById('reservierung-loesch-modal');
   var importModal = document.getElementById('reservierung-import-modal');
   var importOptionsModal = document.getElementById('reservierung-import-options-modal');
+  var pendingApproveRetry = null;
   var form = document.getElementById('reservierung-form');
   var importForm = document.getElementById('reservierung-import-form');
   var submitBtn = document.getElementById('reservierung-submit');
@@ -570,35 +572,58 @@
     return slots;
   }
 
+  function fillConflictList(listEl, conflicts) {
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    (conflicts || []).forEach(function (c) {
+      var li = document.createElement('li');
+      li.className = 'reservierungen-conflict-item';
+      li.innerHTML =
+        '<strong>' + escapeHtml(c.resourceName || 'Ressource') + '</strong>'
+        + '<span class="reservierungen-conflict-item__meta">'
+        + '<span>Grund: ' + escapeHtml(c.reason || '—') + '</span>'
+        + '<span>Antragsteller: ' + escapeHtml(c.requesterName || '—') + '</span>'
+        + '<span>Zeitraum: ' + escapeHtml(formatConflictTime(c.startAt))
+        + ' – ' + escapeHtml(formatConflictTime(c.endAt)) + '</span>'
+        + '</span>';
+      listEl.appendChild(li);
+    });
+  }
+
   function showConflictModal(data) {
     var msg = document.getElementById('reservierung-conflict-message');
-    var list = document.getElementById('reservierung-conflict-list');
     if (msg) {
       msg.textContent = data.message || 'Mindestens eine Ressource ist bereits vergeben.';
     }
-    if (list) {
-      list.innerHTML = '';
-      (data.conflicts || []).forEach(function (c) {
-        var li = document.createElement('li');
-        li.className = 'reservierungen-conflict-item';
-        li.innerHTML =
-          '<strong>' + escapeHtml(c.resourceName || 'Ressource') + '</strong>'
-          + '<span class="reservierungen-conflict-item__meta">'
-          + '<span>Grund: ' + escapeHtml(c.reason || '—') + '</span>'
-          + '<span>Antragsteller: ' + escapeHtml(c.requesterName || '—') + '</span>'
-          + '<span>Zeitraum: ' + escapeHtml(formatConflictTime(c.startAt))
-          + ' – ' + escapeHtml(formatConflictTime(c.endAt)) + '</span>'
-          + '</span>';
-        list.appendChild(li);
-      });
-    }
+    fillConflictList(document.getElementById('reservierung-conflict-list'), data.conflicts);
     openOverlay(conflictModal);
   }
 
-  function showLoeschModal(data) {
+  function showApproveConflictModal(data, retry) {
+    pendingApproveRetry = {
+      mode: 'conflict',
+      retry: retry,
+      conflicts: data.conflicts || []
+    };
+    var msg = document.getElementById('reservierung-approve-conflict-message');
+    if (msg) {
+      msg.textContent = data.message || 'Fahrzeug/Raum ist in diesem Zeitraum bereits belegt.';
+    }
+    fillConflictList(document.getElementById('reservierung-approve-conflict-list'), data.conflicts);
+    openOverlay(approveConflictModal);
+  }
+
+  function showLoeschModal(data, approveRetry) {
     var msg = document.getElementById('reservierung-loesch-message');
+    var forceBtn = document.getElementById('reservierung-loesch-force');
     if (msg) {
       msg.textContent = data.message || 'Löschfahrzeug-Warnung.';
+    }
+    if (approveRetry) {
+      pendingApproveRetry = { mode: 'loesch', retry: approveRetry, conflicts: [] };
+      if (forceBtn) forceBtn.textContent = 'Trotzdem genehmigen';
+    } else {
+      if (forceBtn) forceBtn.textContent = 'Trotzdem senden';
     }
     openOverlay(loeschModal);
   }
@@ -634,9 +659,19 @@
       closeOverlay(conflictModal);
     });
   });
+  document.querySelectorAll('[data-close-approve-conflict-modal]').forEach(function (btn) {
+    btn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      pendingApproveRetry = null;
+      closeOverlay(approveConflictModal);
+    });
+  });
   document.querySelectorAll('[data-close-loesch-modal]').forEach(function (btn) {
     btn.addEventListener('click', function (ev) {
       ev.preventDefault();
+      if (pendingApproveRetry && pendingApproveRetry.mode === 'loesch') {
+        pendingApproveRetry = null;
+      }
       closeOverlay(loeschModal);
     });
   });
@@ -765,8 +800,19 @@
   conflictModal?.addEventListener('click', function (ev) {
     if (ev.target === conflictModal) closeOverlay(conflictModal);
   });
+  approveConflictModal?.addEventListener('click', function (ev) {
+    if (ev.target === approveConflictModal) {
+      pendingApproveRetry = null;
+      closeOverlay(approveConflictModal);
+    }
+  });
   loeschModal?.addEventListener('click', function (ev) {
-    if (ev.target === loeschModal) closeOverlay(loeschModal);
+    if (ev.target === loeschModal) {
+      if (pendingApproveRetry && pendingApproveRetry.mode === 'loesch') {
+        pendingApproveRetry = null;
+      }
+      closeOverlay(loeschModal);
+    }
   });
   importModal?.addEventListener('click', function (ev) {
     if (ev.target === importModal) closeOverlay(importModal);
@@ -795,8 +841,26 @@
     pendingCreateFlags.forceConflict = true;
     submitCreate();
   });
+  document.getElementById('reservierung-approve-conflict-force')?.addEventListener('click', function () {
+    var pending = pendingApproveRetry;
+    pendingApproveRetry = null;
+    closeOverlay(approveConflictModal);
+    if (!pending || typeof pending.retry !== 'function') {
+      return;
+    }
+    var ids = (pending.conflicts || []).map(function (c) { return c.id; });
+    pending.retry('approve_with_conflict_resolution', false, ids);
+  });
   document.getElementById('reservierung-loesch-force')?.addEventListener('click', function () {
     closeOverlay(loeschModal);
+    if (pendingApproveRetry && pendingApproveRetry.mode === 'loesch') {
+      var retry = pendingApproveRetry.retry;
+      pendingApproveRetry = null;
+      if (typeof retry === 'function') {
+        retry('approve', true, []);
+      }
+      return;
+    }
     pendingCreateFlags.forceLoesch = true;
     submitCreate();
   });
@@ -1068,23 +1132,11 @@
 
   function handleProcessResult(data, retry) {
     if (data.code === 'CONFLICTS') {
-      var list = describeConflicts(data.conflicts);
-      var confirmMsg = (data.message || 'Fahrzeug/Raum ist bereits belegt.')
-        + '\n\nBestehende genehmigte Reservierungen:\n' + (list || '—')
-        + '\n\nKonfliktierende Reservierungen stornieren und trotzdem genehmigen?'
-        + '\n(Termine in DIVERA/Google werden dabei ebenfalls entfernt; Antragsteller erhalten eine Storno-Mail.)';
-      if (window.confirm(confirmMsg)) {
-        var ids = (data.conflicts || []).map(function (c) { return c.id; });
-        retry('approve_with_conflict_resolution', false, ids);
-      }
+      showApproveConflictModal(data, retry);
       return false;
     }
     if (data.code === 'LOESCH_WARNING') {
-      var loeschMsg = (data.message || 'Löschfahrzeug-Warnung.')
-        + '\n\nTrotzdem genehmigen?';
-      if (window.confirm(loeschMsg)) {
-        retry('approve', true, []);
-      }
+      showLoeschModal(data, retry);
       return false;
     }
     if (!data.ok) {

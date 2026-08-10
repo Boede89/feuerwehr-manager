@@ -408,6 +408,30 @@
     </div>
   </div>
 
+  <div id="reservierung-approve-conflict-modal" class="modal-overlay modal-overlay--stack" aria-hidden="true">
+    <div class="modal modal--md" role="dialog" aria-labelledby="reservierung-approve-conflict-title">
+      <div class="modal__header">
+        <h3 id="reservierung-approve-conflict-title">Konflikt bei Genehmigung</h3>
+        <button type="button" class="modal__close" data-close-approve-conflict-modal aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal__body">
+        <p id="reservierung-approve-conflict-message" class="reservierungen-conflict-lead">
+          Das Fahrzeug ist in diesem Zeitraum bereits belegt.
+        </p>
+        <p class="hint" style="margin-top:0;">Bestehende genehmigte Reservierungen:</p>
+        <ul id="reservierung-approve-conflict-list" class="reservierungen-conflict-list"></ul>
+        <p class="hint">
+          Bei Bestätigung werden die konfliktierenden Reservierungen storniert und dieser Antrag genehmigt.
+          Termine in DIVERA/Google werden entfernt; die betroffenen Antragsteller erhalten eine Storno-Mail.
+        </p>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--primary" id="reservierung-approve-conflict-force">Stornieren &amp; genehmigen</button>
+        <button type="button" class="btn btn--outline" data-close-approve-conflict-modal>Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
   <div id="reservierung-loesch-modal" class="modal-overlay" aria-hidden="true">
     <div class="modal modal--md" role="dialog" aria-labelledby="reservierung-loesch-title">
       <div class="modal__header">
@@ -525,6 +549,6 @@
   <select id="reservierungen-rooms-template" hidden aria-hidden="true">
     <option th:each="r : ${roomOptions}" th:value="${r.id}" th:text="${r.name}">Raum</option>
   </select>
-  <script th:src="@{/js/reservierungen.js(v='20260810d')}" defer></script>
+  <script th:src="@{/js/reservierungen.js(v='20260810e')}" defer></script>
 </main>
 </html>
