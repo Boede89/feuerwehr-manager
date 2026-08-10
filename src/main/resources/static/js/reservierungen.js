@@ -660,9 +660,8 @@
     });
   });
 
-  modal?.addEventListener('click', function (ev) {
-    if (ev.target === modal) closeModal();
-  });
+  // reservierung-modal: kein Schließen per Klick auf den Overlay-Hintergrund
+
   pickModal?.addEventListener('click', function (ev) {
     if (ev.target === pickModal) closeOverlay(pickModal);
   });
