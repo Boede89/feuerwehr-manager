@@ -19,11 +19,26 @@
     return '/berichte/anwesenheitslisten';
   }
 
+  function hasLiveCrewBoard() {
+    // Auf dem Formular: aktueller Board-Stand zählt (auch wenn 0).
+    // Auf der Liste ohne Board: Server-Stand aus der DB nutzen.
+    return !!(document.querySelector('.incident-vehicle-dropzone--involved')
+      && window.BerichteKraefte
+      && typeof window.BerichteKraefte.countUnassignedInvolved === 'function');
+  }
+
   function countUnassignedFromBoard() {
     if (window.BerichteKraefte && window.BerichteKraefte.countUnassignedInvolved) {
       return window.BerichteKraefte.countUnassignedInvolved();
     }
     return 0;
+  }
+
+  function resolveUnassignedCount(boardCount, serverCount) {
+    if (hasLiveCrewBoard()) {
+      return boardCount;
+    }
+    return Number(serverCount) || 0;
   }
 
   function fetchUnassignedCount(reportId, unitId) {
@@ -41,14 +56,14 @@
       .then(function (res) {
         if (!res.ok) {
           return {
-            unassignedCount: boardCount,
+            unassignedCount: resolveUnassignedCount(boardCount, 0),
             hasMaterialDamages: false,
             hasDeployedEquipment: fromForm
           };
         }
         return res.json().then(function (data) {
           return {
-            unassignedCount: boardCount > 0 ? boardCount : (Number(data.unassignedCount) || 0),
+            unassignedCount: resolveUnassignedCount(boardCount, data.unassignedCount),
             hasMaterialDamages: !!data.hasMaterialDamages,
             // Formular hat Vorrang: Auswahl oft noch nicht gespeichert
             hasDeployedEquipment: fromForm || !!data.hasDeployedEquipment
@@ -57,7 +72,7 @@
       })
       .catch(function () {
         return {
-          unassignedCount: boardCount,
+          unassignedCount: resolveUnassignedCount(boardCount, 0),
           hasMaterialDamages: false,
           hasDeployedEquipment: fromForm
         };
@@ -96,6 +111,10 @@
   function prepareRelease(reportId, unitId) {
     if (window.BerichteGeraete && typeof window.BerichteGeraete.sync === 'function') {
       window.BerichteGeraete.sync();
+    }
+    // Board-Stand in Hidden-Feld schreiben, bevor Freigabe-Checks laufen
+    if (window.BerichteKraefte && typeof window.BerichteKraefte.syncHiddenJson === 'function') {
+      window.BerichteKraefte.syncHiddenJson();
     }
     return fetchUnassignedCount(reportId, unitId).then(function (data) {
       var count = Number(data && data.unassignedCount) || 0;

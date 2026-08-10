@@ -120,6 +120,17 @@
         });
       }
       var issues = (result && result.issues) || [];
+      // Live-Board auf dem Formular: Server-Stand kann veraltet sein (noch nicht gespeichert).
+      issues = reconcileVehicleAssignmentIssues(issues);
+      if (!issues.length) {
+        return fetchFreigabeCheck(reportId, unitId).then(function (check) {
+          return {
+            ok: true,
+            hasDeployedEquipment: !!(check && check.hasDeployedEquipment),
+            hasMaterialDamages: !!(check && check.hasMaterialDamages)
+          };
+        });
+      }
       if (window.FwConfirm && window.FwConfirm.releaseValidationIssues) {
         return window.FwConfirm.releaseValidationIssues(issues, {
           reportId: reportId,
@@ -138,6 +149,36 @@
       storeIssuesAndNavigate(issues, reportId, unitId);
       return { ok: false };
     });
+  }
+
+  function reconcileVehicleAssignmentIssues(issues) {
+    var board = document.getElementById('incident-kraefte-board');
+    var liveZone = document.querySelector('.incident-vehicle-dropzone--involved');
+    if (!board || !liveZone || board.dataset.readonly === 'true') {
+      return issues || [];
+    }
+    if (!window.BerichteKraefte || typeof window.BerichteKraefte.countUnassignedInvolved !== 'function') {
+      return issues || [];
+    }
+    var unassigned = window.BerichteKraefte.countUnassignedInvolved();
+    var list = (issues || []).slice();
+    var withoutVehicleIssue = list.filter(function (issue) {
+      return !issue || issue.key !== 'vehicleAssignments';
+    });
+    if (unassigned <= 0) {
+      return withoutVehicleIssue;
+    }
+    if (withoutVehicleIssue.length === list.length) {
+      // Server hat den Hinweis nicht, Board schon — dann Client-Hinweis ergänzen
+      list.push({
+        key: 'vehicleAssignments',
+        label: 'Fahrzeugzuordnungen (noch Personal ohne Fahrzeug)',
+        tabIndex: 2,
+        anchorId: 'incident-vehicle-stack'
+      });
+      return list;
+    }
+    return list;
   }
 
   function parseReportIdFromAction(action) {

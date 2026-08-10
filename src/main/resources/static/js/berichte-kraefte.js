@@ -1321,7 +1321,8 @@
       syncUnitPersonButtonVisibility();
     },
     countUnassignedInvolved: countUnassignedInvolved,
-    assignRemainingToWache: assignRemainingToWache
+    assignRemainingToWache: assignRemainingToWache,
+    syncHiddenJson: syncHiddenJson
   };
 
   document.addEventListener('DOMContentLoaded', bindBoard);
