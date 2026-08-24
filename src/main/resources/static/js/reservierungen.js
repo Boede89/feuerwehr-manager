@@ -128,6 +128,61 @@
     hideBusy(getCreateModalPanel());
   }
 
+  function resolveBusyPanel(sourceBtn, overlayEl) {
+    if (overlayEl) {
+      return overlayEl.querySelector('.modal') || overlayEl;
+    }
+    if (sourceBtn) {
+      var modalOverlay = sourceBtn.closest('.modal-overlay');
+      if (modalOverlay) {
+        return modalOverlay.querySelector('.modal') || modalOverlay;
+      }
+    }
+    return root;
+  }
+
+  function beginActionBusy(container, message) {
+    showBusy(container, message, container === root);
+  }
+
+  function finishActionBusy(container) {
+    hideBusy(container);
+  }
+
+  function processBusyMessage(action) {
+    if (!action || action.indexOf('reject') >= 0) {
+      return 'Antrag wird abgelehnt …';
+    }
+    return 'Reservierung wird genehmigt …';
+  }
+
+  function runRejectReservation(kind, id, reason, sourceBtn, overlayEl, delivery) {
+    var panel = resolveBusyPanel(sourceBtn, overlayEl);
+    if (sourceBtn) {
+      sourceBtn.disabled = true;
+    }
+    beginActionBusy(panel, 'Antrag wird abgelehnt …');
+    return processReservation(kind, id, 'reject', reason, false, [], delivery, [], [])
+      .then(function (data) {
+        if (data.ok) {
+          window.location.reload();
+          return;
+        }
+        finishActionBusy(panel);
+        notify(data.message || 'Ablehnung fehlgeschlagen.', 'error');
+        if (sourceBtn) {
+          sourceBtn.disabled = false;
+        }
+      })
+      .catch(function () {
+        finishActionBusy(panel);
+        notify('Ablehnung fehlgeschlagen.', 'error');
+        if (sourceBtn) {
+          sourceBtn.disabled = false;
+        }
+      });
+  }
+
   function getCsrfToken() {
     var meta = document.querySelector('meta[name="csrf-token"]');
     if (meta && meta.getAttribute('content')) {
@@ -1019,13 +1074,19 @@
     var kind = overlay.dataset.kind;
     var id = overlay.dataset.id;
     if (!kind || !id) return;
+    var panel = overlay.querySelector('.modal') || overlay;
     var box = overlay.querySelector('[data-details-conflicts]');
     var list = overlay.querySelector('[data-details-conflicts-list]');
-    if (list) list.innerHTML = '<p class="hint text-sm">Überschneidungen werden geprüft…</p>';
+    if (list) list.innerHTML = '';
     if (box) box.hidden = false;
-    fetchConflicts(kind, id).then(function (conflicts) {
-      renderDetailsConflicts(overlay, conflicts);
-    });
+    beginActionBusy(panel, 'Konflikte werden geprüft …');
+    fetchConflicts(kind, id)
+      .then(function (conflicts) {
+        renderDetailsConflicts(overlay, conflicts);
+      })
+      .finally(function () {
+        finishActionBusy(panel);
+      });
   }
 
   document.querySelectorAll('[data-open-details]').forEach(function (el) {
@@ -1395,7 +1456,11 @@
       syncCalendars: !!document.getElementById('import-opt-calendar')?.checked
     });
     var btn = document.getElementById('import-options-confirm');
+    var panel = importOptionsModal
+      ? (importOptionsModal.querySelector('.modal') || importOptionsModal)
+      : root;
     if (btn) btn.disabled = true;
+    beginActionBusy(panel, 'Reservierung wird übernommen …');
     fetch('/reservierungen/api/import?unit=' + encodeURIComponent(unitId), {
       method: 'POST',
       credentials: 'same-origin',
@@ -1405,6 +1470,7 @@
       .then(parseJsonResponse)
       .then(function (data) {
         if (!data.ok) {
+          finishActionBusy(panel);
           notify(data.message || 'Übernahme fehlgeschlagen.', 'error');
           return;
         }
@@ -1416,6 +1482,7 @@
         window.location.reload();
       })
       .catch(function () {
+        finishActionBusy(panel);
         notify('Übernahme fehlgeschlagen.', 'error');
       })
       .finally(function () {
@@ -1530,7 +1597,11 @@
     var fromOverlay = opts.overlay || null;
 
     function runApproveWithContext(approveAction, forceLoesch, conflictIds) {
-      if (sourceBtn) sourceBtn.disabled = true;
+      var panel = resolveBusyPanel(sourceBtn, fromOverlay);
+      if (sourceBtn) {
+        sourceBtn.disabled = true;
+      }
+      beginActionBusy(panel, processBusyMessage(approveAction));
       processReservation(
         kind,
         id,
@@ -1544,32 +1615,44 @@
       )
         .then(function (data) {
           if (data.code === 'CONFLICTS') {
+            finishActionBusy(panel);
             showApproveConflictModal(data, {
               retry: runApproveWithContext,
               action: 'approve_with_conflict_resolution',
               conflictIds: (data.conflicts || []).map(function (c) { return c.id; })
             });
-            if (sourceBtn) sourceBtn.disabled = false;
+            if (sourceBtn) {
+              sourceBtn.disabled = false;
+            }
             return;
           }
           if (data.code === 'LOESCH_WARNING') {
+            finishActionBusy(panel);
             showLoeschModal(data, {
               retry: runApproveWithContext,
               action: approveAction,
               conflictIds: conflictIds || []
             });
-            if (sourceBtn) sourceBtn.disabled = false;
+            if (sourceBtn) {
+              sourceBtn.disabled = false;
+            }
             return;
           }
           if (handleProcessResult(data, runApproveWithContext)) {
             window.location.reload();
-          } else if (sourceBtn) {
+            return;
+          }
+          finishActionBusy(panel);
+          if (sourceBtn) {
             sourceBtn.disabled = false;
           }
         })
         .catch(function () {
+          finishActionBusy(panel);
           notify('Genehmigung fehlgeschlagen.', 'error');
-          if (sourceBtn) sourceBtn.disabled = false;
+          if (sourceBtn) {
+            sourceBtn.disabled = false;
+          }
         });
     }
 
@@ -1607,19 +1690,7 @@
           if (reasonAll == null) return;
           askTestModeEmailDelivery(null).then(function (delivery) {
             if (delivery == null) return;
-            if (sourceBtn) sourceBtn.disabled = true;
-            processReservation(kind, id, 'reject', reasonAll, false, [], delivery, [], [])
-              .then(function (data) {
-                if (data.ok) window.location.reload();
-                else {
-                  notify(data.message || 'Ablehnung fehlgeschlagen.', 'error');
-                  if (sourceBtn) sourceBtn.disabled = false;
-                }
-              })
-              .catch(function () {
-                notify('Ablehnung fehlgeschlagen.', 'error');
-                if (sourceBtn) sourceBtn.disabled = false;
-              });
+            runRejectReservation(kind, id, reasonAll, sourceBtn, fromOverlay, delivery);
           });
         });
         return;
@@ -1660,20 +1731,7 @@
         if (reason == null) return;
         askTestModeEmailDelivery(null).then(function (delivery) {
           if (delivery == null) return;
-          if (sourceBtn) sourceBtn.disabled = true;
-          processReservation(kind, id, 'reject', reason, false, [], delivery, [], [])
-            .then(function (data) {
-              if (data.ok) {
-                window.location.reload();
-              } else {
-                notify(data.message || 'Ablehnung fehlgeschlagen.', 'error');
-                if (sourceBtn) sourceBtn.disabled = false;
-              }
-            })
-            .catch(function () {
-              notify('Ablehnung fehlgeschlagen.', 'error');
-              if (sourceBtn) sourceBtn.disabled = false;
-            });
+          runRejectReservation(kind, id, reason, sourceBtn, fromOverlay, delivery);
         });
       });
     }
