@@ -115,43 +115,22 @@ public class ReservierungenGoogleCalendarService {
         return toCredentials(account, true)
                 .map(cred -> {
                     RestClient client = buildClient(cred.accessToken());
+                    if (oauthConnected) {
+                        return testOAuthCalendarAccess(client, cred, account);
+                    }
                     try {
                         String raw = client
                                 .get()
-                                .uri(testCalendarMetadataUri(cred.calendarId(), oauthConnected))
+                                .uri("https://www.googleapis.com/calendar/v3/calendars/"
+                                        + encodeCalendarId(cred.calendarId()))
                                 .retrieve()
                                 .body(String.class);
                         String summary = null;
-                        String accessRole = null;
                         if (raw != null && !raw.isBlank()) {
-                            JsonNode meta = objectMapper.readTree(raw);
-                            summary = meta.path("summary").asText(null);
-                            accessRole = meta.path("accessRole").asText(null);
-                        }
-                        if (oauthConnected
-                                && accessRole != null
-                                && !accessRole.isBlank()
-                                && !"owner".equalsIgnoreCase(accessRole)
-                                && !"writer".equalsIgnoreCase(accessRole)) {
-                            return "Kalender „"
-                                    + (summary != null && !summary.isBlank() ? summary : cred.calendarId())
-                                    + "“ ist nur mit Lese-Rechten verbunden ("
-                                    + accessRole
-                                    + ") – in Google Kalender „Termine ändern“ erlauben.";
+                            summary = objectMapper.readTree(raw).path("summary").asText(null);
                         }
                         String label = summary != null && !summary.isBlank() ? summary : cred.calendarId();
-                        return "OK – Kalender „"
-                                + label
-                                + "“ erreichbar (Calendar-ID: "
-                                + cred.calendarId()
-                                + ", Konto="
-                                + cred.clientEmail()
-                                + (account.getDelegatedUserEmail() != null
-                                                && !account.getDelegatedUserEmail().isBlank()
-                                        ? ", Delegierung: " + account.getDelegatedUserEmail().trim()
-                                        : "")
-                                + (oauthConnected ? ", OAuth" : ", Service-Account")
-                                + ").";
+                        return formatCalendarTestOk(label, cred, account, false);
                     } catch (RestClientResponseException e) {
                         String base = "Fehler HTTP "
                                 + e.getStatusCode().value()
@@ -159,8 +138,7 @@ public class ReservierungenGoogleCalendarService {
                                 + humanizeGoogleError(
                                         e.getResponseBodyAsString(), cred.clientEmail(), cred.calendarId());
                         if (e.getStatusCode().value() == 404) {
-                            base += " "
-                                    + describeVisibleCalendars(client, cred.clientEmail(), oauthConnected);
+                            base += " " + describeVisibleCalendars(client, cred.clientEmail(), false);
                         }
                         return base;
                     } catch (Exception e) {
@@ -168,6 +146,82 @@ public class ReservierungenGoogleCalendarService {
                     }
                 })
                 .orElseGet(() -> describeMissingCredentials(account) + " (Calendar-ID: " + calendarId + ").");
+    }
+
+    private String testOAuthCalendarAccess(RestClient client, CalendarCredentials cred, UnitCalendarAccount account) {
+        try {
+            JsonNode items = fetchCalendarListItems(client);
+            java.util.Optional<JsonNode> match = findCalendarListEntry(items, cred.calendarId());
+            if (match.isEmpty()) {
+                return "Kalender-ID nicht in der Google-Kalenderliste von "
+                        + cred.clientEmail()
+                        + " – ID aus Integrationsadresse prüfen. "
+                        + describeVisibleCalendars(client, cred.clientEmail(), true);
+            }
+            JsonNode entry = match.get();
+            String summary = entry.path("summary").asText(null);
+            String accessRole = entry.path("accessRole").asText(null);
+            if (accessRole != null
+                    && !accessRole.isBlank()
+                    && !"owner".equalsIgnoreCase(accessRole)
+                    && !"writer".equalsIgnoreCase(accessRole)) {
+                return "Kalender „"
+                        + (summary != null && !summary.isBlank() ? summary : cred.calendarId())
+                        + "“ ist nur mit Lese-Rechten verbunden ("
+                        + accessRole
+                        + ") – in Google Kalender „Termine ändern“ erlauben.";
+            }
+            String label = summary != null && !summary.isBlank() ? summary : cred.calendarId();
+            return formatCalendarTestOk(label, cred, account, true);
+        } catch (RestClientResponseException e) {
+            return "Fehler HTTP "
+                    + e.getStatusCode().value()
+                    + ": "
+                    + humanizeGoogleError(e.getResponseBodyAsString(), cred.clientEmail(), cred.calendarId());
+        } catch (Exception e) {
+            return "Fehler: " + e.getMessage();
+        }
+    }
+
+    private String formatCalendarTestOk(
+            String label, CalendarCredentials cred, UnitCalendarAccount account, boolean oauthConnected) {
+        return "OK – Kalender „"
+                + label
+                + "“ erreichbar (Calendar-ID: "
+                + cred.calendarId()
+                + ", Konto="
+                + cred.clientEmail()
+                + (account.getDelegatedUserEmail() != null && !account.getDelegatedUserEmail().isBlank()
+                        ? ", Delegierung: " + account.getDelegatedUserEmail().trim()
+                        : "")
+                + (oauthConnected ? ", OAuth" : ", Service-Account")
+                + ").";
+    }
+
+    private JsonNode fetchCalendarListItems(RestClient client) throws Exception {
+        String raw = client
+                .get()
+                .uri("https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250")
+                .retrieve()
+                .body(String.class);
+        if (raw == null || raw.isBlank()) {
+            return objectMapper.createArrayNode();
+        }
+        return objectMapper.readTree(raw).path("items");
+    }
+
+    private static java.util.Optional<JsonNode> findCalendarListEntry(JsonNode items, String calendarId) {
+        if (calendarId == null || calendarId.isBlank() || items == null || !items.isArray()) {
+            return java.util.Optional.empty();
+        }
+        String target = calendarId.trim();
+        for (JsonNode item : items) {
+            String id = item.path("id").asText("");
+            if (id.equals(target) || id.equalsIgnoreCase(target)) {
+                return java.util.Optional.of(item);
+            }
+        }
+        return java.util.Optional.empty();
     }
 
     public void deleteReservationCalendarEvent(ReservationKind kind, long reservationId) {
@@ -573,15 +627,6 @@ public class ReservierungenGoogleCalendarService {
                 .requestFactory(rf)
                 .defaultHeader("Authorization", "Bearer " + accessToken)
                 .build();
-    }
-
-    /** OAuth: calendarList; Service-Account: calendars (Metadaten). */
-    private static String testCalendarMetadataUri(String calendarId, boolean oauthConnected) {
-        String encoded = encodeCalendarId(calendarId);
-        if (oauthConnected) {
-            return "https://www.googleapis.com/calendar/v3/users/me/calendarList/" + encoded;
-        }
-        return "https://www.googleapis.com/calendar/v3/calendars/" + encoded;
     }
 
     /** Welche Kalender das Konto laut API sieht (Hilfe bei 404). */
