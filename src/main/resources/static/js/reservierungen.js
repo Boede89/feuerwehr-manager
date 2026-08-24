@@ -22,6 +22,9 @@
   var importForm = document.getElementById('reservierung-import-form');
   var submitBtn = document.getElementById('reservierung-submit');
   var slotsBox = document.getElementById('reservierung-slots');
+  var confirmedSlotsBox = document.getElementById('reservierung-slots-confirmed');
+  var confirmedSlots = [];
+  var nextConfirmedSlotId = 1;
   var chipsBox = document.getElementById('reservierung-selected-chips');
   var importChipsBox = document.getElementById('import-selected-chips');
   var resourceCatalog = loadResourceCatalog();
@@ -307,6 +310,204 @@
     return wrap;
   }
 
+  function formatSlotChipLabel(dateValue, fromValue, toValue) {
+    var parts = String(dateValue || '').slice(0, 10).split('-');
+    var dateLabel = parts.length === 3
+      ? parts[2] + '.' + parts[1] + '.' + parts[0]
+      : dateValue;
+    var fromMinutes = parseTimeToMinutes(fromValue);
+    var toMinutes = parseTimeToMinutes(toValue);
+    var overnight = fromMinutes != null && toMinutes != null && toMinutes <= fromMinutes;
+    return dateLabel + ' · ' + fromValue + ' – ' + toValue + (overnight ? ' (+1 Tag)' : '');
+  }
+
+  function slotEditorRow() {
+    return slotsBox ? slotsBox.querySelector('.reservierungen-multi-row--slot') : null;
+  }
+
+  function buildSlotFromValues(dateValue, fromValue, toValue, indexLabel) {
+    var prefix = indexLabel ? ('Termin ' + indexLabel + ': ') : '';
+    if (!dateValue) {
+      notify(prefix + 'Bitte Datum angeben.', 'error');
+      return null;
+    }
+    if (!fromValue) {
+      notify(prefix + 'Bitte Von-Zeit angeben.', 'error');
+      return null;
+    }
+    if (!toValue) {
+      notify(prefix + 'Bitte Bis-Zeit angeben.', 'error');
+      return null;
+    }
+    var startAt = combineDateAndTime(dateValue, fromValue);
+    var endDateValue = dateValue;
+    var fromMinutes = parseTimeToMinutes(fromValue);
+    var toMinutes = parseTimeToMinutes(toValue);
+    if (fromMinutes != null && toMinutes != null && toMinutes <= fromMinutes) {
+      endDateValue = addDaysToDateValue(dateValue, 1);
+    }
+    var endAt = combineDateAndTime(endDateValue, toValue);
+    if (!startAt) {
+      notify(prefix + 'Beginn ungültig.', 'error');
+      return null;
+    }
+    if (!endAt) {
+      notify(prefix + 'Ende ungültig.', 'error');
+      return null;
+    }
+    if (new Date(endAt).getTime() <= new Date(startAt).getTime()) {
+      notify(prefix + 'Das Ende muss nach dem Beginn liegen.', 'error');
+      return null;
+    }
+    return {
+      id: nextConfirmedSlotId++,
+      date: dateValue,
+      from: fromValue,
+      to: toValue,
+      startAt: startAt,
+      endAt: endAt,
+      label: formatSlotChipLabel(dateValue, fromValue, toValue)
+    };
+  }
+
+  function readEditorSlot(requireComplete) {
+    var row = slotEditorRow();
+    if (!row) {
+      return null;
+    }
+    var dateValue = row.querySelector('.reservierung-slot-date')?.value || '';
+    var fromValue = row.querySelector('.reservierung-slot-from')?.value || '';
+    var toValue = row.querySelector('.reservierung-slot-to')?.value || '';
+    var anyFilled = !!(dateValue || fromValue || toValue);
+    if (!anyFilled) {
+      if (requireComplete) {
+        notify('Bitte zuerst Datum und Zeiten eintragen.', 'error');
+      }
+      return null;
+    }
+    return buildSlotFromValues(dateValue, fromValue, toValue, requireComplete ? null : 'aktuell');
+  }
+
+  function clearSlotEditor() {
+    var row = slotEditorRow();
+    if (!row) {
+      return;
+    }
+    var dateInput = row.querySelector('.reservierung-slot-date');
+    var fromInput = row.querySelector('.reservierung-slot-from');
+    var toInput = row.querySelector('.reservierung-slot-to');
+    var durationSelect = row.querySelector('.reservierung-slot-duration');
+    if (dateInput) dateInput.value = '';
+    if (fromInput) fromInput.value = '';
+    if (toInput) {
+      toInput.value = '';
+      toInput.dataset.autoFilled = '0';
+    }
+    if (durationSelect) durationSelect.value = '';
+  }
+
+  function renderConfirmedSlots() {
+    if (!confirmedSlotsBox) {
+      return;
+    }
+    confirmedSlotsBox.innerHTML = '';
+    if (!confirmedSlots.length) {
+      confirmedSlotsBox.hidden = true;
+      return;
+    }
+    confirmedSlotsBox.hidden = false;
+    confirmedSlots.forEach(function (slot) {
+      var row = document.createElement('div');
+      row.className = 'reservierungen-slot-chip';
+      var text = document.createElement('span');
+      text.className = 'reservierungen-slot-chip__text';
+      text.textContent = slot.label;
+      var remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'reservierungen-chip__remove';
+      remove.setAttribute('aria-label', 'Termin entfernen');
+      remove.textContent = '×';
+      remove.addEventListener('click', function () {
+        confirmedSlots = confirmedSlots.filter(function (s) {
+          return s.id !== slot.id;
+        });
+        renderConfirmedSlots();
+      });
+      row.appendChild(text);
+      row.appendChild(remove);
+      confirmedSlotsBox.appendChild(row);
+    });
+  }
+
+  function ensureSlotEditor() {
+    if (!slotsBox) return;
+    slotsBox.innerHTML = '';
+    var row = document.createElement('div');
+    row.className = 'reservierungen-multi-row reservierungen-multi-row--slot';
+
+    var dateInput = document.createElement('input');
+    dateInput.type = 'date';
+    dateInput.className = 'field reservierung-slot-date';
+
+    var fromInput = document.createElement('input');
+    fromInput.type = 'time';
+    fromInput.className = 'field reservierung-slot-from';
+    fromInput.step = '60';
+
+    var toInput = document.createElement('input');
+    toInput.type = 'time';
+    toInput.className = 'field reservierung-slot-to';
+    toInput.step = '60';
+
+    var durationSelect = document.createElement('select');
+    durationSelect.className = 'field reservierung-slot-duration';
+    var emptyOpt = document.createElement('option');
+    emptyOpt.value = '';
+    emptyOpt.textContent = 'Dauer…';
+    durationSelect.appendChild(emptyOpt);
+    for (var mins = 30; mins <= 600; mins += 30) {
+      var opt = document.createElement('option');
+      opt.value = String(mins);
+      opt.textContent = formatDurationLabel(mins);
+      durationSelect.appendChild(opt);
+    }
+
+    fromInput.addEventListener('change', function () {
+      applySlotDuration(row);
+    });
+    durationSelect.addEventListener('change', function () {
+      applySlotDuration(row);
+    });
+    toInput.addEventListener('input', function () {
+      if (toInput.dataset.autoFilled === '1') {
+        toInput.dataset.autoFilled = '0';
+        return;
+      }
+      durationSelect.value = '';
+    });
+
+    row.appendChild(createSlotField('Datum', dateInput));
+    row.appendChild(createSlotField('Von', fromInput));
+    row.appendChild(createSlotField('Bis', toInput));
+    row.appendChild(createSlotField('Zeitraum', durationSelect));
+    slotsBox.appendChild(row);
+  }
+
+  function commitEditorSlot() {
+    var slot = readEditorSlot(true);
+    if (!slot) {
+      return false;
+    }
+    confirmedSlots.push(slot);
+    renderConfirmedSlots();
+    clearSlotEditor();
+    var dateInput = slotEditorRow()?.querySelector('.reservierung-slot-date');
+    if (dateInput) {
+      dateInput.focus();
+    }
+    return true;
+  }
+
   function openPickModal(context) {
     pickContext = context;
     var kind = context === 'import'
@@ -390,73 +591,6 @@
     closeOverlay(pickModal);
   }
 
-  function addSlotRow(canRemove) {
-    if (!slotsBox) return;
-    var row = document.createElement('div');
-    row.className = 'reservierungen-multi-row reservierungen-multi-row--slot';
-
-    var dateInput = document.createElement('input');
-    dateInput.type = 'date';
-    dateInput.className = 'field reservierung-slot-date';
-    dateInput.required = true;
-
-    var fromInput = document.createElement('input');
-    fromInput.type = 'time';
-    fromInput.className = 'field reservierung-slot-from';
-    fromInput.required = true;
-    fromInput.step = '60';
-
-    var toInput = document.createElement('input');
-    toInput.type = 'time';
-    toInput.className = 'field reservierung-slot-to';
-    toInput.required = true;
-    toInput.step = '60';
-
-    var durationSelect = document.createElement('select');
-    durationSelect.className = 'field reservierung-slot-duration';
-    var emptyOpt = document.createElement('option');
-    emptyOpt.value = '';
-    emptyOpt.textContent = 'Dauer…';
-    durationSelect.appendChild(emptyOpt);
-    for (var mins = 30; mins <= 600; mins += 30) {
-      var opt = document.createElement('option');
-      opt.value = String(mins);
-      opt.textContent = formatDurationLabel(mins);
-      durationSelect.appendChild(opt);
-    }
-
-    fromInput.addEventListener('change', function () {
-      applySlotDuration(row);
-    });
-    durationSelect.addEventListener('change', function () {
-      applySlotDuration(row);
-    });
-    toInput.addEventListener('input', function () {
-      if (toInput.dataset.autoFilled === '1') {
-        toInput.dataset.autoFilled = '0';
-        return;
-      }
-      durationSelect.value = '';
-    });
-
-    row.appendChild(createSlotField('Datum', dateInput));
-    row.appendChild(createSlotField('Von', fromInput));
-    row.appendChild(createSlotField('Bis', toInput));
-    row.appendChild(createSlotField('Zeitraum', durationSelect));
-
-    if (canRemove) {
-      var removeBtn = document.createElement('button');
-      removeBtn.type = 'button';
-      removeBtn.className = 'btn btn--outline btn--sm reservierungen-slot-remove';
-      removeBtn.textContent = 'Entfernen';
-      removeBtn.addEventListener('click', function () {
-        row.remove();
-      });
-      row.appendChild(removeBtn);
-    }
-    slotsBox.appendChild(row);
-  }
-
   function resetCreateForm(kind, primaryId, primaryName) {
     selectedResources = [];
     if (primaryId) {
@@ -467,10 +601,9 @@
       });
     }
     renderSelectedChips();
-    if (slotsBox) {
-      slotsBox.innerHTML = '';
-      addSlotRow(false);
-    }
+    confirmedSlots = [];
+    renderConfirmedSlots();
+    ensureSlotEditor();
     var label = document.getElementById('reservierung-resources-label');
     var addBtn = document.getElementById('reservierung-add-resource');
     if (label) {
@@ -555,46 +688,31 @@
   }
 
   function collectSlots() {
-    var slots = [];
-    var rows = document.querySelectorAll('#reservierung-slots .reservierungen-multi-row--slot');
-    for (var i = 0; i < rows.length; i++) {
-      var row = rows[i];
-      var dateValue = row.querySelector('.reservierung-slot-date')?.value;
-      var fromValue = row.querySelector('.reservierung-slot-from')?.value;
-      var toValue = row.querySelector('.reservierung-slot-to')?.value;
-      if (!dateValue) {
-        notify('Termin ' + (i + 1) + ': Bitte Datum angeben.', 'error');
-        return null;
+    var slots = confirmedSlots.map(function (slot) {
+      return { startAt: slot.startAt, endAt: slot.endAt };
+    });
+    var row = slotEditorRow();
+    if (row) {
+      var dateValue = row.querySelector('.reservierung-slot-date')?.value || '';
+      var fromValue = row.querySelector('.reservierung-slot-from')?.value || '';
+      var toValue = row.querySelector('.reservierung-slot-to')?.value || '';
+      var anyFilled = !!(dateValue || fromValue || toValue);
+      if (anyFilled) {
+        var editorSlot = buildSlotFromValues(
+          dateValue,
+          fromValue,
+          toValue,
+          slots.length ? String(slots.length + 1) : null
+        );
+        if (!editorSlot) {
+          return null;
+        }
+        slots.push({ startAt: editorSlot.startAt, endAt: editorSlot.endAt });
       }
-      if (!fromValue) {
-        notify('Termin ' + (i + 1) + ': Bitte Von-Zeit angeben.', 'error');
-        return null;
-      }
-      if (!toValue) {
-        notify('Termin ' + (i + 1) + ': Bitte Bis-Zeit angeben.', 'error');
-        return null;
-      }
-      var startAt = combineDateAndTime(dateValue, fromValue);
-      var endDateValue = dateValue;
-      var fromMinutes = parseTimeToMinutes(fromValue);
-      var toMinutes = parseTimeToMinutes(toValue);
-      if (fromMinutes != null && toMinutes != null && toMinutes <= fromMinutes) {
-        endDateValue = addDaysToDateValue(dateValue, 1);
-      }
-      var endAt = combineDateAndTime(endDateValue, toValue);
-      if (!startAt) {
-        notify('Termin ' + (i + 1) + ': Beginn ungültig.', 'error');
-        return null;
-      }
-      if (!endAt) {
-        notify('Termin ' + (i + 1) + ': Ende ungültig.', 'error');
-        return null;
-      }
-      if (new Date(endAt).getTime() <= new Date(startAt).getTime()) {
-        notify('Termin ' + (i + 1) + ': Das Ende muss nach dem Beginn liegen.', 'error');
-        return null;
-      }
-      slots.push({ startAt: startAt, endAt: endAt });
+    }
+    if (!slots.length) {
+      notify('Bitte mindestens einen Termin angeben.', 'error');
+      return null;
     }
     return slots;
   }
@@ -892,7 +1010,7 @@
     openPickModal('create');
   });
   document.getElementById('reservierung-add-slot')?.addEventListener('click', function () {
-    addSlotRow(true);
+    commitEditorSlot();
   });
   document.getElementById('reservierung-pick-apply')?.addEventListener('click', applyPickSelection);
   document.getElementById('reservierung-conflict-force')?.addEventListener('click', function () {

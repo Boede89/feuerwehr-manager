@@ -398,11 +398,15 @@
 
           <div class="form-group">
             <label>Termine <span class="req">*</span></label>
+            <div id="reservierung-slots-confirmed" class="reservierungen-slots-confirmed" hidden></div>
             <div id="reservierung-slots" class="reservierungen-multi-rows"></div>
             <div style="margin-top:8px;">
               <button type="button" class="btn btn--outline btn--sm" id="reservierung-add-slot">+ weiterer Termin</button>
             </div>
-            <p class="hint text-sm">Mehrere Termine = mehrere Anträge mit denselben Angaben.</p>
+            <p class="hint text-sm">
+              „Weiterer Termin“ speichert den aktuellen Eintrag in der Liste darüber.
+              Die Felder bleiben für den nächsten Termin.
+            </p>
           </div>
         </div>
         <div class="modal__footer">
@@ -593,6 +597,6 @@
     <option th:each="r : ${roomOptions}" th:value="${r.id}" th:text="${r.name}">Raum</option>
   </select>
   <script th:src="@{/js/combo-suggest.js}" defer></script>
-  <script th:src="@{/js/reservierungen.js(v='20260824i')}" defer></script>
+  <script th:src="@{/js/reservierungen.js(v='20260824j')}" defer></script>
 </main>
 </html>
