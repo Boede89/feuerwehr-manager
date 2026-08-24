@@ -111,8 +111,8 @@ public class ReservierungenGoogleCalendarService {
         }
         return toCredentials(account, true)
                 .map(cred -> {
+                    RestClient client = buildClient(cred.accessToken());
                     try {
-                        RestClient client = buildClient(cred.accessToken());
                         String raw = client
                                 .get()
                                 .uri("https://www.googleapis.com/calendar/v3/calendars/"
