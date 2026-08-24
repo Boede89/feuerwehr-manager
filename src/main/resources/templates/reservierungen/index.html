@@ -52,17 +52,14 @@
     <div class="card" th:if="${#lists.isEmpty(vehicles)}">
       <div class="card__body"><p class="hint">Keine aktiven Fahrzeuge hinterlegt. Bitte unter Admin → Technik anlegen.</p></div>
     </div>
-    <ul class="reservierungen-resource-list" th:if="${!#lists.isEmpty(vehicles)}">
-      <li class="reservierungen-resource-row reservierungen-resource-row--clickable"
-          th:each="v : ${vehicles}"
-          role="button"
-          tabindex="0"
-          th:attr="data-kind='vehicle',data-id=${v.id},data-name=${v.name}">
-        <div class="reservierungen-resource-row__main">
-          <strong th:text="${v.name}">TLF</strong>
-        </div>
-      </li>
-    </ul>
+    <div class="kpi-grid reservierungen-resource-tiles" th:if="${!#lists.isEmpty(vehicles)}">
+      <button type="button" class="kpi-card reservierungen-resource-tile"
+              th:each="v : ${vehicles}"
+              th:attr="data-kind='vehicle',data-id=${v.id},data-name=${v.name}">
+        <span class="kpi-card__label">Fahrzeug</span>
+        <span class="kpi-card__value reservierungen-resource-tile__name" th:text="${v.name}">TLF</span>
+      </button>
+    </div>
   </div>
 
   <!-- Räume -->
@@ -74,18 +71,16 @@
     <div class="card" th:if="${#lists.isEmpty(rooms)}">
       <div class="card__body"><p class="hint">Keine aktiven Räume hinterlegt. Bitte unter Admin → Technik anlegen.</p></div>
     </div>
-    <ul class="reservierungen-resource-list" th:if="${!#lists.isEmpty(rooms)}">
-      <li class="reservierungen-resource-row reservierungen-resource-row--clickable"
-          th:each="r : ${rooms}"
-          role="button"
-          tabindex="0"
-          th:attr="data-kind='room',data-id=${r.id},data-name=${r.name}">
-        <div class="reservierungen-resource-row__main">
-          <strong th:text="${r.name}">Schulungsraum</strong>
-          <span class="hint" th:if="${r.description != null and !#strings.isEmpty(r.description)}" th:text="${r.description}"></span>
-        </div>
-      </li>
-    </ul>
+    <div class="kpi-grid reservierungen-resource-tiles" th:if="${!#lists.isEmpty(rooms)}">
+      <button type="button" class="kpi-card reservierungen-resource-tile"
+              th:each="r : ${rooms}"
+              th:attr="data-kind='room',data-id=${r.id},data-name=${r.name}">
+        <span class="kpi-card__label">Raum</span>
+        <span class="kpi-card__value reservierungen-resource-tile__name" th:text="${r.name}">Schulungsraum</span>
+        <span class="reservierungen-resource-tile__desc" th:if="${r.description != null and !#strings.isEmpty(r.description)}"
+              th:text="${r.description}"></span>
+      </button>
+    </div>
   </div>
 
   <!-- Meine Anträge -->
@@ -350,9 +345,12 @@
         <input type="hidden" id="reservierung-kind"/>
         <div class="modal__body">
           <div class="form-group" id="reservierung-resources-block">
-            <label id="reservierung-resources-label">Fahrzeuge <span class="req">*</span></label>
-            <div id="reservierung-selected-chips" class="kpi-grid reservierungen-resource-tiles"></div>
-            <p class="hint text-sm" id="reservierung-resources-hint">Klicken Sie auf eine Kachel zum Auswählen. Mehrere Einträge erscheinen im Kalender kommagetrennt in einem Termin.</p>
+            <div class="reservierungen-section-head">
+              <label id="reservierung-resources-label">Ausgewählte Fahrzeuge <span class="req">*</span></label>
+              <button type="button" class="btn btn--outline btn--sm" id="reservierung-add-resource">Weiteres Fahrzeug hinzufügen</button>
+            </div>
+            <div id="reservierung-selected-chips" class="reservierungen-chips"></div>
+            <p class="hint text-sm" id="reservierung-resources-hint">Weitere Fahrzeuge erscheinen im Kalender kommagetrennt in einem Termin.</p>
           </div>
 
           <div class="form-group">
@@ -394,14 +392,14 @@
   </div>
 
   <div id="reservierung-pick-modal" class="modal-overlay modal-overlay--stack" aria-hidden="true">
-    <div class="modal modal--wide" role="dialog" aria-labelledby="reservierung-pick-title">
+    <div class="modal modal--md" role="dialog" aria-labelledby="reservierung-pick-title">
       <div class="modal__header">
         <h3 id="reservierung-pick-title">Weitere Fahrzeuge wählen</h3>
         <button type="button" class="modal__close" data-close-pick-modal aria-label="Schließen">✕</button>
       </div>
       <div class="modal__body">
-        <p class="hint" id="reservierung-pick-hint">Klicken Sie auf eine Kachel, um sie auszuwählen.</p>
-        <div id="reservierung-pick-list" class="kpi-grid reservierungen-resource-tiles"></div>
+        <p class="hint" id="reservierung-pick-hint">Bereits ausgewählte Einträge sind ausgeblendet.</p>
+        <div id="reservierung-pick-list" class="reservierungen-pick-list"></div>
       </div>
       <div class="modal__footer">
         <button type="button" class="btn btn--primary" id="reservierung-pick-apply">Übernehmen</button>
@@ -572,6 +570,6 @@
   <select id="reservierungen-rooms-template" hidden aria-hidden="true">
     <option th:each="r : ${roomOptions}" th:value="${r.id}" th:text="${r.name}">Raum</option>
   </select>
-  <script th:src="@{/js/reservierungen.js(v='20260824c')}" defer></script>
+  <script th:src="@{/js/reservierungen.js(v='20260824d')}" defer></script>
 </main>
 </html>

@@ -150,62 +150,6 @@
     return null;
   }
 
-  function isResourceSelected(id) {
-    return selectedResources.some(function (r) {
-      return String(r.id) === String(id);
-    });
-  }
-
-  function createResourceTile(kind, opt, selected) {
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'kpi-card reservierungen-resource-tile' + (selected ? ' kpi-card--active' : '');
-    btn.setAttribute('aria-pressed', selected ? 'true' : 'false');
-    btn.dataset.id = String(opt.id);
-    btn.dataset.name = opt.name || '';
-    var kicker = document.createElement('span');
-    kicker.className = 'kpi-card__label';
-    kicker.textContent = kind === 'vehicle' ? 'Fahrzeug' : 'Raum';
-    var name = document.createElement('span');
-    name.className = 'kpi-card__value reservierungen-resource-tile__name';
-    name.textContent = opt.name || '';
-    btn.appendChild(kicker);
-    btn.appendChild(name);
-    return btn;
-  }
-
-  function toggleCreateResource(opt) {
-    if (isResourceSelected(opt.id)) {
-      selectedResources = selectedResources.filter(function (r) {
-        return String(r.id) !== String(opt.id);
-      });
-    } else {
-      selectedResources.push({ id: Number(opt.id), name: opt.name });
-    }
-    renderSelectedChips();
-  }
-
-  function renderResourceTiles(box, kind, options, selectedIds, onToggle) {
-    if (!box) return;
-    box.innerHTML = '';
-    box.className = 'kpi-grid reservierungen-resource-tiles';
-    if (!options.length) {
-      var empty = document.createElement('p');
-      empty.className = 'hint';
-      empty.textContent = kind === 'vehicle' ? 'Keine Fahrzeuge hinterlegt.' : 'Keine Räume hinterlegt.';
-      box.appendChild(empty);
-      return;
-    }
-    options.forEach(function (opt) {
-      var selected = !!selectedIds[String(opt.id)];
-      var tile = createResourceTile(kind, opt, selected);
-      tile.addEventListener('click', function () {
-        onToggle(opt, tile);
-      });
-      box.appendChild(tile);
-    });
-  }
-
   function renderChips(box, list, kind, onRemove) {
     if (!box) return;
     box.innerHTML = '';
@@ -234,13 +178,9 @@
   }
 
   function renderSelectedChips() {
-    var kind = currentKind();
-    var selectedIds = {};
-    selectedResources.forEach(function (r) {
-      selectedIds[String(r.id)] = true;
-    });
-    renderResourceTiles(chipsBox, kind, resourceOptionsFor(kind), selectedIds, function (opt) {
-      toggleCreateResource(opt);
+    renderChips(chipsBox, selectedResources, currentKind(), function (id) {
+      selectedResources = selectedResources.filter(function (r) { return String(r.id) !== String(id); });
+      renderSelectedChips();
     });
   }
 
@@ -384,18 +324,27 @@
     }
     var list = document.getElementById('reservierung-pick-list');
     if (!list) return;
+    list.innerHTML = '';
     var options = resourceOptionsFor(kind).filter(function (opt) { return !already[String(opt.id)]; });
-    renderResourceTiles(list, kind, options, {}, function (opt, tile) {
-      var on = !tile.classList.contains('kpi-card--active');
-      tile.classList.toggle('kpi-card--active', on);
-      tile.setAttribute('aria-pressed', on ? 'true' : 'false');
-    });
     if (!options.length) {
-      list.innerHTML = '';
       var empty = document.createElement('p');
       empty.className = 'hint';
       empty.textContent = 'Keine weiteren Einträge verfügbar.';
       list.appendChild(empty);
+    } else {
+      options.forEach(function (opt) {
+        var label = document.createElement('label');
+        label.className = 'checkbox-row';
+        var input = document.createElement('input');
+        input.type = 'checkbox';
+        input.value = String(opt.id);
+        input.dataset.name = opt.name;
+        label.appendChild(input);
+        var span = document.createElement('span');
+        span.textContent = opt.name;
+        label.appendChild(span);
+        list.appendChild(label);
+      });
     }
     openOverlay(pickModal);
   }
@@ -404,8 +353,8 @@
     var kind = pickContext === 'import'
       ? (document.getElementById('import-kind')?.value || 'vehicle')
       : currentKind();
-    var tiles = document.querySelectorAll('#reservierung-pick-list .reservierungen-resource-tile.kpi-card--active');
-    if (!tiles.length) {
+    var checks = document.querySelectorAll('#reservierung-pick-list input[type="checkbox"]:checked');
+    if (!checks.length) {
       notify('Bitte mindestens einen Eintrag auswählen.', 'error');
       return;
     }
@@ -414,24 +363,24 @@
       var primary = document.getElementById('import-primary')?.value;
       if (primary) seen[String(primary)] = true;
       importExtraResources.forEach(function (r) { seen[String(r.id)] = true; });
-      tiles.forEach(function (tile) {
-        if (seen[tile.dataset.id]) return;
-        seen[tile.dataset.id] = true;
+      checks.forEach(function (input) {
+        if (seen[input.value]) return;
+        seen[input.value] = true;
         importExtraResources.push({
-          id: Number(tile.dataset.id),
-          name: tile.dataset.name || findResource(kind, tile.dataset.id)?.name || tile.dataset.id
+          id: Number(input.value),
+          name: input.dataset.name || findResource(kind, input.value)?.name || input.value
         });
       });
       renderImportChips();
     } else {
       var seenCreate = {};
       selectedResources.forEach(function (r) { seenCreate[String(r.id)] = true; });
-      tiles.forEach(function (tile) {
-        if (seenCreate[tile.dataset.id]) return;
-        seenCreate[tile.dataset.id] = true;
+      checks.forEach(function (input) {
+        if (seenCreate[input.value]) return;
+        seenCreate[input.value] = true;
         selectedResources.push({
-          id: Number(tile.dataset.id),
-          name: tile.dataset.name || findResource(kind, tile.dataset.id)?.name || tile.dataset.id
+          id: Number(input.value),
+          name: input.dataset.name || findResource(kind, input.value)?.name || input.value
         });
       });
       renderSelectedChips();
@@ -521,8 +470,12 @@
       addSlotRow(false);
     }
     var label = document.getElementById('reservierung-resources-label');
+    var addBtn = document.getElementById('reservierung-add-resource');
     if (label) {
-      label.innerHTML = (kind === 'vehicle' ? 'Fahrzeuge' : 'Räume') + ' <span class="req">*</span>';
+      label.innerHTML = (kind === 'vehicle' ? 'Ausgewählte Fahrzeuge' : 'Ausgewählte Räume') + ' <span class="req">*</span>';
+    }
+    if (addBtn) {
+      addBtn.textContent = kind === 'vehicle' ? 'Weiteres Fahrzeug hinzufügen' : 'Weiteren Raum hinzufügen';
     }
   }
 
@@ -713,16 +666,9 @@
     openOverlay(loeschModal);
   }
 
-  document.querySelectorAll('.reservierungen-resource-row--clickable').forEach(function (row) {
-    function openFromRow() {
-      openModal(row.dataset.kind, row.dataset.id, row.dataset.name || '');
-    }
-    row.addEventListener('click', openFromRow);
-    row.addEventListener('keydown', function (ev) {
-      if (ev.key === 'Enter' || ev.key === ' ') {
-        ev.preventDefault();
-        openFromRow();
-      }
+  document.querySelectorAll('.reservierungen-resource-tile[data-kind]').forEach(function (tile) {
+    tile.addEventListener('click', function () {
+      openModal(tile.dataset.kind, tile.dataset.id, tile.dataset.name || '');
     });
   });
 
@@ -914,6 +860,9 @@
     });
   });
 
+  document.getElementById('reservierung-add-resource')?.addEventListener('click', function () {
+    openPickModal('create');
+  });
   document.getElementById('reservierung-add-slot')?.addEventListener('click', function () {
     addSlotRow(true);
   });
