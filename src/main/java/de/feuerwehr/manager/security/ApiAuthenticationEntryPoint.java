@@ -24,6 +24,14 @@ public class ApiAuthenticationEntryPoint implements AuthenticationEntryPoint {
             response.getWriter().write("{\"success\":false,\"message\":\"Nicht angemeldet\"}");
             return;
         }
-        response.sendRedirect("/login?login=1");
+        String requestUri = request.getRequestURI();
+        // Startseite (/) → Gast-Startseite ohne geöffnetes Login.
+        // Geschützte Unterseiten → Login-Overlay direkt öffnen.
+        boolean openLogin =
+                requestUri != null
+                        && !"/".equals(requestUri)
+                        && !"/login".equals(requestUri)
+                        && !requestUri.endsWith("/login");
+        response.sendRedirect(openLogin ? "/login?login=1" : "/login");
     }
 }
