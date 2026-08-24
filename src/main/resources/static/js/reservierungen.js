@@ -666,7 +666,7 @@
     openOverlay(loeschModal);
   }
 
-  document.querySelectorAll('.reservierungen-resource-tile[data-kind]').forEach(function (tile) {
+  document.querySelectorAll('.reservierungen-tile[data-kind]').forEach(function (tile) {
     tile.addEventListener('click', function () {
       openModal(tile.dataset.kind, tile.dataset.id, tile.dataset.name || '');
     });

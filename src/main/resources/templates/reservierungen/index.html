@@ -52,12 +52,12 @@
     <div class="card" th:if="${#lists.isEmpty(vehicles)}">
       <div class="card__body"><p class="hint">Keine aktiven Fahrzeuge hinterlegt. Bitte unter Admin → Technik anlegen.</p></div>
     </div>
-    <div class="kpi-grid reservierungen-resource-tiles" th:if="${!#lists.isEmpty(vehicles)}">
-      <button type="button" class="kpi-card reservierungen-resource-tile"
+    <div class="reservierungen-tile-grid" th:if="${!#lists.isEmpty(vehicles)}">
+      <button type="button" class="reservierungen-tile"
               th:each="v : ${vehicles}"
               th:attr="data-kind='vehicle',data-id=${v.id},data-name=${v.name}">
-        <span class="kpi-card__label">Fahrzeug</span>
-        <span class="kpi-card__value reservierungen-resource-tile__name" th:text="${v.name}">TLF</span>
+        <span class="reservierungen-tile__name" th:text="${v.name}">TLF</span>
+        <span class="reservierungen-tile__cta">Reservieren</span>
       </button>
     </div>
   </div>
@@ -71,14 +71,14 @@
     <div class="card" th:if="${#lists.isEmpty(rooms)}">
       <div class="card__body"><p class="hint">Keine aktiven Räume hinterlegt. Bitte unter Admin → Technik anlegen.</p></div>
     </div>
-    <div class="kpi-grid reservierungen-resource-tiles" th:if="${!#lists.isEmpty(rooms)}">
-      <button type="button" class="kpi-card reservierungen-resource-tile"
+    <div class="reservierungen-tile-grid" th:if="${!#lists.isEmpty(rooms)}">
+      <button type="button" class="reservierungen-tile"
               th:each="r : ${rooms}"
               th:attr="data-kind='room',data-id=${r.id},data-name=${r.name}">
-        <span class="kpi-card__label">Raum</span>
-        <span class="kpi-card__value reservierungen-resource-tile__name" th:text="${r.name}">Schulungsraum</span>
-        <span class="reservierungen-resource-tile__desc" th:if="${r.description != null and !#strings.isEmpty(r.description)}"
+        <span class="reservierungen-tile__name" th:text="${r.name}">Schulungsraum</span>
+        <span class="reservierungen-tile__desc" th:if="${r.description != null and !#strings.isEmpty(r.description)}"
               th:text="${r.description}"></span>
+        <span class="reservierungen-tile__cta">Reservieren</span>
       </button>
     </div>
   </div>
@@ -570,6 +570,6 @@
   <select id="reservierungen-rooms-template" hidden aria-hidden="true">
     <option th:each="r : ${roomOptions}" th:value="${r.id}" th:text="${r.name}">Raum</option>
   </select>
-  <script th:src="@{/js/reservierungen.js(v='20260824d')}" defer></script>
+  <script th:src="@{/js/reservierungen.js(v='20260824e')}" defer></script>
 </main>
 </html>
