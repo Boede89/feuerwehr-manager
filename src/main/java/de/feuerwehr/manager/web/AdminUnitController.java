@@ -15,6 +15,7 @@ import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitAdminService;
 import de.feuerwehr.manager.print.PrintMode;
 import de.feuerwehr.manager.print.UnitPrintSettingsService;
+import de.feuerwehr.manager.reservierungen.GoogleCalendarOAuthService;
 import de.feuerwehr.manager.unit.UnitDiveraSettings;
 import de.feuerwehr.manager.unit.UnitDiveraSettingsRepository;
 import de.feuerwehr.manager.unit.UnitRolePermission;
@@ -48,6 +49,7 @@ public class AdminUnitController {
     private final UnitVehicleTypeService unitVehicleTypeService;
     private final VehicleChecklistService vehicleChecklistService;
     private final DiveraMappingService diveraMappingService;
+    private final GoogleCalendarOAuthService googleCalendarOAuthService;
     private final UnitPrintSettingsService unitPrintSettingsService;
     private final EinsatzAppSettingsService einsatzAppSettingsService;
     private final LeitstellenMailSettingsService leitstellenMailSettingsService;
@@ -249,6 +251,18 @@ public class AdminUnitController {
         return withUnit(actor, unit, redirectAttributes, "schnittstellen", () -> {
             unitAdminService.deleteCalendarAccount(unit, calendarAccountId);
             redirectAttributes.addFlashAttribute("message", "Kalender gelöscht.");
+        });
+    }
+
+    @PostMapping("/calendar/oauth/disconnect")
+    public String disconnectCalendarOAuth(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam long calendarAccountId,
+            RedirectAttributes redirectAttributes) {
+        return withUnit(actor, unit, redirectAttributes, "schnittstellen", () -> {
+            googleCalendarOAuthService.disconnect(unit, calendarAccountId);
+            redirectAttributes.addFlashAttribute("message", "Google-Verbindung getrennt.");
         });
     }
 

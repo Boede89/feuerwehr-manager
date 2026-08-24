@@ -44,6 +44,7 @@ public class ReservierungenGoogleCalendarService {
     private final UnitCalendarAccountRepository calendarAccountRepository;
     private final ReservationCalendarEventRepository calendarEventRepository;
     private final ObjectMapper objectMapper;
+    private final GoogleCalendarOAuthService googleCalendarOAuthService;
 
     public record SyncResult(int synced, List<String> errors) {
         public boolean ok() {
@@ -444,10 +445,21 @@ public class ReservierungenGoogleCalendarService {
             return java.util.Optional.empty();
         }
         String calendarId = resolveCalendarId(account);
-        if (account.getServiceAccountJson() == null || account.getServiceAccountJson().isBlank()) {
+        if (calendarId == null || calendarId.isBlank()) {
             return java.util.Optional.empty();
         }
-        if (calendarId == null || calendarId.isBlank()) {
+        if (account.getGoogleOauthRefreshToken() != null && !account.getGoogleOauthRefreshToken().isBlank()) {
+            return googleCalendarOAuthService
+                    .accessTokenFor(account)
+                    .map(token -> new CalendarCredentials(
+                            account,
+                            calendarId,
+                            token,
+                            account.getGoogleOauthUserEmail() != null
+                                    ? account.getGoogleOauthUserEmail()
+                                    : "oauth@gmail.com"));
+        }
+        if (account.getServiceAccountJson() == null || account.getServiceAccountJson().isBlank()) {
             return java.util.Optional.empty();
         }
         try {
@@ -524,11 +536,14 @@ public class ReservierungenGoogleCalendarService {
         if (!account.isEnabled()) {
             return "Kalender ist nicht aktiv (unter Schnittstellen „Aktiv“ setzen).";
         }
-        if (account.getServiceAccountJson() == null || account.getServiceAccountJson().isBlank()) {
-            return "kein Service-Account-JSON hinterlegt.";
-        }
         if (resolveCalendarId(account) == null) {
             return "keine Calendar-ID (und iCal-URL enthält keine erkennbare ID).";
+        }
+        if (account.getGoogleOauthRefreshToken() != null && !account.getGoogleOauthRefreshToken().isBlank()) {
+            return "Google-OAuth-Token ungültig oder abgelaufen – bitte „Mit Google verbinden“ erneut ausführen.";
+        }
+        if (account.getServiceAccountJson() == null || account.getServiceAccountJson().isBlank()) {
+            return "weder Google-OAuth noch Service-Account-JSON – bei @gmail.com „Mit Google verbinden“ nutzen.";
         }
         return "Service-Account-JSON ungültig oder Token konnte nicht erzeugt werden.";
     }

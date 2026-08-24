@@ -94,6 +94,26 @@ public class GlobalSettingsService {
         return p != null && !p.isBlank();
     }
 
+    @Transactional
+    public void saveGoogleOAuth(String clientId, String clientSecret) {
+        ApplicationSettings s = settings();
+        if (clientId != null) {
+            s.setGoogleOauthClientId(blankToNull(clientId));
+        }
+        if (clientSecret != null) {
+            String secret = clientSecret.trim();
+            if (!secret.isEmpty()) {
+                s.setGoogleOauthClientSecret(secret);
+            }
+        }
+        settingsRepository.save(s);
+    }
+
+    public boolean isGoogleOAuthSecretConfigured() {
+        String secret = settings().getGoogleOauthClientSecret();
+        return secret != null && !secret.isBlank();
+    }
+
     private ApplicationSettings settings() {
         return settingsRepository
                 .findById(ApplicationSettings.SINGLETON_ID)

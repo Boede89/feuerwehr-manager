@@ -47,6 +47,7 @@ public class AdminGlobalViewService {
         model.addAttribute(
                 "privacyIncomplete",
                 isBlank(s.getPrivacyContactName()) || isBlank(s.getPrivacyContactEmail()));
+        model.addAttribute("googleOAuthSecretConfigured", globalSettingsService.isGoogleOAuthSecretConfigured());
     }
 
     public void populateEinheiten(Model model) {

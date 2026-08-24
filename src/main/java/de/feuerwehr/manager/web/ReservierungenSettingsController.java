@@ -81,8 +81,9 @@ public class ReservierungenSettingsController {
                     .filter(c -> c.isEnabled()
                             && c.getCalendarId() != null
                             && !c.getCalendarId().isBlank()
-                            && c.getServiceAccountJson() != null
-                            && !c.getServiceAccountJson().isBlank())
+                            && ((c.getGoogleOauthRefreshToken() != null && !c.getGoogleOauthRefreshToken().isBlank())
+                                    || (c.getServiceAccountJson() != null
+                                            && !c.getServiceAccountJson().isBlank())))
                     .toList();
             model.addAttribute("selectedLoeschVehicleIds", loeschIds);
             model.addAttribute("loeschVehicleSummary", formatLoeschSummary(loeschIds.size()));

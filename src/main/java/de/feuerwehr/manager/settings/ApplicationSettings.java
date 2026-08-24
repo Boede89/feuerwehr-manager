@@ -81,6 +81,12 @@ public class ApplicationSettings {
     @Column(name = "smtp_encryption", length = 16)
     private String smtpEncryption = "TLS";
 
+    @Column(name = "google_oauth_client_id", length = 512)
+    private String googleOauthClientId;
+
+    @Column(name = "google_oauth_client_secret", length = 512)
+    private String googleOauthClientSecret;
+
     @Column(name = "updated_at", nullable = false, insertable = false, updatable = false)
     private Instant updatedAt;
 }

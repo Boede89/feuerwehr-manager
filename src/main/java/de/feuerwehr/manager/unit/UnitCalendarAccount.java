@@ -48,6 +48,12 @@ public class UnitCalendarAccount {
     @Column(name = "delegated_user_email", length = 254)
     private String delegatedUserEmail;
 
+    @Column(name = "google_oauth_refresh_token", columnDefinition = "TEXT")
+    private String googleOauthRefreshToken;
+
+    @Column(name = "google_oauth_user_email", length = 254)
+    private String googleOauthUserEmail;
+
     @Column(nullable = false)
     private boolean enabled;
 

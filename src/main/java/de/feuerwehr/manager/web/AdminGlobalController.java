@@ -59,6 +59,21 @@ public class AdminGlobalController {
         return "redirect:/admin?scope=global&tab=konfiguration";
     }
 
+    @PostMapping("/google-oauth")
+    public String saveGoogleOAuth(
+            @RequestParam(required = false) String googleOauthClientId,
+            @RequestParam(required = false) String googleOauthClientSecret,
+            RedirectAttributes redirectAttributes) {
+        try {
+            globalSettingsService.saveGoogleOAuth(googleOauthClientId, googleOauthClientSecret);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "Google OAuth-Einstellungen gespeichert.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/admin?scope=global&tab=konfiguration";
+    }
+
     @PostMapping("/logo")
     public String uploadLogo(@RequestParam("logoFile") MultipartFile logoFile, RedirectAttributes redirectAttributes) {
         try {

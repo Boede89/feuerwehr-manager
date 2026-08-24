@@ -96,6 +96,12 @@ public class AdminUnitViewService {
         model.addAttribute("calendarCredentialsConfigured", calendarCredentialsConfigured);
         String appBase = globalSettingsService.get().getAppUrl();
         model.addAttribute("appBaseUrl", appBase != null ? appBase : "");
+        var gs = globalSettingsService.get();
+        model.addAttribute(
+                "googleOAuthClientConfigured",
+                gs.getGoogleOauthClientId() != null
+                        && !gs.getGoogleOauthClientId().isBlank()
+                        && globalSettingsService.isGoogleOAuthSecretConfigured());
         populateDivera(model, unitId);
         populateLeitstellenMail(model, unitId);
         populatePrint(model, unitId);

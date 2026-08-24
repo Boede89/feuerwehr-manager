@@ -188,8 +188,13 @@ public class UnitAdminService {
     }
 
     public boolean isCalendarCredentialsConfigured(UnitCalendarAccount account) {
-        return account != null
-                && account.getServiceAccountJson() != null
+        if (account == null) {
+            return false;
+        }
+        if (account.getGoogleOauthRefreshToken() != null && !account.getGoogleOauthRefreshToken().isBlank()) {
+            return true;
+        }
+        return account.getServiceAccountJson() != null
                 && !account.getServiceAccountJson().isBlank();
     }
 
@@ -237,8 +242,8 @@ public class UnitAdminService {
         }
         boolean hasWriteCreds = c.getCalendarId() != null
                 && !c.getCalendarId().isBlank()
-                && c.getServiceAccountJson() != null
-                && !c.getServiceAccountJson().isBlank();
+                && ((c.getGoogleOauthRefreshToken() != null && !c.getGoogleOauthRefreshToken().isBlank())
+                        || (c.getServiceAccountJson() != null && !c.getServiceAccountJson().isBlank()));
         // Neu angelegte schreibbare Kalender standardmäßig aktiv, sonst landen Termine nie im Sync
         c.setEnabled(enabled || (isCreate && hasWriteCreds));
         c.setProvider("google");
