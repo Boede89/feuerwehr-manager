@@ -471,9 +471,7 @@ public class ReservierungenGoogleCalendarService {
     private List<CalendarCredentials> resolveCredentials(
             long unitId, List<Long> selectedAccountIds, List<String> errors) {
         List<UnitCalendarAccount> accounts = calendarAccountRepository.findByUnitIdOrderBySortOrderAscLabelAsc(unitId);
-        Set<Long> selected = selectedAccountIds == null || selectedAccountIds.isEmpty()
-                ? null
-                : new HashSet<>(selectedAccountIds);
+        Set<Long> selected = normalizeSelectedCalendarAccountIds(accounts, selectedAccountIds, errors);
         List<CalendarCredentials> result = new ArrayList<>();
         int considered = 0;
         for (UnitCalendarAccount account : accounts) {
@@ -491,12 +489,64 @@ public class ReservierungenGoogleCalendarService {
         }
         if (considered == 0) {
             if (selected != null) {
-                errors.add("ausgewählte Kalender-IDs nicht gefunden – Einstellungen prüfen.");
+                errors.add(
+                        "Gespeicherte Kalender-Auswahl ist veraltet oder leer – unter Einstellungen → Reservierungen"
+                                + " den Kalender „Fahrzeugreservierungen“ erneut anhaken und speichern.");
             } else {
                 errors.add("kein Google-Kalender-Konto für diese Einheit hinterlegt.");
             }
         }
         return result;
+    }
+
+    /**
+     * Entfernt gelöschte Kalender-IDs aus der Auswahl; bei genau einem nutzbaren Kalender automatisch nutzen.
+     */
+    private Set<Long> normalizeSelectedCalendarAccountIds(
+            List<UnitCalendarAccount> accounts, List<Long> selectedAccountIds, List<String> errors) {
+        if (selectedAccountIds == null || selectedAccountIds.isEmpty()) {
+            return null;
+        }
+        Set<Long> existingIds = new HashSet<>();
+        for (UnitCalendarAccount account : accounts) {
+            existingIds.add(account.getId());
+        }
+        Set<Long> selected = new HashSet<>();
+        for (Long id : selectedAccountIds) {
+            if (id != null && existingIds.contains(id)) {
+                selected.add(id);
+            }
+        }
+        if (!selected.isEmpty()) {
+            return selected;
+        }
+        List<UnitCalendarAccount> usable = new ArrayList<>();
+        for (UnitCalendarAccount account : accounts) {
+            if (isAccountSelectable(account)) {
+                usable.add(account);
+            }
+        }
+        if (usable.size() == 1) {
+            errors.add(
+                    "Kalender-Auswahl wurde automatisch auf „"
+                            + usable.get(0).getLabel()
+                            + "“ gesetzt – bitte unter Einstellungen → Reservierungen speichern.");
+            return Set.of(usable.get(0).getId());
+        }
+        return selected;
+    }
+
+    private static boolean isAccountSelectable(UnitCalendarAccount account) {
+        if (account == null || !account.isEnabled()) {
+            return false;
+        }
+        if (resolveCalendarId(account) == null || resolveCalendarId(account).isBlank()) {
+            return false;
+        }
+        if (account.getGoogleOauthRefreshToken() != null && !account.getGoogleOauthRefreshToken().isBlank()) {
+            return true;
+        }
+        return account.getServiceAccountJson() != null && !account.getServiceAccountJson().isBlank();
     }
 
     private java.util.Optional<CalendarCredentials> resolveCredentialsForAccount(long unitId, Long accountId) {

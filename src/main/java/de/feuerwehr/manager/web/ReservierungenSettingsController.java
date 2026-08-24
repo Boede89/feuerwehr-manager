@@ -15,6 +15,8 @@ import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
@@ -85,6 +87,8 @@ public class ReservierungenSettingsController {
                                     || (c.getServiceAccountJson() != null
                                             && !c.getServiceAccountJson().isBlank())))
                     .toList();
+            vehicleCalendarIds = filterExistingCalendarAccountIds(vehicleCalendarIds, googleCalendars);
+            roomCalendarIds = filterExistingCalendarAccountIds(roomCalendarIds, googleCalendars);
             model.addAttribute("selectedLoeschVehicleIds", loeschIds);
             model.addAttribute("loeschVehicleSummary", formatLoeschSummary(loeschIds.size()));
             model.addAttribute("googleCalendarAccounts", googleCalendars);
@@ -292,5 +296,15 @@ public class ReservierungenSettingsController {
             sb.append(emails).append(emails == 1 ? " E-Mail-Adresse" : " E-Mail-Adressen");
         }
         return sb.toString();
+    }
+
+    private static List<Long> filterExistingCalendarAccountIds(
+            List<Long> selectedIds, List<de.feuerwehr.manager.unit.UnitCalendarAccount> available) {
+        if (selectedIds == null || selectedIds.isEmpty() || available == null || available.isEmpty()) {
+            return selectedIds != null ? selectedIds : List.of();
+        }
+        Set<Long> availableIds =
+                available.stream().map(de.feuerwehr.manager.unit.UnitCalendarAccount::getId).collect(Collectors.toSet());
+        return selectedIds.stream().filter(id -> id != null && availableIds.contains(id)).toList();
     }
 }
