@@ -144,11 +144,7 @@ public class MaengelberichtService {
         form.setUrsache(entry.ursache());
         form.setVerbleib(entry.verbleib());
         form.setAufgenommenAm(attendance.getEventDate() != null ? attendance.getEventDate() : LocalDate.now());
-        if (attendance.getInstructorResponsible() != null && !attendance.getInstructorResponsible().isBlank()) {
-            form.setRecordedByName(attendance.getInstructorResponsible().trim());
-        } else if (actor != null && actor.getDisplayName() != null && !actor.getDisplayName().isBlank()) {
-            form.setRecordedByName(actor.getDisplayName().trim());
-        }
+        applyActorAsRecordedBy(form, actor);
         return form;
     }
 
@@ -165,15 +161,14 @@ public class MaengelberichtService {
         form.setUrsache(entry.ursache());
         form.setVerbleib(entry.verbleib());
         form.setAufgenommenAm(incident.getIncidentDate() != null ? incident.getIncidentDate() : LocalDate.now());
-        if (incident.getCommanderPerson() != null) {
-            form.setRecordedPersonId(incident.getCommanderPerson().getId());
-            form.setRecordedByName(incident.getCommanderPerson().anwesenheitDisplayName());
-        } else if (incident.getIncidentCommander() != null && !incident.getIncidentCommander().isBlank()) {
-            form.setRecordedByName(incident.getIncidentCommander().trim());
-        } else if (actor != null && actor.getDisplayName() != null && !actor.getDisplayName().isBlank()) {
+        applyActorAsRecordedBy(form, actor);
+        return form;
+    }
+
+    private static void applyActorAsRecordedBy(MaengelberichtForm form, AppUserDetails actor) {
+        if (actor != null && actor.getDisplayName() != null && !actor.getDisplayName().isBlank()) {
             form.setRecordedByName(actor.getDisplayName().trim());
         }
-        return form;
     }
 
     @Transactional

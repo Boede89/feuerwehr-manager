@@ -233,7 +233,19 @@
     // Schließen nur über Übernehmen, Abbrechen oder ✕ — nicht per Hintergrundklick.
     var form = root.querySelector('#anwesenheitsliste-form');
     if (form) {
-      form.addEventListener('submit', syncHiddenFields, true);
+      form.addEventListener('submit', function (e) {
+        syncHiddenFields();
+        if (selectedIds().length === 0) {
+          e.preventDefault();
+          e.stopPropagation();
+          var msg = 'Bitte mindestens einen Ausbilder/Verantwortlichen auswählen.';
+          if (typeof window.toast === 'function') {
+            window.toast(msg, 'error');
+          } else {
+            window.alert(msg);
+          }
+        }
+      }, true);
     }
     syncInstructorsInvolved(parseInitialIds().map(Number));
   }

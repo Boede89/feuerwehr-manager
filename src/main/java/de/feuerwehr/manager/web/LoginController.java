@@ -41,7 +41,8 @@ public class LoginController {
         if (expired != null) {
             model.addAttribute("infoMessage", "Ihre Sitzung ist abgelaufen. Bitte erneut anmelden.");
         }
-        boolean openLoginForm = error != null || expired != null || login != null || !publicReservationAvailable;
+        // Login-Overlay nur bei Fehler, abgelaufener Sitzung oder explizitem ?login=1 öffnen.
+        boolean openLoginForm = error != null || expired != null || login != null;
         model.addAttribute("openLoginForm", openLoginForm);
         return "login";
     }

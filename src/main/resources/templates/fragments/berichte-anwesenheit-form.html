@@ -110,7 +110,7 @@
       </div>
       <div class="form-group form-group--full termine-ausbilder-field"
            th:if="${formMode != 'view' and !#lists.isEmpty(unitPersons)}">
-        <label>Ausbilder/Verantwortlicher</label>
+        <label>Ausbilder/Verantwortlicher <span class="required">*</span></label>
         <button type="button" class="btn btn--outline btn--sm" id="anwesenheit-ausbilder-open-btn">
           Auswählen (<span id="anwesenheit-ausbilder-count">0</span>)
         </button>

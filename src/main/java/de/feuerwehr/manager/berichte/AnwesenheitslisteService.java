@@ -1163,6 +1163,16 @@ public class AnwesenheitslisteService {
         if (!category.supportsAttendanceReports()) {
             throw new IllegalArgumentException("Bitte einen gültigen Bereich wählen.");
         }
+        if (!hasInstructor(form)) {
+            throw new IllegalArgumentException("Bitte mindestens einen Ausbilder/Verantwortlichen auswählen.");
+        }
+    }
+
+    private boolean hasInstructor(EinsatzberichtForm form) {
+        if (form.getIncidentCommander() != null && !form.getIncidentCommander().isBlank()) {
+            return true;
+        }
+        return !parseInstructorPersonIds(form.getInstructorPersonIdsJson()).isEmpty();
     }
 
     private void saveCrewAsPersonnel(AttendanceReport report, List<CrewAssignment> crewAssignments, long unitId) {
