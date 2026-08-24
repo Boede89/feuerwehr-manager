@@ -2417,6 +2417,18 @@ body.dashboard-editing .dashboard-widget {
 .reservierungen-page .combo-suggest,
 #reservierung-modal .combo-suggest {
   position: relative;
+  display: block;
+  width: 100%;
+}
+
+.reservierungen-page .combo-suggest .field,
+.reservierungen-page .combo-suggest__input,
+#reservierung-modal .combo-suggest .field,
+#reservierung-modal .combo-suggest__input {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .reservierungen-page .combo-suggest__list,
