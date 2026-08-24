@@ -62,7 +62,7 @@ public class AtemschutzSettingsController {
             model.addAttribute("selectedAgtCourseId", atemschutzSettingsService.selectedAgtCourseUiId(unit.getId()));
             model.addAttribute("selectedCsaCourseId", atemschutzSettingsService.selectedCsaCourseUiId(unit.getId()));
             return "settings/atemschutz";
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException | IllegalStateException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return unitId != null ? "redirect:/admin?scope=einheit&tab=module&unit=" + unitId : "redirect:/settings";
         }

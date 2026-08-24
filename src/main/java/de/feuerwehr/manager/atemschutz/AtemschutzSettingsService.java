@@ -47,30 +47,30 @@ public class AtemschutzSettingsService {
 
     @Transactional
     public UnitAtemschutzSettings ensureSettings(long unitId) {
-        return settingsRepository.findByUnitId(unitId).map(settings -> {
-            if (settings.getAgtCourse() == null) {
-                resolveDefaultAgtCourse(unitId, settings);
-                if (settings.getAgtCourse() != null) {
-                    return settingsRepository.save(settings);
+        UnitAtemschutzSettings settings = settingsRepository.findByUnitId(unitId).map(existing -> {
+            if (existing.getAgtCourse() == null) {
+                resolveDefaultAgtCourse(unitId, existing);
+                if (existing.getAgtCourse() != null) {
+                    return settingsRepository.save(existing);
                 }
             }
-            return settings;
+            return existing;
         }).orElseGet(() -> {
             Unit unit = unitRepository.findById(unitId).orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden"));
-            UnitAtemschutzSettings settings = new UnitAtemschutzSettings();
-            settings.setUnit(unit);
+            UnitAtemschutzSettings created = new UnitAtemschutzSettings();
+            created.setUnit(unit);
             int defaultWarn = globalSettingsService.get().getQualificationWarnDays();
-            settings.setWarnDays(defaultWarn);
-            settings.setG26WarnDays(defaultWarn);
-            settings.setStreckeWarnDays(defaultWarn);
-            settings.setUebungWarnDays(defaultWarn);
-            settings.setCsaWarnDays(defaultWarn);
-            settings.setAgtCourseName("AGT");
-            resolveDefaultAgtCourse(unitId, settings);
-            UnitAtemschutzSettings saved = settingsRepository.save(settings);
-            seedEmailTemplates(unit);
-            return saved;
+            created.setWarnDays(defaultWarn);
+            created.setG26WarnDays(defaultWarn);
+            created.setStreckeWarnDays(defaultWarn);
+            created.setUebungWarnDays(defaultWarn);
+            created.setCsaWarnDays(defaultWarn);
+            created.setAgtCourseName("AGT");
+            resolveDefaultAgtCourse(unitId, created);
+            return settingsRepository.save(created);
         });
+        seedEmailTemplates(settings.getUnit());
+        return settings;
     }
 
     @Transactional(readOnly = true)
@@ -260,10 +260,12 @@ public class AtemschutzSettingsService {
         }
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<AtemschutzNotificationSectionView> buildNotificationSections(long unitId) {
         UnitAtemschutzSettings settings = ensureSettings(unitId);
-        Map<String, AtemschutzEmailTemplate> templatesByKey = listEmailTemplates(unitId).stream()
+        Map<String, AtemschutzEmailTemplate> templatesByKey = emailTemplateRepository
+                .findByUnitIdOrderByTemplateKeyAsc(unitId)
+                .stream()
                 .collect(java.util.stream.Collectors.toMap(AtemschutzEmailTemplate::getTemplateKey, t -> t, (a, b) -> a));
         List<AtemschutzNotificationSectionView> sections = new ArrayList<>();
         for (AtemschutzNotificationCategory category : AtemschutzNotificationCategory.values()) {
@@ -291,8 +293,7 @@ public class AtemschutzSettingsService {
 
     @Transactional
     public List<AtemschutzEmailTemplate> listEmailTemplates(long unitId) {
-        UnitAtemschutzSettings settings = ensureSettings(unitId);
-        seedEmailTemplates(settings.getUnit());
+        ensureSettings(unitId);
         return emailTemplateRepository.findByUnitIdOrderByTemplateKeyAsc(unitId);
     }
 
@@ -479,6 +480,7 @@ public class AtemschutzSettingsService {
     }
 
     private void seedEmailTemplates(Unit unit) {
+        boolean created = false;
         for (TemplateSeed seed : TemplateSeed.defaults()) {
             if (emailTemplateRepository.findByUnitIdAndTemplateKey(unit.getId(), seed.key).isPresent()) {
                 continue;
@@ -490,7 +492,15 @@ public class AtemschutzSettingsService {
             template.setSubject(seed.subject);
             template.setBody(seed.body);
             emailTemplateRepository.save(template);
+            created = true;
         }
+        if (created) {
+            emailTemplateRepository.flush();
+        }
+    }
+
+    static List<String> defaultEmailTemplateKeys() {
+        return TemplateSeed.defaults().stream().map(TemplateSeed::key).toList();
     }
 
     private List<Long> parseIds(String json) {
