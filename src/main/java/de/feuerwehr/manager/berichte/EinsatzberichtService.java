@@ -201,6 +201,39 @@ public class EinsatzberichtService {
                 .toList();
     }
 
+    @Transactional
+    public ForeignPersonOption createForeignPerson(
+            long reportUnitId, long sourceUnitId, String firstName, String lastName) {
+        if (!berichteSettingsService.isForeignUnitPersonnelAllowed(reportUnitId)) {
+            throw new IllegalArgumentException("Personal aus anderen Einheiten ist nicht erlaubt.");
+        }
+        if (sourceUnitId == reportUnitId) {
+            throw new IllegalArgumentException("Bitte eine andere Einheit wählen.");
+        }
+        Unit sourceUnit = unitRepository
+                .findVisibleById(sourceUnitId, testModeService.isEnabled())
+                .orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden."));
+        if (!sourceUnit.isActive()) {
+            throw new IllegalArgumentException("Einheit nicht gefunden.");
+        }
+        String fn = firstName != null ? firstName.trim() : "";
+        String ln = lastName != null ? lastName.trim() : "";
+        if (fn.isEmpty() || ln.isEmpty()) {
+            throw new IllegalArgumentException("Vor- und Nachname sind Pflicht.");
+        }
+        if (fn.length() > 100 || ln.length() > 100) {
+            throw new IllegalArgumentException("Vor- und Nachname dürfen höchstens 100 Zeichen lang sein.");
+        }
+        Person person = personalService.createPerson(
+                sourceUnitId, fn, ln, null, null, null, null, null, null, null);
+        return new ForeignPersonOption(
+                person.getId(),
+                person.anwesenheitDisplayName(),
+                Besatzungsstaerke.qualTier(person).name(),
+                sourceUnitId,
+                sourceUnit.getName());
+    }
+
     @Transactional(readOnly = true)
     public KraefteFahrzeugeState buildKraefteFahrzeugeState(long unitId, Long reportId) {
         return buildKraefteFahrzeugeState(unitId, reportId, null, null, null);

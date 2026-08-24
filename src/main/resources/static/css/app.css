@@ -5981,6 +5981,35 @@ span.required { color: var(--error); }
   overflow-y: auto;
 }
 
+.foreign-person-create {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  min-width: 0;
+}
+
+.foreign-person-create legend {
+  font-weight: 600;
+  padding: 0;
+}
+
+.foreign-person-create__fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 8px 0 10px;
+}
+
+.foreign-person-create .btn {
+  margin-top: 2px;
+}
+
+@media (max-width: 560px) {
+  .foreign-person-create__fields {
+    grid-template-columns: 1fr;
+  }
+}
+
 .foreign-person-results__list {
   list-style: none;
   margin: 0;
@@ -6989,6 +7018,12 @@ span.required { color: var(--error); }
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.incident-modal .modal__body {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .modal__body--incident {

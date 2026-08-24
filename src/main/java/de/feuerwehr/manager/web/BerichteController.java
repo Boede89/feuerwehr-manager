@@ -62,6 +62,7 @@ import java.util.Map;
 import java.util.function.BiFunction;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -1258,6 +1259,17 @@ public class BerichteController {
         return einsatzberichtService.listForeignPersonnel(unitId, sourceUnitId, query);
     }
 
+    @PostMapping("/anwesenheitslisten/foreign-personnel")
+    @ResponseBody
+    public ResponseEntity<?> createAnwesenheitForeignPerson(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @RequestParam(name = "sourceUnit") long sourceUnitId,
+            @RequestParam(name = "firstName") String firstName,
+            @RequestParam(name = "lastName") String lastName) {
+        return createForeignPersonResponse(actor, unitId, sourceUnitId, firstName, lastName);
+    }
+
     @GetMapping("/anwesenheitslisten/{id}/freigabe-check")
     @ResponseBody
     public Map<String, Object> anwesenheitFreigabeCheck(
@@ -1947,6 +1959,17 @@ public class BerichteController {
         return einsatzberichtService.listForeignPersonnel(unitId, sourceUnitId, query);
     }
 
+    @PostMapping("/einsatzberichte/foreign-personnel")
+    @ResponseBody
+    public ResponseEntity<?> createEinsatzForeignPerson(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @RequestParam(name = "sourceUnit") long sourceUnitId,
+            @RequestParam(name = "firstName") String firstName,
+            @RequestParam(name = "lastName") String lastName) {
+        return createForeignPersonResponse(actor, unitId, sourceUnitId, firstName, lastName);
+    }
+
     @GetMapping("/einsatzberichte/vehicle-equipment")
     @ResponseBody
     public List<VehicleEquipmentView> vehicleEquipment(
@@ -1983,6 +2006,19 @@ public class BerichteController {
     private void requireModuleEnabled(long unitId) {
         if (!moduleSettingsService.isEnabled(AppModule.BERICHTE, unitId)) {
             throw new IllegalArgumentException("Das Modul Berichte ist für diese Einheit nicht aktiviert.");
+        }
+    }
+
+    private ResponseEntity<?> createForeignPersonResponse(
+            AppUserDetails actor, long unitId, long sourceUnitId, String firstName, String lastName) {
+        try {
+            accessControlService.requireUnitAccess(actor, unitId);
+            requireModuleEnabled(unitId);
+            requireBerichteWrite(actor, unitId);
+            return ResponseEntity.ok(
+                    einsatzberichtService.createForeignPerson(unitId, sourceUnitId, firstName, lastName));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 

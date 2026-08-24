@@ -529,6 +529,22 @@
         <div id="foreign-person-results" class="foreign-person-results">
           <p class="hint">Bitte zuerst eine Einheit wählen.</p>
         </div>
+        <fieldset id="foreign-person-create" class="foreign-person-create" disabled>
+          <legend>Neue Person anlegen</legend>
+          <p class="hint">Falls die Person in der gewählten Einheit noch fehlt, reichen Vor- und Nachname.</p>
+          <div class="foreign-person-create__fields">
+            <div>
+              <label for="foreign-person-first-name">Vorname</label>
+              <input type="text" id="foreign-person-first-name" class="field" maxlength="100" autocomplete="off"/>
+            </div>
+            <div>
+              <label for="foreign-person-last-name">Nachname</label>
+              <input type="text" id="foreign-person-last-name" class="field" maxlength="100" autocomplete="off"/>
+            </div>
+          </div>
+          <button type="button" class="btn btn--outline btn--sm" id="foreign-person-create-btn">Person anlegen</button>
+          <p id="foreign-person-create-error" class="hint hint--warn" hidden></p>
+        </fieldset>
       </div>
     </div>
   </div>

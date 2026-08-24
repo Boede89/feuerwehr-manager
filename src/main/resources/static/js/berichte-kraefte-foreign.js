@@ -3,6 +3,7 @@
 
   var searchTimer = null;
   var selectedUnitId = '';
+  var creating = false;
 
   function esc(value) {
     return String(value == null ? '' : value)
@@ -10,6 +11,16 @@
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
+  }
+
+  function csrfToken() {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
+  }
+
+  function csrfHeader() {
+    var meta = document.querySelector('meta[name="csrf-header"]');
+    return meta ? meta.getAttribute('content') : 'X-CSRF-TOKEN';
   }
 
   function boardUnitId() {
@@ -28,6 +39,42 @@
 
   function modalEl() {
     return document.getElementById('foreign-person-modal');
+  }
+
+  function createFieldset() {
+    return document.getElementById('foreign-person-create');
+  }
+
+  function setCreateEnabled(enabled) {
+    var fieldset = createFieldset();
+    if (fieldset) {
+      fieldset.disabled = !enabled;
+    }
+    if (!enabled) {
+      var first = document.getElementById('foreign-person-first-name');
+      var last = document.getElementById('foreign-person-last-name');
+      if (first) {
+        first.value = '';
+      }
+      if (last) {
+        last.value = '';
+      }
+      showCreateError('');
+    }
+  }
+
+  function showCreateError(message) {
+    var el = document.getElementById('foreign-person-create-error');
+    if (!el) {
+      return;
+    }
+    if (!message) {
+      el.hidden = true;
+      el.textContent = '';
+      return;
+    }
+    el.hidden = false;
+    el.textContent = message;
   }
 
   function openModal() {
@@ -63,6 +110,7 @@
     if (select) {
       select.value = '';
     }
+    setCreateEnabled(false);
   }
 
   function loadUnits() {
@@ -164,6 +212,7 @@
       search.disabled = !selectedUnitId;
       search.value = '';
     }
+    setCreateEnabled(!!selectedUnitId);
     if (!selectedUnitId) {
       var results = document.getElementById('foreign-person-results');
       if (results) {
@@ -185,45 +234,157 @@
     }, 250);
   }
 
-  function onPersonPick(btn) {
-    if (!btn || btn.disabled) {
-      return;
-    }
-    var person = {
-      id: Number(btn.dataset.personId),
-      displayName: btn.dataset.displayName || '',
-      qualTier: btn.dataset.qualTier || 'MANNSCHAFT',
-      unitLabel: btn.dataset.unitLabel || ''
+  function addCreatedPerson(person) {
+    var mapped = {
+      id: Number(person.personId != null ? person.personId : person.id),
+      displayName: person.displayName || '',
+      qualTier: person.qualTier || 'MANNSCHAFT',
+      unitLabel: person.unitName || person.unitLabel || ''
     };
     if (window.BerichteKraefte && window.BerichteKraefte.addForeignPerson) {
-      window.BerichteKraefte.addForeignPerson(person);
+      window.BerichteKraefte.addForeignPerson(mapped);
     }
     closeModal();
   }
 
-  function bind() {
-    if (isReadonly()) {
+  function onPersonPick(btn) {
+    if (!btn || btn.disabled) {
       return;
     }
-    var openBtn = document.getElementById('foreign-person-open-btn');
-    if (openBtn) {
-      openBtn.addEventListener('click', openModal);
-    }
-    var modal = modalEl();
-    if (!modal) {
-      return;
-    }
-    modal.querySelector('.modal__backdrop')?.addEventListener('click', closeModal);
-    document.getElementById('foreign-person-modal-close')?.addEventListener('click', closeModal);
-    document.getElementById('foreign-unit-select')?.addEventListener('change', onUnitChange);
-    document.getElementById('foreign-person-search')?.addEventListener('input', onSearchInput);
-    document.getElementById('foreign-person-results')?.addEventListener('click', function (e) {
-      var btn = e.target.closest('.foreign-person-results__btn');
-      if (btn) {
-        onPersonPick(btn);
-      }
+    addCreatedPerson({
+      personId: Number(btn.dataset.personId),
+      displayName: btn.dataset.displayName || '',
+      qualTier: btn.dataset.qualTier || 'MANNSCHAFT',
+      unitName: btn.dataset.unitLabel || ''
     });
   }
+
+  function createPerson() {
+    if (creating || !selectedUnitId) {
+      return;
+    }
+    var first = document.getElementById('foreign-person-first-name');
+    var last = document.getElementById('foreign-person-last-name');
+    var firstName = first ? first.value.trim() : '';
+    var lastName = last ? last.value.trim() : '';
+    if (!firstName || !lastName) {
+      showCreateError('Bitte Vor- und Nachname eingeben.');
+      return;
+    }
+    var reportUnitId = boardUnitId();
+    if (!reportUnitId) {
+      showCreateError('Einheit des Berichts fehlt.');
+      return;
+    }
+    var apiBase = window.BerichteApiBase ? window.BerichteApiBase.path() : '/berichte/einsatzberichte';
+    var body = new URLSearchParams();
+    body.set('unit', reportUnitId);
+    body.set('sourceUnit', selectedUnitId);
+    body.set('firstName', firstName);
+    body.set('lastName', lastName);
+    creating = true;
+    showCreateError('');
+    var btn = document.getElementById('foreign-person-create-btn');
+    if (btn) {
+      btn.disabled = true;
+    }
+    var headers = {
+      Accept: 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+    };
+    headers[csrfHeader()] = csrfToken();
+    fetch(apiBase + '/foreign-personnel', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: headers,
+      body: body.toString()
+    })
+      .then(function (response) {
+        return response.text().then(function (text) {
+          var data = {};
+          if (text) {
+            try {
+              data = JSON.parse(text);
+            } catch (ignore) {
+              data = {};
+            }
+          }
+          return { ok: response.ok, data: data };
+        });
+      })
+      .then(function (result) {
+        if (!result.ok) {
+          throw new Error((result.data && result.data.error) || 'Person konnte nicht angelegt werden.');
+        }
+        addCreatedPerson(result.data);
+      })
+      .catch(function (err) {
+        showCreateError(err.message || 'Person konnte nicht angelegt werden.');
+      })
+      .finally(function () {
+        creating = false;
+        if (btn) {
+          btn.disabled = false;
+        }
+      });
+  }
+
+  var bound = false;
+
+  function bind() {
+    if (bound) {
+      return;
+    }
+    bound = true;
+    document.addEventListener('click', function (e) {
+      if (e.target.closest('#foreign-person-open-btn')) {
+        if (!isReadonly()) {
+          openModal();
+        }
+        return;
+      }
+      var modal = modalEl();
+      if (!modal || modal.hidden) {
+        return;
+      }
+      if (e.target.closest('#foreign-person-modal-close')
+          || (e.target.classList && e.target.classList.contains('modal__backdrop')
+              && e.target.closest('#foreign-person-modal'))) {
+        closeModal();
+        return;
+      }
+      var pickBtn = e.target.closest('#foreign-person-results .foreign-person-results__btn');
+      if (pickBtn) {
+        onPersonPick(pickBtn);
+        return;
+      }
+      if (e.target.closest('#foreign-person-create-btn')) {
+        createPerson();
+      }
+    });
+    document.addEventListener('change', function (e) {
+      if (e.target && e.target.id === 'foreign-unit-select') {
+        onUnitChange();
+      }
+    });
+    document.addEventListener('input', function (e) {
+      if (e.target && e.target.id === 'foreign-person-search') {
+        onSearchInput();
+      }
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter') {
+        return;
+      }
+      if (!e.target.closest('#foreign-person-create')) {
+        return;
+      }
+      e.preventDefault();
+      createPerson();
+    });
+  }
+
+  window.BerichteKraefteForeign = { init: bind };
 
   document.addEventListener('DOMContentLoaded', bind);
 })();
