@@ -23,6 +23,14 @@ public final class IncidentCrewSupport {
                 || vehicleId == BETEILIGT_VEHICLE_ID;
     }
 
+    /** Anwesend: Anwesend-Slot, echtes Fahrzeug, Einsatzstelle oder Wache. */
+    public static boolean countsAsPresent(long vehicleId) {
+        return vehicleId == BETEILIGT_VEHICLE_ID
+                || vehicleId == EINSATZSTELLE_VEHICLE_ID
+                || vehicleId == WACHE_VEHICLE_ID
+                || vehicleId > 0;
+    }
+
     public static String virtualSlotName(long vehicleId) {
         if (vehicleId == EINSATZSTELLE_VEHICLE_ID) {
             return EINSATZSTELLE_VEHICLE_NAME;

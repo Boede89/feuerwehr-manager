@@ -718,11 +718,7 @@ public class AnwesenheitslisteService {
                 long vehicleId = assignment.vehicleId();
                 List<Long> personIds =
                         assignment.personIds() != null ? assignment.personIds() : List.of();
-                boolean countsAsPresent = vehicleId == IncidentCrewSupport.BETEILIGT_VEHICLE_ID
-                        || vehicleId == IncidentCrewSupport.EINSATZSTELLE_VEHICLE_ID
-                        || vehicleId == IncidentCrewSupport.WACHE_VEHICLE_ID
-                        || vehicleId > 0;
-                if (!countsAsPresent) {
+                if (!IncidentCrewSupport.countsAsPresent(vehicleId)) {
                     continue;
                 }
                 for (Long personId : personIds) {
@@ -868,11 +864,7 @@ public class AnwesenheitslisteService {
                 long vehicleId = assignment.vehicleId();
                 List<Long> personIds =
                         assignment.personIds() != null ? assignment.personIds() : List.of();
-                boolean countsAsPresent = vehicleId == IncidentCrewSupport.BETEILIGT_VEHICLE_ID
-                        || vehicleId == IncidentCrewSupport.EINSATZSTELLE_VEHICLE_ID
-                        || vehicleId == IncidentCrewSupport.WACHE_VEHICLE_ID
-                        || vehicleId > 0;
-                if (!countsAsPresent) {
+                if (!IncidentCrewSupport.countsAsPresent(vehicleId)) {
                     continue;
                 }
                 for (Long personId : personIds) {
@@ -1140,11 +1132,18 @@ public class AnwesenheitslisteService {
         }
         LinkedHashSet<Long> personIds = new LinkedHashSet<>();
         for (CrewAssignment assignment : crewAssignments) {
-            if (assignment.vehicleId() != IncidentCrewSupport.BETEILIGT_VEHICLE_ID
-                    || assignment.personIds() == null) {
+            if (!IncidentCrewSupport.countsAsPresent(assignment.vehicleId())) {
                 continue;
             }
-            assignment.personIds().stream().filter(Objects::nonNull).forEach(personIds::add);
+            if (assignment.personIds() != null) {
+                assignment.personIds().stream().filter(Objects::nonNull).forEach(personIds::add);
+            }
+            if (assignment.einheitsfuehrerPersonId() != null) {
+                personIds.add(assignment.einheitsfuehrerPersonId());
+            }
+            if (assignment.maschinistPersonId() != null) {
+                personIds.add(assignment.maschinistPersonId());
+            }
         }
         int order = 0;
         for (Long personId : personIds) {

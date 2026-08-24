@@ -11,9 +11,11 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -61,16 +63,27 @@ public class EinsatzberichtPdfService {
         int totalGf = 0;
         int totalM = 0;
 
-        appendVehicleRows(state.beteiligt(), equipmentByVehicleId, personnel, vehicles, false);
-        for (KraefteFahrzeugeState.KraefteVehicleView vehicle : state.involvedVehicles()) {
-            appendVehicleRows(vehicle, equipmentByVehicleId, personnel, vehicles, true);
-            int[] parts = parseStrength(vehicle.besatzungsstaerke());
-            totalZf += parts[0];
-            totalGf += parts[1];
-            totalM += parts[2];
+        Set<Long> seenPersonIds = new LinkedHashSet<>();
+        appendVehicleRows(state.beteiligt(), equipmentByVehicleId, personnel, vehicles, false, seenPersonIds);
+        List<KraefteFahrzeugeState.KraefteVehicleView> allVehicles =
+                state.vehicles() != null ? state.vehicles() : List.of();
+        for (KraefteFahrzeugeState.KraefteVehicleView vehicle : allVehicles) {
+            appendVehicleRows(
+                    vehicle,
+                    equipmentByVehicleId,
+                    personnel,
+                    vehicles,
+                    vehicle.involvedInIncident(),
+                    seenPersonIds);
+            if (vehicle.involvedInIncident()) {
+                int[] parts = parseStrength(vehicle.besatzungsstaerke());
+                totalZf += parts[0];
+                totalGf += parts[1];
+                totalM += parts[2];
+            }
         }
-        appendVehicleRows(state.einsatzstelle(), equipmentByVehicleId, personnel, vehicles, false);
-        appendVehicleRows(state.wache(), equipmentByVehicleId, personnel, vehicles, false);
+        appendVehicleRows(state.einsatzstelle(), equipmentByVehicleId, personnel, vehicles, false, seenPersonIds);
+        appendVehicleRows(state.wache(), equipmentByVehicleId, personnel, vehicles, false, seenPersonIds);
 
         Map<String, Object> model = new LinkedHashMap<>();
         model.put("unitLogoBase64", unit.getLogoBase64());
@@ -109,21 +122,29 @@ public class EinsatzberichtPdfService {
             Map<Long, String> equipmentByVehicleId,
             List<EinsatzberichtPdfPersonRow> personnel,
             List<EinsatzberichtPdfVehicleRow> vehicles,
-            boolean includeVehicleRow) {
-        if (vehicle == null || vehicle.crewPersons() == null) {
+            boolean includeVehicleRow,
+            Set<Long> seenPersonIds) {
+        if (vehicle == null) {
             return;
         }
         String vehicleLabel = vehicle.name();
-        for (KraefteFahrzeugeState.KraeftePersonView person : vehicle.crewPersons()) {
-            String name = person.displayName();
-            if (person.unitLabel() != null && !person.unitLabel().isBlank()) {
-                name = name + " (" + person.unitLabel() + ")";
+        if (vehicle.crewPersons() != null) {
+            for (KraefteFahrzeugeState.KraeftePersonView person : vehicle.crewPersons()) {
+                if (seenPersonIds != null && !seenPersonIds.add(person.id())) {
+                    continue;
+                }
+                String name = person.displayName();
+                if (person.unitLabel() != null && !person.unitLabel().isBlank()) {
+                    name = name + " (" + person.unitLabel() + ")";
+                }
+                personnel.add(new EinsatzberichtPdfPersonRow(name, vehicleLabel, person.usesPa() ? "X" : ""));
             }
-            personnel.add(new EinsatzberichtPdfPersonRow(name, vehicleLabel, person.usesPa() ? "X" : ""));
         }
         if (includeVehicleRow && vehicle.vehicleId() > 0) {
-            String maschinist = findRoleName(vehicle.crewPersons(), "MASCHINIST");
-            String einheitsfuehrer = findRoleName(vehicle.crewPersons(), "EINHEITSFUEHRER");
+            List<KraefteFahrzeugeState.KraeftePersonView> crew =
+                    vehicle.crewPersons() != null ? vehicle.crewPersons() : List.of();
+            String maschinist = findRoleName(crew, "MASCHINIST");
+            String einheitsfuehrer = findRoleName(crew, "EINHEITSFUEHRER");
             vehicles.add(new EinsatzberichtPdfVehicleRow(
                     vehicle.name(),
                     maschinist,

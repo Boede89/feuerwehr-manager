@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.berichte;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public record KraefteFahrzeugeState(
@@ -16,6 +17,29 @@ public record KraefteFahrzeugeState(
             return List.of();
         }
         return vehicles.stream().filter(KraefteVehicleView::involvedInIncident).toList();
+    }
+
+    /**
+     * Alle Slots mit Besatzung: Anwesend/Beteiligt, Fahrzeuge, Einsatzstelle, Wache.
+     * Reihenfolge entspricht der PDF-Personalliste.
+     */
+    public List<KraefteVehicleView> occupiedCrewSlots() {
+        List<KraefteVehicleView> slots = new ArrayList<>();
+        addIfOccupied(slots, beteiligt);
+        if (vehicles != null) {
+            for (KraefteVehicleView vehicle : vehicles) {
+                addIfOccupied(slots, vehicle);
+            }
+        }
+        addIfOccupied(slots, einsatzstelle);
+        addIfOccupied(slots, wache);
+        return List.copyOf(slots);
+    }
+
+    private static void addIfOccupied(List<KraefteVehicleView> slots, KraefteVehicleView view) {
+        if (view != null && view.crewPersons() != null && !view.crewPersons().isEmpty()) {
+            slots.add(view);
+        }
     }
 
     public record KraeftePersonView(
