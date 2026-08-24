@@ -350,12 +350,9 @@
         <input type="hidden" id="reservierung-kind"/>
         <div class="modal__body">
           <div class="form-group" id="reservierung-resources-block">
-            <div class="reservierungen-section-head">
-              <label id="reservierung-resources-label">Ausgewählte Fahrzeuge <span class="req">*</span></label>
-              <button type="button" class="btn btn--outline btn--sm" id="reservierung-add-resource">Weiteres Fahrzeug hinzufügen</button>
-            </div>
-            <div id="reservierung-selected-chips" class="reservierungen-chips"></div>
-            <p class="hint text-sm" id="reservierung-resources-hint">Weitere Fahrzeuge erscheinen im Kalender kommagetrennt in einem Termin.</p>
+            <label id="reservierung-resources-label">Fahrzeuge <span class="req">*</span></label>
+            <div id="reservierung-selected-chips" class="kpi-grid reservierungen-resource-tiles"></div>
+            <p class="hint text-sm" id="reservierung-resources-hint">Klicken Sie auf eine Kachel zum Auswählen. Mehrere Einträge erscheinen im Kalender kommagetrennt in einem Termin.</p>
           </div>
 
           <div class="form-group">
@@ -397,14 +394,14 @@
   </div>
 
   <div id="reservierung-pick-modal" class="modal-overlay modal-overlay--stack" aria-hidden="true">
-    <div class="modal modal--md" role="dialog" aria-labelledby="reservierung-pick-title">
+    <div class="modal modal--wide" role="dialog" aria-labelledby="reservierung-pick-title">
       <div class="modal__header">
         <h3 id="reservierung-pick-title">Weitere Fahrzeuge wählen</h3>
         <button type="button" class="modal__close" data-close-pick-modal aria-label="Schließen">✕</button>
       </div>
       <div class="modal__body">
-        <p class="hint" id="reservierung-pick-hint">Bereits ausgewählte Einträge sind ausgeblendet.</p>
-        <div id="reservierung-pick-list" class="reservierungen-pick-list"></div>
+        <p class="hint" id="reservierung-pick-hint">Klicken Sie auf eine Kachel, um sie auszuwählen.</p>
+        <div id="reservierung-pick-list" class="kpi-grid reservierungen-resource-tiles"></div>
       </div>
       <div class="modal__footer">
         <button type="button" class="btn btn--primary" id="reservierung-pick-apply">Übernehmen</button>
@@ -575,6 +572,6 @@
   <select id="reservierungen-rooms-template" hidden aria-hidden="true">
     <option th:each="r : ${roomOptions}" th:value="${r.id}" th:text="${r.name}">Raum</option>
   </select>
-  <script th:src="@{/js/reservierungen.js(v='20260810h')}" defer></script>
+  <script th:src="@{/js/reservierungen.js(v='20260824c')}" defer></script>
 </main>
 </html>

@@ -7536,10 +7536,38 @@ span.required { color: var(--error); }
   margin: 0 0 8px;
 }
 
-.reservierungen-resource-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 14px;
+.reservierungen-resource-tiles.kpi-grid {
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  margin: 0.45rem 0 0.55rem;
+  gap: 0.75rem;
+}
+
+.reservierungen-resource-tiles .hint {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .reservierungen-resource-tiles.kpi-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+}
+
+button.reservierungen-resource-tile {
+  appearance: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  background: var(--card, var(--bg-card, #fff));
+}
+
+.reservierungen-resource-tile__name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.25;
+  word-break: break-word;
 }
 
 .reservierungen-resource-card h3 {
