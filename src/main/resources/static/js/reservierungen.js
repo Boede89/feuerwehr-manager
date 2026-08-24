@@ -29,6 +29,7 @@
   var importChipsBox = document.getElementById('import-selected-chips');
   var resourceCatalog = loadResourceCatalog();
   var pendingCreateFlags = { forceConflict: false, forceLoesch: false, testModeEmailDelivery: null };
+  var createSubmitBusy = false;
   var selectedResources = [];
   var importExtraResources = [];
   var pickContext = 'create'; // create | import
@@ -57,6 +58,74 @@
       return;
     }
     window.alert(msg);
+  }
+
+  function ensureBusyOverlay(container) {
+    var overlay = container.querySelector(':scope > .fw-busy-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.className = 'fw-busy-overlay';
+      overlay.hidden = true;
+      overlay.setAttribute('role', 'status');
+      overlay.setAttribute('aria-live', 'polite');
+      overlay.innerHTML =
+        '<div class="fw-busy-overlay__panel">'
+        + '<div class="fw-busy-spinner" aria-hidden="true"></div>'
+        + '<p class="fw-busy-overlay__text"></p>'
+        + '</div>';
+      container.appendChild(overlay);
+    }
+    return overlay;
+  }
+
+  function showBusy(container, message, pageLevel) {
+    if (!container) {
+      return;
+    }
+    var overlay = ensureBusyOverlay(container);
+    var text = overlay.querySelector('.fw-busy-overlay__text');
+    if (text) {
+      text.textContent = message || 'Bitte warten …';
+    }
+    overlay.classList.toggle(
+      'fw-busy-overlay--page',
+      pageLevel === true || container.classList.contains('reservierungen-page')
+    );
+    overlay.hidden = false;
+    container.classList.add('is-busy');
+    container.setAttribute('aria-busy', 'true');
+  }
+
+  function hideBusy(container) {
+    if (!container) {
+      return;
+    }
+    var overlay = container.querySelector(':scope > .fw-busy-overlay');
+    if (overlay) {
+      overlay.hidden = true;
+    }
+    container.classList.remove('is-busy');
+    container.removeAttribute('aria-busy');
+  }
+
+  function getCreateModalPanel() {
+    return modal ? modal.querySelector('.modal') : null;
+  }
+
+  function startCreateBusy() {
+    createSubmitBusy = true;
+    if (submitBtn) {
+      submitBtn.disabled = true;
+    }
+    showBusy(getCreateModalPanel(), 'Antrag wird verarbeitet …');
+  }
+
+  function endCreateBusy() {
+    createSubmitBusy = false;
+    if (submitBtn) {
+      submitBtn.disabled = false;
+    }
+    hideBusy(getCreateModalPanel());
   }
 
   function getCsrfToken() {
@@ -663,6 +732,7 @@
   bindRequesterSuggestEmail();
 
   function closeModal() {
+    endCreateBusy();
     closeOverlay(modal);
   }
 
@@ -1120,6 +1190,9 @@
   }
 
   function submitCreate() {
+    if (createSubmitBusy) {
+      return;
+    }
     var kind = currentKind();
     var resourceIds = selectedResources.map(function (r) { return Number(r.id); }).filter(Boolean);
     var requesterName = document.getElementById('reservierung-name').value.trim();
@@ -1167,7 +1240,7 @@
         ? apiBase + '/api/fahrzeuge?unit=' + encodeURIComponent(unitId)
         : apiBase + '/api/raeume?unit=' + encodeURIComponent(unitId);
       url = appendTestModeEmailParam(url, delivery);
-      if (submitBtn) submitBtn.disabled = true;
+      startCreateBusy();
       fetch(url, {
         method: 'POST',
         credentials: 'same-origin',
@@ -1177,29 +1250,35 @@
         .then(parseJsonResponse)
         .then(function (data) {
           if (data.code === 'LOESCH_WARNING') {
+            endCreateBusy();
             showLoeschModal(data);
             return;
           }
           if (data.code === 'CONFLICTS') {
+            endCreateBusy();
             showConflictModal(data);
             return;
           }
           if (!data.ok) {
+            endCreateBusy();
             notify(data.message || 'Fehler beim Einreichen.', 'error');
             return;
           }
           pendingCreateFlags = { forceConflict: false, forceLoesch: false, testModeEmailDelivery: null };
-          closeModal();
+          createSubmitBusy = false;
+          closeOverlay(modal);
+          hideBusy(getCreateModalPanel());
+          if (submitBtn) {
+            submitBtn.disabled = false;
+          }
           notify(data.message || 'Antrag eingereicht.', 'success');
           if (!publicMode) {
             window.location.href = '/reservierungen?unit=' + encodeURIComponent(unitId) + '&tab=meine';
           }
         })
         .catch(function () {
+          endCreateBusy();
           notify('Antrag konnte nicht gesendet werden.', 'error');
-        })
-        .finally(function () {
-          if (submitBtn) submitBtn.disabled = false;
         });
     });
   }
@@ -1668,17 +1747,20 @@
         }
         var deletionReason = notifyCancel && result && result.textValue ? result.textValue : '';
         btn.disabled = true;
+        showBusy(root, 'Reservierung wird gelöscht …');
         deleteReservation(row.dataset.kind, row.dataset.id, delivery, deletionReason)
           .then(function (data) {
             if (data.ok) {
               notify(data.message || 'Reservierung gelöscht.', 'success');
               window.location.reload();
             } else {
+              hideBusy(root);
               notify(data.message || 'Löschen fehlgeschlagen.', 'error');
               btn.disabled = false;
             }
           })
           .catch(function () {
+            hideBusy(root);
             notify('Löschen fehlgeschlagen.', 'error');
             btn.disabled = false;
           });
