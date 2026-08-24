@@ -32,7 +32,16 @@ public enum AtemschutzNotificationCategory {
             "uebungWarnDays",
             "uebungNotifyInstructors",
             "uebungNotifyCarriers",
-            "uebungCcPersonIds");
+            "uebungCcPersonIds"),
+    CSA(
+            "CSA",
+            AtemschutzFitnessType.CSA,
+            "csa_warnung",
+            "csa_abgelaufen",
+            "csaWarnDays",
+            "csaNotifyInstructors",
+            "csaNotifyCarriers",
+            "csaCcPersonIds");
 
     private final String label;
     private final AtemschutzFitnessType fitnessType;

@@ -60,6 +60,7 @@ public class AtemschutzSettingsController {
             model.addAttribute("instructorUserIds", atemschutzSettingsService.parseInstructorUserIds(settings));
             model.addAttribute("unitCourses", atemschutzSettingsService.listSelectableCourses(unit.getId()));
             model.addAttribute("selectedAgtCourseId", atemschutzSettingsService.selectedAgtCourseUiId(unit.getId()));
+            model.addAttribute("selectedCsaCourseId", atemschutzSettingsService.selectedCsaCourseUiId(unit.getId()));
             return "settings/atemschutz";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
@@ -76,6 +77,18 @@ public class AtemschutzSettingsController {
         return save(actor, unit, redirectAttributes, () -> {
             atemschutzSettingsService.saveAgtCourse(unit, agtCourseId);
             redirectAttributes.addFlashAttribute("message", "Lehrgang gespeichert.");
+        });
+    }
+
+    @PostMapping("/csa")
+    public String saveCsa(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam(required = false) Long csaCourseId,
+            RedirectAttributes redirectAttributes) {
+        return save(actor, unit, redirectAttributes, () -> {
+            atemschutzSettingsService.saveCsaCourse(unit, csaCourseId);
+            redirectAttributes.addFlashAttribute("message", "CSA-Lehrgang gespeichert.");
         });
     }
 
@@ -99,15 +112,19 @@ public class AtemschutzSettingsController {
             @RequestParam int g26WarnDays,
             @RequestParam int streckeWarnDays,
             @RequestParam int uebungWarnDays,
+            @RequestParam int csaWarnDays,
             @RequestParam(name = "g26NotifyInstructors", defaultValue = "false") boolean g26NotifyInstructors,
             @RequestParam(name = "streckeNotifyInstructors", defaultValue = "false") boolean streckeNotifyInstructors,
             @RequestParam(name = "uebungNotifyInstructors", defaultValue = "false") boolean uebungNotifyInstructors,
+            @RequestParam(name = "csaNotifyInstructors", defaultValue = "false") boolean csaNotifyInstructors,
             @RequestParam(name = "g26NotifyCarriers", defaultValue = "false") boolean g26NotifyCarriers,
             @RequestParam(name = "streckeNotifyCarriers", defaultValue = "false") boolean streckeNotifyCarriers,
             @RequestParam(name = "uebungNotifyCarriers", defaultValue = "false") boolean uebungNotifyCarriers,
+            @RequestParam(name = "csaNotifyCarriers", defaultValue = "false") boolean csaNotifyCarriers,
             @RequestParam(name = "g26CcPersonIds", required = false) Long[] g26CcPersonIds,
             @RequestParam(name = "streckeCcPersonIds", required = false) Long[] streckeCcPersonIds,
             @RequestParam(name = "uebungCcPersonIds", required = false) Long[] uebungCcPersonIds,
+            @RequestParam(name = "csaCcPersonIds", required = false) Long[] csaCcPersonIds,
             @RequestParam Map<String, String> allParams,
             RedirectAttributes redirectAttributes) {
         return save(actor, unit, redirectAttributes, () -> {
@@ -126,15 +143,19 @@ public class AtemschutzSettingsController {
                     g26WarnDays,
                     streckeWarnDays,
                     uebungWarnDays,
+                    csaWarnDays,
                     g26NotifyInstructors,
                     streckeNotifyInstructors,
                     uebungNotifyInstructors,
+                    csaNotifyInstructors,
                     g26NotifyCarriers,
                     streckeNotifyCarriers,
                     uebungNotifyCarriers,
+                    csaNotifyCarriers,
                     g26CcPersonIds == null ? List.of() : Arrays.asList(g26CcPersonIds),
                     streckeCcPersonIds == null ? List.of() : Arrays.asList(streckeCcPersonIds),
                     uebungCcPersonIds == null ? List.of() : Arrays.asList(uebungCcPersonIds),
+                    csaCcPersonIds == null ? List.of() : Arrays.asList(csaCcPersonIds),
                     subjects,
                     bodies);
             redirectAttributes.addFlashAttribute("message", "Benachrichtigungen gespeichert.");

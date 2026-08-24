@@ -121,7 +121,7 @@ public class AnwesenheitslistePdfService {
                     name = name + " (" + person.unitLabel() + ")";
                 }
                 personnel.add(new EinsatzberichtPdfService.EinsatzberichtPdfPersonRow(
-                        name, vehicleLabel, person.usesPa() ? "X" : ""));
+                        name, vehicleLabel, paCsaMark(person)));
             }
         }
         if (includeVehicleRow && vehicle.vehicleId() > 0) {
@@ -136,6 +136,21 @@ public class AnwesenheitslistePdfService {
                     vehicle.besatzungsstaerke(),
                     "—"));
         }
+    }
+
+    private static String paCsaMark(KraefteFahrzeugeState.KraeftePersonView person) {
+        boolean pa = person.usesPa();
+        boolean csa = person.usesCsa();
+        if (pa && csa) {
+            return "X/C";
+        }
+        if (pa) {
+            return "X";
+        }
+        if (csa) {
+            return "C";
+        }
+        return "";
     }
 
     private static String findRoleName(List<KraefteFahrzeugeState.KraeftePersonView> crew, String role) {

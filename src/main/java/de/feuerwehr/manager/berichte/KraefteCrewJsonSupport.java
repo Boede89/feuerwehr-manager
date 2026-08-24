@@ -53,6 +53,20 @@ public final class KraefteCrewJsonSupport {
             }
             sb.append(']');
         }
+        List<Long> csaIds = vehicle.crewPersons().stream()
+                .filter(KraefteFahrzeugeState.KraeftePersonView::usesCsa)
+                .map(KraefteFahrzeugeState.KraeftePersonView::id)
+                .toList();
+        if (!csaIds.isEmpty()) {
+            sb.append(",\"csaPersonIds\":[");
+            for (int i = 0; i < csaIds.size(); i++) {
+                if (i > 0) {
+                    sb.append(',');
+                }
+                sb.append(csaIds.get(i));
+            }
+            sb.append(']');
+        }
         if (vehicle.vehicleId() > 0) {
             sb.append(",\"involvedInIncident\":").append(vehicle.involvedInIncident());
             sb.append(",\"manuallyInvolvedInIncident\":").append(vehicle.manuallyInvolvedInIncident());

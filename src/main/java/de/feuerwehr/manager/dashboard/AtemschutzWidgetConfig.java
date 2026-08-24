@@ -13,7 +13,8 @@ public final class AtemschutzWidgetConfig {
         TAUGLICH("tauglich", "Tauglich", "success", "tauglich"),
         WARNUNG("warnung", "Warnung", "warn", "warnung"),
         UEBUNG_ABGELAUFEN("uebungAbgelaufen", "Übung abgelaufen", "warning", "uebung_abgelaufen"),
-        NICHT_TAUGLICH("nichtTauglich", "Nicht tauglich", "danger", "nicht_tauglich");
+        NICHT_TAUGLICH("nichtTauglich", "Nicht tauglich", "danger", "nicht_tauglich"),
+        CSA("csa", "CSA", "success", "csa");
 
         private final String key;
         private final String label;
@@ -66,7 +67,7 @@ public final class AtemschutzWidgetConfig {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("key", m.key());
             row.put("show", true);
-            row.put("showNames", m == Metric.WARNUNG || m == Metric.NICHT_TAUGLICH || m == Metric.UEBUNG_ABGELAUFEN);
+            row.put("showNames", m == Metric.WARNUNG || m == Metric.NICHT_TAUGLICH || m == Metric.UEBUNG_ABGELAUFEN || m == Metric.CSA);
             metrics.add(row);
         }
         cfg.put("metrics", metrics);

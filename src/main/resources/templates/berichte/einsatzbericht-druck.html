@@ -31,9 +31,9 @@
     .personnel-table .col-fahrzeug { width: 26px; max-width: 26px; padding: 2px 3px; }
     .personnel-table th.col-pa,
     .personnel-table td.col-pa {
-      width: 14px;
-      max-width: 14px;
-      min-width: 14px;
+      width: 28px;
+      max-width: 28px;
+      min-width: 22px;
       padding: 1px 0;
       text-align: center;
       line-height: 1;
@@ -166,16 +166,16 @@
             <colgroup>
               <col class="col-name"/>
               <col class="col-fahrzeug" style="width:26px;"/>
-              <col class="col-pa" style="width:14px;"/>
+              <col class="col-pa" style="width:28px;"/>
             </colgroup>
             <thead>
-            <tr><th class="col-name">Name</th><th class="col-fahrzeug">Fzg</th><th class="col-pa">PA</th></tr>
+            <tr><th class="col-name">Name</th><th class="col-fahrzeug">Fzg</th><th class="col-pa">PA/CSA</th></tr>
             </thead>
             <tbody>
             <tr th:each="row : ${personnel}">
               <td class="col-name" th:text="${row.name()}">Name</td>
               <td class="col-fahrzeug" th:text="${row.vehicle()}">—</td>
-              <td class="col-pa"><span th:if="${row.pa() == 'X'}" class="col-pa-x">X</span></td>
+              <td class="col-pa"><span th:if="${!#strings.isEmpty(row.pa())}" class="col-pa-x" th:text="${row.pa()}">X</span></td>
             </tr>
             <tr th:if="${#lists.isEmpty(personnel)}"><td colspan="3">Keine Einträge</td></tr>
             <tr>

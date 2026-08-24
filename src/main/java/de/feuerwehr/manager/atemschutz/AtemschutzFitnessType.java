@@ -3,13 +3,15 @@ package de.feuerwehr.manager.atemschutz;
 public enum AtemschutzFitnessType {
     G26_UNTERSUCHUNG,
     UEBUNG,
-    STRECKEN;
+    STRECKEN,
+    CSA;
 
     public String label() {
         return switch (this) {
             case G26_UNTERSUCHUNG -> "G26-Untersuchung";
             case UEBUNG -> "Übung/Einsatz";
             case STRECKEN -> "Strecke";
+            case CSA -> "CSA-Übung/Einsatz";
         };
     }
 

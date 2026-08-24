@@ -60,6 +60,20 @@ public interface AtemschutzFitnessRecordRepository extends JpaRepository<Atemsch
             @Param("personId") long personId,
             @Param("testData") boolean testData);
 
+    @Query("""
+            SELECT r FROM AtemschutzFitnessRecord r
+            JOIN FETCH r.carrier c
+            JOIN FETCH c.person
+            WHERE r.sourceRefType = :refType AND r.sourceRefId = :refId
+              AND c.person.id = :personId AND r.recordType = :type AND r.testData = :testData
+            """)
+    Optional<AtemschutzFitnessRecord> findBySourceRefAndPersonIdAndType(
+            @Param("refType") String refType,
+            @Param("refId") long refId,
+            @Param("personId") long personId,
+            @Param("type") AtemschutzFitnessType type,
+            @Param("testData") boolean testData);
+
     @Modifying
     @Query("DELETE FROM AtemschutzFitnessRecord r WHERE r.testData = true")
     void deleteAllByTestDataTrue();

@@ -146,6 +146,7 @@ public class DashboardLayoutService {
                 case WARNUNG -> stats.warnung();
                 case UEBUNG_ABGELAUFEN -> stats.uebungAbgelaufen();
                 case NICHT_TAUGLICH -> stats.nichtTauglich();
+                case CSA -> stats.csaTauglich();
             };
             List<String> names = List.of();
             if (showNames) {
@@ -268,6 +269,7 @@ public class DashboardLayoutService {
             case WARNUNG -> status == CarrierTauglichkeitStatus.WARNUNG;
             case UEBUNG_ABGELAUFEN -> status == CarrierTauglichkeitStatus.UEBUNG_ABGELAUFEN;
             case NICHT_TAUGLICH -> status == CarrierTauglichkeitStatus.NICHT_TAUGLICH;
+            case CSA -> row.csaTauglich();
         };
     }
 

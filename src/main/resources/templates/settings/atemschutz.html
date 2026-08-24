@@ -43,6 +43,31 @@
   </div>
 
   <div class="card mt-md">
+    <div class="card__header">CSA-Träger aus Personal übernehmen</div>
+    <div class="card__body">
+      <form method="post" th:action="@{/settings/atemschutz/csa}" class="form-grid form-grid--2 atemschutz-settings-form">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <div class="form-group form-group--full">
+          <label for="csaCourseId">Lehrgang für CSA-Träger</label>
+          <select id="csaCourseId" name="csaCourseId">
+            <option value="">— kein CSA-Lehrgang —</option>
+            <option th:each="c : ${unitCourses}" th:value="${c.id}" th:text="${c.name}"
+                    th:selected="${selectedCsaCourseId != null and selectedCsaCourseId == c.id}">Lehrgang</option>
+          </select>
+          <p class="hint">
+            Personen mit diesem Lehrgang können CSA in Berichten markiert bekommen und erhalten CSA-Nachweise im Atemschutzbereich.
+            Der Lehrgang ist unabhängig von der AGT-Tauglichkeit.
+          </p>
+        </div>
+        <div class="form-group form-group--full atemschutz-settings-form__actions">
+          <button type="submit" class="btn btn--primary">CSA-Lehrgang speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card mt-md">
     <div class="card__header">Benachrichtigungen</div>
     <div class="card__body">
       <p class="hint" style="margin-top:0;">

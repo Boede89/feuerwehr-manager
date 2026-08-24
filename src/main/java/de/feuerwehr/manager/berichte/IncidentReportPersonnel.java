@@ -62,6 +62,9 @@ public class IncidentReportPersonnel {
     @Column(name = "uses_pa", nullable = false)
     private boolean usesPa;
 
+    @Column(name = "uses_csa", nullable = false)
+    private boolean usesCsa;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;
 }

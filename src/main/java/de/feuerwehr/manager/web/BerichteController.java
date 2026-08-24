@@ -44,6 +44,7 @@ import de.feuerwehr.manager.berichte.VehicleEquipmentView;
 import de.feuerwehr.manager.pdf.PdfDownloadResponse;
 import de.feuerwehr.manager.divera.DiveraEinsatzberichtSyncService;
 import de.feuerwehr.manager.berichte.KraefteFahrzeugeState;
+import de.feuerwehr.manager.atemschutz.AtemschutzService;
 import de.feuerwehr.manager.print.CupsPrintService;
 import de.feuerwehr.manager.print.UnitPrintSettingsService;
 import de.feuerwehr.manager.security.AccessControlService;
@@ -101,6 +102,7 @@ public class BerichteController {
     private final MaengelberichtPdfService maengelberichtPdfService;
     private final UnitPrintSettingsService unitPrintSettingsService;
     private final BerichteSettingsService berichteSettingsService;
+    private final AtemschutzService atemschutzService;
 
     @GetMapping
     public String index(
@@ -1298,7 +1300,17 @@ public class BerichteController {
         model.addAttribute("unitVehiclesJson", einsatzberichtService.serializeUnitVehiclesJson(unitId));
         model.addAttribute("showChangeHistory", false);
         model.addAttribute("reportChanges", List.of());
+        addAtemschutzChipEligibility(model, unitId);
         addAnwesenheitReleaseAttributes(model, unitId, bundle.report());
+    }
+
+    private void addAtemschutzChipEligibility(Model model, long unitId) {
+        var paEligible = atemschutzService.listPaEligiblePersonIds(unitId);
+        var csaEligible = atemschutzService.listCsaEligiblePersonIds(unitId);
+        model.addAttribute("paEligiblePersonIds", paEligible);
+        model.addAttribute("csaEligiblePersonIds", csaEligible);
+        model.addAttribute("paEligiblePersonIdsJson", AtemschutzService.personIdsJson(paEligible));
+        model.addAttribute("csaEligiblePersonIdsJson", AtemschutzService.personIdsJson(csaEligible));
     }
 
     private void addAnwesenheitReleaseAttributes(Model model, long unitId, AttendanceReport report) {
@@ -1861,6 +1873,7 @@ public class BerichteController {
                     showHistory && report != null
                             ? einsatzberichtService.listChanges(unitId, report.getId())
                             : List.of());
+            addAtemschutzChipEligibility(model, unitId);
         } catch (Exception e) {
             log.error(
                     "Einsatzbericht-Formular konnte nicht geladen werden (unit={}, report={}): {}",

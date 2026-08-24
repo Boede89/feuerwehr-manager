@@ -49,6 +49,7 @@ public record KraefteFahrzeugeState(
             int sortOrder,
             String vehicleRole,
             boolean usesPa,
+            boolean usesCsa,
             String poolSource,
             String unitLabel,
             String diveraUcrId,

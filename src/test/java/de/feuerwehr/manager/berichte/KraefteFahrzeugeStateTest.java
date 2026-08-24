@@ -37,7 +37,7 @@ class KraefteFahrzeugeStateTest {
 
     private static KraefteFahrzeugeState.KraeftePersonView person(long id, String name) {
         return new KraefteFahrzeugeState.KraeftePersonView(
-                id, name, "M", 0, null, false, "manual", null, null, false);
+                id, name, "M", 0, null, false, false, "manual", null, null, false);
     }
 
     private static KraefteFahrzeugeState.KraefteVehicleView slot(

@@ -44,6 +44,9 @@ public class UnitAtemschutzSettings {
     @Column(name = "uebung_warn_days", nullable = false)
     private int uebungWarnDays = 90;
 
+    @Column(name = "csa_warn_days", nullable = false)
+    private int csaWarnDays = 90;
+
     @Column(name = "g26_notify_instructors", nullable = false)
     private boolean g26NotifyInstructors;
 
@@ -52,6 +55,9 @@ public class UnitAtemschutzSettings {
 
     @Column(name = "uebung_notify_instructors", nullable = false)
     private boolean uebungNotifyInstructors;
+
+    @Column(name = "csa_notify_instructors", nullable = false)
+    private boolean csaNotifyInstructors;
 
     @Column(name = "g26_notify_carriers", nullable = false)
     private boolean g26NotifyCarriers;
@@ -62,6 +68,9 @@ public class UnitAtemschutzSettings {
     @Column(name = "uebung_notify_carriers", nullable = false)
     private boolean uebungNotifyCarriers;
 
+    @Column(name = "csa_notify_carriers", nullable = false)
+    private boolean csaNotifyCarriers;
+
     @Column(name = "g26_cc_person_ids", columnDefinition = "TEXT")
     private String g26CcPersonIds;
 
@@ -70,6 +79,9 @@ public class UnitAtemschutzSettings {
 
     @Column(name = "uebung_cc_person_ids", columnDefinition = "TEXT")
     private String uebungCcPersonIds;
+
+    @Column(name = "csa_cc_person_ids", columnDefinition = "TEXT")
+    private String csaCcPersonIds;
 
     @Column(name = "instructor_user_ids", columnDefinition = "TEXT")
     private String instructorUserIds;
@@ -80,6 +92,10 @@ public class UnitAtemschutzSettings {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "agt_course_id")
     private Course agtCourse;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "csa_course_id")
+    private Course csaCourse;
 
     @Column(name = "notification_user_ids", columnDefinition = "TEXT")
     private String notificationUserIds;

@@ -64,6 +64,7 @@ public class AtemschutzSettingsService {
             settings.setG26WarnDays(defaultWarn);
             settings.setStreckeWarnDays(defaultWarn);
             settings.setUebungWarnDays(defaultWarn);
+            settings.setCsaWarnDays(defaultWarn);
             settings.setAgtCourseName("AGT");
             resolveDefaultAgtCourse(unitId, settings);
             UnitAtemschutzSettings saved = settingsRepository.save(settings);
@@ -101,6 +102,7 @@ public class AtemschutzSettingsService {
             case G26_UNTERSUCHUNG -> settings.getG26WarnDays();
             case STRECKEN -> settings.getStreckeWarnDays();
             case UEBUNG -> settings.getUebungWarnDays();
+            case CSA -> settings.getCsaWarnDays();
         };
     }
 
@@ -128,6 +130,41 @@ public class AtemschutzSettingsService {
         return agtCourseId(unitId).isPresent();
     }
 
+    @Transactional(readOnly = true)
+    public Long selectedCsaCourseUiId(long unitId) {
+        return settingsRepository
+                .findByUnitId(unitId)
+                .map(UnitAtemschutzSettings::getCsaCourse)
+                .flatMap(stored -> personalService.listCourses(unitId, true).stream()
+                        .filter(course -> matchesStoredCourse(course, normalizeStoredCourseId(stored)))
+                        .map(Course::getId)
+                        .findFirst())
+                .orElse(null);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Long> csaCourseId(long unitId) {
+        UnitAtemschutzSettings settings = requireSettings(unitId);
+        if (settings.getCsaCourse() == null) {
+            return Optional.empty();
+        }
+        return Optional.of(normalizeStoredCourseId(settings.getCsaCourse()));
+    }
+
+    @Transactional(readOnly = true)
+    public String csaCourseName(long unitId) {
+        UnitAtemschutzSettings settings = requireSettings(unitId);
+        if (settings.getCsaCourse() != null) {
+            return settings.getCsaCourse().getName();
+        }
+        return "—";
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isCsaCourseConfigured(long unitId) {
+        return csaCourseId(unitId).isPresent();
+    }
+
     @Transactional
     public void saveAgtCourse(long unitId, Long agtCourseId) {
         if (agtCourseId == null || agtCourseId <= 0) {
@@ -147,6 +184,24 @@ public class AtemschutzSettingsService {
     }
 
     @Transactional
+    public void saveCsaCourse(long unitId, Long csaCourseId) {
+        UnitAtemschutzSettings settings = ensureSettings(unitId);
+        if (csaCourseId == null || csaCourseId <= 0) {
+            settings.setCsaCourse(null);
+            settingsRepository.save(settings);
+            return;
+        }
+        Course selected = courseRepository
+                .findById(csaCourseId)
+                .orElseThrow(() -> new IllegalArgumentException("Lehrgang nicht gefunden."));
+        if (!selected.getUnit().getId().equals(unitId)) {
+            throw new IllegalArgumentException("Lehrgang gehört nicht zur Einheit.");
+        }
+        settings.setCsaCourse(resolveStoredCourse(selected));
+        settingsRepository.save(settings);
+    }
+
+    @Transactional
     public void saveInstructors(long unitId, List<Long> userIds) {
         UnitAtemschutzSettings settings = ensureSettings(unitId);
         settings.setInstructorUserIds(writeIds(userIds));
@@ -159,34 +214,43 @@ public class AtemschutzSettingsService {
             int g26WarnDays,
             int streckeWarnDays,
             int uebungWarnDays,
+            int csaWarnDays,
             boolean g26NotifyInstructors,
             boolean streckeNotifyInstructors,
             boolean uebungNotifyInstructors,
+            boolean csaNotifyInstructors,
             boolean g26NotifyCarriers,
             boolean streckeNotifyCarriers,
             boolean uebungNotifyCarriers,
+            boolean csaNotifyCarriers,
             List<Long> g26CcPersonIds,
             List<Long> streckeCcPersonIds,
             List<Long> uebungCcPersonIds,
+            List<Long> csaCcPersonIds,
             Map<String, String> templateSubjects,
             Map<String, String> templateBodies) {
         validateWarnDays(g26WarnDays);
         validateWarnDays(streckeWarnDays);
         validateWarnDays(uebungWarnDays);
+        validateWarnDays(csaWarnDays);
         UnitAtemschutzSettings settings = ensureSettings(unitId);
         settings.setG26WarnDays(g26WarnDays);
         settings.setStreckeWarnDays(streckeWarnDays);
         settings.setUebungWarnDays(uebungWarnDays);
+        settings.setCsaWarnDays(csaWarnDays);
         settings.setWarnDays(streckeWarnDays);
         settings.setG26NotifyInstructors(g26NotifyInstructors);
         settings.setStreckeNotifyInstructors(streckeNotifyInstructors);
         settings.setUebungNotifyInstructors(uebungNotifyInstructors);
+        settings.setCsaNotifyInstructors(csaNotifyInstructors);
         settings.setG26NotifyCarriers(g26NotifyCarriers);
         settings.setStreckeNotifyCarriers(streckeNotifyCarriers);
         settings.setUebungNotifyCarriers(uebungNotifyCarriers);
+        settings.setCsaNotifyCarriers(csaNotifyCarriers);
         settings.setG26CcPersonIds(writeIds(validatePersonIds(unitId, g26CcPersonIds)));
         settings.setStreckeCcPersonIds(writeIds(validatePersonIds(unitId, streckeCcPersonIds)));
         settings.setUebungCcPersonIds(writeIds(validatePersonIds(unitId, uebungCcPersonIds)));
+        settings.setCsaCcPersonIds(writeIds(validatePersonIds(unitId, csaCcPersonIds)));
         settingsRepository.save(settings);
         if (templateSubjects != null && templateBodies != null) {
             for (AtemschutzNotificationCategory category : AtemschutzNotificationCategory.values()) {
@@ -228,12 +292,8 @@ public class AtemschutzSettingsService {
     @Transactional
     public List<AtemschutzEmailTemplate> listEmailTemplates(long unitId) {
         UnitAtemschutzSettings settings = ensureSettings(unitId);
-        List<AtemschutzEmailTemplate> templates = emailTemplateRepository.findByUnitIdOrderByTemplateKeyAsc(unitId);
-        if (templates.isEmpty()) {
-            seedEmailTemplates(settings.getUnit());
-            templates = emailTemplateRepository.findByUnitIdOrderByTemplateKeyAsc(unitId);
-        }
-        return templates;
+        seedEmailTemplates(settings.getUnit());
+        return emailTemplateRepository.findByUnitIdOrderByTemplateKeyAsc(unitId);
     }
 
     @Transactional(readOnly = true)
@@ -282,6 +342,7 @@ public class AtemschutzSettingsService {
             case G26 -> settings.getG26WarnDays();
             case STRECKEN -> settings.getStreckeWarnDays();
             case UEBUNG -> settings.getUebungWarnDays();
+            case CSA -> settings.getCsaWarnDays();
         };
     }
 
@@ -290,6 +351,7 @@ public class AtemschutzSettingsService {
             case G26 -> settings.isG26NotifyInstructors();
             case STRECKEN -> settings.isStreckeNotifyInstructors();
             case UEBUNG -> settings.isUebungNotifyInstructors();
+            case CSA -> settings.isCsaNotifyInstructors();
         };
     }
 
@@ -323,6 +385,7 @@ public class AtemschutzSettingsService {
             case G26 -> settings.isG26NotifyCarriers();
             case STRECKEN -> settings.isStreckeNotifyCarriers();
             case UEBUNG -> settings.isUebungNotifyCarriers();
+            case CSA -> settings.isCsaNotifyCarriers();
         };
     }
 
@@ -331,6 +394,7 @@ public class AtemschutzSettingsService {
             case G26 -> parseIds(settings.getG26CcPersonIds());
             case STRECKEN -> parseIds(settings.getStreckeCcPersonIds());
             case UEBUNG -> parseIds(settings.getUebungCcPersonIds());
+            case CSA -> parseIds(settings.getCsaCcPersonIds());
         };
     }
 
@@ -368,6 +432,7 @@ public class AtemschutzSettingsService {
         settings.setG26WarnDays(defaultWarn);
         settings.setStreckeWarnDays(defaultWarn);
         settings.setUebungWarnDays(defaultWarn);
+        settings.setCsaWarnDays(defaultWarn);
         settings.setAgtCourseName("AGT");
         resolveDefaultAgtCourse(unitId, settings);
         return settings;
@@ -484,6 +549,16 @@ public class AtemschutzSettingsService {
                     "Übung/Einsatz – Aufforderung (Rot)",
                     "ACHTUNG: Übung/Einsatz-Zertifikat ist abgelaufen",
                     defaultBody("Ihr Übung/Einsatz-Zertifikat ist seit dem {expiry_date} abgelaufen!", "SOFORT Teilnahme")));
+            seeds.add(new TemplateSeed(
+                    "csa_warnung",
+                    "CSA – Erinnerung (Gelb)",
+                    "Erinnerung: CSA-Übung/Einsatz läuft bald ab",
+                    defaultBody("Ihre CSA-Übung/Ihr CSA-Einsatz läuft am {expiry_date} ab.", "Teilnahme unter CSA")));
+            seeds.add(new TemplateSeed(
+                    "csa_abgelaufen",
+                    "CSA – Aufforderung (Rot)",
+                    "ACHTUNG: CSA-Übung/Einsatz ist abgelaufen",
+                    defaultBody("Ihre CSA-Tauglichkeit ist seit dem {expiry_date} abgelaufen!", "SOFORT CSA-Übung oder -Einsatz")));
             return seeds;
         }
 

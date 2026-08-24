@@ -10,6 +10,7 @@ public interface UnitAtemschutzSettingsRepository extends JpaRepository<UnitAtem
     @Query("""
             SELECT s FROM UnitAtemschutzSettings s
             LEFT JOIN FETCH s.agtCourse
+            LEFT JOIN FETCH s.csaCourse
             WHERE s.unitId = :unitId
             """)
     Optional<UnitAtemschutzSettings> findByUnitId(@Param("unitId") long unitId);

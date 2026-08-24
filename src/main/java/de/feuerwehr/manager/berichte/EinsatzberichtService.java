@@ -30,6 +30,7 @@ import de.feuerwehr.manager.unit.UnitAdminService;
 import de.feuerwehr.manager.unit.UnitRepository;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
+import de.feuerwehr.manager.util.PersonMembership;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -190,6 +191,7 @@ public class EinsatzberichtService {
             persons = personRepository.searchActiveByUnitId(sourceUnitId, normalized, includeTestReports());
         }
         return persons.stream()
+                .filter(PersonMembership::isCurrentlyMember)
                 .map(person -> new ForeignPersonOption(
                         person.getId(),
                         person.anwesenheitDisplayName(),
@@ -308,6 +310,9 @@ public class EinsatzberichtService {
         Set<Long> onVehicleRefIds = new HashSet<>();
         Map<Long, IncidentPersonnelSource> sourceByRefId = new LinkedHashMap<>();
         Map<Long, Boolean> paByRefId = new LinkedHashMap<>();
+        Map<Long, Boolean> csaByRefId = new LinkedHashMap<>();
+        Set<Long> paEligiblePersonIds = atemschutzService.listPaEligiblePersonIds(unitId);
+        Set<Long> csaEligiblePersonIds = atemschutzService.listCsaEligiblePersonIds(unitId);
         Map<Long, IncidentReportPersonnel> rowByRefId = new LinkedHashMap<>();
         Map<Long, String> diveraUcrReserveNames = new LinkedHashMap<>();
 
@@ -332,8 +337,11 @@ public class EinsatzberichtService {
                 }
                 rowByRefId.put(refId, row);
                 sourceByRefId.put(refId, row.getSource());
-                if (row.isUsesPa()) {
+                if (row.isUsesPa() && paEligiblePersonIds.contains(refId)) {
                     paByRefId.put(refId, true);
+                }
+                if (row.isUsesCsa() && csaEligiblePersonIds.contains(refId)) {
+                    csaByRefId.put(refId, true);
                 }
                 if (row.getPerson() != null
                         && (row.getSource() == IncidentPersonnelSource.DIVERA
@@ -406,7 +414,10 @@ public class EinsatzberichtService {
                     wacheCrewIds,
                     involvedByVehicleId,
                     onVehicleRefIds,
-                    paByRefId);
+                    paByRefId,
+                    csaByRefId,
+                    paEligiblePersonIds,
+                    csaEligiblePersonIds);
             loadMissingPersonsIncludingAnonymized(onVehicleRefIds, personById);
         } else if (presetAnwesendPersonIds != null && !presetAnwesendPersonIds.isEmpty()) {
             LinkedHashSet<Long> presetIds = new LinkedHashSet<>();
@@ -460,7 +471,7 @@ public class EinsatzberichtService {
                         && !manualPoolPersonIds.contains(person.getId())) {
                     continue;
                 }
-                manualPersons.add(toPersonView(person, sortOrderByRefId, null, false, "manual", null));
+                manualPersons.add(toPersonView(person, sortOrderByRefId, null, false, false, "manual", null));
             }
         }
         for (Long diveraPersonId : diveraPersonIds) {
@@ -500,6 +511,7 @@ public class EinsatzberichtService {
                             sortOrderByRefId,
                             roles.get(refId),
                             paByRefId.getOrDefault(refId, false),
+                            csaByRefId.getOrDefault(refId, false),
                             sourceByRefId.get(refId),
                             unitId))
                     .toList();
@@ -541,6 +553,7 @@ public class EinsatzberichtService {
                 sortOrderByRefId,
                 sourceByRefId,
                 paByRefId,
+                csaByRefId,
                 unitId);
         KraefteFahrzeugeState.KraefteVehicleView einsatzstelle = buildVirtualSlotView(
                 IncidentCrewSupport.EINSATZSTELLE_VEHICLE_ID,
@@ -552,6 +565,7 @@ public class EinsatzberichtService {
                 sortOrderByRefId,
                 sourceByRefId,
                 paByRefId,
+                csaByRefId,
                 unitId);
         KraefteFahrzeugeState.KraefteVehicleView wache = buildVirtualSlotView(
                 IncidentCrewSupport.WACHE_VEHICLE_ID,
@@ -563,6 +577,7 @@ public class EinsatzberichtService {
                 sortOrderByRefId,
                 sourceByRefId,
                 paByRefId,
+                csaByRefId,
                 unitId);
 
         return new KraefteFahrzeugeState(
@@ -579,7 +594,10 @@ public class EinsatzberichtService {
             List<Long> wacheCrewIds,
             Map<Long, Boolean> involvedByVehicleId,
             Set<Long> onVehicleRefIds,
-            Map<Long, Boolean> paByRefId) {
+            Map<Long, Boolean> paByRefId,
+            Map<Long, Boolean> csaByRefId,
+            Set<Long> paEligiblePersonIds,
+            Set<Long> csaEligiblePersonIds) {
         LinkedHashSet<Long> allPersonIds = new LinkedHashSet<>();
         for (CrewAssignment assignment : assignments) {
             if (assignment.personIds() != null) {
@@ -593,6 +611,9 @@ public class EinsatzberichtService {
             }
             if (assignment.paPersonIds() != null) {
                 assignment.paPersonIds().stream().filter(Objects::nonNull).forEach(allPersonIds::add);
+            }
+            if (assignment.csaPersonIds() != null) {
+                assignment.csaPersonIds().stream().filter(Objects::nonNull).forEach(allPersonIds::add);
             }
         }
         if (!allPersonIds.isEmpty()) {
@@ -663,8 +684,15 @@ public class EinsatzberichtService {
             }
             if (assignment.paPersonIds() != null) {
                 for (Long paId : assignment.paPersonIds()) {
-                    if (paId != null) {
+                    if (paId != null && paEligiblePersonIds.contains(paId)) {
                         paByRefId.put(paId, true);
+                    }
+                }
+            }
+            if (assignment.csaPersonIds() != null) {
+                for (Long csaId : assignment.csaPersonIds()) {
+                    if (csaId != null && csaEligiblePersonIds.contains(csaId)) {
+                        csaByRefId.put(csaId, true);
                     }
                 }
             }
@@ -696,6 +724,9 @@ public class EinsatzberichtService {
                 List<Long> paPersonIds = payload.paPersonIds() != null
                         ? payload.paPersonIds().stream().filter(Objects::nonNull).toList()
                         : List.of();
+                List<Long> csaPersonIds = payload.csaPersonIds() != null
+                        ? payload.csaPersonIds().stream().filter(Objects::nonNull).toList()
+                        : List.of();
                 result.add(new CrewAssignment(
                         payload.vehicleId(),
                         personIds,
@@ -703,7 +734,8 @@ public class EinsatzberichtService {
                         payload.maschinistPersonId(),
                         paPersonIds,
                         payload.involvedInIncident(),
-                        payload.manuallyInvolvedInIncident()));
+                        payload.manuallyInvolvedInIncident(),
+                        csaPersonIds));
             }
             return result;
         } catch (Exception e) {
@@ -784,6 +816,7 @@ public class EinsatzberichtService {
             saveCrewAssignments(saved, form, unitId);
             saveDeployedEquipment(saved, form, unitId);
             syncPaAtemschutzRecords(saved, form, actor);
+            syncCsaAtemschutzRecords(saved, form, actor);
             eventPublisher.publishEvent(
                     BerichteEmailEvent.onCreate(unitId, BerichteEmailReportType.EINSATZ, saved.getId()));
             return saved;
@@ -804,6 +837,7 @@ public class EinsatzberichtService {
         }
         long id = report.getId();
         atemschutzService.deleteIncidentPaFitnessRecords(id);
+        atemschutzService.deleteIncidentCsaFitnessRecords(id);
         incidentReportPersonnelRepository.deleteByIncidentReportId(id);
         incidentReportVehicleRepository.deleteByIncidentReportId(id);
         incidentReportEquipmentRepository.deleteByIncidentReportId(id);
@@ -916,6 +950,7 @@ public class EinsatzberichtService {
         saveCrewAssignments(saved, form, unitId);
         saveDeployedEquipment(saved, form, unitId);
         syncPaAtemschutzRecords(saved, form, actor);
+        syncCsaAtemschutzRecords(saved, form, actor);
         if (trackChanges) {
             recordChange(saved, actor, changeComment, fieldChanges);
         }
@@ -1199,7 +1234,8 @@ public class EinsatzberichtService {
                             existing.maschinistPersonId(),
                             existing.paPersonIds(),
                             existing.involvedInIncident(),
-                            existing.manuallyInvolvedInIncident()));
+                            existing.manuallyInvolvedInIncident(),
+                            existing.csaPersonIds()));
         } else {
             result.add(new CrewAssignment(beteiligtId, List.of(commanderId)));
         }
@@ -1250,6 +1286,8 @@ public class EinsatzberichtService {
         Set<Long> assignedPersons = new HashSet<>();
 
         Map<Long, IncidentReportVehicle> virtualVehicles = new HashMap<>();
+        Set<Long> paEligible = atemschutzService.listPaEligiblePersonIds(unitId);
+        Set<Long> csaEligible = atemschutzService.listCsaEligiblePersonIds(unitId);
 
         for (CrewAssignment assignment : assignments) {
             IncidentReportVehicle reportVehicle;
@@ -1271,7 +1309,16 @@ public class EinsatzberichtService {
                     assignment.vehicleId() > 0 ? assignment.einheitsfuehrerPersonId() : null;
             Long maschinistPersonId = assignment.vehicleId() > 0 ? assignment.maschinistPersonId() : null;
             Set<Long> paPersonIds = assignment.paPersonIds() != null
-                    ? assignment.paPersonIds().stream().filter(Objects::nonNull).collect(Collectors.toSet())
+                    ? assignment.paPersonIds().stream()
+                            .filter(Objects::nonNull)
+                            .filter(paEligible::contains)
+                            .collect(Collectors.toSet())
+                    : Set.of();
+            Set<Long> csaPersonIds = assignment.csaPersonIds() != null
+                    ? assignment.csaPersonIds().stream()
+                            .filter(Objects::nonNull)
+                            .filter(csaEligible::contains)
+                            .collect(Collectors.toSet())
                     : Set.of();
             for (Long personRefId : assignment.personIds()) {
                 if (personRefId == null || !assignedPersons.add(personRefId)) {
@@ -1312,6 +1359,7 @@ public class EinsatzberichtService {
                     row.setVehicleRole(IncidentVehicleCrewRole.MASCHINIST);
                 }
                 row.setUsesPa(paPersonIds.contains(personRefId));
+                row.setUsesCsa(csaPersonIds.contains(personRefId));
                 incidentReportPersonnelRepository.save(row);
             }
         }
@@ -1350,16 +1398,38 @@ public class EinsatzberichtService {
         copy.setDiveraUcrId(source.getDiveraUcrId());
         copy.setForeignUnit(source.getForeignUnit());
         copy.setUsesPa(source.isUsesPa());
+        copy.setUsesCsa(source.isUsesCsa());
         return copy;
     }
 
     private void syncPaAtemschutzRecords(IncidentReport report, EinsatzberichtFormData form, AppUserDetails actor) {
         Set<Long> paPersonIds = collectPaPersonIds(form.crewAssignments());
+        if (report.getUnit() != null) {
+            Set<Long> eligible = atemschutzService.listPaEligiblePersonIds(report.getUnit().getId());
+            paPersonIds = paPersonIds.stream().filter(eligible::contains).collect(Collectors.toCollection(LinkedHashSet::new));
+        }
         Long userId = actor != null ? actor.getUserId() : null;
         atemschutzService.syncIncidentPaFitnessRecords(
                 report.getUnit().getId(),
                 report.getId(),
                 paPersonIds,
+                report.getIncidentDate(),
+                incidentPaSourceLabel(report),
+                userId);
+    }
+
+    private void syncCsaAtemschutzRecords(IncidentReport report, EinsatzberichtFormData form, AppUserDetails actor) {
+        Set<Long> csaPersonIds = collectCsaPersonIds(form.crewAssignments());
+        if (report.getUnit() != null) {
+            Set<Long> eligible = atemschutzService.listCsaEligiblePersonIds(report.getUnit().getId());
+            csaPersonIds =
+                    csaPersonIds.stream().filter(eligible::contains).collect(Collectors.toCollection(LinkedHashSet::new));
+        }
+        Long userId = actor != null ? actor.getUserId() : null;
+        atemschutzService.syncIncidentCsaFitnessRecords(
+                report.getUnit().getId(),
+                report.getId(),
+                csaPersonIds,
                 report.getIncidentDate(),
                 incidentPaSourceLabel(report),
                 userId);
@@ -1375,6 +1445,23 @@ public class EinsatzberichtService {
                 continue;
             }
             assignment.paPersonIds().stream()
+                    .filter(Objects::nonNull)
+                    .filter(id -> !IncidentPersonnelRefs.isUcrRef(id))
+                    .forEach(result::add);
+        }
+        return result;
+    }
+
+    private static Set<Long> collectCsaPersonIds(List<CrewAssignment> assignments) {
+        Set<Long> result = new LinkedHashSet<>();
+        if (assignments == null) {
+            return result;
+        }
+        for (CrewAssignment assignment : assignments) {
+            if (assignment.csaPersonIds() == null) {
+                continue;
+            }
+            assignment.csaPersonIds().stream()
                     .filter(Objects::nonNull)
                     .filter(id -> !IncidentPersonnelRefs.isUcrRef(id))
                     .forEach(result::add);
@@ -1462,6 +1549,7 @@ public class EinsatzberichtService {
             Map<Long, Integer> sortOrderByRefId,
             Map<Long, IncidentPersonnelSource> sourceByRefId,
             Map<Long, Boolean> paByRefId,
+            Map<Long, Boolean> csaByRefId,
             long reportUnitId) {
         List<Person> crewPersons = crewRefIds.stream()
                 .map(personById::get)
@@ -1483,6 +1571,7 @@ public class EinsatzberichtService {
                                 sortOrderByRefId,
                                 null,
                                 paByRefId.getOrDefault(refId, false),
+                                csaByRefId.getOrDefault(refId, false),
                                 sourceByRefId.get(refId),
                                 reportUnitId))
                         .toList(),
@@ -1515,7 +1604,7 @@ public class EinsatzberichtService {
             poolSource = "divera";
         }
         return toPersonView(
-                person, sortOrderByRefId, null, false, poolSource, unitLabelForPerson(person, unitId));
+                person, sortOrderByRefId, null, false, false, poolSource, unitLabelForPerson(person, unitId));
     }
 
     private KraefteFahrzeugeState.KraeftePersonView toPersonView(
@@ -1523,6 +1612,7 @@ public class EinsatzberichtService {
             Map<Long, Integer> sortOrderByRefId,
             IncidentVehicleCrewRole vehicleRole,
             boolean usesPa,
+            boolean usesCsa,
             String poolSource,
             String unitLabel) {
         return new KraefteFahrzeugeState.KraeftePersonView(
@@ -1532,6 +1622,7 @@ public class EinsatzberichtService {
                 sortOrderByRefId.getOrDefault(person.getId(), 0),
                 vehicleRole != null ? vehicleRole.name() : null,
                 usesPa,
+                usesCsa,
                 poolSource,
                 unitLabel,
                 person.getDiveraUcrId(),
@@ -1550,6 +1641,7 @@ public class EinsatzberichtService {
                 sortOrder,
                 null,
                 false,
+                false,
                 "divera",
                 null,
                 String.valueOf(ucrId),
@@ -1564,6 +1656,7 @@ public class EinsatzberichtService {
             Map<Long, Integer> sortOrderByRefId,
             IncidentVehicleCrewRole vehicleRole,
             boolean usesPa,
+            boolean usesCsa,
             IncidentPersonnelSource source,
             long reportUnitId) {
         if (IncidentPersonnelRefs.isUcrRef(refId)) {
@@ -1586,6 +1679,7 @@ public class EinsatzberichtService {
                     sortOrderByRefId,
                     vehicleRole,
                     usesPa,
+                    usesCsa,
                     poolSourceFor(source),
                     unitLabelForPerson(person, reportUnitId));
         }
@@ -1600,6 +1694,7 @@ public class EinsatzberichtService {
                     sortOrderByRefId.getOrDefault(refId, 0),
                     vehicleRole != null ? vehicleRole.name() : null,
                     usesPa,
+                    usesCsa,
                     poolSourceFor(source),
                     person != null && person.getAnonymizedAt() == null
                             ? unitLabelForPerson(person, reportUnitId)
@@ -1613,11 +1708,22 @@ public class EinsatzberichtService {
                     sortOrderByRefId,
                     vehicleRole,
                     usesPa,
+                    usesCsa,
                     poolSourceFor(source),
                     unitLabelForPerson(person, reportUnitId));
         }
         return new KraefteFahrzeugeState.KraeftePersonView(
-                refId, "Unbekannt", Besatzungsstaerke.QualTier.MANNSCHAFT.name(), 0, null, usesPa, "manual", null, null, false);
+                refId,
+                "Unbekannt",
+                Besatzungsstaerke.QualTier.MANNSCHAFT.name(),
+                0,
+                null,
+                usesPa,
+                usesCsa,
+                "manual",
+                null,
+                null,
+                false);
     }
 
     private void loadMissingPersonsIncludingAnonymized(Collection<Long> personIds, Map<Long, Person> personById) {
@@ -2431,6 +2537,7 @@ public class EinsatzberichtService {
             copyPersonnel.setForeignUnit(sourcePersonnel.getForeignUnit());
             copyPersonnel.setVehicleRole(sourcePersonnel.getVehicleRole());
             copyPersonnel.setUsesPa(sourcePersonnel.isUsesPa());
+            copyPersonnel.setUsesCsa(sourcePersonnel.isUsesCsa());
             incidentReportPersonnelRepository.save(copyPersonnel);
         }
         for (IncidentReportEquipment sourceEquipment :
@@ -2511,7 +2618,8 @@ public class EinsatzberichtService {
             Long maschinistPersonId,
             List<Long> paPersonIds,
             Boolean involvedInIncident,
-            Boolean manuallyInvolvedInIncident) {}
+            Boolean manuallyInvolvedInIncident,
+            List<Long> csaPersonIds) {}
 
     private record DeployedEquipmentPayload(
             Long vehicleId, List<Long> equipmentIds, List<CustomDeployedEquipmentPayload> customEquipment) {}

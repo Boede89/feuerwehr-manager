@@ -16,6 +16,7 @@ import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
+import de.feuerwehr.manager.util.PersonMembership;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -389,6 +390,7 @@ public class AnwesenheitslisteService {
         saveCrewAsPersonnel(saved, crewAssignments, unitId);
         syncLinkedTerminFromReport(saved);
         syncPaAtemschutzRecords(saved, crewAssignments, actor);
+        syncCsaAtemschutzRecords(saved, crewAssignments, actor);
         return saved;
     }
 
@@ -417,6 +419,7 @@ public class AnwesenheitslisteService {
         saveCrewAsPersonnel(saved, crewAssignments, unitId);
         syncLinkedTerminFromReport(saved);
         syncPaAtemschutzRecords(saved, crewAssignments, actor);
+        syncCsaAtemschutzRecords(saved, crewAssignments, actor);
         return saved;
     }
 
@@ -524,6 +527,7 @@ public class AnwesenheitslisteService {
             throw new IllegalArgumentException("Diese Anwesenheitsliste kann nicht gelöscht werden.");
         }
         atemschutzService.deleteAttendancePaFitnessRecords(report.getId());
+        atemschutzService.deleteAttendanceCsaFitnessRecords(report.getId());
         attendanceReportPersonnelRepository.deleteByReportId(report.getId());
         attendanceReportRepository.delete(report);
     }
@@ -565,6 +569,7 @@ public class AnwesenheitslisteService {
                     einsatzberichtService.parseCrewAssignments(report.getCrewAssignmentsJson());
             saveCrewAsPersonnel(report, crew, unitId);
             syncPaAtemschutzRecords(report, crew, actor);
+            syncCsaAtemschutzRecords(report, crew, actor);
         }
         report.setStatus(newStatus);
         if (newStatus == IncidentReportStatus.FREIGEGEBEN) {
@@ -620,6 +625,7 @@ public class AnwesenheitslisteService {
                 .findByUnitIdAndUnitTerminId(unitId, terminId, includeTestReports())
                 .ifPresent(report -> {
                     atemschutzService.deleteAttendancePaFitnessRecords(report.getId());
+                    atemschutzService.deleteAttendanceCsaFitnessRecords(report.getId());
                     attendanceReportPersonnelRepository.deleteByReportId(report.getId());
                     attendanceReportRepository.delete(report);
                 });
@@ -922,15 +928,17 @@ public class AnwesenheitslisteService {
     }
 
     private Set<Person> resolveAudiencePersons(long unitId, UnitTermin termin) {
-        if (termin.isAudienceAll()) {
-            return new LinkedHashSet<>(personRepository.findActiveByUnitId(unitId, includeTestReports()));
-        }
         LinkedHashSet<Person> persons = new LinkedHashSet<>();
-        persons.addAll(termin.getAssignedPersons());
-        for (PersonGroup group : termin.getAssignedGroups()) {
-            group.getMembers().size();
-            persons.addAll(group.getMembers());
+        if (termin.isAudienceAll()) {
+            persons.addAll(personRepository.findActiveByUnitId(unitId, includeTestReports()));
+        } else {
+            persons.addAll(termin.getAssignedPersons());
+            for (PersonGroup group : termin.getAssignedGroups()) {
+                group.getMembers().size();
+                persons.addAll(group.getMembers());
+            }
         }
+        persons.removeIf(person -> !PersonMembership.isCurrentlyMember(person));
         return persons;
     }
 
@@ -946,6 +954,7 @@ public class AnwesenheitslisteService {
             AttendanceReport report, List<CrewAssignment> crewAssignments, long unitId) {
         saveCrewAsPersonnel(report, crewAssignments, unitId);
         syncPaAtemschutzRecords(report, crewAssignments, null);
+        syncCsaAtemschutzRecords(report, crewAssignments, null);
     }
 
     private void syncPaAtemschutzRecords(
@@ -954,11 +963,33 @@ public class AnwesenheitslisteService {
             return;
         }
         Set<Long> paPersonIds = collectPaPersonIds(crewAssignments);
+        Set<Long> eligible = atemschutzService.listPaEligiblePersonIds(report.getUnit().getId());
+        paPersonIds = paPersonIds.stream().filter(eligible::contains).collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
         Long userId = actor != null ? actor.getUserId() : null;
         atemschutzService.syncAttendancePaFitnessRecords(
                 report.getUnit().getId(),
                 report.getId(),
                 paPersonIds,
+                report.getEventDate(),
+                attendancePaSourceLabel(report),
+                userId);
+    }
+
+    private void syncCsaAtemschutzRecords(
+            AttendanceReport report, List<CrewAssignment> crewAssignments, AppUserDetails actor) {
+        if (report == null || report.getId() == null || report.getUnit() == null) {
+            return;
+        }
+        Set<Long> csaPersonIds = collectCsaPersonIds(crewAssignments);
+        Set<Long> eligible = atemschutzService.listCsaEligiblePersonIds(report.getUnit().getId());
+        csaPersonIds = csaPersonIds.stream()
+                .filter(eligible::contains)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        Long userId = actor != null ? actor.getUserId() : null;
+        atemschutzService.syncAttendanceCsaFitnessRecords(
+                report.getUnit().getId(),
+                report.getId(),
+                csaPersonIds,
                 report.getEventDate(),
                 attendancePaSourceLabel(report),
                 userId);
@@ -974,6 +1005,23 @@ public class AnwesenheitslisteService {
                 continue;
             }
             assignment.paPersonIds().stream()
+                    .filter(Objects::nonNull)
+                    .filter(id -> !IncidentPersonnelRefs.isUcrRef(id))
+                    .forEach(result::add);
+        }
+        return result;
+    }
+
+    private static Set<Long> collectCsaPersonIds(List<CrewAssignment> assignments) {
+        Set<Long> result = new LinkedHashSet<>();
+        if (assignments == null) {
+            return result;
+        }
+        for (CrewAssignment assignment : assignments) {
+            if (assignment.csaPersonIds() == null) {
+                continue;
+            }
+            assignment.csaPersonIds().stream()
                     .filter(Objects::nonNull)
                     .filter(id -> !IncidentPersonnelRefs.isUcrRef(id))
                     .forEach(result::add);
@@ -1358,7 +1406,8 @@ public class AnwesenheitslisteService {
                             assignment.maschinistPersonId(),
                             assignment.paPersonIds(),
                             assignment.involvedInIncident(),
-                            assignment.manuallyInvolvedInIncident()));
+                            assignment.manuallyInvolvedInIncident(),
+                            assignment.csaPersonIds()));
                     replaced = true;
                 } else {
                     result.add(assignment);
@@ -1366,7 +1415,7 @@ public class AnwesenheitslisteService {
             }
         }
         if (!replaced) {
-            result.add(new CrewAssignment(vehicleId, personIds, null, null, null, null, null));
+            result.add(new CrewAssignment(vehicleId, personIds, null, null, null, null, null, null));
         }
         return result;
     }

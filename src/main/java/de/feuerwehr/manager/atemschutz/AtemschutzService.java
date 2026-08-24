@@ -27,6 +27,7 @@ import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -68,7 +69,7 @@ public class AtemschutzService {
         syncCarriersFromAgt(unitId);
         List<AtemschutzCarrier> carriers = listCarriersForUnit(unitId);
         if (carriers.isEmpty()) {
-            CarrierListStats emptyStats = new CarrierListStats(0, 0, 0, 0, 0);
+            CarrierListStats emptyStats = new CarrierListStats(0, 0, 0, 0, 0, 0);
             return new CarrierListResult(
                     List.of(),
                     emptyStats,
@@ -78,12 +79,15 @@ public class AtemschutzService {
         }
         List<Long> carrierIds = carriers.stream().map(AtemschutzCarrier::getId).toList();
         LocalDate today = LocalDate.now();
+        Set<Long> csaPersonIds = listCsaPersonIds(unitId);
         Map<Long, AtemschutzFitnessRecord> latestG26 =
                 latestRecordsByCarrier(carrierIds, AtemschutzFitnessType.G26_UNTERSUCHUNG);
         Map<Long, AtemschutzFitnessRecord> latestUebung =
                 latestRecordsByCarrier(carrierIds, AtemschutzFitnessType.UEBUNG);
         Map<Long, AtemschutzFitnessRecord> latestStrecke =
                 latestRecordsByCarrier(carrierIds, AtemschutzFitnessType.STRECKEN);
+        Map<Long, AtemschutzFitnessRecord> latestCsa =
+                latestRecordsByCarrier(carrierIds, AtemschutzFitnessType.CSA);
         List<CarrierOverview> all = new ArrayList<>();
         for (AtemschutzCarrier carrier : carriers) {
             Map<AtemschutzFitnessType, FitnessStatusView> summaries = new EnumMap<>(AtemschutzFitnessType.class);
@@ -105,12 +109,22 @@ public class AtemschutzService {
                             latestStrecke.get(carrier.getId()),
                             atemschutzSettingsService.warnDays(unitId, AtemschutzFitnessType.STRECKEN),
                             today));
+            summaries.put(
+                    AtemschutzFitnessType.CSA,
+                    toFitnessView(
+                            latestCsa.get(carrier.getId()),
+                            atemschutzSettingsService.warnDays(unitId, AtemschutzFitnessType.CSA),
+                            today));
             CarrierTauglichkeitStatus tauglichkeit = computeTauglichkeit(summaries, carrier.getStatus());
+            boolean csaEligible = csaPersonIds.contains(carrier.getPerson().getId());
+            boolean csaTauglich = isCsaTauglich(csaEligible, summaries.get(AtemschutzFitnessType.CSA));
             all.add(new CarrierOverview(
                     carrier,
                     summaries.get(AtemschutzFitnessType.G26_UNTERSUCHUNG),
                     summaries,
-                    tauglichkeit));
+                    tauglichkeit,
+                    csaEligible,
+                    csaTauglich));
         }
         List<CarrierOverview> statsCarriers = all.stream()
                 .filter(AtemschutzService::countsForAtemschutzStats)
@@ -478,7 +492,7 @@ public class AtemschutzService {
         }
         int years =
                 switch (type) {
-                    case STRECKEN, UEBUNG -> 1;
+                    case STRECKEN, UEBUNG, CSA -> 1;
                     case G26_UNTERSUCHUNG -> {
                         if (birthdate == null) {
                             yield 1;
@@ -546,6 +560,76 @@ public class AtemschutzService {
         deletePaFitnessRecords(FITNESS_SOURCE_ATTENDANCE_REPORT, reportId);
     }
 
+    @Transactional
+    public void syncIncidentCsaFitnessRecords(
+            long unitId,
+            long reportId,
+            Set<Long> csaPersonIds,
+            LocalDate incidentDate,
+            String sourceLabel,
+            Long createdByUserId) {
+        syncCsaFitnessRecords(
+                unitId,
+                FITNESS_SOURCE_INCIDENT_REPORT,
+                reportId,
+                csaPersonIds,
+                incidentDate,
+                sourceLabel,
+                createdByUserId);
+    }
+
+    @Transactional
+    public void syncAttendanceCsaFitnessRecords(
+            long unitId,
+            long reportId,
+            Set<Long> csaPersonIds,
+            LocalDate eventDate,
+            String sourceLabel,
+            Long createdByUserId) {
+        syncCsaFitnessRecords(
+                unitId,
+                FITNESS_SOURCE_ATTENDANCE_REPORT,
+                reportId,
+                csaPersonIds,
+                eventDate,
+                sourceLabel,
+                createdByUserId);
+    }
+
+    @Transactional
+    public void deleteIncidentCsaFitnessRecords(long reportId) {
+        deleteCsaFitnessRecords(FITNESS_SOURCE_INCIDENT_REPORT, reportId);
+    }
+
+    @Transactional
+    public void deleteAttendanceCsaFitnessRecords(long reportId) {
+        deleteCsaFitnessRecords(FITNESS_SOURCE_ATTENDANCE_REPORT, reportId);
+    }
+
+    /** Personen, die als Atemschutzgeräteträger PA markieren dürfen. */
+    @Transactional(readOnly = true)
+    public Set<Long> listPaEligiblePersonIds(long unitId) {
+        return listCarriersForUnit(unitId).stream()
+                .filter(carrier -> carrier.getStatus() == AtemschutzCarrierStatus.ACTIVE)
+                .map(carrier -> carrier.getPerson().getId())
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    /** Personen mit CSA-Lehrgang (für CSA-Markierung in Berichten). */
+    @Transactional(readOnly = true)
+    public Set<Long> listCsaEligiblePersonIds(long unitId) {
+        return listCsaPersonIds(unitId);
+    }
+
+    /** JSON-Array der Personen-IDs für Chip-Eligibility im Kräfte-Board. */
+    public static String personIdsJson(Set<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return "[]";
+        }
+        return ids.stream().map(String::valueOf).collect(Collectors.joining(",", "[", "]"));
+    }
+
     private void syncPaFitnessRecords(
             long unitId,
             String sourceRefType,
@@ -562,6 +646,9 @@ public class AtemschutzService {
         List<AtemschutzFitnessRecord> existing =
                 fitnessRecordRepository.findBySourceRefTypeAndSourceRefId(sourceRefType, reportId, testData);
         for (AtemschutzFitnessRecord record : existing) {
+            if (record.getRecordType() != AtemschutzFitnessType.UEBUNG) {
+                continue;
+            }
             long personId = record.getCarrier().getPerson().getId();
             if (!desiredPersonIds.contains(personId)) {
                 fitnessRecordRepository.delete(record);
@@ -588,8 +675,11 @@ public class AtemschutzService {
         boolean testData = testModeService.isEnabled();
         List<AtemschutzFitnessRecord> existing =
                 fitnessRecordRepository.findBySourceRefTypeAndSourceRefId(sourceRefType, reportId, testData);
-        if (!existing.isEmpty()) {
-            fitnessRecordRepository.deleteAll(existing);
+        List<AtemschutzFitnessRecord> uebungOnly = existing.stream()
+                .filter(record -> record.getRecordType() == AtemschutzFitnessType.UEBUNG)
+                .toList();
+        if (!uebungOnly.isEmpty()) {
+            fitnessRecordRepository.deleteAll(uebungOnly);
         }
     }
 
@@ -602,8 +692,8 @@ public class AtemschutzService {
             User createdBy,
             boolean testData) {
         long personId = carrier.getPerson().getId();
-        Optional<AtemschutzFitnessRecord> existing = fitnessRecordRepository.findBySourceRefAndPersonId(
-                sourceRefType, reportId, personId, testData);
+        Optional<AtemschutzFitnessRecord> existing = fitnessRecordRepository.findBySourceRefAndPersonIdAndType(
+                sourceRefType, reportId, personId, AtemschutzFitnessType.UEBUNG, testData);
         LocalDate validUntil =
                 computeValidUntil(AtemschutzFitnessType.UEBUNG, eventDate, carrier.getPerson().getBirthdate());
         if (existing.isPresent()) {
@@ -626,6 +716,107 @@ public class AtemschutzService {
         AtemschutzFitnessRecord record = new AtemschutzFitnessRecord();
         record.setCarrier(carrier);
         record.setRecordType(AtemschutzFitnessType.UEBUNG);
+        record.setValidFrom(eventDate);
+        record.setValidUntil(validUntil);
+        record.setCreatedBy(createdBy);
+        record.setTestData(testData);
+        record.setSourceLabel(sourceLabel);
+        record.setSourceRefType(sourceRefType);
+        record.setSourceRefId(reportId);
+        fitnessRecordRepository.save(record);
+    }
+
+    private void syncCsaFitnessRecords(
+            long unitId,
+            String sourceRefType,
+            long reportId,
+            Set<Long> csaPersonIds,
+            LocalDate eventDate,
+            String sourceLabel,
+            Long createdByUserId) {
+        if (eventDate == null || sourceRefType == null || sourceRefType.isBlank()) {
+            return;
+        }
+        boolean testData = testModeService.isEnabled();
+        Set<Long> eligible = listCsaPersonIds(unitId);
+        Set<Long> desiredPersonIds = new LinkedHashSet<>();
+        if (csaPersonIds != null) {
+            for (Long personId : csaPersonIds) {
+                if (personId != null && personId > 0 && eligible.contains(personId)) {
+                    desiredPersonIds.add(personId);
+                }
+            }
+        }
+        List<AtemschutzFitnessRecord> existing =
+                fitnessRecordRepository.findBySourceRefTypeAndSourceRefId(sourceRefType, reportId, testData);
+        for (AtemschutzFitnessRecord record : existing) {
+            if (record.getRecordType() != AtemschutzFitnessType.CSA) {
+                continue;
+            }
+            long personId = record.getCarrier().getPerson().getId();
+            if (!desiredPersonIds.contains(personId)) {
+                fitnessRecordRepository.delete(record);
+            }
+        }
+        if (desiredPersonIds.isEmpty()) {
+            return;
+        }
+        User createdBy = resolveCreatedBy(createdByUserId);
+        String label = blankToNull(sourceLabel);
+        for (Long personId : desiredPersonIds) {
+            carrierRepository
+                    .findByPersonIdAndTestData(personId, testData)
+                    .filter(carrier -> carrier.getUnit().getId() == unitId)
+                    .ifPresent(carrier -> upsertCsaSourceRecord(
+                            carrier, sourceRefType, reportId, eventDate, label, createdBy, testData));
+        }
+    }
+
+    private void deleteCsaFitnessRecords(String sourceRefType, long reportId) {
+        boolean testData = testModeService.isEnabled();
+        List<AtemschutzFitnessRecord> existing =
+                fitnessRecordRepository.findBySourceRefTypeAndSourceRefId(sourceRefType, reportId, testData);
+        List<AtemschutzFitnessRecord> csaOnly = existing.stream()
+                .filter(record -> record.getRecordType() == AtemschutzFitnessType.CSA)
+                .toList();
+        if (!csaOnly.isEmpty()) {
+            fitnessRecordRepository.deleteAll(csaOnly);
+        }
+    }
+
+    private void upsertCsaSourceRecord(
+            AtemschutzCarrier carrier,
+            String sourceRefType,
+            long reportId,
+            LocalDate eventDate,
+            String sourceLabel,
+            User createdBy,
+            boolean testData) {
+        long personId = carrier.getPerson().getId();
+        Optional<AtemschutzFitnessRecord> existing = fitnessRecordRepository.findBySourceRefAndPersonIdAndType(
+                sourceRefType, reportId, personId, AtemschutzFitnessType.CSA, testData);
+        LocalDate validUntil =
+                computeValidUntil(AtemschutzFitnessType.CSA, eventDate, carrier.getPerson().getBirthdate());
+        if (existing.isPresent()) {
+            AtemschutzFitnessRecord record = existing.get();
+            boolean changed = false;
+            if (!Objects.equals(record.getValidFrom(), eventDate)) {
+                record.setValidFrom(eventDate);
+                record.setValidUntil(validUntil);
+                changed = true;
+            }
+            if (!Objects.equals(record.getSourceLabel(), sourceLabel)) {
+                record.setSourceLabel(sourceLabel);
+                changed = true;
+            }
+            if (changed) {
+                fitnessRecordRepository.save(record);
+            }
+            return;
+        }
+        AtemschutzFitnessRecord record = new AtemschutzFitnessRecord();
+        record.setCarrier(carrier);
+        record.setRecordType(AtemschutzFitnessType.CSA);
         record.setValidFrom(eventDate);
         record.setValidUntil(validUntil);
         record.setCreatedBy(createdBy);
@@ -836,6 +1027,9 @@ public class AtemschutzService {
                     .filter(row -> row.tauglichkeit() == CarrierTauglichkeitStatus.NICHT_TAUGLICH)
                     .toList();
         }
+        if ("csa".equalsIgnoreCase(filter)) {
+            return activeMembers.stream().filter(CarrierOverview::csaTauglich).toList();
+        }
         return carriers;
     }
 
@@ -926,7 +1120,26 @@ public class AtemschutzService {
         int nichtTauglich = (int) carriers.stream()
                 .filter(row -> row.tauglichkeit() == CarrierTauglichkeitStatus.NICHT_TAUGLICH)
                 .count();
-        return new CarrierListStats(carriers.size(), tauglich, warnung, uebungAbgelaufen, nichtTauglich);
+        int csaTauglich = (int) carriers.stream().filter(CarrierOverview::csaTauglich).count();
+        return new CarrierListStats(carriers.size(), tauglich, warnung, uebungAbgelaufen, nichtTauglich, csaTauglich);
+    }
+
+    private Set<Long> listCsaPersonIds(long unitId) {
+        Long courseId = atemschutzSettingsService.csaCourseId(unitId).orElse(null);
+        if (courseId == null) {
+            return Set.of();
+        }
+        return listAgtPersons(unitId, courseId).stream()
+                .map(Person::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private static boolean isCsaTauglich(boolean csaEligible, FitnessStatusView csaView) {
+        if (!csaEligible || csaView == null) {
+            return false;
+        }
+        return csaView.level() == AtemschutzFitnessLevel.OK || csaView.level() == AtemschutzFitnessLevel.WARN;
     }
 
     public record UebungPlanResult(
@@ -945,13 +1158,16 @@ public class AtemschutzService {
             String agtCourseName,
             boolean agtCourseConfigured) {}
 
-    public record CarrierListStats(int total, int tauglich, int warnung, int uebungAbgelaufen, int nichtTauglich) {}
+    public record CarrierListStats(
+            int total, int tauglich, int warnung, int uebungAbgelaufen, int nichtTauglich, int csaTauglich) {}
 
     public record CarrierOverview(
             AtemschutzCarrier carrier,
             FitnessStatusView g26,
             Map<AtemschutzFitnessType, FitnessStatusView> summaries,
-            CarrierTauglichkeitStatus tauglichkeit) {}
+            CarrierTauglichkeitStatus tauglichkeit,
+            boolean csaEligible,
+            boolean csaTauglich) {}
 
     public record CarrierDetailView(
             AtemschutzCarrier carrier,

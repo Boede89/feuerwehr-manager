@@ -14,8 +14,10 @@
   var ROLE_EF = 'EINHEITSFUEHRER';
   var ROLE_MA = 'MASCHINIST';
   var ACTION_PA = 'PA';
+  var ACTION_CSA = 'CSA';
   var ACTION_CLEAR_ROLE = 'CLEAR_ROLE';
   var ACTION_CLEAR_PA = 'CLEAR_PA';
+  var ACTION_CLEAR_CSA = 'CLEAR_CSA';
   var BETEILIGT_VEHICLE_ID = -3;
 
   function bulkToolbarVisible() {
@@ -147,6 +149,7 @@
       removePersonFromBoard(chip.dataset.personId, chip);
       clearChipVehicleRole(chip);
       clearChipPa(chip);
+      clearChipCsa(chip);
       zone.appendChild(chip);
       var card = zone.closest('.incident-vehicle-card');
       if (isRealVehicleCard(card)) {
@@ -424,6 +427,73 @@
     return chip && chip.dataset.pa === 'true';
   }
 
+  function chipHasCsa(chip) {
+    return chip && chip.dataset.csa === 'true';
+  }
+
+  function parseEligibleIdSet(raw) {
+    if (!raw) {
+      return new Set();
+    }
+    try {
+      var parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        return new Set();
+      }
+      return new Set(parsed.map(Number).filter(function (id) {
+        return !isNaN(id);
+      }));
+    } catch (e) {
+      return new Set();
+    }
+  }
+
+  function boardEligibleSets() {
+    var board = document.getElementById('incident-kraefte-board');
+    return {
+      pa: parseEligibleIdSet(board && board.dataset.paEligibleIds),
+      csa: parseEligibleIdSet(board && board.dataset.csaEligibleIds)
+    };
+  }
+
+  function chipIsPaEligible(chip) {
+    if (!chip) {
+      return false;
+    }
+    if (chip.dataset.paEligible === 'true') {
+      return true;
+    }
+    var id = Number(chip.dataset.personId);
+    return !isNaN(id) && boardEligibleSets().pa.has(id);
+  }
+
+  function chipIsCsaEligible(chip) {
+    if (!chip) {
+      return false;
+    }
+    if (chip.dataset.csaEligible === 'true') {
+      return true;
+    }
+    var id = Number(chip.dataset.personId);
+    return !isNaN(id) && boardEligibleSets().csa.has(id);
+  }
+
+  function applyChipEligibility(chip) {
+    if (!chip) {
+      return;
+    }
+    if (chipIsPaEligible(chip)) {
+      chip.dataset.paEligible = 'true';
+    } else {
+      delete chip.dataset.paEligible;
+    }
+    if (chipIsCsaEligible(chip)) {
+      chip.dataset.csaEligible = 'true';
+    } else {
+      delete chip.dataset.csaEligible;
+    }
+  }
+
   function ensureChipNameElement(chip) {
     if (!chip.querySelector('.incident-crew-chip__name')) {
       var name = chip.dataset.personName || chip.textContent.trim();
@@ -449,6 +519,13 @@
     }
   }
 
+  function removeCsaBadge(chip) {
+    var badge = chip.querySelector('.incident-crew-chip__csa-badge');
+    if (badge) {
+      badge.remove();
+    }
+  }
+
   function clearChipVehicleRole(chip) {
     if (!chip) {
       return;
@@ -465,6 +542,15 @@
     delete chip.dataset.pa;
     chip.classList.remove('incident-crew-chip--pa');
     removePaBadge(chip);
+  }
+
+  function clearChipCsa(chip) {
+    if (!chip) {
+      return;
+    }
+    delete chip.dataset.csa;
+    chip.classList.remove('incident-crew-chip--csa');
+    removeCsaBadge(chip);
   }
 
   function applyChipVehicleRole(chip, role) {
@@ -487,7 +573,7 @@
   }
 
   function applyChipPa(chip) {
-    if (!chip) {
+    if (!chip || !chipIsPaEligible(chip)) {
       return;
     }
     ensureChipNameElement(chip);
@@ -499,6 +585,29 @@
       badge.textContent = 'PA';
       var roleBadge = chip.querySelector('.incident-crew-chip__role-badge');
       if (roleBadge) {
+        roleBadge.insertAdjacentElement('afterend', badge);
+      } else {
+        chip.insertBefore(badge, chip.firstChild);
+      }
+    }
+  }
+
+  function applyChipCsa(chip) {
+    if (!chip || !chipIsCsaEligible(chip)) {
+      return;
+    }
+    ensureChipNameElement(chip);
+    chip.dataset.csa = 'true';
+    chip.classList.add('incident-crew-chip--csa');
+    if (!chip.querySelector('.incident-crew-chip__csa-badge')) {
+      var badge = document.createElement('span');
+      badge.className = 'incident-crew-chip__csa-badge';
+      badge.textContent = 'CSA';
+      var paBadge = chip.querySelector('.incident-crew-chip__pa-badge');
+      var roleBadge = chip.querySelector('.incident-crew-chip__role-badge');
+      if (paBadge) {
+        paBadge.insertAdjacentElement('afterend', badge);
+      } else if (roleBadge) {
         roleBadge.insertAdjacentElement('afterend', badge);
       } else {
         chip.insertBefore(badge, chip.firstChild);
@@ -617,6 +726,7 @@
     removePersonFromBoard(chip.dataset.personId, chip);
     clearChipVehicleRole(chip);
     clearChipPa(chip);
+    clearChipCsa(chip);
     chip.classList.remove('incident-crew-chip--vehicle-role');
     insertChipSortedByName(zone, chip);
     applyCrewInvolvementToAllVehicles();
@@ -668,6 +778,7 @@
     var onRealVehicle = isRealVehicleCard(card);
     var currentRole = chip.dataset.vehicleRole || '';
     var hasPa = chipHasPa(chip);
+    var hasCsa = chipHasCsa(chip);
     var hasEf = onRealVehicle && !!findRoleChipInVehicle(card, ROLE_EF);
     var hasMa = onRealVehicle && !!findRoleChipInVehicle(card, ROLE_MA);
 
@@ -679,11 +790,15 @@
       } else if (action === ROLE_MA) {
         hidden = !onRealVehicle || !!currentRole || (hasMa && currentRole !== ROLE_MA);
       } else if (action === ACTION_PA) {
-        hidden = hasPa;
+        hidden = hasPa || !chipIsPaEligible(chip);
+      } else if (action === ACTION_CSA) {
+        hidden = hasCsa || !chipIsCsaEligible(chip);
       } else if (action === ACTION_CLEAR_ROLE) {
         hidden = !onRealVehicle || !currentRole;
       } else if (action === ACTION_CLEAR_PA) {
         hidden = !hasPa;
+      } else if (action === ACTION_CLEAR_CSA) {
+        hidden = !hasCsa;
       }
       configureMenuButton(btn, hidden);
     });
@@ -707,8 +822,14 @@
       clearChipVehicleRole(roleMenuChip);
     } else if (action === ACTION_CLEAR_PA) {
       clearChipPa(roleMenuChip);
+    } else if (action === ACTION_CLEAR_CSA) {
+      clearChipCsa(roleMenuChip);
     } else if (action === ACTION_PA) {
-      applyChipPa(roleMenuChip);
+      if (chipIsPaEligible(roleMenuChip)) {
+        applyChipPa(roleMenuChip);
+      }
+    } else if (action === ACTION_CSA) {
+      applyChipCsa(roleMenuChip);
     } else if (action === ROLE_EF || action === ROLE_MA) {
       var card = vehicleCardForChip(roleMenuChip);
       if (!isRealVehicleCard(card)) {
@@ -765,6 +886,16 @@
         });
       if (paIds.length > 0) {
         assignment.paPersonIds = paIds;
+      }
+      var csaIds = Array.from(card.querySelectorAll('.incident-vehicle-dropzone .incident-crew-chip[data-csa="true"]'))
+        .map(function (chip) {
+          return Number(chip.dataset.personId);
+        })
+        .filter(function (id) {
+          return !isNaN(id);
+        });
+      if (csaIds.length > 0) {
+        assignment.csaPersonIds = csaIds;
       }
       assignments.push(assignment);
     });
@@ -953,6 +1084,7 @@
         removePersonFromBoard(chip.dataset.personId, chip);
         clearChipVehicleRole(chip);
         clearChipPa(chip);
+        clearChipCsa(chip);
         chip.classList.remove('incident-crew-chip--vehicle-role');
         chip.classList.add('incident-crew-chip--foreign');
         if (foreignHome.dataset.pool === 'divera') {
@@ -971,6 +1103,7 @@
     removePersonFromBoard(chip.dataset.personId, chip);
     clearChipVehicleRole(chip);
     clearChipPa(chip);
+    clearChipCsa(chip);
     chip.classList.remove('incident-crew-chip--vehicle-role');
     chip.classList.remove('incident-crew-chip--divera', 'incident-crew-chip--foreign');
     if (homePool.dataset.pool === 'divera') {
@@ -1219,6 +1352,7 @@
     chip.dataset.personName = person.displayName || person.name || '';
     chip.dataset.poolSource = 'manual';
     chip.dataset.sortOrder = String(person.sortOrder != null ? person.sortOrder : 9999);
+    applyChipEligibility(chip);
     chip.textContent = person.displayName || person.name || '';
     insertChipSortedByName(zone, chip);
     applyCrewInvolvementToAllVehicles();
@@ -1242,6 +1376,7 @@
     chip.dataset.personName = person.displayName || '';
     chip.dataset.poolSource = 'foreign';
     chip.dataset.sortOrder = '9999';
+    applyChipEligibility(chip);
     if (person.unitLabel) {
       chip.dataset.unitLabel = person.unitLabel;
     }
