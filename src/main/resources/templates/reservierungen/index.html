@@ -9,7 +9,10 @@
       <p th:if="${publicReservation}">Fahrzeug oder Raum anfragen – ohne Anmeldung · <strong th:text="${currentUnitName}">—</strong></p>
       <p th:unless="${publicReservation}">Fahrzeuge und Räume anfragen · <strong th:text="${currentUnitName}">—</strong></p>
     </div>
-    <a class="btn btn--outline" th:if="${isAdmin}" th:href="@{/settings/reservierungen(unit=${unitId})}">Einstellungen</a>
+    <div class="page-header__actions">
+      <a class="btn btn--outline" th:if="${publicReservation}" th:href="@{/login}">Zur Startseite</a>
+      <a class="btn btn--outline" th:if="${isAdmin}" th:href="@{/settings/reservierungen(unit=${unitId})}">Einstellungen</a>
+    </div>
   </div>
 
   <th:block th:unless="${publicReservation}">
@@ -17,7 +20,7 @@
   </th:block>
   <div th:replace="~{fragments/flash-messages :: alerts}"></div>
 
-  <nav class="tab-bar reservierungen-module-tabs" aria-label="Reservierungsbereiche">
+  <nav class="tab-bar reservierungen-module-tabs" aria-label="Reservierungsbereiche" th:unless="${publicReservation}">
     <a class="tab-btn" th:each="t : ${reservierungenTabs}"
        th:if="${t.key() != 'verwaltung' or canManage}"
        th:classappend="${reservierungenTab == t.key()} ? ' tab-btn--active' : ''"
@@ -25,8 +28,12 @@
        th:text="${t.label()}">Reiter</a>
   </nav>
 
+  <p th:if="${publicReservation}" class="reservierungen-lead">
+    Wählen Sie ein Fahrzeug oder einen Raum. Der Antrag wird ohne Anmeldung weitergeleitet.
+  </p>
+
   <!-- Übersicht -->
-  <div th:if="${reservierungenTab == 'uebersicht'}" class="reservierungen-module-panel">
+  <div th:if="${!publicReservation and reservierungenTab == 'uebersicht'}" class="reservierungen-module-panel">
     <p class="reservierungen-lead">
       Wählen Sie, was Sie reservieren möchten. Anträge werden zur Genehmigung weitergeleitet.
     </p>
@@ -47,10 +54,11 @@
   </div>
 
   <!-- Fahrzeuge -->
-  <div th:if="${reservierungenTab == 'fahrzeuge'}" class="reservierungen-module-panel">
+  <div th:if="${publicReservation or reservierungenTab == 'fahrzeuge'}" class="reservierungen-module-panel">
     <div class="reservierungen-panel-head">
       <h3>Fahrzeuge</h3>
-      <a class="btn btn--outline btn--sm" th:href="@{__${reservierungenBasePath}__(unit=${unitId}, tab='uebersicht')}">Zur Übersicht</a>
+      <a class="btn btn--outline btn--sm" th:unless="${publicReservation}"
+         th:href="@{__${reservierungenBasePath}__(unit=${unitId}, tab='uebersicht')}">Zur Übersicht</a>
     </div>
     <div class="card" th:if="${#lists.isEmpty(vehicles)}">
       <div class="card__body"><p class="hint">Keine aktiven Fahrzeuge hinterlegt. Bitte unter Admin → Technik anlegen.</p></div>
@@ -66,10 +74,11 @@
   </div>
 
   <!-- Räume -->
-  <div th:if="${reservierungenTab == 'raeume'}" class="reservierungen-module-panel">
+  <div th:if="${publicReservation or reservierungenTab == 'raeume'}" class="reservierungen-module-panel">
     <div class="reservierungen-panel-head">
       <h3>Räume</h3>
-      <a class="btn btn--outline btn--sm" th:href="@{__${reservierungenBasePath}__(unit=${unitId}, tab='uebersicht')}">Zur Übersicht</a>
+      <a class="btn btn--outline btn--sm" th:unless="${publicReservation}"
+         th:href="@{__${reservierungenBasePath}__(unit=${unitId}, tab='uebersicht')}">Zur Übersicht</a>
     </div>
     <div class="card" th:if="${#lists.isEmpty(rooms)}">
       <div class="card__body"><p class="hint">Keine aktiven Räume hinterlegt. Bitte unter Admin → Technik anlegen.</p></div>

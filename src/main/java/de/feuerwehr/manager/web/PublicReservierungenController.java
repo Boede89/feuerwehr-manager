@@ -6,7 +6,6 @@ import de.feuerwehr.manager.reservierungen.ReservationConflictException;
 import de.feuerwehr.manager.reservierungen.ReservierungenConflictService;
 import de.feuerwehr.manager.reservierungen.ReservierungenService;
 import de.feuerwehr.manager.reservierungen.ReservierungenSettingsService;
-import de.feuerwehr.manager.reservierungen.ReservierungenTab;
 import de.feuerwehr.manager.reservierungen.RoomReservation;
 import de.feuerwehr.manager.reservierungen.VehicleReservation;
 import de.feuerwehr.manager.security.AppUserDetails;
@@ -33,9 +32,6 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @RequiredArgsConstructor
 public class PublicReservierungenController {
 
-    private static final List<ReservierungenTab> PUBLIC_TABS =
-            List.of(ReservierungenTab.UEBERSICHT, ReservierungenTab.FAHRZEUGE, ReservierungenTab.RAEUME);
-
     private final ReservierungenSettingsService settingsService;
     private final ReservierungenService reservierungenService;
     private final ReservierungenConflictService conflictService;
@@ -46,7 +42,6 @@ public class PublicReservierungenController {
     public String index(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
-            @RequestParam(name = "tab", defaultValue = "uebersicht") String tab,
             Model model,
             RedirectAttributes redirectAttributes) {
         List<Unit> publicUnits = settingsService.listUnitsAllowingPublicReservation();
@@ -69,21 +64,10 @@ public class PublicReservierungenController {
             redirectAttributes.addFlashAttribute("error", "Für diese Einheit ist keine öffentliche Reservierung möglich.");
             return "redirect:/reservieren";
         }
-        ReservierungenTab activeTab;
-        try {
-            activeTab = ReservierungenTab.fromKey(tab);
-        } catch (IllegalArgumentException e) {
-            activeTab = ReservierungenTab.UEBERSICHT;
-        }
-        if (!PUBLIC_TABS.contains(activeTab)) {
-            activeTab = ReservierungenTab.UEBERSICHT;
-        }
         var vehicles = conflictService.listBookableVehicles(unit.getId());
         var rooms = unitAdminService.listRooms(unit.getId()).stream().filter(r -> r.isActive()).toList();
         model.addAttribute("unitId", unit.getId());
         model.addAttribute("currentUnitName", unit.getName());
-        model.addAttribute("reservierungenTab", activeTab.key());
-        model.addAttribute("reservierungenTabs", PUBLIC_TABS);
         model.addAttribute("reservierungenBasePath", "/reservieren");
         model.addAttribute("canWrite", false);
         model.addAttribute("canManage", false);

@@ -24,6 +24,6 @@ public class ApiAuthenticationEntryPoint implements AuthenticationEntryPoint {
             response.getWriter().write("{\"success\":false,\"message\":\"Nicht angemeldet\"}");
             return;
         }
-        response.sendRedirect("/login");
+        response.sendRedirect("/login?login=1");
     }
 }

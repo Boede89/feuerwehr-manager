@@ -22,6 +22,7 @@ public class LoginController {
             @RequestParam(required = false) String error,
             @RequestParam(required = false) String logout,
             @RequestParam(required = false) String expired,
+            @RequestParam(required = false) String login,
             Model model) {
         model.addAttribute("rfidLoginEnabled", securityProperties.rfidApiEnabled());
         boolean publicReservationAvailable = false;
@@ -40,6 +41,8 @@ public class LoginController {
         if (expired != null) {
             model.addAttribute("infoMessage", "Ihre Sitzung ist abgelaufen. Bitte erneut anmelden.");
         }
+        boolean openLoginForm = error != null || expired != null || login != null || !publicReservationAvailable;
+        model.addAttribute("openLoginForm", openLoginForm);
         return "login";
     }
 }

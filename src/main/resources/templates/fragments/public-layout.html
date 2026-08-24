@@ -4,7 +4,7 @@
 <body class="public-page" th:attr="data-test-mode=${testModeEnabled ? 'true' : 'false'}">
 <div class="app-shell">
   <header class="app-header">
-    <a class="app-header__brand" th:href="@{/reservieren}">
+    <a class="app-header__brand" th:href="@{/login}">
       <div class="app-header__emblem" aria-hidden="true">
         <img th:if="${customLogoDataUri != null}" th:src="${customLogoDataUri}" alt="" class="app-header__logo-img"/>
         <span th:unless="${customLogoDataUri != null}">🚒</span>
@@ -20,7 +20,7 @@
         <button type="button" class="btn btn--outline btn--sm" data-theme-choice="light" title="Helles Design">☀️</button>
         <button type="button" class="btn btn--outline btn--sm" data-theme-choice="dark" title="Dunkles Design">🌙</button>
       </div>
-      <a class="btn btn--outline btn--sm" th:href="@{/login}">Anmelden</a>
+      <a class="btn btn--outline btn--sm" th:href="@{/login(login=1)}">Anmelden</a>
     </div>
   </header>
   <main class="page-main">
