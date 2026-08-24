@@ -110,31 +110,47 @@ public class ReservierungenGoogleCalendarService {
                     + " Integrationsadresse die Kalender-ID kopieren (z. B. …@group.calendar.google.com)"
                     + " und hier eintragen (nicht nur die iCal-URL).";
         }
+        boolean oauthConnected = account.getGoogleOauthRefreshToken() != null
+                && !account.getGoogleOauthRefreshToken().isBlank();
         return toCredentials(account, true)
                 .map(cred -> {
                     RestClient client = buildClient(cred.accessToken());
                     try {
                         String raw = client
                                 .get()
-                                .uri("https://www.googleapis.com/calendar/v3/calendars/"
-                                        + encodeCalendarId(cred.calendarId()))
+                                .uri(testCalendarMetadataUri(cred.calendarId(), oauthConnected))
                                 .retrieve()
                                 .body(String.class);
                         String summary = null;
+                        String accessRole = null;
                         if (raw != null && !raw.isBlank()) {
-                            summary = objectMapper.readTree(raw).path("summary").asText(null);
+                            JsonNode meta = objectMapper.readTree(raw);
+                            summary = meta.path("summary").asText(null);
+                            accessRole = meta.path("accessRole").asText(null);
+                        }
+                        if (oauthConnected
+                                && accessRole != null
+                                && !accessRole.isBlank()
+                                && !"owner".equalsIgnoreCase(accessRole)
+                                && !"writer".equalsIgnoreCase(accessRole)) {
+                            return "Kalender „"
+                                    + (summary != null && !summary.isBlank() ? summary : cred.calendarId())
+                                    + "“ ist nur mit Lese-Rechten verbunden ("
+                                    + accessRole
+                                    + ") – in Google Kalender „Termine ändern“ erlauben.";
                         }
                         String label = summary != null && !summary.isBlank() ? summary : cred.calendarId();
                         return "OK – Kalender „"
                                 + label
                                 + "“ erreichbar (Calendar-ID: "
                                 + cred.calendarId()
-                                + ", client_email="
+                                + ", Konto="
                                 + cred.clientEmail()
                                 + (account.getDelegatedUserEmail() != null
                                                 && !account.getDelegatedUserEmail().isBlank()
                                         ? ", Delegierung: " + account.getDelegatedUserEmail().trim()
                                         : "")
+                                + (oauthConnected ? ", OAuth" : ", Service-Account")
                                 + ").";
                     } catch (RestClientResponseException e) {
                         String base = "Fehler HTTP "
@@ -143,7 +159,8 @@ public class ReservierungenGoogleCalendarService {
                                 + humanizeGoogleError(
                                         e.getResponseBodyAsString(), cred.clientEmail(), cred.calendarId());
                         if (e.getStatusCode().value() == 404) {
-                            base += " " + describeVisibleCalendars(client, cred.clientEmail());
+                            base += " "
+                                    + describeVisibleCalendars(client, cred.clientEmail(), oauthConnected);
                         }
                         return base;
                     } catch (Exception e) {
@@ -558,8 +575,17 @@ public class ReservierungenGoogleCalendarService {
                 .build();
     }
 
-    /** Welche Kalender der Service-Account laut API sieht (Hilfe bei 404). */
-    private String describeVisibleCalendars(RestClient client, String clientEmail) {
+    /** OAuth: calendarList; Service-Account: calendars (Metadaten). */
+    private static String testCalendarMetadataUri(String calendarId, boolean oauthConnected) {
+        String encoded = encodeCalendarId(calendarId);
+        if (oauthConnected) {
+            return "https://www.googleapis.com/calendar/v3/users/me/calendarList/" + encoded;
+        }
+        return "https://www.googleapis.com/calendar/v3/calendars/" + encoded;
+    }
+
+    /** Welche Kalender das Konto laut API sieht (Hilfe bei 404). */
+    private String describeVisibleCalendars(RestClient client, String clientEmail, boolean oauthConnected) {
         try {
             String raw = client
                     .get()
@@ -567,10 +593,13 @@ public class ReservierungenGoogleCalendarService {
                     .retrieve()
                     .body(String.class);
             if (raw == null || raw.isBlank()) {
-                return "Der Service-Account (" + clientEmail + ") sieht keinen Kalender – Freigabe fehlt.";
+                return "Konto " + clientEmail + " sieht keinen Kalender.";
             }
             JsonNode items = objectMapper.readTree(raw).path("items");
             if (!items.isArray() || items.isEmpty()) {
+                if (oauthConnected) {
+                    return "Google-Konto " + clientEmail + " sieht keinen Kalender – prüfen Sie Kalender-ID und OAuth-Verbindung.";
+                }
                 return "Der Service-Account (" + clientEmail + ") sieht keinen Kalender. "
                         + "Bei privaten @gmail.com-Konten speichert Google die Freigabe an @iam.gserviceaccount.com "
                         + "in der Kalender-Oberfläche oft nicht – dann Google Workspace mit Domain-weiter Delegierung "
@@ -589,14 +618,18 @@ public class ReservierungenGoogleCalendarService {
                 }
             }
             if (parts.isEmpty()) {
-                return "Der Service-Account sieht keinen nutzbaren Kalender.";
+                return "Kein nutzbarer Kalender sichtbar.";
             }
+            String hint = oauthConnected
+                    ? "Steht die Ziel-ID dabei? Wenn ja, ist OAuth korrekt – ggf. Test nach App-Update erneut ausführen."
+                    : "Steht die Ziel-ID dabei? Wenn nein: genau diesen Kalender freigeben.";
             return "Kalender, die " + clientEmail + " laut Google sieht: "
                     + String.join("; ", parts)
                     + (items.size() > parts.size() ? " …" : "")
-                    + ". Steht die Ziel-ID dabei? Wenn nein: genau diesen Kalender freigeben.";
+                    + ". "
+                    + hint;
         } catch (Exception e) {
-            return "Kalenderliste des Service-Accounts konnte nicht gelesen werden: " + e.getMessage();
+            return "Kalenderliste konnte nicht gelesen werden: " + e.getMessage();
         }
     }
 
