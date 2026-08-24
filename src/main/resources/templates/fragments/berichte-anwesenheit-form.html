@@ -173,7 +173,7 @@
                    th:hidden="${!diveraDefault}">
                 <div class="incident-crew-chip incident-crew-chip--reserve incident-crew-chip--divera" draggable="true"
                      th:each="p : ${kraefteState.diveraPersons()}"
-                     th:classappend="${p.ucrOnly() ? ' incident-crew-chip--ucr-only' : ''}"
+                     th:classappend="${(p.ucrOnly() ? ' incident-crew-chip--ucr-only' : '') + (p.poolSource() == 'foreign' ? ' incident-crew-chip--foreign' : '')}"
                      th:attr="data-person-id=${p.id()}, data-qual-tier=${p.qualTier()}, data-person-name=${p.displayName()}, data-sort-order=${p.sortOrder()}, data-pool-source=${p.poolSource()}, data-ucr-only=${p.ucrOnly() ? 'true' : 'false'}, data-divera-ucr=${p.diveraUcrId()}"
                      th:text="${p.unitLabel() != null ? p.displayName() + ' (' + p.unitLabel() + ')' : p.displayName()}">Name</div>
               </div>
@@ -347,6 +347,7 @@
             <button type="button" class="btn btn--outline btn--sm" id="btn-bulk-multi-select"
                     aria-pressed="false">Mehrfachauswahl</button>
             <button type="button" class="btn btn--outline btn--sm" id="btn-bulk-select-all-involved">Alle auswählen</button>
+            <button type="button" class="btn btn--outline btn--sm" id="btn-bulk-assign-vehicle" disabled>Zu Fahrzeug zuweisen</button>
           </div>
         </div>
         <span class="incident-vehicle-card__staerke" th:attr="data-staerke-badge=${beteiligt.vehicleId()}"

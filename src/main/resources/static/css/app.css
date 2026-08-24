@@ -5953,7 +5953,7 @@ span.required { color: var(--error); }
 }
 
 .einsatzbericht-form-page .incident-crew-chip--divera {
-  background: var(--lila-hell);
+  background: color-mix(in srgb, var(--lila) 12%, var(--bg-card-hover));
   border-color: rgba(124, 58, 237, 0.3);
   border-left-color: var(--lila);
 }
