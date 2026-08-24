@@ -9,9 +9,11 @@
   var kpiWarnung = document.getElementById('kpi-value-warnung');
   var kpiUebung = document.getElementById('kpi-value-uebung');
   var kpiNicht = document.getElementById('kpi-value-nicht');
+  var kpiCsa = document.getElementById('kpi-value-csa');
   var pdfLink = document.getElementById('atemschutz-pdf-link');
   var selectAll = document.getElementById('atemschutz-select-all');
   var bulkOpen = document.getElementById('atemschutz-bulk-open');
+  var bulkHint = document.getElementById('atemschutz-bulk-hint');
   var bulkModal = document.getElementById('modal-atemschutz-bulk');
   var bulkCount = document.getElementById('atemschutz-bulk-count');
   var bulkInputs = document.getElementById('atemschutz-bulk-carrier-inputs');
@@ -40,7 +42,7 @@
 
   function kpiStats(includePausedRows) {
     if (!kpiGrid) {
-      return { total: 0, tauglich: 0, warnung: 0, uebung: 0, nicht: 0 };
+      return { total: 0, tauglich: 0, warnung: 0, uebung: 0, nicht: 0, csa: 0 };
     }
     var prefix = includePausedRows ? 'all' : 'active';
     return {
@@ -48,7 +50,8 @@
       tauglich: parseInt(kpiGrid.getAttribute('data-' + prefix + '-tauglich'), 10) || 0,
       warnung: parseInt(kpiGrid.getAttribute('data-' + prefix + '-warnung'), 10) || 0,
       uebung: parseInt(kpiGrid.getAttribute('data-' + prefix + '-uebung'), 10) || 0,
-      nicht: parseInt(kpiGrid.getAttribute('data-' + prefix + '-nicht'), 10) || 0
+      nicht: parseInt(kpiGrid.getAttribute('data-' + prefix + '-nicht'), 10) || 0,
+      csa: parseInt(kpiGrid.getAttribute('data-' + prefix + '-csa'), 10) || 0
     };
   }
 
@@ -59,6 +62,7 @@
     if (kpiWarnung) kpiWarnung.textContent = String(counts.warnung);
     if (kpiUebung) kpiUebung.textContent = String(counts.uebung);
     if (kpiNicht) kpiNicht.textContent = String(counts.nicht);
+    if (kpiCsa) kpiCsa.textContent = String(counts.csa);
   }
 
   function updatePdfLink() {
@@ -102,11 +106,12 @@
     return ids;
   }
 
+  function hideBulkHint() {
+    if (bulkHint) bulkHint.hidden = true;
+  }
+
   function updateBulkState() {
-    var count = selectedCarrierIds().length;
-    if (bulkOpen) {
-      bulkOpen.disabled = count === 0;
-    }
+    hideBulkHint();
     if (selectAll) {
       var rows = visibleRows();
       var checkedVisible = rows.filter(function (row) {
@@ -170,7 +175,11 @@
   if (bulkOpen && bulkModal) {
     bulkOpen.addEventListener('click', function () {
       var ids = selectedCarrierIds();
-      if (ids.length === 0) return;
+      if (ids.length === 0) {
+        if (bulkHint) bulkHint.hidden = false;
+        return;
+      }
+      hideBulkHint();
       if (bulkCount) bulkCount.textContent = String(ids.length);
       if (bulkInputs) {
         bulkInputs.innerHTML = '';

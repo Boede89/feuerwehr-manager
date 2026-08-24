@@ -139,6 +139,7 @@
           { key: 'warnung', show: true, showNames: true },
           { key: 'uebungAbgelaufen', show: true, showNames: true },
           { key: 'nichtTauglich', show: true, showNames: true },
+          { key: 'csa', show: true, showNames: true },
         ],
       };
     }

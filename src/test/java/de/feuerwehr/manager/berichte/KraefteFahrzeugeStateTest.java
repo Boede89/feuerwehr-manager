@@ -35,6 +35,23 @@ class KraefteFahrzeugeStateTest {
                 .containsExactly("Anwesend", "Auf HLF", "Auf MTF ohne Einsatz", "Einsatzstelle", "Wache");
     }
 
+    @Test
+    void paCsaMark_usesCsaInsteadOfSingleLetter() {
+        assertThat(person(1, "Anwesend").paCsaMark()).isEmpty();
+        assertThat(new KraefteFahrzeugeState.KraeftePersonView(
+                        2, "PA", "M", 0, null, true, false, "manual", null, null, false)
+                .paCsaMark())
+                .isEqualTo("X");
+        assertThat(new KraefteFahrzeugeState.KraeftePersonView(
+                        3, "CSA", "M", 0, null, false, true, "manual", null, null, false)
+                .paCsaMark())
+                .isEqualTo("CSA");
+        assertThat(new KraefteFahrzeugeState.KraeftePersonView(
+                        4, "Beides", "M", 0, null, true, true, "manual", null, null, false)
+                .paCsaMark())
+                .isEqualTo("X/CSA");
+    }
+
     private static KraefteFahrzeugeState.KraeftePersonView person(long id, String name) {
         return new KraefteFahrzeugeState.KraeftePersonView(
                 id, name, "M", 0, null, false, false, "manual", null, null, false);

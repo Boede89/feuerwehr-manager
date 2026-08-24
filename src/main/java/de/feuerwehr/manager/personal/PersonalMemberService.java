@@ -1,13 +1,29 @@
 package de.feuerwehr.manager.personal;
 
+import de.feuerwehr.manager.berichte.AnwesenheitslisteService;
+import de.feuerwehr.manager.berichte.AttendanceReport;
+import de.feuerwehr.manager.berichte.AttendanceReportRepository;
+import de.feuerwehr.manager.berichte.IncidentReport;
+import de.feuerwehr.manager.berichte.IncidentReportPersonnel;
+import de.feuerwehr.manager.berichte.IncidentReportPersonnelRepository;
+import de.feuerwehr.manager.berichte.IncidentReportRepository;
+import de.feuerwehr.manager.berichte.IncidentReportStatus;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.settings.GlobalSettingsService;
+import de.feuerwehr.manager.settings.TestModeService;
+import de.feuerwehr.manager.termine.TermineCategory;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
+import de.feuerwehr.manager.util.YearFilterSupport;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +42,14 @@ public class PersonalMemberService {
     private final PersonalService personalService;
     private final GlobalSettingsService globalSettingsService;
     private final AccessControlService accessControlService;
+    private final TestModeService testModeService;
+    private final AttendanceReportRepository attendanceReportRepository;
+    private final IncidentReportRepository incidentReportRepository;
+    private final IncidentReportPersonnelRepository incidentReportPersonnelRepository;
+    private final AnwesenheitslisteService anwesenheitslisteService;
+
+    private static final Set<IncidentReportStatus> RELEASED_STATUSES =
+            EnumSet.of(IncidentReportStatus.FREIGEGEBEN, IncidentReportStatus.ARCHIVIERT);
 
     @Transactional(readOnly = true)
     public int qualificationWarnDays() {
@@ -203,6 +227,130 @@ public class PersonalMemberService {
         return attendanceRepository.findByPersonIdOrderByServiceDateDesc(personId);
     }
 
+    @Transactional(readOnly = true)
+    public AttendancePage loadAttendancePage(long personId) {
+        Person person = requireWritablePerson(personId);
+        long unitId = person.getUnit().getId();
+        boolean includeTest = testModeService.isEnabled();
+        LocalDate from = person.getEntryDate() != null ? person.getEntryDate() : LocalDate.of(1990, 1, 1);
+        LocalDate to = LocalDate.now();
+        if (person.getExitDate() != null && person.getExitDate().isBefore(to)) {
+            to = person.getExitDate();
+        }
+
+        List<AttendanceEventView> events = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+
+        int possibleUebungen = 0;
+        List<AttendanceReport> lists =
+                attendanceReportRepository.findByUnitIdAndDateRange(unitId, from, to, includeTest).stream()
+                        .filter(report -> RELEASED_STATUSES.contains(report.getStatus()))
+                        .filter(report -> report.getTerminCategory() == null
+                                || report.getTerminCategory().supportsAttendanceReports())
+                        .toList();
+        for (AttendanceReport report : lists) {
+            if (isUebungsdienst(report)) {
+                possibleUebungen++;
+            }
+            Set<Long> presentIds = anwesenheitslisteService.presentAndPaPersonIds(unitId, report.getId()).presentIds();
+            if (!presentIds.contains(personId)) {
+                continue;
+            }
+            AttendanceServiceType type = isUebungsdienst(report)
+                    ? AttendanceServiceType.UEBUNGSDIENST
+                    : AttendanceServiceType.SONSTIGES;
+            String label = blankToDash(
+                    report.getTitle(),
+                    isUebungsdienst(report) ? "Übungsdienst" : "Dienst");
+            AttendanceEventView view = new AttendanceEventView(
+                    null,
+                    label,
+                    type,
+                    report.getEventDate(),
+                    false,
+                    "/berichte/anwesenheitslisten/" + report.getId() + "?unit=" + unitId);
+            if (seen.add(eventKey(view))) {
+                events.add(view);
+            }
+        }
+
+        Set<Long> seenIncidentIds = new HashSet<>();
+        for (IncidentReportPersonnel row : incidentReportPersonnelRepository.findByPersonAndUnit(
+                personId, unitId, RELEASED_STATUSES, includeTest)) {
+            IncidentReport report = row.getIncidentReport();
+            if (report == null || report.getId() == null || !seenIncidentIds.add(report.getId())) {
+                continue;
+            }
+            LocalDate date = report.getIncidentDate();
+            if (date == null || !YearFilterSupport.isWithinMembership(date, person.getEntryDate(), person.getExitDate())) {
+                continue;
+            }
+            if (date.isBefore(from) || date.isAfter(to)) {
+                continue;
+            }
+            String label = blankToDash(report.getStichwort(), "Einsatz");
+            AttendanceEventView view = new AttendanceEventView(
+                    null,
+                    label,
+                    AttendanceServiceType.EINSATZ,
+                    date,
+                    false,
+                    "/berichte/einsatzberichte/" + report.getId() + "?unit=" + unitId);
+            if (seen.add(eventKey(view))) {
+                events.add(view);
+            }
+        }
+
+        for (PersonAttendance row : attendanceRepository.findByPersonIdOrderByServiceDateDesc(personId)) {
+            AttendanceEventView view = new AttendanceEventView(
+                    row.getId(),
+                    blankToDash(row.getServiceLabel(), "—"),
+                    row.getServiceType(),
+                    row.getServiceDate(),
+                    true,
+                    null);
+            if (seen.add(eventKey(view))) {
+                events.add(view);
+            }
+        }
+
+        events.sort(Comparator.comparing(
+                        AttendanceEventView::serviceDate, Comparator.nullsLast(Comparator.naturalOrder()))
+                .reversed()
+                .thenComparing(AttendanceEventView::serviceLabel, String.CASE_INSENSITIVE_ORDER));
+
+        int uebungsdienste = (int) events.stream()
+                .filter(row -> row.serviceType() == AttendanceServiceType.UEBUNGSDIENST)
+                .count();
+        int einsaetze = (int) events.stream()
+                .filter(row -> row.serviceType() == AttendanceServiceType.EINSATZ)
+                .count();
+        int possibleEinsaetze = (int) incidentReportRepository
+                .findByUnitIdAndYear(unitId, from, to.plusDays(1), includeTest)
+                .stream()
+                .filter(report -> RELEASED_STATUSES.contains(report.getStatus()))
+                .count();
+        int possible = possibleUebungen + possibleEinsaetze;
+        int attended = uebungsdienste + einsaetze;
+        String quoteLabel = possible > 0 ? Math.round((attended * 100f) / possible) + " %" : "–";
+        return new AttendancePage(
+                new AttendanceDisplayStats(events.size(), uebungsdienste, einsaetze, quoteLabel),
+                List.copyOf(events));
+    }
+
+    @Transactional(readOnly = true)
+    public List<AttendanceEventView> listAttendanceEvents(long personId) {
+        return loadAttendancePage(personId).events();
+    }
+
+    /**
+     * Anwesenheits-Kennzahlen aus Anwesenheitslisten, Einsatzberichten und manuellen Einträgen.
+     */
+    @Transactional(readOnly = true)
+    public AttendanceDisplayStats displayAttendanceStats(long personId) {
+        return loadAttendancePage(personId).stats();
+    }
+
     @Transactional
     public PersonAttendance createAttendance(
             long personId,
@@ -273,49 +421,16 @@ public class PersonalMemberService {
         attendanceRepository.deleteById(attendanceId);
     }
 
-    /**
-     * Anwesenheits-Kennzahlen für die UI (Platzhalter — Berechnung folgt später).
-     */
-    @Transactional(readOnly = true)
-    public AttendanceDisplayStats displayAttendanceStats(long personId) {
-        List<PersonAttendance> rows = listAttendance(personId);
-        int total = rows.size();
-        int uebungsdienste = (int) rows.stream()
-                .filter(row -> row.getServiceType() == AttendanceServiceType.UEBUNGSDIENST)
-                .count();
-        int einsaetze = (int) rows.stream()
-                .filter(row -> row.getServiceType() == AttendanceServiceType.EINSATZ)
-                .count();
-        int abwesend = (int) rows.stream()
-                .filter(row -> row.getStatus() == AttendanceStatus.ABSENT)
-                .count();
-        String quoteLabel = total > 0 ? Math.round(((total - abwesend) * 100f) / total) + " %" : "–";
-        return new AttendanceDisplayStats(total, uebungsdienste, einsaetze, abwesend, quoteLabel);
-    }
-
-    @Transactional(readOnly = true)
-    public AttendanceStats attendanceStats(long personId) {
-        List<PersonAttendance> rows = listAttendance(personId);
-        int total = rows.size();
-        int present = (int) rows.stream().filter(r -> r.getStatus() == AttendanceStatus.PRESENT).count();
-        int absent = (int) rows.stream().filter(r -> r.getStatus() == AttendanceStatus.ABSENT).count();
-        int excused = (int) rows.stream().filter(r -> r.getStatus() == AttendanceStatus.EXCUSED).count();
-        int pct = total > 0 ? Math.round((present * 100f) / total) : 0;
-        return new AttendanceStats(total, present, absent, excused, pct);
-    }
-
     @Transactional(readOnly = true)
     public byte[] exportAttendanceCsv(long personId) {
-        Person person = requireWritablePerson(personId);
-        List<PersonAttendance> rows = listAttendance(personId);
+        List<AttendanceEventView> rows = listAttendanceEvents(personId);
         StringBuilder sb = new StringBuilder();
-        sb.append("Bezeichnung;Typ;Datum;Status;Notiz\n");
-        for (PersonAttendance row : rows) {
-            sb.append(csvEscape(row.getServiceLabel())).append(';');
-            sb.append(row.getServiceType().label()).append(';');
-            sb.append(row.getServiceDate()).append(';');
-            sb.append(row.getStatus().label()).append(';');
-            sb.append(csvEscape(row.getNotes())).append('\n');
+        sb.append("Bezeichnung;Typ;Datum;Quelle\n");
+        for (AttendanceEventView row : rows) {
+            sb.append(csvEscape(row.serviceLabel())).append(';');
+            sb.append(row.serviceType().label()).append(';');
+            sb.append(row.serviceDate()).append(';');
+            sb.append(row.editable() ? "Manuell" : "Bericht").append('\n');
         }
         return sb.toString().getBytes(StandardCharsets.UTF_8);
     }
@@ -468,7 +583,34 @@ public class PersonalMemberService {
 
     public record AttendanceStats(int total, int present, int absent, int excused, int presentPercent) {}
 
-    /** Kennzahlen für Reiter Anwesenheit (Gesamt, Übungsdienste, Einsätze, Abwesend, Quote). */
+    /** Kennzahlen für Reiter Anwesenheit (Gesamt, Übungsdienste, Einsätze, Quote). */
     public record AttendanceDisplayStats(
-            int total, int uebungsdienste, int einsaetze, int abwesend, String quoteLabel) {}
+            int total, int uebungsdienste, int einsaetze, String quoteLabel) {}
+
+    public record AttendancePage(AttendanceDisplayStats stats, List<AttendanceEventView> events) {}
+
+    public record AttendanceEventView(
+            Long id,
+            String serviceLabel,
+            AttendanceServiceType serviceType,
+            LocalDate serviceDate,
+            boolean editable,
+            String href) {}
+
+    private static boolean isUebungsdienst(AttendanceReport report) {
+        return report.getTerminCategory() == null || report.getTerminCategory() == TermineCategory.DIENSTPLAN;
+    }
+
+    private static String eventKey(AttendanceEventView view) {
+        String date = view.serviceDate() != null ? view.serviceDate().toString() : "";
+        String label = view.serviceLabel() != null ? view.serviceLabel().trim().toLowerCase() : "";
+        return view.serviceType().name() + "|" + date + "|" + label;
+    }
+
+    private static String blankToDash(String value, String fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        return value.trim();
+    }
 }

@@ -4176,6 +4176,7 @@ span.required { color: var(--error); }
 #atemschutz-table tbody tr.member-row:nth-child(even) { background: transparent; }
 #atemschutz-table tbody tr.carrier-row.carrier-row--alt { background: var(--bg-card-hover); }
 #atemschutz-table tbody tr.carrier-row:hover { background: var(--rot-subtle); }
+.atemschutz-bulk-hint { margin: 0 1rem 0.85rem; }
 .data-table tbody tr.atemschutz-pa-row {
   cursor: pointer;
   transition: background var(--transition-fast);
@@ -4867,6 +4868,8 @@ span.required { color: var(--error); }
   background: var(--item-accent-hell, var(--personal-hell));
 }
 
+.att-stats--4 { justify-content: space-between; gap: 0.5rem; }
+.att-stats--4 .att-stat { flex: 1; min-width: 72px; }
 .att-stats--5 { justify-content: space-between; gap: 0.5rem; }
 .att-stats--5 .att-stat { flex: 1; min-width: 72px; }
 .att-stat--quote .att-stat__value { font-size: 1.35rem; }

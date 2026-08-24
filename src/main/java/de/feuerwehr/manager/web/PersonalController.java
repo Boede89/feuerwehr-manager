@@ -845,8 +845,9 @@ public class PersonalController {
         model.addAttribute("activeTab", activeTab);
         model.addAttribute("emergencyContacts", personalMemberService.listEmergencyContacts(personId));
         model.addAttribute("personEmail", personalMemberService.resolvePersonEmail(person));
-        model.addAttribute("attendanceDisplay", personalMemberService.displayAttendanceStats(personId));
-        model.addAttribute("attendanceRecords", personalMemberService.listAttendance(personId));
+        var attendance = personalMemberService.loadAttendancePage(personId);
+        model.addAttribute("attendanceDisplay", attendance.stats());
+        model.addAttribute("attendanceRecords", attendance.events());
         model.addAttribute("attendanceServiceTypes", AttendanceServiceType.values());
         model.addAttribute("smtpConfigured", accountMailService.canSendMailForUnit(person.getUnit().getId()));
         populatePersonDetailData(model, person.getUnit().getId(), detail);

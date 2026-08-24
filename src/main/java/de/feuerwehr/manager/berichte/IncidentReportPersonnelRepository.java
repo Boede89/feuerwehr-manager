@@ -69,6 +69,20 @@ public interface IncidentReportPersonnelRepository extends JpaRepository<Inciden
             @Param("statuses") Collection<IncidentReportStatus> statuses,
             @Param("includeTestReports") boolean includeTestReports);
 
+    @Query("""
+            SELECT p FROM IncidentReportPersonnel p
+            JOIN FETCH p.incidentReport r
+            WHERE p.person.id = :personId
+              AND r.unit.id = :unitId
+              AND r.status IN :statuses
+              AND (r.testData = FALSE OR :includeTestReports = TRUE)
+            """)
+    List<IncidentReportPersonnel> findByPersonAndUnit(
+            @Param("personId") long personId,
+            @Param("unitId") long unitId,
+            @Param("statuses") Collection<IncidentReportStatus> statuses,
+            @Param("includeTestReports") boolean includeTestReports);
+
     @Modifying
     @Query("DELETE FROM IncidentReportPersonnel p WHERE p.incidentReport.id = :reportId")
     void deleteByIncidentReportId(@Param("reportId") long reportId);

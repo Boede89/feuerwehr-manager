@@ -283,7 +283,7 @@
         <span>Dienstbeteiligung</span>
       </div>
       <div class="card__body">
-        <div class="att-stats att-stats--5">
+        <div class="att-stats att-stats--4">
           <div class="att-stat">
             <div class="att-stat__value" th:text="${attendanceDisplay.total()}">0</div>
             <div class="att-stat__label">Gesamt</div>
@@ -295,10 +295,6 @@
           <div class="att-stat">
             <div class="att-stat__value att-status--excused" th:text="${attendanceDisplay.einsaetze()}">0</div>
             <div class="att-stat__label">Einsätze</div>
-          </div>
-          <div class="att-stat">
-            <div class="att-stat__value att-status--absent" th:text="${attendanceDisplay.abwesend()}">0</div>
-            <div class="att-stat__label">Abwesend</div>
           </div>
           <div class="att-stat att-stat--quote">
             <div class="att-stat__value text-info" th:text="${attendanceDisplay.quoteLabel()}">–</div>
@@ -348,7 +344,12 @@
                          data-service-type=${row.serviceType.name()},
                          data-service-label=${row.serviceLabel != null ? row.serviceLabel : ''},
                          data-service-date=${row.serviceDate}">
-              <td><strong th:text="${row.serviceLabel != null and !#strings.isEmpty(row.serviceLabel) ? row.serviceLabel : '—'}">FwdV7</strong></td>
+              <td>
+                <a th:if="${row.href != null}" th:href="${row.href}"
+                   th:text="${row.serviceLabel != null and !#strings.isEmpty(row.serviceLabel) ? row.serviceLabel : '—'}">FwdV7</a>
+                <strong th:unless="${row.href != null}"
+                        th:text="${row.serviceLabel != null and !#strings.isEmpty(row.serviceLabel) ? row.serviceLabel : '—'}">FwdV7</strong>
+              </td>
               <td>
                 <span class="badge"
                       th:classappend="${row.serviceType.name() == 'EINSATZ' ? ' badge--danger' : (row.serviceType.name() == 'UEBUNGSDIENST' ? ' badge--info' : '')}"
@@ -356,7 +357,7 @@
               </td>
               <td class="text-muted text-sm" th:text="${#temporals.format(row.serviceDate, 'dd.MM.yyyy')}">01.01.2025</td>
               <td>
-                <div class="btn-group">
+                <div class="btn-group" th:if="${row.editable}">
                   <button type="button" class="btn btn--outline btn--sm" data-edit-attendance>Bearb.</button>
                   <form method="post" th:action="@{/personal/{id}/attendance/{aid}/delete(id=${person.id}, aid=${row.id})}"
                         class="table-inline-form" data-confirm="Eintrag wirklich entfernen?">
@@ -365,13 +366,15 @@
                     <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
                   </form>
                 </div>
+                <a th:if="${!row.editable and row.href != null}" class="btn btn--outline btn--sm"
+                   th:href="${row.href}">Öffnen</a>
               </td>
             </tr>
             </tbody>
           </table>
         </div>
         <p class="table-empty" th:if="${#lists.isEmpty(attendanceRecords)}">
-          Noch keine Teilnahmen erfasst. Klicken Sie auf <strong>+ Eintrag</strong> oder warten Sie auf die automatische Übernahme aus Diensten und Einsätzen.
+          Noch keine Teilnahmen in freigegebenen Anwesenheitslisten oder Einsatzberichten.
         </p>
       </div>
     </div>

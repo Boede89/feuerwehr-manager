@@ -17,6 +17,7 @@
       <th>G26</th>
       <th>Übung/Einsatz</th>
       <th>Strecke</th>
+      <th>CSA</th>
     </tr>
     </thead>
     <tbody>
@@ -40,6 +41,13 @@
       </td>
       <td>
         <th:block th:with="view=${row.summaries.get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).STRECKEN)}">
+          <span th:if="${view == null or view.validUntil == null}">—</span>
+          <span th:if="${view != null and view.validUntil != null}"
+                th:text="${#temporals.format(view.validUntil, 'dd.MM.yyyy')}">—</span>
+        </th:block>
+      </td>
+      <td>
+        <th:block th:with="view=${row.summaries.get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).CSA)}">
           <span th:if="${view == null or view.validUntil == null}">—</span>
           <span th:if="${view != null and view.validUntil != null}"
                 th:text="${#temporals.format(view.validUntil, 'dd.MM.yyyy')}">—</span>

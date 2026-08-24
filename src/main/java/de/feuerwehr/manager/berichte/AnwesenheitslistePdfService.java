@@ -139,18 +139,7 @@ public class AnwesenheitslistePdfService {
     }
 
     private static String paCsaMark(KraefteFahrzeugeState.KraeftePersonView person) {
-        boolean pa = person.usesPa();
-        boolean csa = person.usesCsa();
-        if (pa && csa) {
-            return "X/C";
-        }
-        if (pa) {
-            return "X";
-        }
-        if (csa) {
-            return "C";
-        }
-        return "";
+        return person.paCsaMark();
     }
 
     private static String findRoleName(List<KraefteFahrzeugeState.KraeftePersonView> crew, String role) {

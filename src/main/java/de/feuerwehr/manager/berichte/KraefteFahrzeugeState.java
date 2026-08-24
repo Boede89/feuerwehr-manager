@@ -53,7 +53,21 @@ public record KraefteFahrzeugeState(
             String poolSource,
             String unitLabel,
             String diveraUcrId,
-            boolean ucrOnly) {}
+            boolean ucrOnly) {
+
+        public String paCsaMark() {
+            if (usesPa && usesCsa) {
+                return "X/CSA";
+            }
+            if (usesPa) {
+                return "X";
+            }
+            if (usesCsa) {
+                return "CSA";
+            }
+            return "";
+        }
+    }
 
     public record KraefteVehicleView(
             long vehicleId,

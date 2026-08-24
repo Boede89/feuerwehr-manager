@@ -33,11 +33,13 @@
                 data-active-warnung=${stats.warnung()},
                 data-active-uebung=${stats.uebungAbgelaufen()},
                 data-active-nicht=${stats.nichtTauglich()},
+                data-active-csa=${stats.csaTauglich()},
                 data-all-total=${statsAll.total()},
                 data-all-tauglich=${statsAll.tauglich()},
                 data-all-warnung=${statsAll.warnung()},
                 data-all-uebung=${statsAll.uebungAbgelaufen()},
-                data-all-nicht=${statsAll.nichtTauglich()}">
+                data-all-nicht=${statsAll.nichtTauglich()},
+                data-all-csa=${statsAll.csaTauglich()}">
     <a class="kpi-card" th:classappend="${activeFilter == 'all'} ? ' kpi-card--active' : ''"
        th:href="@{/atemschutz(unit=${unitId}, filter='all')}">
       <span class="kpi-card__label">Gesamt</span>
@@ -63,6 +65,11 @@
       <span class="kpi-card__label">Nicht tauglich</span>
       <span class="kpi-card__value kpi-card__value--danger" id="kpi-value-nicht" th:text="${stats.nichtTauglich()}">0</span>
     </a>
+    <a class="kpi-card kpi-card--success" th:classappend="${activeFilter == 'csa'} ? ' kpi-card--active' : ''"
+       th:href="@{/atemschutz(unit=${unitId}, filter='csa')}">
+      <span class="kpi-card__label">CSA</span>
+      <span class="kpi-card__value kpi-card__value--success" id="kpi-value-csa" th:text="${stats.csaTauglich()}">0</span>
+    </a>
   </div>
 
   <div class="card">
@@ -70,7 +77,10 @@
       <span>Geräteträger (<span id="atemschutz-visible-count" th:text="${carrierCount}">0</span>)</span>
       <div class="toolbar-actions">
         <button type="button" class="btn btn--outline btn--sm" id="atemschutz-bulk-open"
-                th:if="${canWrite}" disabled>Datum für Auswahl</button>
+                th:if="${canWrite and !#lists.isEmpty(carriers)}"
+                title="Zuerst Geräteträger in der Tabelle ankreuzen, dann Nachweisdatum für alle Ausgewählten setzen.">
+          Nachweis für Auswahl
+        </button>
         <label class="toolbar-toggle" for="atemschutz-show-paused" title="Pausierte Geräteträger anzeigen">
           <span class="toolbar-toggle__label">Pausierte</span>
           <span class="toggle-switch toggle-switch--toolbar">
@@ -82,6 +92,9 @@
                placeholder="Suchen…" maxlength="100" autocomplete="off" aria-label="Geräteträger suchen"/>
       </div>
     </div>
+    <p id="atemschutz-bulk-hint" class="hint hint--warn atemschutz-bulk-hint" hidden>
+      Bitte zuerst Geräteträger in der Tabelle ankreuzen.
+    </p>
     <div class="card__body card__body--flush" th:if="${!#lists.isEmpty(carriers)}">
       <table class="data-table" id="atemschutz-table">
         <thead>
@@ -95,6 +108,7 @@
           <th>G26</th>
           <th>Übung/Einsatz</th>
           <th>Strecke</th>
+          <th>CSA</th>
           <th>Notiz</th>
         </tr>
         </thead>
@@ -138,6 +152,12 @@
           <td>
             <span th:if="${exited}" class="text-muted">—</span>
             <th:block th:unless="${exited}" th:with="view=${row.summaries.get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).STRECKEN)}">
+              <div th:replace="~{fragments/atemschutz-fitness-badge :: validityDate(${view})}"></div>
+            </th:block>
+          </td>
+          <td>
+            <span th:if="${exited}" class="text-muted">—</span>
+            <th:block th:unless="${exited}" th:with="view=${row.summaries.get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).CSA)}">
               <div th:replace="~{fragments/atemschutz-fitness-badge :: validityDate(${view})}"></div>
             </th:block>
           </td>
@@ -197,7 +217,7 @@
               <label for="bulk-record-valid-until">Gültig bis</label>
               <input id="bulk-record-valid-until" type="date" readonly tabindex="-1"
                      aria-readonly="true" title="Wird automatisch berechnet"/>
-              <p class="hint">Strecke/Übung/Einsatz: +1 Jahr · G26: +3 Jahre (unter 50 J.) bzw. +1 Jahr</p>
+              <p class="hint">Strecke/Übung/Einsatz/CSA: +1 Jahr · G26: +3 Jahre (unter 50 J.) bzw. +1 Jahr</p>
             </div>
           </div>
         </div>
