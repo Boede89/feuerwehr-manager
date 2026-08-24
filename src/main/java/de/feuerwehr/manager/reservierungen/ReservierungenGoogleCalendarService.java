@@ -132,11 +132,15 @@ public class ReservierungenGoogleCalendarService {
                                 + cred.clientEmail()
                                 + ").";
                     } catch (RestClientResponseException e) {
-                        return "Fehler HTTP "
+                        String base = "Fehler HTTP "
                                 + e.getStatusCode().value()
                                 + ": "
                                 + humanizeGoogleError(
                                         e.getResponseBodyAsString(), cred.clientEmail(), cred.calendarId());
+                        if (e.getStatusCode().value() == 404) {
+                            base += " " + describeVisibleCalendars(client, cred.clientEmail());
+                        }
+                        return base;
                     } catch (Exception e) {
                         return "Fehler: " + e.getMessage();
                     }
@@ -529,6 +533,46 @@ public class ReservierungenGoogleCalendarService {
                 .requestFactory(rf)
                 .defaultHeader("Authorization", "Bearer " + accessToken)
                 .build();
+    }
+
+    /** Welche Kalender der Service-Account laut API sieht (Hilfe bei 404). */
+    private String describeVisibleCalendars(RestClient client, String clientEmail) {
+        try {
+            String raw = client
+                    .get()
+                    .uri("https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=25")
+                    .retrieve()
+                    .body(String.class);
+            if (raw == null || raw.isBlank()) {
+                return "Der Service-Account (" + clientEmail + ") sieht keinen Kalender – Freigabe fehlt.";
+            }
+            JsonNode items = objectMapper.readTree(raw).path("items");
+            if (!items.isArray() || items.isEmpty()) {
+                return "Der Service-Account (" + clientEmail + ") sieht keinen Kalender – unter „Für bestimmte"
+                        + " Personen freigeben“ die client_email mit „Termine ändern“ hinzufügen.";
+            }
+            List<String> parts = new ArrayList<>();
+            for (JsonNode item : items) {
+                String id = item.path("id").asText("");
+                String summary = item.path("summary").asText("");
+                if (id.isBlank()) {
+                    continue;
+                }
+                parts.add((summary.isBlank() ? id : summary + " → " + id));
+                if (parts.size() >= 5) {
+                    break;
+                }
+            }
+            if (parts.isEmpty()) {
+                return "Der Service-Account sieht keinen nutzbaren Kalender.";
+            }
+            return "Kalender, die " + clientEmail + " laut Google sieht: "
+                    + String.join("; ", parts)
+                    + (items.size() > parts.size() ? " …" : "")
+                    + ". Steht die Ziel-ID dabei? Wenn nein: genau diesen Kalender freigeben.";
+        } catch (Exception e) {
+            return "Kalenderliste des Service-Accounts konnte nicht gelesen werden: " + e.getMessage();
+        }
     }
 
     private static String encodeCalendarId(String calendarId) {
