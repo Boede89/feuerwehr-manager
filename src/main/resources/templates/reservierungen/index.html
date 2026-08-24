@@ -193,7 +193,7 @@
           <table class="table">
             <thead>
             <tr>
-              <th>Art</th><th>Ressource</th><th>Antragsteller</th><th>Zeitraum</th><th>Status</th><th></th>
+              <th>Art</th><th>Ressource</th><th>Antragsteller</th><th>Zeitraum</th><th>Grund</th><th>Status</th><th></th>
             </tr>
             </thead>
             <tbody>
@@ -209,6 +209,7 @@
                 <span class="text-muted">–</span>
                 <span th:text="${#temporals.format(r.endAt().atZone(T(java.time.ZoneId).of('Europe/Berlin')), 'dd.MM.yyyy HH:mm')}">—</span>
               </td>
+              <td th:text="${r.reason()}">Übung</td>
               <td>
                 <span class="badge"
                       th:classappend="${r.status().name() == 'APPROVED'} ? ' badge-success' : (${r.status().name() == 'CANCELLED'} ? ' badge-warning' : ' badge--danger')"
