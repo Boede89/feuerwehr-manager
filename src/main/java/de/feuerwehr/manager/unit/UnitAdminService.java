@@ -222,11 +222,7 @@ public class UnitAdminService {
             boolean enabled,
             boolean isCreate) {
         c.setCalendarUrl(trimToNull(calendarUrl));
-        String resolvedId = trimToNull(calendarId);
-        if (resolvedId == null) {
-            resolvedId = ReservierungenGoogleCalendarService.extractCalendarIdFromIcalUrl(calendarUrl);
-        }
-        c.setCalendarId(resolvedId);
+        c.setCalendarId(ReservierungenGoogleCalendarService.normalizeCalendarIdInput(calendarId, calendarUrl));
         if (serviceAccountJson != null) {
             String json = serviceAccountJson.trim();
             if (!json.isEmpty()) {

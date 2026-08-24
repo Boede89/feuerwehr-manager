@@ -9,6 +9,7 @@ import de.feuerwehr.manager.mail.SmtpMailService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.print.CupsPrintService;
 import de.feuerwehr.manager.print.UnitPrintSettingsService;
+import de.feuerwehr.manager.reservierungen.ReservierungenGoogleCalendarService;
 import de.feuerwehr.manager.settings.GlobalSettingsService;
 import de.feuerwehr.manager.unit.UnitAdminService;
 import de.feuerwehr.manager.unit.UnitService;
@@ -43,6 +44,7 @@ public class AdminIntegrationsRestController {
     private final UserRepository userRepository;
     private final UnitPrintSettingsService unitPrintSettingsService;
     private final LeitstellenMailPollRunner leitstellenMailPollRunner;
+    private final ReservierungenGoogleCalendarService googleCalendarService;
 
     @GetMapping("/unit/print/printers")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'UNIT_ADMIN')")
@@ -135,6 +137,28 @@ public class AdminIntegrationsRestController {
                 return ActionResultDto.failure(err.get());
             }
             return ActionResultDto.success("Test-Mail wurde an " + to + " gesendet.");
+        } catch (IllegalArgumentException e) {
+            return ActionResultDto.failure(e.getMessage());
+        }
+    }
+
+    @PostMapping("/unit/calendar/test")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'UNIT_ADMIN')")
+    @ResponseBody
+    public ActionResultDto testUnitCalendar(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam long calendarAccountId) {
+        try {
+            unitService
+                    .resolveActiveUnit(unit, actor)
+                    .orElseThrow(() -> new IllegalArgumentException("Keine gültige Einheit."));
+            var account = unitAdminService.requireCalendarAccount(unit, calendarAccountId);
+            String message = googleCalendarService.testCalendarAccess(account);
+            if (message.startsWith("OK")) {
+                return ActionResultDto.success(message);
+            }
+            return ActionResultDto.failure(message);
         } catch (IllegalArgumentException e) {
             return ActionResultDto.failure(e.getMessage());
         }

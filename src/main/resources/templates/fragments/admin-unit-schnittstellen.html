@@ -634,7 +634,10 @@
     </div>
     <div class="card__body card__body--flush">
       <p class="hint" style="padding: 0 1rem 0.75rem;">
-        <strong>Lesen:</strong> iCal-URL. <strong>Schreiben:</strong> Kalender-ID + Service-Account-JSON (Kalender in Google freigeben).
+        <strong>Lesen:</strong> iCal-URL. <strong>Schreiben:</strong> Kalender-ID + Service-Account-JSON.
+        Die Kalender-ID findest du in Google Kalender → Kalender-Einstellungen → <strong>Integrationsadresse</strong>
+        (z. B. <code>abc...@group.calendar.google.com</code>) – nicht den Kalendernamen eintragen.
+        Den Kalender mit der <code>client_email</code> aus dem JSON teilen (Termine ändern). Mit „Test“ prüfen.
       </p>
       <div class="table-wrapper" th:if="${!#lists.isEmpty(calendarAccounts)}">
         <table class="table">
@@ -660,6 +663,8 @@
             </td>
             <td>
               <div class="btn-group">
+                <button type="button" class="btn btn--outline btn--sm" data-action="calendar-test-unit"
+                        th:attr="data-calendar-id=${c.id}">Test</button>
                 <button type="button" class="btn btn--outline btn--sm" data-open-modal="modal-calendar-edit"
                         th:attr="data-id=${c.id},data-label=${c.label},data-url=${c.calendarUrl},data-cal-id=${c.calendarId},
                         data-enabled=${c.enabled},data-json-config=${calendarCredentialsConfigured[c.id]}">Bearbeiten</button>
@@ -776,7 +781,8 @@
           <div class="form-group form-group--full">
             <label>Kalender-ID (für API-Schreibzugriff)</label>
             <input name="calendarId" type="text" maxlength="512" placeholder="abc@group.calendar.google.com"/>
-            <p class="hint">Kalender in Google mit der <code>client_email</code> aus dem Service-Account teilen (Schreibrechte).</p>
+            <p class="hint">Aus Google Kalender → Einstellungen des Kalenders → <strong>Integrationsadresse</strong>.
+              Nicht den Anzeigenamen (z. B. „Löschzug Amern“) eintragen.</p>
           </div>
           <div class="form-group form-group--full">
             <label>Service-Account-JSON (Schreibrechte)</label>

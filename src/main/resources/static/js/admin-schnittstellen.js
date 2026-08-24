@@ -200,6 +200,29 @@
     });
   });
 
+  document.querySelectorAll('[data-action="calendar-test-unit"]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var unitId = getUnitId();
+      if (!unitId) return;
+      var calendarId = btn.getAttribute('data-calendar-id');
+      if (!calendarId) return;
+      btn.disabled = true;
+      postJson('/admin/rest/unit/calendar/test', {
+        unit: String(unitId),
+        calendarAccountId: calendarId,
+      })
+        .then(function (res) {
+          showResult(res.data);
+        })
+        .catch(function () {
+          showResult({ ok: false, message: 'Kalender-Test fehlgeschlagen' });
+        })
+        .finally(function () {
+          btn.disabled = false;
+        });
+    });
+  });
+
   function reopenModalIfRequested(openModalKey, modalId) {
     var urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('openModal') !== openModalKey) return;

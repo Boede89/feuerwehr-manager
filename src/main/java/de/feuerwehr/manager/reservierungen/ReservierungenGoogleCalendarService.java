@@ -103,6 +103,12 @@ public class ReservierungenGoogleCalendarService {
 
     /** Kurztest: Token + Kalender lesbar (ohne Termin anzulegen). */
     public String testCalendarAccess(UnitCalendarAccount account) {
+        String calendarId = resolveCalendarId(account);
+        if (calendarId == null || calendarId.isBlank()) {
+            return "Keine Calendar-ID hinterlegt – in Google Kalender unter Einstellungen →"
+                    + " Integrationsadresse die Kalender-ID kopieren (z. B. …@group.calendar.google.com)"
+                    + " und hier eintragen (nicht nur die iCal-URL).";
+        }
         return toCredentials(account, true)
                 .map(cred -> {
                     try {
@@ -118,15 +124,24 @@ public class ReservierungenGoogleCalendarService {
                             summary = objectMapper.readTree(raw).path("summary").asText(null);
                         }
                         String label = summary != null && !summary.isBlank() ? summary : cred.calendarId();
-                        return "OK – Kalender erreichbar („" + label + "“, client_email=" + cred.clientEmail() + ").";
+                        return "OK – Kalender „"
+                                + label
+                                + "“ erreichbar (Calendar-ID: "
+                                + cred.calendarId()
+                                + ", client_email="
+                                + cred.clientEmail()
+                                + ").";
                     } catch (RestClientResponseException e) {
-                        return "Fehler HTTP " + e.getStatusCode().value() + ": "
-                                + humanizeGoogleError(e.getResponseBodyAsString(), cred.clientEmail());
+                        return "Fehler HTTP "
+                                + e.getStatusCode().value()
+                                + ": "
+                                + humanizeGoogleError(
+                                        e.getResponseBodyAsString(), cred.clientEmail(), cred.calendarId());
                     } catch (Exception e) {
                         return "Fehler: " + e.getMessage();
                     }
                 })
-                .orElseGet(() -> describeMissingCredentials(account));
+                .orElseGet(() -> describeMissingCredentials(account) + " (Calendar-ID: " + calendarId + ").");
     }
 
     public void deleteReservationCalendarEvent(ReservationKind kind, long reservationId) {
@@ -299,7 +314,7 @@ public class ReservierungenGoogleCalendarService {
             calendarEventRepository.save(link);
             return null;
         } catch (RestClientResponseException e) {
-            String detail = humanizeGoogleError(e.getResponseBodyAsString(), cred.clientEmail());
+            String detail = humanizeGoogleError(e.getResponseBodyAsString(), cred.clientEmail(), cred.calendarId());
             log.warn(
                     "Google-Kalender-Sync fehlgeschlagen (Reservierung {}, Kalender {}, client_email={}):"
                             + " HTTP {} – {}",
@@ -349,7 +364,7 @@ public class ReservierungenGoogleCalendarService {
             return null;
         } catch (RestClientResponseException e) {
             return "HTTP " + e.getStatusCode().value() + " – "
-                    + humanizeGoogleError(e.getResponseBodyAsString(), cred.clientEmail());
+                    + humanizeGoogleError(e.getResponseBodyAsString(), cred.clientEmail(), cred.calendarId());
         } catch (Exception e) {
             return e.getMessage() != null ? e.getMessage() : "Update fehlgeschlagen";
         }
@@ -451,10 +466,26 @@ public class ReservierungenGoogleCalendarService {
     }
 
     static String resolveCalendarId(UnitCalendarAccount account) {
-        if (account.getCalendarId() != null && !account.getCalendarId().isBlank()) {
-            return account.getCalendarId().trim();
+        return normalizeCalendarIdInput(account.getCalendarId(), account.getCalendarUrl());
+    }
+
+    /** iCal-URL oder komplette Google-URL in reine Calendar-ID umwandeln. */
+    public static String normalizeCalendarIdInput(String calendarId, String calendarUrl) {
+        String id = calendarId != null ? calendarId.trim() : null;
+        if (id != null && id.isEmpty()) {
+            id = null;
         }
-        return extractCalendarIdFromIcalUrl(account.getCalendarUrl());
+        if (id != null
+                && (id.contains("calendar.google.com") || id.startsWith("http://") || id.startsWith("https://"))) {
+            String extracted = extractCalendarIdFromIcalUrl(id);
+            if (extracted != null && !extracted.isBlank()) {
+                return extracted.trim();
+            }
+        }
+        if (id != null) {
+            return id;
+        }
+        return extractCalendarIdFromIcalUrl(calendarUrl);
     }
 
     /** z. B. …/calendar/ical/xxx%40group.calendar.google.com/public/basic.ics */
@@ -517,7 +548,7 @@ public class ReservierungenGoogleCalendarService {
         }
     }
 
-    private String humanizeGoogleError(String responseBody, String clientEmail) {
+    private String humanizeGoogleError(String responseBody, String clientEmail, String calendarId) {
         String apiMessage = null;
         String reason = null;
         if (responseBody != null && !responseBody.isBlank()) {
@@ -535,9 +566,14 @@ public class ReservierungenGoogleCalendarService {
         String lower = ((apiMessage != null ? apiMessage : "") + " " + (responseBody != null ? responseBody : ""))
                 .toLowerCase();
         if (lower.contains("not found") || "notFound".equalsIgnoreCase(reason)) {
-            return "Kalender nicht gefunden – Calendar-ID prüfen und Kalender mit "
+            String idHint = calendarId != null && !calendarId.isBlank()
+                    ? "Verwendete Calendar-ID: " + calendarId + ". "
+                    : "";
+            return idHint
+                    + "Kalender nicht gefunden – dieselbe ID wie in Google Kalender → Einstellungen →"
+                    + " Integrationsadresse eintragen und genau diesen Kalender mit "
                     + (clientEmail != null ? clientEmail : "client_email")
-                    + " teilen (Schreibrechte).";
+                    + " teilen (Termine ändern).";
         }
         if (lower.contains("access not configured")
                 || lower.contains("has not been used")
