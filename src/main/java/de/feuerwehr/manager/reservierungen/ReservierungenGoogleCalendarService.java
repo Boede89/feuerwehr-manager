@@ -7,6 +7,7 @@ import com.google.auth.oauth2.ServiceAccountCredentials;
 import de.feuerwehr.manager.unit.UnitCalendarAccount;
 import de.feuerwehr.manager.unit.UnitCalendarAccountRepository;
 import java.io.ByteArrayInputStream;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -19,6 +20,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -35,21 +38,33 @@ public class ReservierungenGoogleCalendarService {
     private static final String CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar";
     private static final DateTimeFormatter RFC3339 =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX").withZone(ZoneId.of("Europe/Berlin"));
+    private static final Pattern ICAL_ID_PATTERN = Pattern.compile(
+            "/calendar/ical/([^/]+)/(?:public|private-[^/]+)/basic\\.ics", Pattern.CASE_INSENSITIVE);
 
     private final UnitCalendarAccountRepository calendarAccountRepository;
     private final ReservationCalendarEventRepository calendarEventRepository;
     private final ObjectMapper objectMapper;
 
+    public record SyncResult(int synced, List<String> errors) {
+        public boolean ok() {
+            return synced > 0;
+        }
+
+        public String primaryError() {
+            return errors == null || errors.isEmpty() ? null : errors.get(0);
+        }
+    }
+
     public int syncVehicleReservation(
             long unitId, VehicleReservation reservation, List<Long> calendarAccountIds) {
-        return syncVehicleReservation(unitId, reservation, calendarAccountIds, null, Map.of());
+        return syncVehicleReservation(unitId, reservation, calendarAccountIds, null, Map.of()).synced();
     }
 
     /**
      * @param combinedResourceNames Fahrzeugtitel für mehrere Reservierungen; null = nur diese
      * @param existingGoogleEventIdByAccountId bestehende Google-Event-IDs je Kalenderkonto (Merge)
      */
-    public int syncVehicleReservation(
+    public SyncResult syncVehicleReservation(
             long unitId,
             VehicleReservation reservation,
             List<Long> calendarAccountIds,
@@ -72,7 +87,7 @@ public class ReservierungenGoogleCalendarService {
                 existingGoogleEventIdByAccountId != null ? existingGoogleEventIdByAccountId : Map.of());
     }
 
-    public int syncRoomReservation(long unitId, RoomReservation reservation, List<Long> calendarAccountIds) {
+    public SyncResult syncRoomReservation(long unitId, RoomReservation reservation, List<Long> calendarAccountIds) {
         return syncReservation(
                 unitId,
                 calendarAccountIds,
@@ -84,6 +99,34 @@ public class ReservierungenGoogleCalendarService {
                 reservation.getStartAt(),
                 reservation.getEndAt(),
                 Map.of());
+    }
+
+    /** Kurztest: Token + Kalender lesbar (ohne Termin anzulegen). */
+    public String testCalendarAccess(UnitCalendarAccount account) {
+        return toCredentials(account, true)
+                .map(cred -> {
+                    try {
+                        RestClient client = buildClient(cred.accessToken());
+                        String raw = client
+                                .get()
+                                .uri("https://www.googleapis.com/calendar/v3/calendars/"
+                                        + encodeCalendarId(cred.calendarId()))
+                                .retrieve()
+                                .body(String.class);
+                        String summary = null;
+                        if (raw != null && !raw.isBlank()) {
+                            summary = objectMapper.readTree(raw).path("summary").asText(null);
+                        }
+                        String label = summary != null && !summary.isBlank() ? summary : cred.calendarId();
+                        return "OK – Kalender erreichbar („" + label + "“, client_email=" + cred.clientEmail() + ").";
+                    } catch (RestClientResponseException e) {
+                        return "Fehler HTTP " + e.getStatusCode().value() + ": "
+                                + humanizeGoogleError(e.getResponseBodyAsString(), cred.clientEmail());
+                    } catch (Exception e) {
+                        return "Fehler: " + e.getMessage();
+                    }
+                })
+                .orElseGet(() -> describeMissingCredentials(account));
     }
 
     public void deleteReservationCalendarEvent(ReservationKind kind, long reservationId) {
@@ -126,7 +169,7 @@ public class ReservierungenGoogleCalendarService {
         return map;
     }
 
-    private int syncReservation(
+    private SyncResult syncReservation(
             long unitId,
             List<Long> selectedAccountIds,
             ReservationKind kind,
@@ -137,32 +180,37 @@ public class ReservierungenGoogleCalendarService {
             Instant startAt,
             Instant endAt,
             Map<Long, String> existingGoogleEventIdByAccountId) {
-        List<CalendarCredentials> targets = resolveCredentials(unitId, selectedAccountIds);
+        List<String> errors = new ArrayList<>();
+        List<CalendarCredentials> targets = resolveCredentials(unitId, selectedAccountIds, errors);
         if (targets.isEmpty()) {
+            if (errors.isEmpty()) {
+                errors.add(
+                        "kein nutzbarer Kalender (Aktiv + Calendar-ID + Service-Account-JSON;"
+                                + " unter Reservierungen → Einstellungen auswählen).");
+            }
             log.warn(
-                    "Google-Kalender-Sync übersprungen (Reservierung {}): kein nutzbarer Kalender für Einheit {}"
-                            + " (aktiviert, Calendar-ID und Service-Account-JSON prüfen; Kalender mit"
-                            + " client_email teilen).",
+                    "Google-Kalender-Sync übersprungen (Reservierung {}, Einheit {}): {}",
                     reservationId,
-                    unitId);
-            return 0;
-        }
-        String jsonBody = buildEventJson(title, description, location, startAt, endAt);
-        if (jsonBody == null) {
-            return 0;
+                    unitId,
+                    String.join("; ", errors));
+            return new SyncResult(0, List.copyOf(errors));
         }
 
-        int created = 0;
+        Map<String, Object> eventBody = buildEventBody(title, description, location, startAt, endAt);
+        int synced = 0;
         for (CalendarCredentials cred : targets) {
             String existingId = existingGoogleEventIdByAccountId.get(cred.account().getId());
-            if (createOrUpdateEvent(cred, kind, reservationId, jsonBody, existingId)) {
-                created++;
+            String err = createOrUpdateEvent(cred, kind, reservationId, eventBody, existingId);
+            if (err == null) {
+                synced++;
+            } else {
+                errors.add(err);
             }
         }
-        return created;
+        return new SyncResult(synced, List.copyOf(errors));
     }
 
-    private String buildEventJson(
+    private Map<String, Object> buildEventBody(
             String title, String description, String location, Instant startAt, Instant endAt) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("summary", title);
@@ -176,19 +224,15 @@ public class ReservierungenGoogleCalendarService {
         end.put("timeZone", "Europe/Berlin");
         body.put("start", start);
         body.put("end", end);
-        try {
-            return objectMapper.writeValueAsString(body);
-        } catch (Exception e) {
-            log.warn("Google-Kalender: Event-JSON konnte nicht erzeugt werden: {}", e.getMessage());
-            return null;
-        }
+        return body;
     }
 
-    private boolean createOrUpdateEvent(
+    /** @return null bei Erfolg, sonst kurze Fehlermeldung */
+    private String createOrUpdateEvent(
             CalendarCredentials cred,
             ReservationKind kind,
             long reservationId,
-            String jsonBody,
+            Map<String, Object> eventBody,
             String preferGoogleEventId) {
         try {
             ReservationCalendarEvent existingLink = calendarEventRepository
@@ -203,40 +247,45 @@ public class ReservierungenGoogleCalendarService {
             RestClient client = buildClient(cred.accessToken());
             String googleEventId;
             if (updateId != null && !updateId.isBlank()) {
-                if (!updateGoogleEvent(cred, updateId, jsonBody)) {
-                    return false;
-                }
-                googleEventId = updateId;
-                log.info(
-                        "Google-Kalender-Termin {} für Reservierung {} in Kalender {} aktualisiert.",
-                        googleEventId,
-                        reservationId,
-                        cred.account().getId());
-            } else {
-                String raw = client
-                        .post()
-                        .uri("https://www.googleapis.com/calendar/v3/calendars/"
-                                + encodeCalendarId(cred.calendarId())
-                                + "/events")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body(jsonBody)
-                        .retrieve()
-                        .body(String.class);
-                googleEventId = extractEventId(raw);
-                if (googleEventId == null) {
-                    log.warn(
-                            "Google-Kalender: Event-ID konnte nicht gelesen werden (Reservierung {}, Kalender {})."
-                                    + " Body={}",
+                String updateErr = updateGoogleEvent(cred, updateId, eventBody);
+                if (updateErr != null) {
+                    // Veraltete Event-ID → neu anlegen statt abbrechen
+                    if (updateErr.contains("HTTP 404")) {
+                        log.info(
+                                "Google-Kalender: Event {} fehlt – lege neu an (Reservierung {}, Kalender {}).",
+                                updateId,
+                                reservationId,
+                                cred.account().getId());
+                        googleEventId = insertGoogleEvent(client, cred, eventBody);
+                    } else {
+                        log.warn(
+                                "Google-Kalender-Update fehlgeschlagen (Reservierung {}, Kalender {},"
+                                        + " client_email={}): {}",
+                                reservationId,
+                                cred.account().getId(),
+                                cred.clientEmail(),
+                                updateErr);
+                        return kalenderLabel(cred) + ": " + updateErr;
+                    }
+                } else {
+                    googleEventId = updateId;
+                    log.info(
+                            "Google-Kalender-Termin {} für Reservierung {} in Kalender {} aktualisiert.",
+                            googleEventId,
                             reservationId,
-                            cred.account().getId(),
-                            abbreviate(raw));
-                    return false;
+                            cred.account().getId());
                 }
+            } else {
+                googleEventId = insertGoogleEvent(client, cred, eventBody);
                 log.info(
                         "Google-Kalender-Termin {} für Reservierung {} in Kalender {} angelegt.",
                         googleEventId,
                         reservationId,
                         cred.account().getId());
+            }
+
+            if (googleEventId == null || googleEventId.isBlank()) {
+                return kalenderLabel(cred) + ": Event-ID konnte nicht gelesen werden.";
             }
 
             ReservationCalendarEvent link = existingLink != null ? existingLink : new ReservationCalendarEvent();
@@ -248,8 +297,9 @@ public class ReservierungenGoogleCalendarService {
             link.setCalendarAccountId(cred.account().getId());
             link.setGoogleEventId(googleEventId);
             calendarEventRepository.save(link);
-            return true;
+            return null;
         } catch (RestClientResponseException e) {
+            String detail = humanizeGoogleError(e.getResponseBodyAsString(), cred.clientEmail());
             log.warn(
                     "Google-Kalender-Sync fehlgeschlagen (Reservierung {}, Kalender {}, client_email={}):"
                             + " HTTP {} – {}",
@@ -258,7 +308,7 @@ public class ReservierungenGoogleCalendarService {
                     cred.clientEmail(),
                     e.getStatusCode().value(),
                     abbreviate(e.getResponseBodyAsString()));
-            return false;
+            return kalenderLabel(cred) + ": HTTP " + e.getStatusCode().value() + " – " + detail;
         } catch (Exception e) {
             log.warn(
                     "Google-Kalender-Sync fehlgeschlagen (Reservierung {}, Kalender {}, client_email={}): {}",
@@ -266,11 +316,25 @@ public class ReservierungenGoogleCalendarService {
                     cred.account().getId(),
                     cred.clientEmail(),
                     e.getMessage());
-            return false;
+            return kalenderLabel(cred) + ": " + e.getMessage();
         }
     }
 
-    private boolean updateGoogleEvent(CalendarCredentials cred, String googleEventId, String jsonBody) {
+    private String insertGoogleEvent(RestClient client, CalendarCredentials cred, Map<String, Object> eventBody) {
+        String raw = client
+                .post()
+                .uri("https://www.googleapis.com/calendar/v3/calendars/"
+                        + encodeCalendarId(cred.calendarId())
+                        + "/events")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(eventBody)
+                .retrieve()
+                .body(String.class);
+        return extractEventId(raw);
+    }
+
+    /** @return null bei Erfolg */
+    private String updateGoogleEvent(CalendarCredentials cred, String googleEventId, Map<String, Object> eventBody) {
         try {
             RestClient client = buildClient(cred.accessToken());
             client.put()
@@ -279,25 +343,15 @@ public class ReservierungenGoogleCalendarService {
                             + "/events/"
                             + encodeCalendarId(googleEventId))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(jsonBody)
+                    .body(eventBody)
                     .retrieve()
                     .toBodilessEntity();
-            return true;
+            return null;
         } catch (RestClientResponseException e) {
-            log.warn(
-                    "Google-Kalender-Update fehlgeschlagen (Event {}, Kalender {}): HTTP {} – {}",
-                    googleEventId,
-                    cred.account().getId(),
-                    e.getStatusCode().value(),
-                    abbreviate(e.getResponseBodyAsString()));
-            return false;
+            return "HTTP " + e.getStatusCode().value() + " – "
+                    + humanizeGoogleError(e.getResponseBodyAsString(), cred.clientEmail());
         } catch (Exception e) {
-            log.warn(
-                    "Google-Kalender-Update fehlgeschlagen (Event {}, Kalender {}): {}",
-                    googleEventId,
-                    cred.account().getId(),
-                    e.getMessage());
-            return false;
+            return e.getMessage() != null ? e.getMessage() : "Update fehlgeschlagen";
         }
     }
 
@@ -319,60 +373,59 @@ public class ReservierungenGoogleCalendarService {
         }
     }
 
-    private List<CalendarCredentials> resolveCredentials(long unitId, List<Long> selectedAccountIds) {
+    private List<CalendarCredentials> resolveCredentials(
+            long unitId, List<Long> selectedAccountIds, List<String> errors) {
         List<UnitCalendarAccount> accounts = calendarAccountRepository.findByUnitIdOrderBySortOrderAscLabelAsc(unitId);
         Set<Long> selected = selectedAccountIds == null || selectedAccountIds.isEmpty()
                 ? null
                 : new HashSet<>(selectedAccountIds);
         List<CalendarCredentials> result = new ArrayList<>();
+        int considered = 0;
         for (UnitCalendarAccount account : accounts) {
             if (selected != null && !selected.contains(account.getId())) {
                 continue;
             }
-            toCredentials(account).ifPresentOrElse(result::add, () -> logSkipReason(account, selected != null));
+            considered++;
+            toCredentials(account, false).ifPresentOrElse(result::add, () -> {
+                String reason = describeMissingCredentials(account);
+                errors.add((account.getLabel() != null && !account.getLabel().isBlank()
+                                ? account.getLabel()
+                                : "Kalender #" + account.getId())
+                        + ": " + reason);
+            });
+        }
+        if (considered == 0) {
+            if (selected != null) {
+                errors.add("ausgewählte Kalender-IDs nicht gefunden – Einstellungen prüfen.");
+            } else {
+                errors.add("kein Google-Kalender-Konto für diese Einheit hinterlegt.");
+            }
         }
         return result;
     }
 
-    private void logSkipReason(UnitCalendarAccount account, boolean wasSelected) {
-        if (account.getServiceAccountJson() == null || account.getServiceAccountJson().isBlank()) {
-            log.warn("Google-Kalender-Konto {} übersprungen: kein Service-Account-JSON.", account.getId());
-            return;
-        }
-        if (account.getCalendarId() == null || account.getCalendarId().isBlank()) {
-            log.warn("Google-Kalender-Konto {} übersprungen: keine Calendar-ID.", account.getId());
-            return;
-        }
-        if (wasSelected) {
-            log.warn(
-                    "Google-Kalender-Konto {} übersprungen: Zugangsdaten ungültig (JSON/Token).",
-                    account.getId());
-        }
-    }
-
     private java.util.Optional<CalendarCredentials> resolveCredentialsForAccount(long unitId, Long accountId) {
         if (accountId == null) {
-            List<CalendarCredentials> fallback = resolveCredentials(unitId, List.of());
+            List<String> ignored = new ArrayList<>();
+            List<CalendarCredentials> fallback = resolveCredentials(unitId, List.of(), ignored);
             return fallback.isEmpty() ? java.util.Optional.empty() : java.util.Optional.of(fallback.get(0));
         }
         return calendarAccountRepository
                 .findById(accountId)
                 .filter(a -> a.getUnit() != null && a.getUnit().getId().equals(unitId))
-                .flatMap(this::toCredentials);
+                .flatMap(a -> toCredentials(a, false));
     }
 
-    private java.util.Optional<CalendarCredentials> toCredentials(UnitCalendarAccount account) {
+    private java.util.Optional<CalendarCredentials> toCredentials(UnitCalendarAccount account, boolean forTest) {
+        if (!account.isEnabled() && !forTest) {
+            return java.util.Optional.empty();
+        }
+        String calendarId = resolveCalendarId(account);
         if (account.getServiceAccountJson() == null || account.getServiceAccountJson().isBlank()) {
             return java.util.Optional.empty();
         }
-        if (account.getCalendarId() == null || account.getCalendarId().isBlank()) {
+        if (calendarId == null || calendarId.isBlank()) {
             return java.util.Optional.empty();
-        }
-        if (!account.isEnabled()) {
-            log.warn(
-                    "Google-Kalender-Konto {} ist deaktiviert – Sync wird trotzdem versucht"
-                            + " (bitte unter Schnittstellen auf „Aktiv“ setzen).",
-                    account.getId());
         }
         try {
             ServiceAccountCredentials serviceAccount = ServiceAccountCredentials.fromStream(
@@ -385,7 +438,7 @@ public class ReservierungenGoogleCalendarService {
             }
             return java.util.Optional.of(new CalendarCredentials(
                     account,
-                    account.getCalendarId().trim(),
+                    calendarId,
                     credentials.getAccessToken().getTokenValue(),
                     serviceAccount.getClientEmail()));
         } catch (Exception e) {
@@ -395,6 +448,46 @@ public class ReservierungenGoogleCalendarService {
                     e.getMessage());
             return java.util.Optional.empty();
         }
+    }
+
+    static String resolveCalendarId(UnitCalendarAccount account) {
+        if (account.getCalendarId() != null && !account.getCalendarId().isBlank()) {
+            return account.getCalendarId().trim();
+        }
+        return extractCalendarIdFromIcalUrl(account.getCalendarUrl());
+    }
+
+    /** z. B. …/calendar/ical/xxx%40group.calendar.google.com/public/basic.ics */
+    public static String extractCalendarIdFromIcalUrl(String calendarUrl) {
+        if (calendarUrl == null || calendarUrl.isBlank()) {
+            return null;
+        }
+        Matcher m = ICAL_ID_PATTERN.matcher(calendarUrl.trim());
+        if (!m.find()) {
+            return null;
+        }
+        try {
+            String decoded = URLDecoder.decode(m.group(1), StandardCharsets.UTF_8);
+            return decoded != null && !decoded.isBlank() ? decoded.trim() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static String describeMissingCredentials(UnitCalendarAccount account) {
+        if (account == null) {
+            return "Kalender nicht gefunden.";
+        }
+        if (!account.isEnabled()) {
+            return "Kalender ist nicht aktiv (unter Schnittstellen „Aktiv“ setzen).";
+        }
+        if (account.getServiceAccountJson() == null || account.getServiceAccountJson().isBlank()) {
+            return "kein Service-Account-JSON hinterlegt.";
+        }
+        if (resolveCalendarId(account) == null) {
+            return "keine Calendar-ID (und iCal-URL enthält keine erkennbare ID).";
+        }
+        return "Service-Account-JSON ungültig oder Token konnte nicht erzeugt werden.";
     }
 
     private RestClient buildClient(String accessToken) {
@@ -422,6 +515,53 @@ public class ReservierungenGoogleCalendarService {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private String humanizeGoogleError(String responseBody, String clientEmail) {
+        String apiMessage = null;
+        String reason = null;
+        if (responseBody != null && !responseBody.isBlank()) {
+            try {
+                JsonNode err = objectMapper.readTree(responseBody).path("error");
+                apiMessage = err.path("message").asText(null);
+                JsonNode errors = err.path("errors");
+                if (errors.isArray() && !errors.isEmpty()) {
+                    reason = errors.get(0).path("reason").asText(null);
+                }
+            } catch (Exception ignored) {
+                // raw fallback below
+            }
+        }
+        String lower = ((apiMessage != null ? apiMessage : "") + " " + (responseBody != null ? responseBody : ""))
+                .toLowerCase();
+        if (lower.contains("not found") || "notFound".equalsIgnoreCase(reason)) {
+            return "Kalender nicht gefunden – Calendar-ID prüfen und Kalender mit "
+                    + (clientEmail != null ? clientEmail : "client_email")
+                    + " teilen (Schreibrechte).";
+        }
+        if (lower.contains("access not configured")
+                || lower.contains("has not been used")
+                || lower.contains("is disabled")
+                || "accessNotConfigured".equalsIgnoreCase(reason)) {
+            return "Google Calendar API im Google-Cloud-Projekt nicht aktiviert.";
+        }
+        if (lower.contains("forbidden") || "forbidden".equalsIgnoreCase(reason)) {
+            return "Keine Schreibrechte – Kalender mit "
+                    + (clientEmail != null ? clientEmail : "client_email")
+                    + " teilen (Berechtigung „Termine ändern“).";
+        }
+        if (apiMessage != null && !apiMessage.isBlank()) {
+            return apiMessage;
+        }
+        return abbreviate(responseBody);
+    }
+
+    private static String kalenderLabel(CalendarCredentials cred) {
+        String label = cred.account().getLabel();
+        if (label != null && !label.isBlank()) {
+            return label;
+        }
+        return "Kalender #" + cred.account().getId();
     }
 
     private static String abbreviate(String value) {

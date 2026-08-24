@@ -763,25 +763,26 @@ public class ReservierungenService {
             }
         }
         if (settings.isVehicleGoogleCalendarEnabled()) {
-            int created = googleCalendarService.syncVehicleReservation(
+            var googleSync = googleCalendarService.syncVehicleReservation(
                     unitId,
                     reservation,
                     settingsService.vehicleGoogleCalendarAccountIds(settings),
                     combinedNames,
                     existingGoogleByAccount);
-            if (created > 0) {
+            if (googleSync.ok()) {
                 notes.add(
                         merged && !existingGoogleByAccount.isEmpty()
                                 ? "Google Kalender: Fahrzeug dem bestehenden Termin hinzugefügt."
                                 : "Google Kalender: "
-                                        + created
-                                        + (created == 1 ? " Termin" : " Termine")
+                                        + googleSync.synced()
+                                        + (googleSync.synced() == 1 ? " Termin" : " Termine")
                                         + " angelegt.");
             } else {
+                String detail = googleSync.primaryError();
                 notes.add(
                         "Google Kalender: kein Termin angelegt"
-                                + " (Kalender aktiv + Service-Account-JSON + Calendar-ID;"
-                                + " Kalender mit client_email teilen; Server-Log prüfen).");
+                                + (detail != null && !detail.isBlank() ? " – " + detail : ".")
+                                + " (Admin → Schnittstellen → Kalender prüfen).");
             }
         }
         return notes;
@@ -810,15 +811,20 @@ public class ReservierungenService {
             }
         }
         if (settings.isRoomGoogleCalendarEnabled()) {
-            int created = googleCalendarService.syncRoomReservation(
+            var googleSync = googleCalendarService.syncRoomReservation(
                     unitId, reservation, settingsService.roomGoogleCalendarAccountIds(settings));
-            if (created > 0) {
-                notes.add("Google Kalender: " + created + (created == 1 ? " Termin" : " Termine") + " angelegt.");
+            if (googleSync.ok()) {
+                notes.add(
+                        "Google Kalender: "
+                                + googleSync.synced()
+                                + (googleSync.synced() == 1 ? " Termin" : " Termine")
+                                + " angelegt.");
             } else {
+                String detail = googleSync.primaryError();
                 notes.add(
                         "Google Kalender: kein Termin angelegt"
-                                + " (Kalender aktiv + Service-Account-JSON + Calendar-ID;"
-                                + " Kalender mit client_email teilen; Server-Log prüfen).");
+                                + (detail != null && !detail.isBlank() ? " – " + detail : ".")
+                                + " (Admin → Schnittstellen → Kalender prüfen).");
             }
         }
         return notes;

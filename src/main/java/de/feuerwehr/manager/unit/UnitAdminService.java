@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.unit;
 
+import de.feuerwehr.manager.reservierungen.ReservierungenGoogleCalendarService;
 import de.feuerwehr.manager.settings.TestModeDataMerge;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.technik.Room;
@@ -221,7 +222,11 @@ public class UnitAdminService {
             boolean enabled,
             boolean isCreate) {
         c.setCalendarUrl(trimToNull(calendarUrl));
-        c.setCalendarId(trimToNull(calendarId));
+        String resolvedId = trimToNull(calendarId);
+        if (resolvedId == null) {
+            resolvedId = ReservierungenGoogleCalendarService.extractCalendarIdFromIcalUrl(calendarUrl);
+        }
+        c.setCalendarId(resolvedId);
         if (serviceAccountJson != null) {
             String json = serviceAccountJson.trim();
             if (!json.isEmpty()) {
