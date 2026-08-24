@@ -8,7 +8,6 @@ import de.feuerwehr.manager.unit.UnitCalendarAccount;
 import de.feuerwehr.manager.unit.UnitCalendarAccountRepository;
 import java.io.ByteArrayInputStream;
 import java.net.URLDecoder;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -121,8 +120,9 @@ public class ReservierungenGoogleCalendarService {
                     try {
                         String raw = client
                                 .get()
-                                .uri("https://www.googleapis.com/calendar/v3/calendars/"
-                                        + encodeCalendarId(cred.calendarId()))
+                                .uri(
+                                        "https://www.googleapis.com/calendar/v3/calendars/{calendarId}",
+                                        cred.calendarId())
                                 .retrieve()
                                 .body(String.class);
                         String summary = null;
@@ -135,8 +135,7 @@ public class ReservierungenGoogleCalendarService {
                         String base = "Fehler HTTP "
                                 + e.getStatusCode().value()
                                 + ": "
-                                + humanizeGoogleError(
-                                        e.getResponseBodyAsString(), cred.clientEmail(), cred.calendarId());
+                                + humanizeGoogleError(e.getResponseBodyAsString(), cred);
                         if (e.getStatusCode().value() == 404) {
                             base += " " + describeVisibleCalendars(client, cred.clientEmail(), false);
                         }
@@ -177,7 +176,7 @@ public class ReservierungenGoogleCalendarService {
             return "Fehler HTTP "
                     + e.getStatusCode().value()
                     + ": "
-                    + humanizeGoogleError(e.getResponseBodyAsString(), cred.clientEmail(), cred.calendarId());
+                    + humanizeGoogleError(e.getResponseBodyAsString(), cred);
         } catch (Exception e) {
             return "Fehler: " + e.getMessage();
         }
@@ -280,7 +279,7 @@ public class ReservierungenGoogleCalendarService {
         if (targets.isEmpty()) {
             if (errors.isEmpty()) {
                 errors.add(
-                        "kein nutzbarer Kalender (Aktiv + Calendar-ID + Service-Account-JSON;"
+                        "kein nutzbarer Kalender (Aktiv + Calendar-ID + OAuth oder Service-Account;"
                                 + " unter Reservierungen → Einstellungen auswählen).");
             }
             log.warn(
@@ -394,7 +393,7 @@ public class ReservierungenGoogleCalendarService {
             calendarEventRepository.save(link);
             return null;
         } catch (RestClientResponseException e) {
-            String detail = humanizeGoogleError(e.getResponseBodyAsString(), cred.clientEmail(), cred.calendarId());
+            String detail = humanizeGoogleError(e.getResponseBodyAsString(), cred);
             log.warn(
                     "Google-Kalender-Sync fehlgeschlagen (Reservierung {}, Kalender {}, client_email={}):"
                             + " HTTP {} – {}",
@@ -418,9 +417,9 @@ public class ReservierungenGoogleCalendarService {
     private String insertGoogleEvent(RestClient client, CalendarCredentials cred, Map<String, Object> eventBody) {
         String raw = client
                 .post()
-                .uri("https://www.googleapis.com/calendar/v3/calendars/"
-                        + encodeCalendarId(cred.calendarId())
-                        + "/events")
+                .uri(
+                        "https://www.googleapis.com/calendar/v3/calendars/{calendarId}/events",
+                        cred.calendarId())
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(eventBody)
                 .retrieve()
@@ -433,10 +432,10 @@ public class ReservierungenGoogleCalendarService {
         try {
             RestClient client = buildClient(cred.accessToken());
             client.put()
-                    .uri("https://www.googleapis.com/calendar/v3/calendars/"
-                            + encodeCalendarId(cred.calendarId())
-                            + "/events/"
-                            + encodeCalendarId(googleEventId))
+                    .uri(
+                            "https://www.googleapis.com/calendar/v3/calendars/{calendarId}/events/{eventId}",
+                            cred.calendarId(),
+                            googleEventId)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(eventBody)
                     .retrieve()
@@ -444,7 +443,7 @@ public class ReservierungenGoogleCalendarService {
             return null;
         } catch (RestClientResponseException e) {
             return "HTTP " + e.getStatusCode().value() + " – "
-                    + humanizeGoogleError(e.getResponseBodyAsString(), cred.clientEmail(), cred.calendarId());
+                    + humanizeGoogleError(e.getResponseBodyAsString(), cred);
         } catch (Exception e) {
             return e.getMessage() != null ? e.getMessage() : "Update fehlgeschlagen";
         }
@@ -457,10 +456,10 @@ public class ReservierungenGoogleCalendarService {
         try {
             RestClient client = buildClient(cred.accessToken());
             client.delete()
-                    .uri("https://www.googleapis.com/calendar/v3/calendars/"
-                            + encodeCalendarId(cred.calendarId())
-                            + "/events/"
-                            + encodeCalendarId(googleEventId))
+                    .uri(
+                            "https://www.googleapis.com/calendar/v3/calendars/{calendarId}/events/{eventId}",
+                            cred.calendarId(),
+                            googleEventId)
                     .retrieve()
                     .toBodilessEntity();
         } catch (Exception e) {
@@ -728,10 +727,6 @@ public class ReservierungenGoogleCalendarService {
         }
     }
 
-    private static String encodeCalendarId(String calendarId) {
-        return URLEncoder.encode(calendarId, StandardCharsets.UTF_8).replace("+", "%20");
-    }
-
     private String extractEventId(String raw) {
         if (raw == null || raw.isBlank()) {
             return null;
@@ -745,7 +740,16 @@ public class ReservierungenGoogleCalendarService {
         }
     }
 
-    private String humanizeGoogleError(String responseBody, String clientEmail, String calendarId) {
+    private String humanizeGoogleError(String responseBody, CalendarCredentials cred) {
+        return humanizeGoogleError(
+                responseBody,
+                cred.clientEmail(),
+                cred.calendarId(),
+                cred.account().getGoogleOauthRefreshToken() != null
+                        && !cred.account().getGoogleOauthRefreshToken().isBlank());
+    }
+
+    private String humanizeGoogleError(String responseBody, String clientEmail, String calendarId, boolean oauthConnected) {
         String apiMessage = null;
         String reason = null;
         if (responseBody != null && !responseBody.isBlank()) {
@@ -766,6 +770,11 @@ public class ReservierungenGoogleCalendarService {
             String idHint = calendarId != null && !calendarId.isBlank()
                     ? "Verwendete Calendar-ID: " + calendarId + ". "
                     : "";
+            if (oauthConnected) {
+                return idHint
+                        + "Kalender per OAuth sichtbar, Termin konnte nicht geschrieben werden –"
+                        + " bitte „Mit Google verbinden“ erneut ausführen oder Kalender-ID prüfen.";
+            }
             return idHint
                     + "Kalender nicht gefunden – dieselbe ID wie in Google Kalender → Einstellungen →"
                     + " Integrationsadresse eintragen und genau diesen Kalender mit "
