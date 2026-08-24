@@ -2288,13 +2288,14 @@ body.dashboard-editing .dashboard-widget {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 40px 20px 24px;
+  justify-content: center;
+  padding: 48px 20px 40px;
   position: relative;
   z-index: 1;
 }
 
 .start-page__title {
-  margin: 0 0 8px;
+  margin: 0 0 2.75rem;
   font-size: 1.7rem;
   text-align: center;
 }
@@ -2313,6 +2314,7 @@ body.dashboard-editing .dashboard-widget {
   gap: 16px;
   width: 100%;
   max-width: 720px;
+  margin-top: 0.5rem;
 }
 
 .start-tile {
