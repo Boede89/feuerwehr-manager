@@ -362,13 +362,23 @@
               <button type="button" class="btn btn--outline btn--sm" id="reservierung-add-resource">Weiteres Fahrzeug hinzufügen</button>
             </div>
             <div id="reservierung-selected-chips" class="reservierungen-chips"></div>
-            <p class="hint text-sm" id="reservierung-resources-hint">Weitere Fahrzeuge erscheinen im Kalender kommagetrennt in einem Termin.</p>
           </div>
 
           <div class="form-group">
             <label for="reservierung-name">Antragsteller <span class="req">*</span></label>
-            <input id="reservierung-name" class="field" required maxlength="255"
-                   th:value="${requesterName}"/>
+            <div class="combo-suggest" data-combo-suggest data-combo-free-text data-combo-min="1">
+              <input id="reservierung-name" class="field combo-suggest__input" required maxlength="255"
+                     autocomplete="off"
+                     placeholder="Person wählen oder Namen frei eingeben …"
+                     th:value="${requesterName}"/>
+              <ul class="combo-suggest__list" role="listbox" hidden>
+                <li class="combo-suggest__option" th:each="p : ${unitPersons != null ? unitPersons : {}}"
+                    th:attr="data-value=${p.anwesenheitDisplayName()},
+                             data-person-id=${p.id},
+                             data-email=${p.email != null and !#strings.isEmpty(p.email) ? p.email : (p.emailPrivate != null ? p.emailPrivate : '')}"
+                    th:text="${p.anwesenheitDisplayName()}">Name</li>
+              </ul>
+            </div>
           </div>
           <div class="form-group">
             <label for="reservierung-email">E-Mail <span class="req">*</span></label>
@@ -582,6 +592,7 @@
   <select id="reservierungen-rooms-template" hidden aria-hidden="true">
     <option th:each="r : ${roomOptions}" th:value="${r.id}" th:text="${r.name}">Raum</option>
   </select>
-  <script th:src="@{/js/reservierungen.js(v='20260824f')}" defer></script>
+  <script th:src="@{/js/combo-suggest.js}" defer></script>
+  <script th:src="@{/js/reservierungen.js(v='20260824i')}" defer></script>
 </main>
 </html>

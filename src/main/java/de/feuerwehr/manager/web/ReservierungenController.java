@@ -18,6 +18,7 @@ import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitAdminService;
 import de.feuerwehr.manager.unit.UnitService;
+import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.user.UserRepository;
 import de.feuerwehr.manager.web.dto.ActionResultDto;
 import de.feuerwehr.manager.web.dto.ReservationActionResultDto;
@@ -50,6 +51,7 @@ public class ReservierungenController {
     private final ReservierungenService reservierungenService;
     private final ReservierungenConflictService conflictService;
     private final UnitAdminService unitAdminService;
+    private final PersonalService personalService;
     private final UserRepository userRepository;
 
     @GetMapping
@@ -85,6 +87,7 @@ public class ReservierungenController {
                     rooms.stream()
                             .map(r -> new ResourceOptionDto(r.getId(), r.getName() != null ? r.getName() : ""))
                             .toList());
+            model.addAttribute("unitPersons", personalService.listSelectablePersons(unit.getId()));
             model.addAttribute("requesterName", actor.getDisplayName());
             model.addAttribute(
                     "requesterEmail",

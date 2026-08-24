@@ -500,8 +500,34 @@
       emailEl.value = root.dataset.requesterEmail;
     }
     openOverlay(modal);
-    document.getElementById('reservierung-reason')?.focus();
+    document.getElementById('reservierung-name')?.focus();
   }
+
+  function bindRequesterSuggestEmail() {
+    var nameEl = document.getElementById('reservierung-name');
+    var emailEl = document.getElementById('reservierung-email');
+    if (!nameEl || !emailEl || nameEl.dataset.emailBound === 'true') {
+      return;
+    }
+    nameEl.dataset.emailBound = 'true';
+    nameEl.addEventListener('change', function () {
+      var personId = nameEl.dataset.personId;
+      if (!personId) {
+        return;
+      }
+      var root = nameEl.closest('[data-combo-suggest]');
+      if (!root) {
+        return;
+      }
+      var option = root.querySelector('.combo-suggest__option[data-person-id="' + personId + '"]');
+      var email = option && option.getAttribute('data-email');
+      if (email && email.trim()) {
+        emailEl.value = email.trim();
+      }
+    });
+  }
+
+  bindRequesterSuggestEmail();
 
   function closeModal() {
     closeOverlay(modal);

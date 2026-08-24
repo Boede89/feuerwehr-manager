@@ -2414,6 +2414,44 @@ body.dashboard-editing .dashboard-widget {
   margin-top: 1.5rem;
 }
 
+.reservierungen-page .combo-suggest,
+#reservierung-modal .combo-suggest {
+  position: relative;
+}
+
+.reservierungen-page .combo-suggest__list,
+#reservierung-modal .combo-suggest__list {
+  position: absolute;
+  z-index: 40;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  max-height: 220px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-card-hover, var(--bg-card));
+  box-shadow: var(--schatten-md);
+}
+
+.reservierungen-page .combo-suggest__option,
+#reservierung-modal .combo-suggest__option {
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.reservierungen-page .combo-suggest__option:hover,
+.reservierungen-page .combo-suggest__option--active,
+#reservierung-modal .combo-suggest__option:hover,
+#reservierung-modal .combo-suggest__option--active {
+  background: color-mix(in srgb, var(--rot) 12%, transparent);
+}
+
 .login-rfid {
   margin-top: 24px;
 }
