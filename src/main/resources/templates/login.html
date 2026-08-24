@@ -28,12 +28,6 @@
 
   <main class="start-page__content">
     <h1 class="start-page__title">Was möchten Sie tun?</h1>
-    <p class="start-page__lead" th:if="${publicReservationAvailable}">
-      Reservierung ohne Anmeldung oder mit Chip bzw. Zugangsdaten anmelden.
-    </p>
-    <p class="start-page__lead" th:unless="${publicReservationAvailable}">
-      Bitte anmelden, um fortzufahren. Ein RFID-Chip meldet Sie direkt an.
-    </p>
 
     <div class="start-tile-grid">
       <a class="start-tile" th:if="${publicReservationAvailable}" th:href="@{/reservieren}">
