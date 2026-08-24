@@ -16,6 +16,7 @@ import de.feuerwehr.manager.divera.DiveraAlarmsResponse;
 import de.feuerwehr.manager.divera.DiveraService;
 import de.feuerwehr.manager.divera.ManualAlarmService;
 import de.feuerwehr.manager.personal.PersonRepository;
+import de.feuerwehr.manager.reservierungen.ReservierungenSettingsService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.UserPermissionService;
 import de.feuerwehr.manager.settings.AppModule;
@@ -63,6 +64,7 @@ public class DashboardController {
     private final AuswertungService auswertungService;
     private final DashboardLayoutService dashboardLayoutService;
     private final ObjectMapper objectMapper;
+    private final ReservierungenSettingsService reservierungenSettingsService;
 
     @GetMapping("/")
     public String dashboard(
@@ -82,6 +84,14 @@ public class DashboardController {
         model.addAttribute("unitId", resolvedUnitId);
         model.addAttribute("currentUnitName", resolved.getName());
         model.addAttribute("dashboardCols", DashboardWidgetPlacement.COLS);
+        try {
+            model.addAttribute(
+                    "showPublicReservationButton",
+                    reservierungenSettingsService.isPublicReservationOpen(resolvedUnitId));
+        } catch (Exception e) {
+            log.warn("Öffentliche Reservierung konnte auf der Startseite nicht geprüft werden: {}", e.getMessage());
+            model.addAttribute("showPublicReservationButton", false);
+        }
 
         List<DashboardWidgetPlacement> placements;
         try {

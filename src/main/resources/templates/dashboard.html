@@ -8,6 +8,8 @@
       <p>Feuerwehr-Manager · Einheit: <strong th:text="${currentUnitName}">—</strong></p>
     </div>
     <div class="page-header__actions">
+      <a class="btn btn--primary btn--sm" th:if="${showPublicReservationButton}"
+         th:href="@{/reservieren(unit=${unitId})}">Fahrzeug oder Raum reservieren</a>
       <button type="button" class="btn btn--outline btn--sm" id="dashboard-edit-btn">Startseite anpassen</button>
       <button type="button" class="btn btn--outline btn--sm" id="dashboard-add-btn" hidden>+ Widget hinzufügen</button>
       <button type="button" class="btn btn--primary btn--sm" id="dashboard-done-btn" hidden>Fertig</button>

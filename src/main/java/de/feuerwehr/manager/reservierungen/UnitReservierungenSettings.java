@@ -90,6 +90,9 @@ public class UnitReservierungenSettings {
     @Column(name = "room_notification_emails_json", columnDefinition = "TEXT")
     private String roomNotificationEmailsJson;
 
+    @Column(name = "allow_public_reservation", nullable = false)
+    private boolean allowPublicReservation;
+
     @Column(name = "updated_at", nullable = false, insertable = false, updatable = false)
     private Instant updatedAt;
 }

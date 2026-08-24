@@ -2,6 +2,8 @@ package de.feuerwehr.manager.reservierungen;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import de.feuerwehr.manager.settings.AppModule;
+import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.technik.Vehicle;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
@@ -25,6 +27,7 @@ public class ReservierungenSettingsService {
 
     private final UnitReservierungenSettingsRepository settingsRepository;
     private final UnitRepository unitRepository;
+    private final ModuleSettingsService moduleSettingsService;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -104,6 +107,30 @@ public class ReservierungenSettingsService {
         settings.setRoomNotificationUserIdsJson(writeJsonLongList(userIds));
         settings.setRoomNotificationEmailsJson(writeJsonEmailList(emails));
         return settingsRepository.save(settings);
+    }
+
+    @Transactional
+    public UnitReservierungenSettings saveAccessSettings(long unitId, boolean allowPublicReservation) {
+        UnitReservierungenSettings settings = ensureSettings(unitId);
+        settings.setAllowPublicReservation(allowPublicReservation);
+        return settingsRepository.save(settings);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isPublicReservationAllowed(long unitId) {
+        return settingsRepository.findById(unitId).map(UnitReservierungenSettings::isAllowPublicReservation).orElse(false);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isPublicReservationOpen(long unitId) {
+        return moduleSettingsService.isEnabled(AppModule.RESERVIERUNGEN, unitId) && isPublicReservationAllowed(unitId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Unit> listUnitsAllowingPublicReservation() {
+        return unitRepository.findActiveVisible(false).stream()
+                .filter(unit -> isPublicReservationOpen(unit.getId()))
+                .toList();
     }
 
     public List<Long> parseLongIdList(String json) {

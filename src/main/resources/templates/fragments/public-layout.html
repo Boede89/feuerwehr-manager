@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org" th:fragment="layout(title, main)">
+<head th:replace="~{fragments/head :: head(${title})}"></head>
+<body class="public-page" th:attr="data-test-mode=${testModeEnabled ? 'true' : 'false'}">
+<div class="app-shell">
+  <header class="app-header">
+    <a class="app-header__brand" th:href="@{/reservieren}">
+      <div class="app-header__emblem" aria-hidden="true">
+        <img th:if="${customLogoDataUri != null}" th:src="${customLogoDataUri}" alt="" class="app-header__logo-img"/>
+        <span th:unless="${customLogoDataUri != null}">🚒</span>
+      </div>
+      <div class="app-header__title">
+        <span class="app-header__name" th:text="${brandName}">Feuerwehr-Manager</span>
+        <span class="app-header__sub" th:if="${currentUnitName != null}" th:text="${currentUnitName}">Einheit</span>
+        <span class="app-header__sub" th:unless="${currentUnitName != null}">Reservierung ohne Anmeldung</span>
+      </div>
+    </a>
+    <div class="app-header__right">
+      <div class="btn-group theme-toggle" role="group" aria-label="Design">
+        <button type="button" class="btn btn--outline btn--sm" data-theme-choice="light" title="Helles Design">☀️</button>
+        <button type="button" class="btn btn--outline btn--sm" data-theme-choice="dark" title="Dunkles Design">🌙</button>
+      </div>
+      <a class="btn btn--outline btn--sm" th:href="@{/login}">Anmelden</a>
+    </div>
+  </header>
+  <main class="page-main">
+    <div class="page-main__inner">
+      <th:block th:insert="${main}"></th:block>
+    </div>
+  </main>
+</div>
+<script th:src="@{/js/toast.js}" defer></script>
+<script th:src="@{/js/confirm-dialog.js(v='20260809e')}" defer></script>
+<script th:src="@{/js/flash-toast.js}" defer></script>
+<script th:src="@{/js/theme.js}" defer></script>
+</body>
+</html>

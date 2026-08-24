@@ -28,6 +28,11 @@
         <button type="submit" class="btn btn-block" style="margin-top:20px;">Anmelden</button>
       </form>
 
+      <div th:if="${publicReservationAvailable}" class="login-public-reserve">
+        <div class="login-rfid__divider"><span>oder</span></div>
+        <a class="btn btn--outline btn-block" th:href="@{/reservieren}">Fahrzeug oder Raum reservieren</a>
+      </div>
+
       <div th:if="${rfidLoginEnabled}" id="login-rfid" class="login-rfid" data-serial-baud="9600">
         <div class="login-rfid__divider"><span>oder</span></div>
         <p id="login-rfid-status" class="login-rfid__status login-rfid__status--busy"></p>

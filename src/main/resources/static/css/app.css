@@ -2214,6 +2214,14 @@ body.dashboard-editing .dashboard-widget {
   margin-top: 24px;
 }
 
+.login-public-reserve {
+  margin-top: 20px;
+}
+
+.login-public-reserve .btn-block {
+  margin-top: 0;
+}
+
 .login-rfid__divider {
   display: flex;
   align-items: center;
@@ -8522,4 +8530,8 @@ a.auswertung-stat-card {
   .auswertung-detail-columns {
     grid-template-columns: 1fr;
   }
+}
+
+.public-page .app-header {
+  border-bottom: 1px solid var(--border);
 }

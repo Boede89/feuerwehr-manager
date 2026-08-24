@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/public-layout :: layout('Einheit wählen', ~{::main})}">
+<main>
+  <div class="page-header">
+    <div>
+      <h2>Einheit wählen</h2>
+      <p>Für welche Einheit möchten Sie ein Fahrzeug oder einen Raum reservieren?</p>
+    </div>
+  </div>
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
+  <div class="reservierungen-choice-grid">
+    <a class="reservierungen-choice" th:each="u : ${publicUnits}"
+       th:href="@{/reservieren(unit=${u.id})}">
+      <strong class="reservierungen-choice__title" th:text="${u.name}">Einheit</strong>
+      <span class="reservierungen-choice__text">Fahrzeug oder Raum anfragen</span>
+      <span class="reservierungen-choice__cta">Weiter →</span>
+    </a>
+  </div>
+</main>
+</html>

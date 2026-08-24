@@ -8,6 +8,8 @@
 
   var unitId = root.dataset.unitId;
   var canWrite = root.dataset.canWrite === 'true';
+  var apiBase = (root.dataset.apiBase || '/reservierungen').replace(/\/$/, '');
+  var publicMode = root.dataset.public === 'true';
   var modal = document.getElementById('reservierung-modal');
   var pickModal = document.getElementById('reservierung-pick-modal');
   var conflictModal = document.getElementById('reservierung-conflict-modal');
@@ -1018,8 +1020,8 @@
         forceConflictOverride: !!pendingCreateFlags.forceConflict
       };
       var url = kind === 'vehicle'
-        ? '/reservierungen/api/fahrzeuge?unit=' + encodeURIComponent(unitId)
-        : '/reservierungen/api/raeume?unit=' + encodeURIComponent(unitId);
+        ? apiBase + '/api/fahrzeuge?unit=' + encodeURIComponent(unitId)
+        : apiBase + '/api/raeume?unit=' + encodeURIComponent(unitId);
       url = appendTestModeEmailParam(url, delivery);
       if (submitBtn) submitBtn.disabled = true;
       fetch(url, {
@@ -1045,7 +1047,9 @@
           pendingCreateFlags = { forceConflict: false, forceLoesch: false, testModeEmailDelivery: null };
           closeModal();
           notify(data.message || 'Antrag eingereicht.', 'success');
-          window.location.href = '/reservierungen?unit=' + encodeURIComponent(unitId) + '&tab=meine';
+          if (!publicMode) {
+            window.location.href = '/reservierungen?unit=' + encodeURIComponent(unitId) + '&tab=meine';
+          }
         })
         .catch(function () {
           notify('Antrag konnte nicht gesendet werden.', 'error');

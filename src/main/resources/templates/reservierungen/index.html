@@ -1,24 +1,27 @@
 <!DOCTYPE html>
 <html lang="de" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{fragments/layout :: layout('Reservierungen', ~{::main})}">
+      th:replace="${publicReservation == true} ? ~{fragments/public-layout :: layout('Reservierung', ~{::main})} : ~{fragments/layout :: layout('Reservierungen', ~{::main})}">
 <main class="reservierungen-page"
-      th:attr="data-unit-id=${unitId},data-can-write=${canWrite},data-requester-name=${requesterName},data-requester-email=${requesterEmail}">
+      th:attr="data-unit-id=${unitId},data-can-write=${canWrite},data-requester-name=${requesterName},data-requester-email=${requesterEmail},data-api-base=${reservierungenBasePath},data-public=${publicReservation}">
   <div class="page-header">
     <div>
-      <h2>Reservierungen</h2>
-      <p>Fahrzeuge und Räume anfragen · <strong th:text="${currentUnitName}">—</strong></p>
+      <h2 th:text="${publicReservation} ? 'Reservierung' : 'Reservierungen'">Reservierungen</h2>
+      <p th:if="${publicReservation}">Fahrzeug oder Raum anfragen – ohne Anmeldung · <strong th:text="${currentUnitName}">—</strong></p>
+      <p th:unless="${publicReservation}">Fahrzeuge und Räume anfragen · <strong th:text="${currentUnitName}">—</strong></p>
     </div>
     <a class="btn btn--outline" th:if="${isAdmin}" th:href="@{/settings/reservierungen(unit=${unitId})}">Einstellungen</a>
   </div>
 
-  <div th:replace="~{fragments/testmode-banner :: banner}"></div>
+  <th:block th:unless="${publicReservation}">
+    <div th:replace="~{fragments/testmode-banner :: banner}"></div>
+  </th:block>
   <div th:replace="~{fragments/flash-messages :: alerts}"></div>
 
   <nav class="tab-bar reservierungen-module-tabs" aria-label="Reservierungsbereiche">
     <a class="tab-btn" th:each="t : ${reservierungenTabs}"
        th:if="${t.key() != 'verwaltung' or canManage}"
        th:classappend="${reservierungenTab == t.key()} ? ' tab-btn--active' : ''"
-       th:href="@{/reservierungen(unit=${unitId}, tab=${t.key()})}"
+       th:href="@{__${reservierungenBasePath}__(unit=${unitId}, tab=${t.key()})}"
        th:text="${t.label()}">Reiter</a>
   </nav>
 
@@ -28,13 +31,13 @@
       Wählen Sie, was Sie reservieren möchten. Anträge werden zur Genehmigung weitergeleitet.
     </p>
     <div class="reservierungen-choice-grid">
-      <a class="reservierungen-choice" th:href="@{/reservierungen(unit=${unitId}, tab='fahrzeuge')}">
+      <a class="reservierungen-choice" th:href="@{__${reservierungenBasePath}__(unit=${unitId}, tab='fahrzeuge')}">
         <span class="reservierungen-choice__kicker">Fahrzeuge</span>
         <strong class="reservierungen-choice__title">Fahrzeug reservieren</strong>
         <span class="reservierungen-choice__text">Fahrzeuge für einen Zeitraum anfragen.</span>
         <span class="reservierungen-choice__cta">Zur Auswahl →</span>
       </a>
-      <a class="reservierungen-choice" th:href="@{/reservierungen(unit=${unitId}, tab='raeume')}">
+      <a class="reservierungen-choice" th:href="@{__${reservierungenBasePath}__(unit=${unitId}, tab='raeume')}">
         <span class="reservierungen-choice__kicker">Räume</span>
         <strong class="reservierungen-choice__title">Raum reservieren</strong>
         <span class="reservierungen-choice__text">Schulungs- und Besprechungsräume für einen Zeitraum anfragen.</span>
@@ -47,7 +50,7 @@
   <div th:if="${reservierungenTab == 'fahrzeuge'}" class="reservierungen-module-panel">
     <div class="reservierungen-panel-head">
       <h3>Fahrzeuge</h3>
-      <a class="btn btn--outline btn--sm" th:href="@{/reservierungen(unit=${unitId}, tab='uebersicht')}">Zur Übersicht</a>
+      <a class="btn btn--outline btn--sm" th:href="@{__${reservierungenBasePath}__(unit=${unitId}, tab='uebersicht')}">Zur Übersicht</a>
     </div>
     <div class="card" th:if="${#lists.isEmpty(vehicles)}">
       <div class="card__body"><p class="hint">Keine aktiven Fahrzeuge hinterlegt. Bitte unter Admin → Technik anlegen.</p></div>
@@ -66,7 +69,7 @@
   <div th:if="${reservierungenTab == 'raeume'}" class="reservierungen-module-panel">
     <div class="reservierungen-panel-head">
       <h3>Räume</h3>
-      <a class="btn btn--outline btn--sm" th:href="@{/reservierungen(unit=${unitId}, tab='uebersicht')}">Zur Übersicht</a>
+      <a class="btn btn--outline btn--sm" th:href="@{__${reservierungenBasePath}__(unit=${unitId}, tab='uebersicht')}">Zur Übersicht</a>
     </div>
     <div class="card" th:if="${#lists.isEmpty(rooms)}">
       <div class="card__body"><p class="hint">Keine aktiven Räume hinterlegt. Bitte unter Admin → Technik anlegen.</p></div>
@@ -570,6 +573,6 @@
   <select id="reservierungen-rooms-template" hidden aria-hidden="true">
     <option th:each="r : ${roomOptions}" th:value="${r.id}" th:text="${r.name}">Raum</option>
   </select>
-  <script th:src="@{/js/reservierungen.js(v='20260824e')}" defer></script>
+  <script th:src="@{/js/reservierungen.js(v='20260824f')}" defer></script>
 </main>
 </html>

@@ -103,6 +103,26 @@ public class ReservierungenSettingsController {
         }
     }
 
+    @PostMapping("/zugang")
+    public String saveAccess(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam(name = "allowPublicReservation", defaultValue = "false") boolean allowPublicReservation,
+            @RequestParam(name = "tab", defaultValue = "fahrzeug") String tab,
+            RedirectAttributes redirectAttributes) {
+        try {
+            accessControlService.requireAdminLevel(actor);
+            accessControlService.requireUnitAccess(actor, unit);
+            requireModuleEnabled(unit);
+            settingsService.saveAccessSettings(unit, allowPublicReservation);
+            redirectAttributes.addFlashAttribute("message", "Zugangseinstellung gespeichert.");
+            return "redirect:/settings/reservierungen?unit=" + unit + "&tab=" + tab;
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return "redirect:/settings/reservierungen?unit=" + unit + "&tab=" + tab;
+        }
+    }
+
     @PostMapping("/fahrzeug")
     public String saveVehicle(
             @AuthenticationPrincipal AppUserDetails actor,

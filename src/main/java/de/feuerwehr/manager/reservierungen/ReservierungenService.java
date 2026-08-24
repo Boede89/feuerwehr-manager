@@ -104,7 +104,7 @@ public class ReservierungenService {
     }
 
     @Transactional
-    public List<VehicleReservation> createVehicleReservation(long unitId, long userId, CreateReservationRequest request) {
+    public List<VehicleReservation> createVehicleReservation(long unitId, Long userId, CreateReservationRequest request) {
         List<Long> vehicleIds = resolveResourceIds(request);
         List<CreateReservationRequest.ReservationTimeSlot> slots = resolveSlots(request);
         if (vehicleIds.isEmpty()) {
@@ -115,7 +115,7 @@ public class ReservierungenService {
         String reason = requireText(request.reason(), "Grund");
         String location = requireText(request.location(), "Ort / Standort");
         Unit unit = requireUnit(unitId);
-        User requester = requireUser(userId);
+        User requester = userId == null ? null : requireUser(userId);
 
         List<Vehicle> vehicles = new ArrayList<>();
         for (Long vehicleId : vehicleIds) {
@@ -179,7 +179,7 @@ public class ReservierungenService {
     }
 
     @Transactional
-    public List<RoomReservation> createRoomReservation(long unitId, long userId, CreateReservationRequest request) {
+    public List<RoomReservation> createRoomReservation(long unitId, Long userId, CreateReservationRequest request) {
         List<Long> roomIds = resolveResourceIds(request);
         List<CreateReservationRequest.ReservationTimeSlot> slots = resolveSlots(request);
         if (roomIds.isEmpty()) {
@@ -190,7 +190,7 @@ public class ReservierungenService {
         String reason = requireText(request.reason(), "Grund");
         String location = requireText(request.location(), "Ort / Standort");
         Unit unit = requireUnit(unitId);
-        User requester = requireUser(userId);
+        User requester = userId == null ? null : requireUser(userId);
 
         List<Room> rooms = new ArrayList<>();
         for (Long roomId : roomIds) {

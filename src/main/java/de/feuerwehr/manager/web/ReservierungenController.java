@@ -69,6 +69,8 @@ public class ReservierungenController {
             model.addAttribute("reservierungenTabs", ReservierungenTab.values());
             model.addAttribute("canWrite", canWrite);
             model.addAttribute("canManage", canWrite);
+            model.addAttribute("publicReservation", false);
+            model.addAttribute("reservierungenBasePath", "/reservierungen");
             var vehicles = conflictService.listBookableVehicles(unit.getId());
             var rooms = unitAdminService.listRooms(unit.getId()).stream().filter(r -> r.isActive()).toList();
             model.addAttribute("vehicles", vehicles);

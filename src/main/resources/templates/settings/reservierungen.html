@@ -12,6 +12,29 @@
 
   <div th:replace="~{fragments/flash-messages :: alerts}"></div>
 
+  <div class="card">
+    <div class="card__header">Zugang</div>
+    <div class="card__body">
+      <form method="post" th:action="@{/settings/reservierungen/zugang}">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <input type="hidden" name="tab" th:value="${settingsTab}"/>
+        <label class="checkbox-row">
+          <input type="checkbox" name="allowPublicReservation" value="true"
+                 th:checked="${settings.allowPublicReservation}"/>
+          <span>Reservierung ohne Anmeldung erlauben</span>
+        </label>
+        <p class="hint">
+          Auf der Anmeldeseite und der Startseite erscheint dann der Button „Fahrzeug oder Raum reservieren“.
+          Gäste können einen Antrag stellen, ohne sich einzuloggen.
+        </p>
+        <div style="margin-top:16px;">
+          <button type="submit" class="btn btn--primary">Zugang speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <nav class="tab-bar" aria-label="Reservierungseinstellungen">
     <a class="tab-btn" th:classappend="${settingsTab == 'fahrzeug'} ? ' tab-btn--active' : ''"
        th:href="@{/settings/reservierungen(unit=${unitId}, tab='fahrzeug')}">Fahrzeug</a>

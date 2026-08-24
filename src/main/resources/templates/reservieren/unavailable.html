@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/public-layout :: layout('Reservierung', ~{::main})}">
+<main>
+  <div class="page-header">
+    <div>
+      <h2>Reservierung</h2>
+      <p>Fahrzeug oder Raum ohne Anmeldung anfragen</p>
+    </div>
+  </div>
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
+  <div class="card">
+    <div class="card__body">
+      <p>Aktuell ist keine Reservierung ohne Anmeldung freigegeben.</p>
+      <p class="hint">Bitte melden Sie sich an, um eine Reservierung zu stellen.</p>
+      <a class="btn btn--primary" th:href="@{/login}">Zur Anmeldung</a>
+    </div>
+  </div>
+</main>
+</html>
