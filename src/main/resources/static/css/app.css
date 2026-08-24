@@ -5988,11 +5988,6 @@ span.required { color: var(--error); }
   min-width: 0;
 }
 
-.foreign-person-create legend {
-  font-weight: 600;
-  padding: 0;
-}
-
 .foreign-person-create__fields {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -6000,8 +5995,10 @@ span.required { color: var(--error); }
   margin: 8px 0 10px;
 }
 
-.foreign-person-create .btn {
-  margin-top: 2px;
+.foreign-person-create__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 @media (max-width: 560px) {

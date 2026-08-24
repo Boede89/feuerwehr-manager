@@ -41,25 +41,64 @@
     return document.getElementById('foreign-person-modal');
   }
 
-  function createFieldset() {
-    return document.getElementById('foreign-person-create');
+  function createOpenBtn() {
+    return document.getElementById('foreign-person-create-open');
+  }
+
+  function createFormEl() {
+    return document.getElementById('foreign-person-create-form');
+  }
+
+  function resetCreateFields() {
+    var first = document.getElementById('foreign-person-first-name');
+    var last = document.getElementById('foreign-person-last-name');
+    if (first) {
+      first.value = '';
+    }
+    if (last) {
+      last.value = '';
+    }
+    showCreateError('');
+  }
+
+  function hideCreateForm() {
+    var form = createFormEl();
+    var openBtn = createOpenBtn();
+    if (form) {
+      form.hidden = true;
+    }
+    if (openBtn) {
+      openBtn.hidden = false;
+    }
+    resetCreateFields();
+  }
+
+  function showCreateForm() {
+    if (!selectedUnitId) {
+      return;
+    }
+    var form = createFormEl();
+    var openBtn = createOpenBtn();
+    if (form) {
+      form.hidden = false;
+    }
+    if (openBtn) {
+      openBtn.hidden = true;
+    }
+    showCreateError('');
+    var first = document.getElementById('foreign-person-first-name');
+    if (first) {
+      first.focus();
+    }
   }
 
   function setCreateEnabled(enabled) {
-    var fieldset = createFieldset();
-    if (fieldset) {
-      fieldset.disabled = !enabled;
+    var openBtn = createOpenBtn();
+    if (openBtn) {
+      openBtn.disabled = !enabled;
     }
     if (!enabled) {
-      var first = document.getElementById('foreign-person-first-name');
-      var last = document.getElementById('foreign-person-last-name');
-      if (first) {
-        first.value = '';
-      }
-      if (last) {
-        last.value = '';
-      }
-      showCreateError('');
+      hideCreateForm();
     }
   }
 
@@ -358,6 +397,14 @@
         onPersonPick(pickBtn);
         return;
       }
+      if (e.target.closest('#foreign-person-create-open')) {
+        showCreateForm();
+        return;
+      }
+      if (e.target.closest('#foreign-person-create-cancel')) {
+        hideCreateForm();
+        return;
+      }
       if (e.target.closest('#foreign-person-create-btn')) {
         createPerson();
       }
@@ -376,7 +423,7 @@
       if (e.key !== 'Enter') {
         return;
       }
-      if (!e.target.closest('#foreign-person-create')) {
+      if (!e.target.closest('#foreign-person-create-form')) {
         return;
       }
       e.preventDefault();
