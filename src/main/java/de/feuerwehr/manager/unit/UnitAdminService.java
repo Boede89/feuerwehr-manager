@@ -154,12 +154,13 @@ public class UnitAdminService {
             String calendarUrl,
             String calendarId,
             String serviceAccountJson,
+            String delegatedUserEmail,
             boolean enabled) {
         Unit unit = requireUnit(unitId);
         UnitCalendarAccount c = new UnitCalendarAccount();
         c.setUnit(unit);
         c.setLabel(requireLabel(label));
-        applyCalendarFields(c, calendarUrl, calendarId, serviceAccountJson, enabled, true);
+        applyCalendarFields(c, calendarUrl, calendarId, serviceAccountJson, delegatedUserEmail, enabled, true);
         c.setSortOrder(listCalendarAccounts(unitId).size());
         return calendarAccountRepository.save(c);
     }
@@ -172,10 +173,11 @@ public class UnitAdminService {
             String calendarUrl,
             String calendarId,
             String serviceAccountJson,
+            String delegatedUserEmail,
             boolean enabled) {
         UnitCalendarAccount c = requireCalendarAccount(unitId, accountId);
         c.setLabel(requireLabel(label));
-        applyCalendarFields(c, calendarUrl, calendarId, serviceAccountJson, enabled, false);
+        applyCalendarFields(c, calendarUrl, calendarId, serviceAccountJson, delegatedUserEmail, enabled, false);
         c.setUpdatedAt(java.time.Instant.now());
         return calendarAccountRepository.save(c);
     }
@@ -219,10 +221,12 @@ public class UnitAdminService {
             String calendarUrl,
             String calendarId,
             String serviceAccountJson,
+            String delegatedUserEmail,
             boolean enabled,
             boolean isCreate) {
         c.setCalendarUrl(trimToNull(calendarUrl));
         c.setCalendarId(ReservierungenGoogleCalendarService.normalizeCalendarIdInput(calendarId, calendarUrl));
+        c.setDelegatedUserEmail(trimToNull(delegatedUserEmail));
         if (serviceAccountJson != null) {
             String json = serviceAccountJson.trim();
             if (!json.isEmpty()) {

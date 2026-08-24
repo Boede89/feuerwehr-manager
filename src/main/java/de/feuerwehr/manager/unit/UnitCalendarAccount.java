@@ -44,6 +44,10 @@ public class UnitCalendarAccount {
     @Column(name = "service_account_json", columnDefinition = "MEDIUMTEXT")
     private String serviceAccountJson;
 
+    /** Google-Workspace-Nutzer für Domain-weite Delegierung (impersonate). */
+    @Column(name = "delegated_user_email", length = 254)
+    private String delegatedUserEmail;
+
     @Column(nullable = false)
     private boolean enabled;
 

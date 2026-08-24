@@ -130,6 +130,10 @@ public class ReservierungenGoogleCalendarService {
                                 + cred.calendarId()
                                 + ", client_email="
                                 + cred.clientEmail()
+                                + (account.getDelegatedUserEmail() != null
+                                                && !account.getDelegatedUserEmail().isBlank()
+                                        ? ", Delegierung: " + account.getDelegatedUserEmail().trim()
+                                        : "")
                                 + ").";
                     } catch (RestClientResponseException e) {
                         String base = "Fehler HTTP "
@@ -449,6 +453,10 @@ public class ReservierungenGoogleCalendarService {
         try {
             ServiceAccountCredentials serviceAccount = ServiceAccountCredentials.fromStream(
                     new ByteArrayInputStream(account.getServiceAccountJson().getBytes(StandardCharsets.UTF_8)));
+            String delegatedUser = account.getDelegatedUserEmail();
+            if (delegatedUser != null && !delegatedUser.isBlank()) {
+                serviceAccount = (ServiceAccountCredentials) serviceAccount.createDelegated(delegatedUser.trim());
+            }
             GoogleCredentials credentials = serviceAccount.createScoped(List.of(CALENDAR_SCOPE));
             credentials.refresh();
             if (credentials.getAccessToken() == null || credentials.getAccessToken().getTokenValue() == null) {
@@ -548,8 +556,10 @@ public class ReservierungenGoogleCalendarService {
             }
             JsonNode items = objectMapper.readTree(raw).path("items");
             if (!items.isArray() || items.isEmpty()) {
-                return "Der Service-Account (" + clientEmail + ") sieht keinen Kalender – unter „Für bestimmte"
-                        + " Personen freigeben“ die client_email mit „Termine ändern“ hinzufügen.";
+                return "Der Service-Account (" + clientEmail + ") sieht keinen Kalender. "
+                        + "Bei privaten @gmail.com-Konten speichert Google die Freigabe an @iam.gserviceaccount.com "
+                        + "in der Kalender-Oberfläche oft nicht – dann Google Workspace mit Domain-weiter Delegierung "
+                        + "nutzen (Feld „Google-Konto für Delegierung“ in den Schnittstellen, kein manuelles Teilen).";
             }
             List<String> parts = new ArrayList<>();
             for (JsonNode item : items) {

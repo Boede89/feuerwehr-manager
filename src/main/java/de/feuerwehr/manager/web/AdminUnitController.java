@@ -223,17 +223,18 @@ public class AdminUnitController {
             @RequestParam(required = false) String calendarUrl,
             @RequestParam(required = false) String calendarId,
             @RequestParam(required = false) String serviceAccountJson,
+            @RequestParam(required = false) String delegatedUserEmail,
             @RequestParam(required = false) String enabled,
             RedirectAttributes redirectAttributes) {
         return withUnit(actor, unit, redirectAttributes, "schnittstellen", () -> {
             boolean on = "true".equalsIgnoreCase(enabled) || "on".equalsIgnoreCase(enabled);
             if (calendarAccountId != null && calendarAccountId > 0) {
                 unitAdminService.updateCalendarAccount(
-                        unit, calendarAccountId, label, calendarUrl, calendarId, serviceAccountJson, on);
+                        unit, calendarAccountId, label, calendarUrl, calendarId, serviceAccountJson, delegatedUserEmail, on);
                 redirectAttributes.addFlashAttribute("message", "Kalender gespeichert.");
             } else {
                 unitAdminService.createCalendarAccount(
-                        unit, label, calendarUrl, calendarId, serviceAccountJson, on);
+                        unit, label, calendarUrl, calendarId, serviceAccountJson, delegatedUserEmail, on);
                 redirectAttributes.addFlashAttribute("message", "Kalender angelegt.");
             }
         });

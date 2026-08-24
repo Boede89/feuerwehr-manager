@@ -113,6 +113,7 @@
       set('edit-calendar-label', btn.getAttribute('data-label'));
       set('edit-calendar-url', btn.getAttribute('data-url'));
       set('edit-calendar-cal-id', btn.getAttribute('data-cal-id'));
+      set('edit-calendar-delegated-user', btn.getAttribute('data-delegated-user'));
       var enabled = document.getElementById('edit-calendar-enabled');
       if (enabled) enabled.checked = btn.getAttribute('data-enabled') === 'true';
       var hint = document.getElementById('edit-calendar-json-hint');
