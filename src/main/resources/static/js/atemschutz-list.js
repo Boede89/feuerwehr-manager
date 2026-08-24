@@ -25,6 +25,22 @@
       if (href) window.location.href = href;
     }
     row.addEventListener('click', function (e) {
+      var selectCol = e.target.closest('td.atemschutz-select-col');
+      if (selectCol) {
+        e.preventDefault();
+        e.stopPropagation();
+        var cb = selectCol.querySelector('.atemschutz-row-select');
+        if (!cb || cb.disabled) {
+          return;
+        }
+        // Direkter Klick aufs Kästchen: Browser schaltet bereits um.
+        if (e.target === cb || e.target.closest('input.atemschutz-row-select')) {
+          return;
+        }
+        cb.checked = !cb.checked;
+        cb.dispatchEvent(new Event('change', { bubbles: true }));
+        return;
+      }
       if (e.target.closest('button, a, form, input, label')) return;
       go();
     });

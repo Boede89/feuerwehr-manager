@@ -120,7 +120,7 @@
                      data-tauglichkeit=${exited ? 'AUSGETRETEN' : row.tauglichkeit.name()},
                      data-carrier-id=${row.carrier.id},
                      data-href=@{/atemschutz/carriers/{id}(id=${row.carrier.id},unit=${unitId})}">
-          <td th:if="${canWrite}" class="atemschutz-select-col" onclick="event.stopPropagation();">
+          <td th:if="${canWrite}" class="atemschutz-select-col">
             <input type="checkbox" class="atemschutz-row-select" th:value="${row.carrier.id}"
                    th:disabled="${exited}"
                    th:attr="data-birthdate=${row.carrier.person.birthdate != null ? #temporals.format(row.carrier.person.birthdate, 'yyyy-MM-dd') : ''}"
@@ -230,6 +230,6 @@
   </div>
 
   <script th:src="@{/js/atemschutz-modals.js}" defer></script>
-  <script th:src="@{/js/atemschutz-list.js}" defer></script>
+  <script th:src="@{/js/atemschutz-list.js(v='20260824m')}" defer></script>
 </main>
 </html>
