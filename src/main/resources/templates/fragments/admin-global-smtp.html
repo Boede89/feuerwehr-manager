@@ -10,6 +10,29 @@
     </div>
     <div class="card__body">
       <p class="hint">Zentraler Mailversand für die gesamte Installation. Der Test wird an Ihre Login-E-Mail gesendet.</p>
+      <form method="post" th:action="@{/admin/global/smtp/copy-from-unit}" class="admin-smtp-copy">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <div class="admin-smtp-copy__row">
+          <div class="form-group admin-smtp-copy__unit">
+            <label for="smtpCopyUnitId">SMTP aus Einheit übernehmen</label>
+            <select id="smtpCopyUnitId" name="unitId" required>
+              <option value="">Einheit wählen …</option>
+              <option th:each="u : ${smtpCopyUnits}" th:value="${u.id}" th:text="${u.name}">Einheit</option>
+            </select>
+          </div>
+          <div class="form-group admin-smtp-copy__account" id="smtp-copy-account-wrap" hidden>
+            <label for="smtpCopyAccountId">SMTP-Konto</label>
+            <select id="smtpCopyAccountId" name="smtpAccountId">
+              <option value="">Erstes konfiguriertes Konto</option>
+            </select>
+          </div>
+          <div class="form-group admin-smtp-copy__action">
+            <label class="admin-smtp-copy__action-label" aria-hidden="true">&nbsp;</label>
+            <button type="submit" class="btn btn--outline">Übernehmen und speichern</button>
+          </div>
+        </div>
+        <p class="hint text-sm">Kopiert Host, Zugangsdaten und Absender aus der Einheit in die globale SMTP-Konfiguration (inkl. Passwort).</p>
+      </form>
       <form method="post" th:action="@{/admin/global/smtp}" class="form-grid">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <div class="form-group">

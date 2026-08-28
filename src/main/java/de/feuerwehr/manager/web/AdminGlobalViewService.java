@@ -111,6 +111,7 @@ public class AdminGlobalViewService {
         ApplicationSettings s = globalSettingsService.get();
         model.addAttribute("globalSettings", s);
         model.addAttribute("smtpPasswordConfigured", globalSettingsService.isSmtpPasswordConfigured());
+        model.addAttribute("smtpCopyUnits", unitService.findAllOrdered());
     }
 
     private static String buildActionHtml(AuditEvent event) {

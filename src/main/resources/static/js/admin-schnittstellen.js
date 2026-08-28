@@ -410,6 +410,63 @@
       });
   });
 
+  function initGlobalSmtpCopy() {
+    var unitSelect = document.getElementById('smtpCopyUnitId');
+    var accountWrap = document.getElementById('smtp-copy-account-wrap');
+    var accountSelect = document.getElementById('smtpCopyAccountId');
+    if (!unitSelect || !accountSelect) {
+      return;
+    }
+
+    function resetAccounts() {
+      accountSelect.innerHTML = '<option value="">Erstes konfiguriertes Konto</option>';
+      if (accountWrap) {
+        accountWrap.hidden = true;
+      }
+    }
+
+    unitSelect.addEventListener('change', function () {
+      resetAccounts();
+      var unitId = unitSelect.value;
+      if (!unitId) {
+        return;
+      }
+      fetch('/admin/rest/global/smtp/unit-accounts?unit=' + encodeURIComponent(unitId), {
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json', 'X-XSRF-TOKEN': getCsrfToken() },
+      })
+        .then(function (res) {
+          if (!res.ok) {
+            throw new Error('load failed');
+          }
+          return res.json();
+        })
+        .then(function (accounts) {
+          if (!Array.isArray(accounts) || accounts.length <= 1) {
+            return;
+          }
+          accountSelect.innerHTML = '';
+          accounts.forEach(function (account, index) {
+            var opt = document.createElement('option');
+            opt.value = String(account.id);
+            opt.textContent = account.label || ('SMTP #' + account.id);
+            if (index === 0) {
+              opt.selected = true;
+            }
+            accountSelect.appendChild(opt);
+          });
+          if (accountWrap) {
+            accountWrap.hidden = false;
+          }
+        })
+        .catch(function () {
+          resetAccounts();
+        });
+    });
+  }
+
+  initGlobalSmtpCopy();
+
   function escHtml(text) {
     var div = document.createElement('div');
     div.textContent = text == null ? '' : String(text);

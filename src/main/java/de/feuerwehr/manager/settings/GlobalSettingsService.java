@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.settings;
 
+import de.feuerwehr.manager.unit.UnitSmtpAccount;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -87,6 +88,21 @@ public class GlobalSettingsService {
         s.setSmtpFromName(blankToNull(fromName));
         s.setSmtpEncryption(blankToNull(encryption) != null ? encryption.trim() : "TLS");
         settingsRepository.save(s);
+    }
+
+    @Transactional
+    public void copySmtpFromUnit(UnitSmtpAccount account) {
+        if (account == null) {
+            throw new IllegalArgumentException("SMTP-Konto fehlt.");
+        }
+        saveSmtp(
+                account.getSmtpHost(),
+                account.getSmtpPort(),
+                account.getSmtpUsername(),
+                account.getSmtpPassword(),
+                account.getSmtpFromEmail(),
+                account.getSmtpFromName(),
+                account.getSmtpEncryption());
     }
 
     public boolean isSmtpPasswordConfigured() {

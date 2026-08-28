@@ -1,8 +1,12 @@
 package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.dsgvo.AuditService;
+import de.feuerwehr.manager.mail.AccountMailService;
 import de.feuerwehr.manager.settings.GlobalSettingsService;
+import de.feuerwehr.manager.unit.UnitAdminService;
 import de.feuerwehr.manager.unit.UnitService;
+import de.feuerwehr.manager.unit.UnitSmtpAccount;
+import java.util.Optional;
 import de.feuerwehr.manager.user.UserRole;
 import java.util.Base64;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +29,8 @@ public class AdminGlobalController {
 
     private final GlobalSettingsService globalSettingsService;
     private final UnitService unitService;
+    private final UnitAdminService unitAdminService;
+    private final AccountMailService accountMailService;
     private final AuditService auditService;
 
     @PostMapping("/config")
@@ -125,6 +131,33 @@ public class AdminGlobalController {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
         return "redirect:/admin?scope=global&tab=schnittstellen";
+    }
+
+    @PostMapping("/smtp/copy-from-unit")
+    public String copySmtpFromUnit(
+            @RequestParam long unitId, @RequestParam(required = false) Long smtpAccountId, RedirectAttributes redirectAttributes) {
+        try {
+            UnitSmtpAccount account = resolveUnitSmtpAccount(unitId, smtpAccountId);
+            globalSettingsService.copySmtpFromUnit(account);
+            String unitName = unitService.findById(unitId).map(u -> u.getName()).orElse("Einheit");
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute(
+                    "message",
+                    "SMTP-Einstellungen aus „" + unitName + "“ (" + account.getLabel() + ") übernommen und gespeichert.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/admin?scope=global&tab=schnittstellen";
+    }
+
+    private UnitSmtpAccount resolveUnitSmtpAccount(long unitId, Long smtpAccountId) {
+        if (smtpAccountId != null && smtpAccountId > 0) {
+            return unitAdminService.requireSmtpAccount(unitId, smtpAccountId);
+        }
+        return accountMailService
+                .resolveDefaultUnitSmtp(unitId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Für diese Einheit ist kein SMTP-Konto konfiguriert (Admin → Einheit → Schnittstellen)."));
     }
 
     @PostMapping("/units")

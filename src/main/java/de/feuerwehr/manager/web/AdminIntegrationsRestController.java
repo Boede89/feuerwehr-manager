@@ -18,6 +18,7 @@ import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
 import de.feuerwehr.manager.web.dto.ActionResultDto;
 import de.feuerwehr.manager.web.dto.CupsPrintersDto;
+import de.feuerwehr.manager.web.dto.SmtpAccountOptionDto;
 import java.util.Optional;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -140,6 +141,27 @@ public class AdminIntegrationsRestController {
         } catch (IllegalArgumentException e) {
             return ActionResultDto.failure(e.getMessage());
         }
+    }
+
+    @GetMapping("/global/smtp/unit-accounts")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @ResponseBody
+    public List<SmtpAccountOptionDto> listUnitSmtpAccountsForCopy(@RequestParam long unit) {
+        return unitAdminService.listSmtpAccounts(unit).stream()
+                .filter(this::isSmtpAccountSelectable)
+                .map(account -> new SmtpAccountOptionDto(
+                        account.getId(),
+                        account.getLabel() != null && !account.getLabel().isBlank()
+                                ? account.getLabel().trim()
+                                : "SMTP #" + account.getId()))
+                .toList();
+    }
+
+    private boolean isSmtpAccountSelectable(UnitSmtpAccount account) {
+        return account.getSmtpHost() != null
+                && !account.getSmtpHost().isBlank()
+                && account.getSmtpFromEmail() != null
+                && !account.getSmtpFromEmail().isBlank();
     }
 
     @PostMapping("/unit/calendar/test")
