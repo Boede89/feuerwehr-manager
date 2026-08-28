@@ -33,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AttendanceCheckInService {
 
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
+    private static final int PUBLIC_CHECK_IN_TILE_HOURS_BEFORE = 1;
 
     private final AttendanceReportRepository attendanceReportRepository;
     private final UnitTerminRepository unitTerminRepository;
@@ -48,6 +49,7 @@ public class AttendanceCheckInService {
     @Transactional(readOnly = true)
     public List<PublicCheckInOption> listPublicCheckInOptions() {
         LocalDate today = LocalDate.now();
+        LocalDateTime now = LocalDateTime.now();
         LocalDateTime from = today.atStartOfDay();
         LocalDateTime to = today.plusDays(1).atStartOfDay();
         List<PublicCheckInOption> result = new ArrayList<>();
@@ -59,6 +61,9 @@ public class AttendanceCheckInService {
                     unitTerminRepository.findByUnitIdAndStartAtBetween(unit.getId(), from, to);
             for (UnitTermin termin : termins) {
                 if (termin.getCategory() == null || !termin.getCategory().supportsAttendanceReports()) {
+                    continue;
+                }
+                if (!isPublicCheckInTileVisible(termin, now)) {
                     continue;
                 }
                 String theme = termin.getTitle() != null && !termin.getTitle().isBlank()
@@ -344,6 +349,14 @@ public class AttendanceCheckInService {
         report.setCreatedByUser(user);
         report.setCreatedByName(actor.getDisplayName());
         attendanceReportRepository.save(report);
+    }
+
+    private static boolean isPublicCheckInTileVisible(UnitTermin termin, LocalDateTime now) {
+        LocalDateTime startAt = termin.getStartAt();
+        if (startAt == null) {
+            return false;
+        }
+        return !now.isBefore(startAt.minusHours(PUBLIC_CHECK_IN_TILE_HOURS_BEFORE));
     }
 
     private boolean includeTestReports() {
