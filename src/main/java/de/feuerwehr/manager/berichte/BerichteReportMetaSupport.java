@@ -2,35 +2,21 @@ package de.feuerwehr.manager.berichte;
 
 import de.feuerwehr.manager.user.User;
 import java.time.Instant;
-import java.util.Objects;
-import lombok.Value;
 
 /** Anzeige von Erfasser/Freigeber in Bericht-Detailansichten. */
 public final class BerichteReportMetaSupport {
 
-    @Value
-    public static class UserRef {
-        String username;
-        String displayName;
-    }
+    public record UserRef(String username, String displayName) {}
 
-    @Value
-    public static class MetaView {
-        String source;
-        UserRef recordedBy;
-        Instant recordedAt;
-        UserRef releasedBy;
-        Instant releasedAt;
+    public record MetaView(
+            String source,
+            UserRef recordedBy,
+            Instant recordedAt,
+            UserRef releasedBy,
+            Instant releasedAt) {
 
-        public boolean showReleasedBySeparately() {
-            if (releasedBy == null) {
-                return false;
-            }
-            if (recordedBy == null) {
-                return true;
-            }
-            return !Objects.equals(recordedBy.getUsername(), releasedBy.getUsername())
-                    || !Objects.equals(recordedBy.getDisplayName(), releasedBy.getDisplayName());
+        static MetaView empty() {
+            return new MetaView(null, null, null, null, null);
         }
     }
 
@@ -43,12 +29,12 @@ public final class BerichteReportMetaSupport {
         if (report instanceof AttendanceReport attendanceReport) {
             return forAttendance(attendanceReport);
         }
-        return empty();
+        return MetaView.empty();
     }
 
     public static MetaView forIncident(IncidentReport report) {
         if (report == null) {
-            return empty();
+            return MetaView.empty();
         }
         String source = report.getDiveraAlarmId() != null ? "DIVERA" : null;
         UserRef recordedBy = resolveRecordedBy(
@@ -60,7 +46,7 @@ public final class BerichteReportMetaSupport {
 
     public static MetaView forAttendance(AttendanceReport report) {
         if (report == null) {
-            return empty();
+            return MetaView.empty();
         }
         String source = report.getUnitTermin() != null && isSystemCreatorName(report.getCreatedByName())
                 ? "Terminplan"
@@ -70,10 +56,6 @@ public final class BerichteReportMetaSupport {
         UserRef releasedBy = isReleased(report.getStatus()) ? toUserRef(report.getReleasedByUser()) : null;
         Instant releasedAt = isReleased(report.getStatus()) ? report.getReleasedAt() : null;
         return new MetaView(source, recordedBy, report.getCreatedAt(), releasedBy, releasedAt);
-    }
-
-    private static MetaView empty() {
-        return new MetaView(null, null, null, null, null);
     }
 
     private static UserRef resolveRecordedBy(User createdByUser, String createdByName, User releasedByUser) {
