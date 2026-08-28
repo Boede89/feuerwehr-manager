@@ -74,16 +74,17 @@ public class AttendanceCheckInService {
                         : "";
                 result.add(new PublicCheckInOption(
                         unit.getId(),
-                        unit.getName(),
+                        unit.getName() != null ? unit.getName() : "",
                         termin.getId(),
                         theme,
                         termin.getCategory().displayLabel(),
                         time));
             }
         }
-        result.sort(Comparator.comparing(PublicCheckInOption::startTimeLabel)
-                .thenComparing(PublicCheckInOption::unitName, String.CASE_INSENSITIVE_ORDER)
-                .thenComparing(PublicCheckInOption::theme, String.CASE_INSENSITIVE_ORDER));
+        result.sort(Comparator.comparing(
+                        PublicCheckInOption::startTimeLabel, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(PublicCheckInOption::unitName, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
+                .thenComparing(PublicCheckInOption::theme, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)));
         return result;
     }
 

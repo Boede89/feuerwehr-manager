@@ -62,7 +62,7 @@
   <div class="checkin-footer">
     <a class="btn btn--outline" th:href="${checkInBackUrl}">Zurück</a>
     <form method="post"
-          th:action="@{/check-in/{id}/finish(id=${checkIn.reportId()}, unit=${checkIn.unitId()})}">
+          th:action="@{/check-in/{id}/finish(id=${checkIn.reportId}, unit=${checkIn.unitId})}">
       <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
       <button type="submit" class="btn btn--primary btn--lg" id="checkin-finish-btn">Dienst beenden</button>
     </form>

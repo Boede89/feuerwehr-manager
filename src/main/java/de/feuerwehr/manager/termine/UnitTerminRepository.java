@@ -57,11 +57,11 @@ public interface UnitTerminRepository extends JpaRepository<UnitTermin, Long> {
     @Query("""
             SELECT t FROM UnitTermin t
             WHERE t.unit.id = :unitId
-            AND t.startAt >= :from AND t.startAt < :to
+            AND t.startAt >= :rangeStart AND t.startAt < :rangeEnd
             ORDER BY t.startAt ASC, t.id ASC
             """)
     List<UnitTermin> findByUnitIdAndStartAtBetween(
             @Param("unitId") long unitId,
-            @Param("from") LocalDateTime from,
-            @Param("to") LocalDateTime to);
+            @Param("rangeStart") LocalDateTime rangeStart,
+            @Param("rangeEnd") LocalDateTime rangeEnd);
 }

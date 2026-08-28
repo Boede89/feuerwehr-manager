@@ -31,15 +31,15 @@
 
     <div class="start-tile-grid">
       <a class="start-tile" th:each="opt : ${publicCheckInOptions}"
-         th:href="@{/check-in(unit=${opt.unitId()}, terminId=${opt.terminId()})}">
+         th:href="@{/check-in(unit=${opt.unitId}, terminId=${opt.terminId})}">
         <span class="start-tile__icon" aria-hidden="true">✅</span>
-        <strong class="start-tile__title" th:text="${opt.theme()}">Übungsdienst</strong>
+        <strong class="start-tile__title" th:text="${opt.theme}">Übungsdienst</strong>
         <span class="start-tile__text">
-          <span th:text="${opt.categoryLabel()}">Übungsdienst</span>
-          <span th:if="${opt.startTimeLabel() != null and !#strings.isEmpty(opt.startTimeLabel())}"
-                th:text="' · ' + opt.startTimeLabel() + ' Uhr'"> · 19:00 Uhr</span>
-          <span th:if="${#lists.size(publicCheckInOptions) > 1}"
-                th:text="' · ' + opt.unitName()"> · Einheit</span>
+          <span th:text="${opt.categoryLabel}">Übungsdienst</span>
+          <span th:if="${!#strings.isEmpty(opt.startTimeLabel)}"
+                th:text="| · ${opt.startTimeLabel} Uhr|"> · 19:00 Uhr</span>
+          <span th:if="${showCheckInUnitNames}"
+                th:text="| · ${opt.unitName}|"> · Einheit</span>
         </span>
         <span class="start-tile__cta">Check In starten</span>
       </a>

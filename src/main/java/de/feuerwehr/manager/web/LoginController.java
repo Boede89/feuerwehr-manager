@@ -36,10 +36,13 @@ public class LoginController {
         }
         model.addAttribute("publicReservationAvailable", publicReservationAvailable);
         try {
-            model.addAttribute("publicCheckInOptions", attendanceCheckInService.listPublicCheckInOptions());
+            var publicCheckInOptions = attendanceCheckInService.listPublicCheckInOptions();
+            model.addAttribute("publicCheckInOptions", publicCheckInOptions);
+            model.addAttribute("showCheckInUnitNames", publicCheckInOptions.size() > 1);
         } catch (Exception e) {
-            log.warn("Öffentliche Check-In-Termine konnten nicht geladen werden: {}", e.getMessage());
+            log.warn("Öffentliche Check-In-Termine konnten nicht geladen werden: {}", e.getMessage(), e);
             model.addAttribute("publicCheckInOptions", List.of());
+            model.addAttribute("showCheckInUnitNames", false);
         }
         if (error != null) {
             model.addAttribute("errorMessage", "Anmeldung fehlgeschlagen. Bitte Zugangsdaten prüfen.");

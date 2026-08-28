@@ -196,7 +196,7 @@
                 </div>
                 <a class="btn btn--danger btn--sm termine-row__checkin"
                    th:if="${termin.checkInAvailable()}"
-                   th:href="@{/check-in(unit=${unitId}, terminId=${termin.terminId()})}">
+                   th:href="@{/check-in(unit=${unitId}, terminId=${termin.terminId})}">
                   Check In starten
                 </a>
               </div>
