@@ -5618,6 +5618,18 @@ span.required { color: var(--error); }
   align-items: start;
 }
 
+.einsatzbericht-form-page .incident-date-range {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: start;
+  min-width: 0;
+}
+
+.einsatzbericht-form-page .incident-date-range__item {
+  min-width: 0;
+}
+
 .einsatzbericht-form-page .field-with-action {
   display: flex;
   gap: 8px;
@@ -6035,6 +6047,7 @@ span.required { color: var(--error); }
   .einsatzbericht-form-page .incident-form-grid-2,
   .einsatzbericht-form-page .incident-form-grid-3,
   .einsatzbericht-form-page .incident-form-grid-4,
+  .einsatzbericht-form-page .incident-date-range,
   .einsatzbericht-form-page .incident-flags-grid,
   .einsatzbericht-form-page .incident-form-police {
     grid-template-columns: 1fr;

@@ -27,23 +27,25 @@
           Format: Datum-Laufnummer (pro Jahr). Vorschlag aus höchster vorhandener Nummer — manuell anpassbar.
         </p>
       </div>
-      <div class="form-group">
-        <label for="incidentDate">Datum <span class="required">*</span></label>
-        <input id="incidentDate" name="incidentDate" type="date" required
-               th:readonly="${formMode == 'view'}" th:value="${form.incidentDate}"/>
+      <div class="form-group incident-date-range">
+        <div class="incident-date-range__item">
+          <label for="incidentDate">Datum <span class="required">*</span></label>
+          <input id="incidentDate" name="incidentDate" type="date" required
+                 th:readonly="${formMode == 'view'}" th:value="${form.incidentDate}"/>
+        </div>
+        <div class="incident-date-range__item">
+          <label for="endDate">Ende Datum</label>
+          <input id="endDate" name="endDate" type="date"
+                 th:readonly="${formMode == 'view'}" th:value="${form.endDate}"/>
+          <p id="incident-end-overnight-hint" class="hint text-sm" hidden style="margin:0;">
+            Einsatzende liegt am Folgetag.
+          </p>
+        </div>
       </div>
       <div class="form-group">
         <label for="alarmTime">Alarmzeit <span class="required">*</span></label>
         <input id="alarmTime" name="alarmTime" type="time" th:readonly="${formMode == 'view'}"
                th:value="${form.alarmTime != null ? #temporals.format(form.alarmTime, 'HH:mm') : ''}"/>
-      </div>
-      <div class="form-group">
-        <label for="endDate">Ende Datum</label>
-        <input id="endDate" name="endDate" type="date"
-               th:readonly="${formMode == 'view'}" th:value="${form.endDate}"/>
-        <p id="incident-end-overnight-hint" class="hint text-sm" hidden style="margin:0;">
-          Einsatzende liegt am Folgetag.
-        </p>
       </div>
       <div class="form-group">
         <label for="endTime">Einsatzende <span class="required">*</span></label>
