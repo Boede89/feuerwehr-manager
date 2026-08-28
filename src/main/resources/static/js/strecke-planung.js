@@ -318,16 +318,23 @@
     });
   }
 
-  function sendEmail(payload, confirmText) {
+  function sendEmail(payload, confirmText, sourceBtn) {
     if (!canMail) {
       if (typeof toast === 'function') toast('SMTP ist nicht konfiguriert.', 'warning');
       return;
     }
     if (confirmText && !confirm(confirmText)) return;
-    apiFetch('/atemschutz/strecke-planung/api/email?unit=' + unitId, {
+    var request = apiFetch('/atemschutz/strecke-planung/api/email?unit=' + unitId, {
       method: 'POST',
       body: JSON.stringify(payload)
-    }).then(notifyResult);
+    });
+    if (window.FwBusy && sourceBtn) {
+      request = window.FwBusy.wrapPromise(sourceBtn, request, {
+        message: 'E-Mail wird gesendet …',
+        buttonLabel: 'Wird gesendet …'
+      });
+    }
+    request.then(notifyResult);
   }
 
   document.querySelectorAll('.strecke-carrier-badge__notify').forEach(function (btn) {
@@ -337,7 +344,7 @@
         action: 'einzeln_informieren',
         terminId: parseInt(btn.getAttribute('data-termin-id'), 10),
         carrierId: parseInt(btn.getAttribute('data-carrier-id'), 10)
-      }, 'Teilnehmer per E-Mail informieren?');
+      }, 'Teilnehmer per E-Mail informieren?', btn);
     });
   });
 
@@ -346,14 +353,14 @@
       sendEmail({
         action: 'termin_informieren',
         terminId: parseInt(btn.getAttribute('data-termin-id'), 10)
-      }, 'Alle Teilnehmer dieses Termins per E-Mail informieren?');
+      }, 'Alle Teilnehmer dieses Termins per E-Mail informieren?', btn);
     });
   });
 
   var notifyAllBtn = document.getElementById('strecke-notify-all');
   if (notifyAllBtn) {
     notifyAllBtn.addEventListener('click', function () {
-      sendEmail({ action: 'alle_informieren' }, 'Alle zugeordneten Teilnehmer aller Termine informieren?');
+      sendEmail({ action: 'alle_informieren' }, 'Alle zugeordneten Teilnehmer aller Termine informieren?', notifyAllBtn);
     });
   }
 

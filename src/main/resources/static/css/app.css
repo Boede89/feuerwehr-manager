@@ -3984,6 +3984,23 @@ body.modal-open {
   }
 }
 
+.btn.btn--busy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.fw-btn-spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid color-mix(in srgb, currentColor 28%, transparent);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: fw-busy-spin 0.75s linear infinite;
+  flex-shrink: 0;
+}
+
 .modal--lg {
   max-width: 640px;
 }

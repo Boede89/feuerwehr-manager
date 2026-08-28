@@ -162,9 +162,10 @@
     bugForm.addEventListener('submit', function (event) {
       event.preventDefault();
       setBugError('');
-      if (bugSubmitBtn) {
-        bugSubmitBtn.disabled = true;
+      if (bugForm.dataset.submitting === 'true') {
+        return;
       }
+      bugForm.dataset.submitting = 'true';
       var payload = {
         reporterName: (document.getElementById('bug-report-name') || {}).value || '',
         reporterEmail: (document.getElementById('bug-report-email') || {}).value || '',
@@ -172,12 +173,22 @@
         description: (document.getElementById('bug-report-description') || {}).value || '',
         pageUrl: window.location.href
       };
-      fetch('/login/bug-report', {
+      var request = fetch('/login/bug-report', {
         method: 'POST',
         credentials: 'same-origin',
         headers: csrfHeaders(),
         body: JSON.stringify(payload)
-      })
+      });
+      if (window.FwBusy && bugSubmitBtn) {
+        request = window.FwBusy.wrapPromise(bugSubmitBtn, request, {
+          message: 'Fehlermeldung wird gesendet …',
+          container: bugOverlay ? bugOverlay.querySelector('.modal') : null,
+          buttonLabel: 'Wird gesendet …'
+        });
+      } else if (bugSubmitBtn) {
+        bugSubmitBtn.disabled = true;
+      }
+      request
         .then(function (res) {
           return res.json().then(function (data) {
             return { ok: res.ok, data: data };
@@ -196,11 +207,7 @@
         })
         .catch(function (err) {
           setBugError(err.message || 'Die Fehlermeldung konnte nicht gesendet werden.');
-        })
-        .finally(function () {
-          if (bugSubmitBtn) {
-            bugSubmitBtn.disabled = false;
-          }
+          bugForm.dataset.submitting = 'false';
         });
     });
   }
