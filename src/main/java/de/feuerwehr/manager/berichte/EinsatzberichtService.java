@@ -968,6 +968,7 @@ public class EinsatzberichtService {
         if (!EinsatzberichtAccess.canEdit(report, actor, canApprove)) {
             throw new IllegalArgumentException("Dieser Einsatzbericht kann nicht bearbeitet werden.");
         }
+        applyCreatorIfMissing(report, actor);
         if (report.getStatus() != IncidentReportStatus.ENTWURF
                 && (actor == null || !actor.getRole().isAdminLevel())) {
             throw new IllegalArgumentException("Freigegebene oder archivierte Berichte können nur von Administratoren geändert werden.");
@@ -1834,6 +1835,7 @@ public class EinsatzberichtService {
         }
         report.setStatus(newStatus);
         if (newStatus == IncidentReportStatus.FREIGEGEBEN) {
+            applyCreatorIfMissing(report, actor);
             userRepository.findById(actor.getUserId()).ifPresent(report::setReleasedByUser);
             report.setReleasedAt(Instant.now());
         }
@@ -1860,6 +1862,13 @@ public class EinsatzberichtService {
         User user = userRepository.findById(actor.getUserId()).orElse(null);
         report.setCreatedByUser(user);
         report.setCreatedByName(actor.getDisplayName());
+    }
+
+    private void applyCreatorIfMissing(IncidentReport report, AppUserDetails actor) {
+        if (actor == null || report.getCreatedByUser() != null) {
+            return;
+        }
+        applyCreator(report, actor);
     }
 
     private String resolveIncidentNumberForCreate(long unitId, LocalDate date, String requestedNumber) {

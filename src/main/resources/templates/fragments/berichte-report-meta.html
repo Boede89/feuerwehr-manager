@@ -1,26 +1,47 @@
 <!DOCTYPE html>
 <html lang="de" xmlns:th="http://www.thymeleaf.org">
 <th:block th:fragment="meta(report)">
-  <div class="berichte-report-meta" th:if="${report != null}">
+  <div class="berichte-report-meta" th:if="${report != null}"
+       th:with="meta=${T(de.feuerwehr.manager.berichte.BerichteReportMetaSupport).forReport(report)}">
     <dl class="berichte-report-meta__grid">
-      <div class="berichte-report-meta__item">
+      <div class="berichte-report-meta__item" th:if="${meta.source != null}">
+        <dt>Quelle</dt>
+        <dd th:text="${meta.source}">DIVERA</dd>
+      </div>
+      <div class="berichte-report-meta__item" th:if="${meta.recordedBy != null}">
         <dt>Erfasst von</dt>
         <dd>
-          <th:block th:if="${report.createdByUser != null}">
-            <span th:text="${report.createdByUser.username}">benutzer</span>
-            <span class="berichte-report-meta__secondary"
-                  th:if="${report.createdByUser.displayName != null
-                    and !#strings.isEmpty(report.createdByUser.displayName)
-                    and report.createdByUser.displayName != report.createdByUser.username}"
-                  th:text="'(' + ${report.createdByUser.displayName} + ')'">(Name)</span>
-          </th:block>
-          <th:block th:unless="${report.createdByUser != null}"
-                    th:text="${report.createdByName != null and !#strings.isEmpty(report.createdByName) ? report.createdByName : '—'}">—</th:block>
+          <span th:if="${meta.recordedBy.username != null}" th:text="${meta.recordedBy.username}">benutzer</span>
+          <span th:unless="${meta.recordedBy.username != null}" th:text="${meta.recordedBy.displayName}">Name</span>
+          <span class="berichte-report-meta__secondary"
+                th:if="${meta.recordedBy.username != null
+                  and meta.recordedBy.displayName != null
+                  and !#strings.isEmpty(meta.recordedBy.displayName)
+                  and meta.recordedBy.displayName != meta.recordedBy.username}"
+                th:text="'(' + ${meta.recordedBy.displayName} + ')'">(Name)</span>
         </dd>
       </div>
-      <div class="berichte-report-meta__item" th:if="${report.createdAt != null}">
+      <div class="berichte-report-meta__item" th:if="${meta.recordedAt != null}">
         <dt>Erfasst am</dt>
-        <dd th:text="${#temporals.format(report.createdAt.atZone(T(java.time.ZoneId).of('Europe/Berlin')), 'dd.MM.yyyy HH:mm')}">—</dd>
+        <dd th:text="${#temporals.format(meta.recordedAt.atZone(T(java.time.ZoneId).of('Europe/Berlin')), 'dd.MM.yyyy HH:mm')}">—</dd>
+      </div>
+      <div class="berichte-report-meta__item"
+           th:if="${meta.releasedBy != null and (meta.recordedBy == null or meta.recordedBy.username != meta.releasedBy.username or meta.recordedBy.displayName != meta.releasedBy.displayName)}">
+        <dt>Freigegeben von</dt>
+        <dd>
+          <span th:if="${meta.releasedBy.username != null}" th:text="${meta.releasedBy.username}">benutzer</span>
+          <span th:unless="${meta.releasedBy.username != null}" th:text="${meta.releasedBy.displayName}">Name</span>
+          <span class="berichte-report-meta__secondary"
+                th:if="${meta.releasedBy.username != null
+                  and meta.releasedBy.displayName != null
+                  and !#strings.isEmpty(meta.releasedBy.displayName)
+                  and meta.releasedBy.displayName != meta.releasedBy.username}"
+                th:text="'(' + ${meta.releasedBy.displayName} + ')'">(Name)</span>
+        </dd>
+      </div>
+      <div class="berichte-report-meta__item" th:if="${meta.releasedAt != null}">
+        <dt>Freigegeben am</dt>
+        <dd th:text="${#temporals.format(meta.releasedAt.atZone(T(java.time.ZoneId).of('Europe/Berlin')), 'dd.MM.yyyy HH:mm')}">—</dd>
       </div>
     </dl>
   </div>

@@ -413,6 +413,7 @@ public class AnwesenheitslisteService {
             throw new IllegalArgumentException(
                     "Freigegebene oder archivierte Listen können nur von Administratoren geändert werden.");
         }
+        applyCreatorIfMissing(report, actor);
         AnwesenheitslisteEinsatzFormBridge.applyEinsatzForm(report, form);
         syncInstructorFields(report, form, unitId);
         AttendanceReport saved = attendanceReportRepository.save(report);
@@ -509,6 +510,7 @@ public class AnwesenheitslisteService {
             throw new IllegalArgumentException(
                     "Freigegebene oder archivierte Listen können nur von Administratoren geändert werden.");
         }
+        applyCreatorIfMissing(report, actor);
         applyForm(report, form);
         if (form.reportNumber() != null && !form.reportNumber().isBlank()) {
             report.setReportNumber(form.reportNumber().trim());
@@ -573,6 +575,7 @@ public class AnwesenheitslisteService {
         }
         report.setStatus(newStatus);
         if (newStatus == IncidentReportStatus.FREIGEGEBEN) {
+            applyCreatorIfMissing(report, actor);
             userRepository.findById(actor.getUserId()).ifPresent(report::setReleasedByUser);
             report.setReleasedAt(Instant.now());
         }
@@ -1293,6 +1296,13 @@ public class AnwesenheitslisteService {
         User user = userRepository.findById(actor.getUserId()).orElse(null);
         report.setCreatedByUser(user);
         report.setCreatedByName(actor.getDisplayName());
+    }
+
+    private void applyCreatorIfMissing(AttendanceReport report, AppUserDetails actor) {
+        if (actor == null || report.getCreatedByUser() != null) {
+            return;
+        }
+        applyCreator(report, actor);
     }
 
     private String resolveReportNumberForCreate(long unitId, LocalDate date, String requestedNumber) {
