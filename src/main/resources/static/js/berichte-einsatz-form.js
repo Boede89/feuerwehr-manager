@@ -190,13 +190,12 @@
     focusReleaseField(first.anchorId, first.tabIndex);
   }
 
-  function initIncidentEndDateSync(scope) {
-    var root = scope || document;
-    var incidentDateInput = root.getElementById('incidentDate');
-    var endDateInput = root.getElementById('endDate');
-    var alarmTimeInput = root.getElementById('alarmTime');
-    var endTimeInput = root.getElementById('endTime');
-    var overnightHint = root.getElementById('incident-end-overnight-hint');
+  function initIncidentEndDateSync() {
+    var incidentDateInput = document.getElementById('incidentDate');
+    var endDateInput = document.getElementById('endDate');
+    var alarmTimeInput = document.getElementById('alarmTime');
+    var endTimeInput = document.getElementById('endTime');
+    var overnightHint = document.getElementById('incident-end-overnight-hint');
     if (!incidentDateInput || !endDateInput || endDateInput.readOnly) {
       return;
     }
@@ -324,7 +323,7 @@
     var dateInput = document.getElementById('incidentDate');
     var numberInput = document.getElementById('incidentNumber');
     if (!anwesenheit) {
-      initIncidentEndDateSync(scope);
+      initIncidentEndDateSync();
     }
     if (dateInput && numberInput && numberInput.dataset.autoNumber === 'true') {
       function refreshSuggestedNumber() {
