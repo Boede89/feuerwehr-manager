@@ -2382,6 +2382,40 @@ body.dashboard-editing .dashboard-widget {
   content: ' →';
 }
 
+.start-tile--under-construction {
+  cursor: not-allowed;
+  opacity: 0.72;
+  filter: grayscale(0.35);
+}
+
+.start-tile--under-construction:hover,
+.start-tile--under-construction:focus-visible {
+  transform: none;
+  box-shadow: var(--schatten-sm);
+  border-color: var(--border);
+}
+
+.start-tile__construction {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  width: 118%;
+  padding: 0.45rem 0;
+  border: 2px dashed color-mix(in srgb, var(--gelb, #ca8a04) 65%, #000);
+  background: color-mix(in srgb, var(--gelb, #eab308) 88%, #000);
+  color: #422006;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  line-height: 1.2;
+  text-align: center;
+  text-transform: uppercase;
+  transform: translate(-50%, -50%) rotate(-18deg);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+}
+
 .start-page .login-rfid {
   margin: 0 auto 8px;
   text-align: center;

@@ -30,11 +30,13 @@
     <h1 class="start-page__title">Was möchten Sie tun?</h1>
 
     <div class="start-tile-grid">
-      <a class="start-tile" th:if="${publicReservationAvailable}" th:href="@{/reservieren}">
+      <div class="start-tile start-tile--under-construction" th:if="${publicReservationAvailable}"
+           role="group" aria-label="Fahrzeug oder Raum reservieren – Under Construction">
+        <span class="start-tile__construction" aria-hidden="true">Under Construction</span>
         <span class="start-tile__icon" aria-hidden="true">🚒</span>
         <strong class="start-tile__title">Fahrzeug oder Raum reservieren</strong>
-        <span class="start-tile__cta">Weiter</span>
-      </a>
+        <span class="start-tile__text">Derzeit in der Testphase – noch nicht verfügbar.</span>
+      </div>
     </div>
   </main>
 
