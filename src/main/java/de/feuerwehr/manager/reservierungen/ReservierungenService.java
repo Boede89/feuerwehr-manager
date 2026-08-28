@@ -11,6 +11,7 @@ import de.feuerwehr.manager.unit.UnitRepository;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
 import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -356,6 +357,118 @@ public class ReservierungenService {
             notes.add("Keine E-Mail an Antragsteller gesendet.");
         }
         return notes;
+    }
+
+    /**
+     * Übernahme genehmigter Reservierungen aus JSON-Export der alten feuerwehr-app.
+     * Kein DIVERA-/Google-Kalender-Sync und keine E-Mails.
+     */
+    @Transactional
+    public LegacyReservationImportOutcome importLegacyExportFile(
+            long unitId, long actorUserId, LegacyReservationExportFile exportFile) {
+        if (exportFile == null || exportFile.reservations() == null || exportFile.reservations().isEmpty()) {
+            throw new IllegalArgumentException("Die Export-Datei enthält keine Reservierungen.");
+        }
+        if (exportFile.formatVersion() != 1) {
+            throw new IllegalArgumentException("Unbekannte Export-Version: " + exportFile.formatVersion());
+        }
+        requireUnit(unitId);
+        User actor = requireUser(actorUserId);
+        int imported = 0;
+        int skipped = 0;
+        List<String> details = new ArrayList<>();
+
+        for (LegacyReservationExportItem item : exportFile.reservations()) {
+            String label = describeLegacyItem(item);
+            try {
+                if (item == null) {
+                    skipped++;
+                    details.add("Leerer Eintrag übersprungen.");
+                    continue;
+                }
+                if (item.status() != null && !"approved".equalsIgnoreCase(item.status().trim())) {
+                    skipped++;
+                    details.add(label + ": Status nicht genehmigt, übersprungen.");
+                    continue;
+                }
+                String kind = item.kind() == null ? "" : item.kind().trim().toLowerCase(Locale.ROOT);
+                boolean vehicleKind = "vehicle".equals(kind) || "fahrzeug".equals(kind);
+                boolean roomKind = "room".equals(kind) || "raum".equals(kind);
+                if (!vehicleKind && !roomKind) {
+                    skipped++;
+                    details.add(label + ": Unbekannte Art \"" + item.kind() + "\".");
+                    continue;
+                }
+                String resourceName = requireText(item.resourceName(), "Ressource");
+                Instant startAt = parseExportInstant(item.startAt());
+                Instant endAt = parseExportInstant(item.endAt());
+                validateTimes(startAt, endAt);
+                String requesterName = requireText(item.requesterName(), "Antragsteller");
+                String requesterEmail = requireText(item.requesterEmail(), "E-Mail");
+                String reason = optionalText(item.reason(), "Übernommen aus feuerwehr-app");
+                String location = optionalText(item.location(), "—");
+                Instant approvedAt = parseExportInstant(item.approvedAt());
+                if (approvedAt == null) {
+                    approvedAt = Instant.now();
+                }
+
+                if (vehicleKind) {
+                    if (isDuplicateVehicleImport(unitId, resourceName, startAt, endAt, requesterEmail)) {
+                        skipped++;
+                        details.add(label + ": Bereits vorhanden, übersprungen.");
+                        continue;
+                    }
+                    Vehicle vehicle = findActiveVehicleByName(unitId, resourceName)
+                            .orElseThrow(() -> new IllegalArgumentException(
+                                    "Fahrzeug \"" + resourceName + "\" nicht gefunden."));
+                    VehicleReservation reservation = new VehicleReservation();
+                    reservation.setUnit(unit);
+                    reservation.setVehiclesOrdered(List.of(vehicle));
+                    reservation.setRequesterUser(actor);
+                    reservation.setRequesterName(requesterName);
+                    reservation.setRequesterEmail(requesterEmail);
+                    reservation.setReason(reason);
+                    reservation.setLocation(location);
+                    reservation.setStartAt(startAt);
+                    reservation.setEndAt(endAt);
+                    reservation.setStatus(ReservationStatus.APPROVED);
+                    reservation.setApprovedByUser(actor);
+                    reservation.setApprovedAt(approvedAt);
+                    reservation.setTestData(testModeService.testDataScope());
+                    vehicleReservationRepository.save(reservation);
+                } else {
+                    if (isDuplicateRoomImport(unitId, resourceName, startAt, endAt, requesterEmail)) {
+                        skipped++;
+                        details.add(label + ": Bereits vorhanden, übersprungen.");
+                        continue;
+                    }
+                    Room room = findActiveRoomByName(unitId, resourceName)
+                            .orElseThrow(() -> new IllegalArgumentException(
+                                    "Raum \"" + resourceName + "\" nicht gefunden."));
+                    RoomReservation reservation = new RoomReservation();
+                    reservation.setUnit(unit);
+                    reservation.setRoom(room);
+                    reservation.setRequesterUser(actor);
+                    reservation.setRequesterName(requesterName);
+                    reservation.setRequesterEmail(requesterEmail);
+                    reservation.setReason(reason);
+                    reservation.setLocation(location);
+                    reservation.setStartAt(startAt);
+                    reservation.setEndAt(endAt);
+                    reservation.setStatus(ReservationStatus.APPROVED);
+                    reservation.setApprovedByUser(actor);
+                    reservation.setApprovedAt(approvedAt);
+                    reservation.setTestData(testModeService.testDataScope());
+                    roomReservationRepository.save(reservation);
+                }
+                imported++;
+                details.add(label + ": Importiert.");
+            } catch (RuntimeException e) {
+                skipped++;
+                details.add(label + ": " + e.getMessage());
+            }
+        }
+        return new LegacyReservationImportOutcome(imported, skipped, List.copyOf(details));
     }
 
     @Transactional(readOnly = true)
@@ -1112,6 +1225,92 @@ public class ReservierungenService {
             throw new IllegalArgumentException(label + " ist erforderlich.");
         }
         return value.trim();
+    }
+
+    private static String optionalText(String value, String fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        return value.trim();
+    }
+
+    private static Instant parseExportInstant(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return Instant.parse(value.trim());
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("Ungültiges Datum: " + value);
+        }
+    }
+
+    private static String normalizeResourceName(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
+    }
+
+    private static String describeLegacyItem(LegacyReservationExportItem item) {
+        if (item == null) {
+            return "Eintrag";
+        }
+        String kind = item.kind() == null ? "?" : item.kind();
+        String resource = item.resourceName() == null ? "?" : item.resourceName();
+        if (item.legacyId() != null) {
+            return kind + " #" + item.legacyId() + " (" + resource + ")";
+        }
+        return kind + " (" + resource + ")";
+    }
+
+    private java.util.Optional<Vehicle> findActiveVehicleByName(long unitId, String name) {
+        String needle = normalizeResourceName(name);
+        return vehicleRepository
+                .findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(unitId, testModeService.testDataScope())
+                .stream()
+                .filter(Vehicle::isActive)
+                .filter(vehicle -> normalizeResourceName(vehicle.getName()).equals(needle))
+                .findFirst();
+    }
+
+    private java.util.Optional<Room> findActiveRoomByName(long unitId, String name) {
+        String needle = normalizeResourceName(name);
+        return roomRepository
+                .findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(unitId, testModeService.testDataScope())
+                .stream()
+                .filter(Room::isActive)
+                .filter(room -> normalizeResourceName(room.getName()).equals(needle))
+                .findFirst();
+    }
+
+    private boolean isDuplicateVehicleImport(
+            long unitId, String resourceName, Instant startAt, Instant endAt, String requesterEmail) {
+        String normEmail = normalizeResourceName(requesterEmail);
+        String normResource = normalizeResourceName(resourceName);
+        return vehicleReservationRepository
+                .findByUnitIdAndStatusOrderByStartAtAsc(unitId, ReservationStatus.APPROVED)
+                .stream()
+                .filter(reservation -> isVisible(reservation.isTestData()))
+                .anyMatch(reservation -> reservation.getStartAt().equals(startAt)
+                        && reservation.getEndAt().equals(endAt)
+                        && normalizeResourceName(reservation.getRequesterEmail()).equals(normEmail)
+                        && reservation.resolvedVehicles().stream()
+                                .anyMatch(vehicle -> normalizeResourceName(vehicle.getName()).equals(normResource)));
+    }
+
+    private boolean isDuplicateRoomImport(
+            long unitId, String resourceName, Instant startAt, Instant endAt, String requesterEmail) {
+        String normEmail = normalizeResourceName(requesterEmail);
+        String normResource = normalizeResourceName(resourceName);
+        return roomReservationRepository
+                .findByUnitIdAndStatusOrderByStartAtAsc(unitId, ReservationStatus.APPROVED)
+                .stream()
+                .filter(reservation -> isVisible(reservation.isTestData()))
+                .anyMatch(reservation -> reservation.getStartAt().equals(startAt)
+                        && reservation.getEndAt().equals(endAt)
+                        && normalizeResourceName(reservation.getRequesterEmail()).equals(normEmail)
+                        && normalizeResourceName(reservation.getRoom().getName()).equals(normResource));
     }
 
     private static String trimToNull(String value) {

@@ -2,6 +2,7 @@ package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.reservierungen.CreateReservationRequest;
 import de.feuerwehr.manager.reservierungen.ImportReservationRequest;
+import de.feuerwehr.manager.reservierungen.LegacyReservationExportFile;
 import de.feuerwehr.manager.reservierungen.LoeschfahrzeugWarningException;
 import de.feuerwehr.manager.reservierungen.ProcessReservationRequest;
 import de.feuerwehr.manager.reservierungen.ReservationConflictException;
@@ -22,10 +23,13 @@ import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.user.UserRepository;
 import de.feuerwehr.manager.web.dto.ActionResultDto;
 import de.feuerwehr.manager.web.dto.ReservationActionResultDto;
+import de.feuerwehr.manager.web.dto.ReservationBulkImportResultDto;
 import de.feuerwehr.manager.web.dto.ResourceOptionDto;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -37,6 +41,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
@@ -53,6 +58,7 @@ public class ReservierungenController {
     private final UnitAdminService unitAdminService;
     private final PersonalService personalService;
     private final UserRepository userRepository;
+    private final ObjectMapper objectMapper;
 
     @GetMapping
     public String index(
@@ -170,6 +176,30 @@ public class ReservierungenController {
             return ReservationActionResultDto.success("Reservierung wurde als genehmigt übernommen.", notes);
         } catch (IllegalArgumentException e) {
             return ReservationActionResultDto.failure(e.getMessage());
+        }
+    }
+
+    @PostMapping(value = "/api/import-export-file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseBody
+    public ReservationBulkImportResultDto importExportFile(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @RequestParam("file") MultipartFile file) {
+        try {
+            requireModuleEnabled(unitId);
+            requireWrite(actor, unitId);
+            accessControlService.requireUnitAccess(actor, unitId);
+            if (file == null || file.isEmpty()) {
+                return ReservationBulkImportResultDto.failure("Bitte eine JSON-Export-Datei wählen.");
+            }
+            LegacyReservationExportFile exportFile =
+                    objectMapper.readValue(file.getInputStream(), LegacyReservationExportFile.class);
+            var outcome = reservierungenService.importLegacyExportFile(unitId, actor.getUserId(), exportFile);
+            return ReservationBulkImportResultDto.success(outcome.imported(), outcome.skipped(), outcome.details());
+        } catch (IllegalArgumentException e) {
+            return ReservationBulkImportResultDto.failure(e.getMessage());
+        } catch (Exception e) {
+            return ReservationBulkImportResultDto.failure("Import fehlgeschlagen: " + e.getMessage());
         }
     }
 

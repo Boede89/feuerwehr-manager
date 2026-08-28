@@ -17,6 +17,7 @@
   var loeschModal = document.getElementById('reservierung-loesch-modal');
   var importModal = document.getElementById('reservierung-import-modal');
   var importOptionsModal = document.getElementById('reservierung-import-options-modal');
+  var fileImportResultModal = document.getElementById('reservierung-file-import-result-modal');
   var pendingApproveRetry = null;
   var form = document.getElementById('reservierung-form');
   var importForm = document.getElementById('reservierung-import-form');
@@ -1014,6 +1015,13 @@
       pendingImportPayload = null;
     });
   });
+  document.querySelectorAll('[data-close-file-import-result-modal]').forEach(function (btn) {
+    btn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      closeOverlay(fileImportResultModal);
+      window.location.reload();
+    });
+  });
   document.querySelectorAll('[data-close-details-modal]').forEach(function (btn) {
     btn.addEventListener('click', function (ev) {
       ev.preventDefault();
@@ -1400,6 +1408,69 @@
     syncImportUiForKind();
     openOverlay(importModal);
   });
+
+  document.getElementById('reservierung-file-import-open')?.addEventListener('click', function () {
+    var input = document.getElementById('reservierung-file-import-input');
+    if (!input) return;
+    input.value = '';
+    input.click();
+  });
+
+  document.getElementById('reservierung-file-import-input')?.addEventListener('change', function (ev) {
+    var file = ev.target.files && ev.target.files[0];
+    ev.target.value = '';
+    if (!file) return;
+    if (!window.confirm(
+      'Genehmigte Reservierungen aus der Export-Datei übernehmen?\n\n'
+      + 'Es werden weder E-Mails versendet noch Einträge in DIVERA oder Google Kalender erstellt.'
+    )) {
+      return;
+    }
+    var formData = new FormData();
+    formData.append('file', file);
+    var btn = document.getElementById('reservierung-file-import-open');
+    if (btn) btn.disabled = true;
+    fetch('/reservierungen/api/import-export-file?unit=' + encodeURIComponent(unitId), {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: Object.assign({ Accept: 'application/json' }, csrfHeaders()),
+      body: formData
+    })
+      .then(parseJsonResponse)
+      .then(function (result) {
+        var summaryEl = document.getElementById('reservierung-file-import-result-summary');
+        var detailsEl = document.getElementById('reservierung-file-import-result-details');
+        if (summaryEl) {
+          summaryEl.textContent = result && result.message ? result.message : 'Import abgeschlossen.';
+        }
+        if (detailsEl) {
+          detailsEl.innerHTML = '';
+          var details = (result && result.details) || [];
+          details.forEach(function (line) {
+            var li = document.createElement('li');
+            li.textContent = line;
+            detailsEl.appendChild(li);
+          });
+        }
+        if (result && result.ok) {
+          notify(result.message || 'Import abgeschlossen.', 'success');
+        } else {
+          notify((result && result.message) || 'Import fehlgeschlagen.', 'error');
+        }
+        if (fileImportResultModal) {
+          openOverlay(fileImportResultModal);
+        } else if (result && result.ok) {
+          window.location.reload();
+        }
+      })
+      .catch(function () {
+        notify('Import fehlgeschlagen.', 'error');
+      })
+      .finally(function () {
+        if (btn) btn.disabled = false;
+      });
+  });
+
   document.getElementById('import-kind')?.addEventListener('change', syncImportUiForKind);
   document.getElementById('import-add-resource')?.addEventListener('click', function () {
     if ((document.getElementById('import-kind')?.value || 'vehicle') !== 'vehicle') {

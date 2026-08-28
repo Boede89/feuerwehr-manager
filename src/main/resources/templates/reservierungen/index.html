@@ -186,7 +186,11 @@
     <div class="card" style="margin-top:16px;">
       <div class="card__header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
         <span>Historie</span>
-        <button type="button" class="btn btn--primary btn--sm" id="reservierung-import-open">Reservierung hinzufügen</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button type="button" class="btn btn--outline btn--sm" id="reservierung-file-import-open">Aus Export importieren</button>
+          <input type="file" id="reservierung-file-import-input" accept="application/json,.json" hidden="hidden"/>
+          <button type="button" class="btn btn--primary btn--sm" id="reservierung-import-open">Reservierung hinzufügen</button>
+        </div>
       </div>
       <div class="card__body card__body--flush">
         <div class="table-wrapper">
@@ -591,6 +595,22 @@
     </div>
   </div>
 
+  <div id="reservierung-file-import-result-modal" class="modal-overlay" aria-hidden="true">
+    <div class="modal modal--md" role="dialog" aria-labelledby="reservierung-file-import-result-title">
+      <div class="modal__header">
+        <h3 id="reservierung-file-import-result-title">Import-Ergebnis</h3>
+        <button type="button" class="modal__close" data-close-file-import-result-modal aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal__body">
+        <p id="reservierung-file-import-result-summary"></p>
+        <ul id="reservierung-file-import-result-details" class="reservierungen-import-details" style="margin-top:12px;max-height:320px;overflow:auto;"></ul>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--primary" data-close-file-import-result-modal>OK</button>
+      </div>
+    </div>
+  </div>
+
   <select id="reservierungen-vehicles-template" hidden aria-hidden="true">
     <option th:each="v : ${vehicleOptions}" th:value="${v.id}" th:text="${v.name}">Fahrzeug</option>
   </select>
@@ -598,6 +618,6 @@
     <option th:each="r : ${roomOptions}" th:value="${r.id}" th:text="${r.name}">Raum</option>
   </select>
   <script th:src="@{/js/combo-suggest.js}" defer></script>
-  <script th:src="@{/js/reservierungen.js(v='20260828')}" defer></script>
+  <script th:src="@{/js/reservierungen.js(v='20260828b')}" defer></script>
 </main>
 </html>
