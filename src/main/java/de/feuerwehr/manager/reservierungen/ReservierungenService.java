@@ -372,7 +372,7 @@ public class ReservierungenService {
         if (exportFile.formatVersion() != 1) {
             throw new IllegalArgumentException("Unbekannte Export-Version: " + exportFile.formatVersion());
         }
-        requireUnit(unitId);
+        Unit unit = requireUnit(unitId);
         User actor = requireUser(actorUserId);
         int imported = 0;
         int skipped = 0;
