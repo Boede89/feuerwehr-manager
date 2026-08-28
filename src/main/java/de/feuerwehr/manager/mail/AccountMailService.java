@@ -92,6 +92,41 @@ public class AccountMailService {
         }
     }
 
+    /** Globaler SMTP – einfache Text-E-Mail (z. B. Fehlermeldungen von der Startseite). */
+    public Optional<String> sendGlobalPlainMail(String toEmail, String subject, String textBody) {
+        if (toEmail == null || toEmail.isBlank()) {
+            return Optional.of("Keine E-Mail-Adresse hinterlegt.");
+        }
+        if (!canSendGlobalMail()) {
+            return Optional.of("Globaler SMTP ist nicht konfiguriert (Admin → Global → Schnittstellen).");
+        }
+        try {
+            ApplicationSettings settings = globalSettingsService.get();
+            JavaMailSenderImpl sender = SmtpMailService.buildSender(
+                    settings.getSmtpHost(),
+                    settings.getSmtpPort(),
+                    settings.getSmtpUsername(),
+                    settings.getSmtpPassword(),
+                    settings.getSmtpEncryption());
+            var message = sender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, false, StandardCharsets.UTF_8.name());
+            String ffName = settings.getFfName() != null && !settings.getFfName().isBlank()
+                    ? settings.getFfName().trim()
+                    : "Feuerwehr-Manager";
+            String senderName = settings.getSmtpFromName() != null && !settings.getSmtpFromName().isBlank()
+                    ? settings.getSmtpFromName().trim()
+                    : ffName;
+            helper.setFrom(settings.getSmtpFromEmail(), senderName);
+            helper.setTo(toEmail.trim());
+            helper.setSubject(subject != null ? subject : ffName);
+            helper.setText(textBody != null ? textBody : "", false);
+            sender.send(message);
+            return Optional.empty();
+        } catch (Exception e) {
+            return Optional.of("E-Mail konnte nicht gesendet werden: " + e.getMessage());
+        }
+    }
+
     private Optional<String> sendWithUnitSmtp(
             User user, UnitSmtpAccount smtp, String plainPassword, boolean passwordReset) {
         try {

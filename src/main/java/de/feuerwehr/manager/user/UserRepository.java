@@ -98,6 +98,17 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("""
             SELECT u FROM User u
+            WHERE u.anonymizedAt IS NULL
+              AND u.active = TRUE
+              AND u.role = 'SUPER_ADMIN'
+              AND u.loginEmail IS NOT NULL
+              AND TRIM(u.loginEmail) <> ''
+            ORDER BY u.username
+            """)
+    List<User> findActiveSuperAdminsWithEmail();
+
+    @Query("""
+            SELECT u FROM User u
             LEFT JOIN FETCH u.unit
             WHERE u.anonymizedAt IS NULL
               AND u.role IN ('SUPER_ADMIN', 'UNIT_ADMIN')

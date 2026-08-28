@@ -2382,6 +2382,23 @@ body.dashboard-editing .dashboard-widget {
   content: ' →';
 }
 
+.start-tile--button {
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  width: 100%;
+}
+
+.start-tile__hint {
+  margin-top: 0.35rem;
+  padding-top: 0.55rem;
+  border-top: 1px dashed color-mix(in srgb, var(--border) 85%, transparent);
+  width: 100%;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
 .start-tile--under-construction .start-tile__text {
   color: var(--text-muted);
 }

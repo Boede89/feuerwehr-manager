@@ -30,13 +30,20 @@
     <h1 class="start-page__title">Was möchten Sie tun?</h1>
 
     <div class="start-tile-grid">
-      <a class="start-tile start-tile--under-construction" th:if="${publicReservationAvailable}" th:href="@{/reservieren}">
-        <span class="start-tile__construction" aria-hidden="true">Under Construction</span>
+      <a class="start-tile" th:if="${publicReservationAvailable}" th:href="@{/reservieren}">
         <span class="start-tile__icon" aria-hidden="true">🚒</span>
         <strong class="start-tile__title">Fahrzeug oder Raum reservieren</strong>
-        <span class="start-tile__text">Derzeit in der Testphase.</span>
+        <span class="start-tile__text">Fahrzeuge und Räume für einen Zeitraum anfragen.</span>
+        <span class="start-tile__hint">Hinweis: Diese Funktion kann noch Fehler enthalten. Bitte melden Sie Fehler über „Fehler melden“.</span>
         <span class="start-tile__cta">Weiter</span>
       </a>
+      <button type="button" class="start-tile start-tile--button" id="start-bug-report-open"
+              aria-haspopup="dialog" aria-controls="bug-report-overlay">
+        <span class="start-tile__icon" aria-hidden="true">🐞</span>
+        <strong class="start-tile__title">Fehler melden</strong>
+        <span class="start-tile__text">Problem oder Fehler in der Anwendung melden.</span>
+        <span class="start-tile__cta">Melden</span>
+      </button>
     </div>
   </main>
 
@@ -50,6 +57,50 @@
   <footer class="start-page__footer">
     <a th:href="@{/datenschutz}">Datenschutzerklärung</a>
   </footer>
+
+  <div id="bug-report-overlay" class="modal-overlay" role="dialog" aria-modal="true"
+       aria-labelledby="bug-report-overlay-title" aria-hidden="true">
+    <div class="modal start-bug-report-modal">
+      <div class="modal__header">
+        <h3 id="bug-report-overlay-title">Fehler melden</h3>
+        <button type="button" class="modal__close" id="start-bug-report-close" aria-label="Schließen">✕</button>
+      </div>
+      <form id="start-bug-report-form">
+        <div class="modal__body">
+          <p class="hint">Beschreiben Sie den Fehler möglichst genau. Der Superadmin erhält eine E-Mail mit Ihrer Meldung.</p>
+          <div class="form-group">
+            <label for="bug-report-name">Ihr Name <span class="req">*</span></label>
+            <input id="bug-report-name" name="reporterName" type="text" maxlength="120" required autocomplete="name"/>
+          </div>
+          <div class="form-group">
+            <label for="bug-report-email">E-Mail (optional, für Rückfragen)</label>
+            <input id="bug-report-email" name="reporterEmail" type="email" maxlength="255" autocomplete="email"/>
+          </div>
+          <div class="form-group">
+            <label for="bug-report-area">Bereich</label>
+            <select id="bug-report-area" name="area">
+              <option value="">Bitte wählen (optional)</option>
+              <option value="Reservierung">Reservierung</option>
+              <option value="Berichte">Berichte</option>
+              <option value="Personal / Admin">Personal / Admin</option>
+              <option value="Anmeldung">Anmeldung</option>
+              <option value="Sonstiges">Sonstiges</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="bug-report-description">Fehlerbeschreibung <span class="req">*</span></label>
+            <textarea id="bug-report-description" name="description" rows="5" maxlength="4000" required
+                      placeholder="Was ist passiert? Was haben Sie erwartet? Welche Schritte führen zum Fehler?"></textarea>
+          </div>
+          <p id="bug-report-error" class="hint text-sm err" hidden></p>
+        </div>
+        <div class="modal__footer">
+          <button type="submit" class="btn btn--primary" id="start-bug-report-submit">Absenden</button>
+          <button type="button" class="btn btn--outline" id="start-bug-report-cancel">Abbrechen</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <div id="login-overlay" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="login-overlay-title"
        th:classappend="${openLoginForm} ? ' active' : ''"
@@ -115,7 +166,7 @@
   <script th:src="@{/js/toast.js}" defer></script>
   <script th:src="@{/js/flash-toast.js}" defer></script>
   <script th:src="@{/js/theme.js}" defer></script>
-  <script th:src="@{/js/login-start.js(v='20260824')}" defer></script>
+  <script th:src="@{/js/login-start.js(v='20260828')}" defer></script>
   <script th:if="${rfidLoginEnabled}" th:src="@{/js/login-rfid.js}" defer></script>
 </body>
 </html>

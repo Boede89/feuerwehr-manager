@@ -86,6 +86,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/login",
+                                "/login/bug-report",
                                 "/login/totp",
                                 "/reservieren",
                                 "/reservieren/**",
@@ -101,7 +102,8 @@ public class SecurityConfig {
                                 HttpMethod.POST,
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/rfid",
-                                "/api/v1/auth/rfid/register-unknown")
+                                "/api/v1/auth/rfid/register-unknown",
+                                "/login/bug-report")
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/webhook/**")
                         .permitAll()
