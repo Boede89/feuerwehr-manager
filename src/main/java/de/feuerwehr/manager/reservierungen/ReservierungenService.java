@@ -132,6 +132,7 @@ public class ReservierungenService {
         LinkedHashSet<Long> conflictingRequestedIds = new LinkedHashSet<>();
         for (CreateReservationRequest.ReservationTimeSlot slot : slots) {
             validateTimes(slot.startAt(), slot.endAt());
+            validateNotInPast(slot.startAt());
             for (Long vehicleId : vehicleIds) {
                 List<ReservationConflictView> conflicts = conflictService.vehicleConflicts(
                         vehicleId, slot.startAt(), slot.endAt(), (Long) null);
@@ -207,6 +208,7 @@ public class ReservierungenService {
         LinkedHashSet<Long> conflictingRequestedIds = new LinkedHashSet<>();
         for (CreateReservationRequest.ReservationTimeSlot slot : slots) {
             validateTimes(slot.startAt(), slot.endAt());
+            validateNotInPast(slot.startAt());
             for (Room room : rooms) {
                 List<ReservationConflictView> conflicts =
                         conflictService.roomConflicts(room.getId(), slot.startAt(), slot.endAt(), null);
@@ -1051,6 +1053,12 @@ public class ReservierungenService {
         }
         if (!endAt.isAfter(startAt)) {
             throw new IllegalArgumentException("Endzeit muss nach Startzeit liegen.");
+        }
+    }
+
+    private static void validateNotInPast(Instant startAt) {
+        if (startAt != null && startAt.isBefore(Instant.now())) {
+            throw new IllegalArgumentException("Der Beginn darf nicht in der Vergangenheit liegen.");
         }
     }
 

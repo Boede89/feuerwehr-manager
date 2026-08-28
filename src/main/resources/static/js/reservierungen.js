@@ -339,6 +339,25 @@
     });
   }
 
+  function localDateValue(date) {
+    var d = date || new Date();
+    return (
+      d.getFullYear() +
+      '-' +
+      String(d.getMonth() + 1).padStart(2, '0') +
+      '-' +
+      String(d.getDate()).padStart(2, '0')
+    );
+  }
+
+  function isStartInPast(startAtIso) {
+    if (!startAtIso) {
+      return false;
+    }
+    var startMs = Date.parse(startAtIso);
+    return !Number.isNaN(startMs) && startMs < Date.now();
+  }
+
   function applyEndDateFromStart(startInput, endDateInput) {
     if (!startInput || !endDateInput || !startInput.value) {
       return;
@@ -483,6 +502,10 @@
       notify(prefix + 'Das Ende muss nach dem Beginn liegen.', 'error');
       return null;
     }
+    if (isStartInPast(startAt)) {
+      notify(prefix + 'Der Beginn darf nicht in der Vergangenheit liegen.', 'error');
+      return null;
+    }
     return {
       id: nextConfirmedSlotId++,
       date: dateValue,
@@ -572,6 +595,7 @@
     var dateInput = document.createElement('input');
     dateInput.type = 'date';
     dateInput.className = 'field reservierung-slot-date';
+    dateInput.min = localDateValue();
 
     var fromInput = document.createElement('input');
     fromInput.type = 'time';
