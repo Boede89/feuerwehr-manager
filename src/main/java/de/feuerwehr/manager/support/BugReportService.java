@@ -38,11 +38,17 @@ public class BugReportService {
         if (reporterName.isBlank()) {
             return BugReportResult.fail("Bitte Ihren Namen angeben.");
         }
+        if (reporterEmail.isBlank()) {
+            return BugReportResult.fail("Bitte Ihre E-Mail-Adresse angeben.");
+        }
+        if (!EMAIL_PATTERN.matcher(reporterEmail).matches()) {
+            return BugReportResult.fail("Bitte eine gültige E-Mail-Adresse angeben.");
+        }
+        if (area.isBlank()) {
+            return BugReportResult.fail("Bitte einen Bereich auswählen.");
+        }
         if (description.length() < 10) {
             return BugReportResult.fail("Bitte beschreiben Sie den Fehler etwas ausführlicher (mindestens 10 Zeichen).");
-        }
-        if (!reporterEmail.isBlank() && !EMAIL_PATTERN.matcher(reporterEmail).matches()) {
-            return BugReportResult.fail("Bitte eine gültige E-Mail-Adresse angeben oder das Feld leer lassen.");
         }
         if (!accountMailService.canSendGlobalMail()) {
             return BugReportResult.fail(
@@ -89,12 +95,8 @@ public class BugReportService {
         body.append("Neue Fehlermeldung über die Startseite von ").append(appName).append("\n\n");
         body.append("Eingegangen: ").append(TIMESTAMP.format(Instant.now())).append("\n");
         body.append("Name: ").append(reporterName).append("\n");
-        if (!reporterEmail.isBlank()) {
-            body.append("E-Mail: ").append(reporterEmail).append("\n");
-        }
-        if (!area.isBlank()) {
-            body.append("Bereich: ").append(area).append("\n");
-        }
+        body.append("E-Mail: ").append(reporterEmail).append("\n");
+        body.append("Bereich: ").append(area).append("\n");
         if (!pageUrl.isBlank()) {
             body.append("Seite: ").append(pageUrl).append("\n");
         }

@@ -14,6 +14,7 @@
   var bugError = document.getElementById('bug-report-error');
   var bugSubmitBtn = document.getElementById('start-bug-report-submit');
   var bugNameInput = document.getElementById('bug-report-name');
+  var reservationOpen = document.getElementById('start-reservation-open');
 
   if (!overlay) {
     return;
@@ -116,6 +117,31 @@
   }
   if (bugCancelBtn) {
     bugCancelBtn.addEventListener('click', closeBugReport);
+  }
+
+  if (reservationOpen) {
+    reservationOpen.addEventListener('click', function (event) {
+      event.preventDefault();
+      var target = reservationOpen.getAttribute('data-href');
+      if (!target) {
+        return;
+      }
+      var message =
+        'Diese Funktion kann noch Fehler enthalten. Bitte melden Sie Fehler über „Fehler melden“ auf der Startseite.';
+      var promise = window.FwConfirm && window.FwConfirm.show
+        ? window.FwConfirm.show({
+            title: 'Hinweis zur Reservierung',
+            message: message,
+            confirmLabel: 'OK',
+            cancelLabel: 'Abbrechen'
+          })
+        : Promise.resolve(window.confirm(message));
+      promise.then(function (confirmed) {
+        if (confirmed) {
+          window.location.href = target;
+        }
+      });
+    });
   }
 
   overlay.addEventListener('click', function (event) {
