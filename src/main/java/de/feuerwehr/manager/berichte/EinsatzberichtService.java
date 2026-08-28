@@ -807,6 +807,7 @@ public class EinsatzberichtService {
         UnitPostalCity.Parts address = UnitPostalCity.fromUnit(unit);
         EinsatzberichtForm form = new EinsatzberichtForm();
         form.setIncidentDate(today);
+        form.setEndDate(today);
         form.setIncidentNumber(suggestIncidentNumber(unitId, today));
         form.setLocation(address.city());
         form.setPostalCode(address.postalCode());
@@ -1142,6 +1143,8 @@ public class EinsatzberichtService {
         String stichwort = form.stichwort() != null ? form.stichwort().trim() : "";
         applyIncidentNumber(report, unitId, form.incidentNumber());
         report.setIncidentDate(form.incidentDate());
+        report.setEndDate(IncidentReportTimeSupport.normalizeStoredEndDate(
+                form.incidentDate(), form.alarmTime(), form.endDate(), form.endTime()));
         report.setAlarmTime(form.alarmTime());
         report.setDepartureTime(null);
         report.setArrivalTime(null);
@@ -2034,6 +2037,7 @@ public class EinsatzberichtService {
         report.setDepartureTime(toLocalTime(details.tsDepartureSeconds()));
         report.setArrivalTime(toLocalTime(details.tsArrivalSeconds()));
         report.setEndTime(null);
+        report.setEndDate(null);
 
         String stichwort = firstNonBlank(details.title(), "DIVERA-Einsatz");
         report.setStichwort(stichwort);
@@ -2420,6 +2424,8 @@ public class EinsatzberichtService {
         if (form.incidentDate() == null) {
             throw new IllegalArgumentException("Datum ist Pflichtfeld.");
         }
+        IncidentReportTimeSupport.validateEndAfterStart(
+                form.incidentDate(), form.alarmTime(), form.endDate(), form.endTime());
         if (form.location() == null || form.location().isBlank()) {
             throw new IllegalArgumentException("Einsatzort ist Pflichtfeld.");
         }
@@ -2468,6 +2474,7 @@ public class EinsatzberichtService {
         copy.setUnit(source.getUnit());
         copy.setIncidentNumber(buildShadowIncidentNumber(source));
         copy.setIncidentDate(source.getIncidentDate());
+        copy.setEndDate(source.getEndDate());
         copy.setAlarmTime(source.getAlarmTime());
         copy.setDepartureTime(source.getDepartureTime());
         copy.setArrivalTime(source.getArrivalTime());

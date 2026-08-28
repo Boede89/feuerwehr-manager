@@ -10,6 +10,7 @@ import de.feuerwehr.manager.berichte.IncidentReportPersonnel;
 import de.feuerwehr.manager.berichte.IncidentReportPersonnelRepository;
 import de.feuerwehr.manager.berichte.IncidentReportRepository;
 import de.feuerwehr.manager.berichte.IncidentReportStatus;
+import de.feuerwehr.manager.berichte.IncidentReportTimeSupport;
 import de.feuerwehr.manager.berichte.IncidentReportVehicle;
 import de.feuerwehr.manager.berichte.IncidentReportVehicleRepository;
 import de.feuerwehr.manager.personal.Person;
@@ -80,7 +81,7 @@ public class AuswertungService {
 
         List<IncidentReport> reports = listFreigegebeneEinsaetze(unitId, yearStart, yearEndExclusive, includeTest);
         for (IncidentReport report : reports) {
-            long minutes = durationMinutes(report.getAlarmTime(), report.getEndTime());
+            long minutes = IncidentReportTimeSupport.durationMinutes(report);
             einsaetzeMin += minutes;
             switch (AuswertungStichwortKategorie.classify(report.getStichwort())) {
                 case FEUER -> {
@@ -484,12 +485,12 @@ public class AuswertungService {
                     "einsatz",
                     report.getIncidentDate(),
                     blankToDash(report.getStichwort()),
-                    formatDauerStunden(report.getAlarmTime(), report.getEndTime()),
+                    formatEinsatzDauer(report),
                     personen.size(),
                     zf,
                     gf,
                     formatTime(report.getAlarmTime()),
-                    formatTime(report.getEndTime()),
+                    formatEinsatzEnde(report),
                     "Einsatzleiter",
                     resolveEinsatzleiter(report),
                     personen,
@@ -634,6 +635,27 @@ public class AuswertungService {
             return "—";
         }
         return formatStundenValue(minutes);
+    }
+
+    private static String formatEinsatzDauer(IncidentReport report) {
+        if (report == null || report.getAlarmTime() == null || report.getEndTime() == null) {
+            return "—";
+        }
+        return formatStundenValue(IncidentReportTimeSupport.durationMinutes(report));
+    }
+
+    private static String formatEinsatzEnde(IncidentReport report) {
+        if (report == null || report.getEndTime() == null) {
+            return "—";
+        }
+        String time = formatTime(report.getEndTime());
+        LocalDate endDate = IncidentReportTimeSupport.resolveEndDate(report);
+        if (endDate != null
+                && report.getIncidentDate() != null
+                && !endDate.equals(report.getIncidentDate())) {
+            return time + " (" + endDate.format(DATE_FMT) + ")";
+        }
+        return time;
     }
 
     static String formatStundenTotal(long minutes) {

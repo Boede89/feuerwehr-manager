@@ -97,8 +97,16 @@ public class EinsatzberichtPdfService {
                         ? report.getIncidentNumber().trim()
                         : "—");
         model.put("alarmTime", formatTime(report.getAlarmTime()));
-        model.put("endTime", formatTime(report.getEndTime()));
-        model.put("duration", formatDuration(report.getAlarmTime(), report.getEndTime()));
+        LocalDate resolvedEndDate = IncidentReportTimeSupport.resolveEndDate(report);
+        String endTimeLabel = formatTime(report.getEndTime());
+        if (resolvedEndDate != null
+                && report.getIncidentDate() != null
+                && !resolvedEndDate.equals(report.getIncidentDate())
+                && report.getEndTime() != null) {
+            endTimeLabel = endTimeLabel + " (" + resolvedEndDate.format(DATE_FMT) + ")";
+        }
+        model.put("endTime", endTimeLabel);
+        model.put("duration", formatDurationMinutes(IncidentReportTimeSupport.durationMinutes(report)));
         model.put("eigentuemer", nullToDash(report.getEigentuemer()));
         model.put("chargeable", formatJaNein(report.getChargeable()));
         model.put("fireWatch", formatJaNein(report.getFireWatch()));
@@ -269,6 +277,13 @@ public class EinsatzberichtPdfService {
         long minutes = Duration.between(from, to).toMinutes();
         if (minutes < 0) {
             minutes += 24 * 60;
+        }
+        return formatDurationMinutes(minutes);
+    }
+
+    private static String formatDurationMinutes(long minutes) {
+        if (minutes <= 0) {
+            return "—";
         }
         long hours = minutes / 60;
         long rest = minutes % 60;

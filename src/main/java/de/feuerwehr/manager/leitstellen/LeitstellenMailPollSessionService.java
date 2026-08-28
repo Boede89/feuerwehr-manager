@@ -1,6 +1,7 @@
 package de.feuerwehr.manager.leitstellen;
 
 import de.feuerwehr.manager.berichte.IncidentReport;
+import de.feuerwehr.manager.berichte.IncidentReportTimeSupport;
 import de.feuerwehr.manager.berichte.IncidentReportAttachmentRepository;
 import de.feuerwehr.manager.berichte.IncidentReportRepository;
 import de.feuerwehr.manager.unit.Unit;
@@ -172,22 +173,11 @@ public class LeitstellenMailPollSessionService {
     }
 
     private static Instant alarmInstant(IncidentReport report) {
-        if (report.getIncidentDate() == null) {
-            return null;
-        }
-        LocalTime time = report.getAlarmTime() != null ? report.getAlarmTime() : LocalTime.MIDNIGHT;
-        return LocalDateTime.of(report.getIncidentDate(), time).atZone(ZONE).toInstant();
+        return IncidentReportTimeSupport.resolveAlarmInstant(report);
     }
 
     private static Instant endInstant(IncidentReport report) {
-        if (report.getIncidentDate() == null || report.getEndTime() == null) {
-            return null;
-        }
-        LocalDateTime end = LocalDateTime.of(report.getIncidentDate(), report.getEndTime());
-        if (report.getAlarmTime() != null && report.getEndTime().isBefore(report.getAlarmTime())) {
-            end = end.plusDays(1);
-        }
-        return end.atZone(ZONE).toInstant();
+        return IncidentReportTimeSupport.resolveEndInstant(report);
     }
 
     private void runPollAfterCommit(long unitId) {

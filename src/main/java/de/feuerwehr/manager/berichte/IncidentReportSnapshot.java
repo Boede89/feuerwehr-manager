@@ -18,6 +18,7 @@ public final class IncidentReportSnapshot {
     private static final Map<String, String> LABELS = Map.ofEntries(
             Map.entry("incidentNumber", "Einsatznummer"),
             Map.entry("incidentDate", "Datum"),
+            Map.entry("endDate", "Ende Datum"),
             Map.entry("alarmTime", "Alarmzeit"),
             Map.entry("endTime", "Einsatzende"),
             Map.entry("stichwort", "Stichwort"),
@@ -67,6 +68,7 @@ public final class IncidentReportSnapshot {
         }
         map.put("incidentNumber", norm(report.getIncidentNumber()));
         map.put("incidentDate", formatDate(report.getIncidentDate()));
+        map.put("endDate", formatDate(IncidentReportTimeSupport.resolveEndDate(report)));
         map.put("alarmTime", formatTime(report.getAlarmTime()));
         map.put("endTime", formatTime(report.getEndTime()));
         map.put("stichwort", norm(report.getStichwort()));

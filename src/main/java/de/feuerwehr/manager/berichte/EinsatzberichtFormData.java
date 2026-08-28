@@ -7,6 +7,7 @@ import java.util.List;
 public record EinsatzberichtFormData(
         String incidentNumber,
         LocalDate incidentDate,
+        LocalDate endDate,
         LocalTime alarmTime,
         LocalTime departureTime,
         LocalTime arrivalTime,

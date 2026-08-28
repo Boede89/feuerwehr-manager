@@ -15,6 +15,9 @@ public class EinsatzberichtForm {
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate incidentDate;
 
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+    private LocalDate endDate;
+
     @DateTimeFormat(iso = DateTimeFormat.ISO.TIME)
     private LocalTime alarmTime;
 
@@ -79,6 +82,7 @@ public class EinsatzberichtForm {
         EinsatzberichtForm form = new EinsatzberichtForm();
         form.setIncidentNumber(report.getIncidentNumber());
         form.setIncidentDate(report.getIncidentDate());
+        form.setEndDate(IncidentReportTimeSupport.resolveEndDate(report));
         form.setAlarmTime(report.getAlarmTime());
         form.setDepartureTime(report.getDepartureTime());
         form.setArrivalTime(report.getArrivalTime());
@@ -149,6 +153,7 @@ public class EinsatzberichtForm {
         return new EinsatzberichtFormData(
                 incidentNumber,
                 incidentDate,
+                endDate,
                 alarmTime,
                 departureTime,
                 arrivalTime,

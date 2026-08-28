@@ -42,6 +42,9 @@ public class IncidentReport {
     @Column(name = "incident_date", nullable = false)
     private LocalDate incidentDate;
 
+    @Column(name = "end_date")
+    private LocalDate endDate;
+
     @Column(name = "alarm_time")
     private LocalTime alarmTime;
 

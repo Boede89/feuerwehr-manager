@@ -190,6 +190,82 @@
     focusReleaseField(first.anchorId, first.tabIndex);
   }
 
+  function initIncidentEndDateSync(scope) {
+    var root = scope || document;
+    var incidentDateInput = root.getElementById('incidentDate');
+    var endDateInput = root.getElementById('endDate');
+    var alarmTimeInput = root.getElementById('alarmTime');
+    var endTimeInput = root.getElementById('endTime');
+    var overnightHint = root.getElementById('incident-end-overnight-hint');
+    if (!incidentDateInput || !endDateInput || endDateInput.readOnly) {
+      return;
+    }
+
+    function addDays(dateValue, days) {
+      var parts = String(dateValue).slice(0, 10).split('-');
+      if (parts.length !== 3) {
+        return null;
+      }
+      var date = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      date.setDate(date.getDate() + days);
+      return date.getFullYear()
+        + '-' + String(date.getMonth() + 1).padStart(2, '0')
+        + '-' + String(date.getDate()).padStart(2, '0');
+    }
+
+    function updateOvernightHint() {
+      if (!overnightHint) {
+        return;
+      }
+      var overnight = !!(incidentDateInput.value && endDateInput.value
+        && endDateInput.value > incidentDateInput.value);
+      overnightHint.hidden = !overnight;
+    }
+
+    function applyOvernightEndDate() {
+      if (!incidentDateInput.value || !alarmTimeInput || !endTimeInput) {
+        updateOvernightHint();
+        return;
+      }
+      if (!alarmTimeInput.value || !endTimeInput.value) {
+        updateOvernightHint();
+        return;
+      }
+      if (endTimeInput.value < alarmTimeInput.value) {
+        var nextDay = addDays(incidentDateInput.value, 1);
+        if (nextDay) {
+          endDateInput.value = nextDay;
+          endDateInput.dataset.userEdited = 'false';
+        }
+      } else if (endDateInput.dataset.userEdited !== 'true') {
+        endDateInput.value = incidentDateInput.value;
+      }
+      updateOvernightHint();
+    }
+
+    incidentDateInput.addEventListener('change', function () {
+      if (endDateInput.dataset.userEdited !== 'true') {
+        endDateInput.value = incidentDateInput.value;
+      }
+      applyOvernightEndDate();
+    });
+    endDateInput.addEventListener('change', function () {
+      endDateInput.dataset.userEdited = 'true';
+      updateOvernightHint();
+    });
+    if (alarmTimeInput) {
+      alarmTimeInput.addEventListener('change', applyOvernightEndDate);
+    }
+    if (endTimeInput) {
+      endTimeInput.addEventListener('change', applyOvernightEndDate);
+      endTimeInput.addEventListener('input', applyOvernightEndDate);
+    }
+    if (!endDateInput.value && incidentDateInput.value) {
+      endDateInput.value = incidentDateInput.value;
+    }
+    applyOvernightEndDate();
+  }
+
   function init(root) {
     var scope = root || document;
     var anwesenheit = isAnwesenheitForm(scope);
@@ -247,6 +323,9 @@
 
     var dateInput = document.getElementById('incidentDate');
     var numberInput = document.getElementById('incidentNumber');
+    if (!anwesenheit) {
+      initIncidentEndDateSync(scope);
+    }
     if (dateInput && numberInput && numberInput.dataset.autoNumber === 'true') {
       function refreshSuggestedNumber() {
         if (!dateInput.value || !numberInput.dataset.unitId) {

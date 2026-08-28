@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<th:block th:fragment="meta(report)">
+  <div class="berichte-report-meta" th:if="${report != null}">
+    <dl class="berichte-report-meta__grid">
+      <div class="berichte-report-meta__item">
+        <dt>Erfasst von</dt>
+        <dd>
+          <th:block th:if="${report.createdByUser != null}">
+            <span th:text="${report.createdByUser.username}">benutzer</span>
+            <span class="berichte-report-meta__secondary"
+                  th:if="${report.createdByUser.displayName != null
+                    and !#strings.isEmpty(report.createdByUser.displayName)
+                    and report.createdByUser.displayName != report.createdByUser.username}"
+                  th:text="'(' + ${report.createdByUser.displayName} + ')'">(Name)</span>
+          </th:block>
+          <th:block th:unless="${report.createdByUser != null}"
+                    th:text="${report.createdByName != null and !#strings.isEmpty(report.createdByName) ? report.createdByName : '—'}">—</th:block>
+        </dd>
+      </div>
+      <div class="berichte-report-meta__item" th:if="${report.createdAt != null}">
+        <dt>Erfasst am</dt>
+        <dd th:text="${#temporals.format(report.createdAt.atZone(T(java.time.ZoneId).of('Europe/Berlin')), 'dd.MM.yyyy HH:mm')}">—</dd>
+      </div>
+    </dl>
+  </div>
+</th:block>
+</html>

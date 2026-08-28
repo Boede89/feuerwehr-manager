@@ -1,6 +1,7 @@
 package de.feuerwehr.manager.leitstellen;
 
 import de.feuerwehr.manager.berichte.IncidentReport;
+import de.feuerwehr.manager.berichte.IncidentReportTimeSupport;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -286,25 +287,11 @@ public class LeitstellenMailMatcher {
     }
 
     private static Instant alarmInstant(IncidentReport report) {
-        if (report.getIncidentDate() == null) {
-            return null;
-        }
-        LocalTime time = report.getAlarmTime() != null ? report.getAlarmTime() : LocalTime.MIDNIGHT;
-        return LocalDateTime.of(report.getIncidentDate(), time).atZone(ZONE).toInstant();
+        return IncidentReportTimeSupport.resolveAlarmInstant(report);
     }
 
     private static Instant endInstant(IncidentReport report) {
-        if (report.getIncidentDate() == null || report.getEndTime() == null) {
-            return null;
-        }
-        LocalDateTime end = LocalDateTime.of(report.getIncidentDate(), report.getEndTime());
-        // Ende vor Alarm oder genau 00:00 → Einsatz ging über Mitternacht / Ende am Folgetag
-        if (report.getAlarmTime() != null
-                && (report.getEndTime().isBefore(report.getAlarmTime())
-                        || report.getEndTime().equals(LocalTime.MIDNIGHT))) {
-            end = end.plusDays(1);
-        }
-        return end.atZone(ZONE).toInstant();
+        return IncidentReportTimeSupport.resolveEndInstant(report);
     }
 
     private static boolean containsAnyKeyword(String haystack, String keywordsCsv) {

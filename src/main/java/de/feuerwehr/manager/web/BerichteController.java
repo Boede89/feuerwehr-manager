@@ -24,6 +24,7 @@ import de.feuerwehr.manager.berichte.ForeignPersonOption;
 import de.feuerwehr.manager.berichte.ForeignUnitOption;
 import de.feuerwehr.manager.berichte.IncidentReport;
 import de.feuerwehr.manager.berichte.IncidentReportStatus;
+import de.feuerwehr.manager.berichte.IncidentReportTimeSupport;
 import de.feuerwehr.manager.berichte.GeraetewartmitteilungAccess;
 import de.feuerwehr.manager.berichte.GeraetewartmitteilungListResponse;
 import de.feuerwehr.manager.berichte.GeraetewartmitteilungForm;
@@ -1836,6 +1837,7 @@ public class BerichteController {
                     einsatzberichtService.refreshDiveraFromLatestAlarmData(unitId, reportId);
                     report = einsatzberichtService.requireReport(unitId, reportId);
                     form.setIncidentDate(report.getIncidentDate());
+                    form.setEndDate(IncidentReportTimeSupport.resolveEndDate(report));
                     form.setAlarmTime(report.getAlarmTime());
                     form.setLocation(report.getLocation());
                     form.setPostalCode(report.getPostalCode());

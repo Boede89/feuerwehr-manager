@@ -2,6 +2,8 @@
 <html lang="de" xmlns:th="http://www.thymeleaf.org">
 <th:block th:fragment="form">
   <div th:classappend="${formMode == 'view' ? ' einsatzbericht-form--view' : ''}">
+  <th:block th:if="${formMode == 'view' and report != null}"
+            th:replace="~{fragments/berichte-report-meta :: meta(${report})}"></th:block>
   <nav class="tab-bar incident-form-tabs" aria-label="Anwesenheitsliste-Bereiche">
     <button type="button" class="tab-btn incident-tab tab-btn--active" data-tab="0">Basisdaten</button>
     <button type="button" class="tab-btn incident-tab" data-tab="1">Personal</button>
