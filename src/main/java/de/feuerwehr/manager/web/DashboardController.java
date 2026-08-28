@@ -329,11 +329,10 @@ public class DashboardController {
                     .map(person -> termineService.listUpcomingDashboardTermine(
                             unitId, person.getId(), DASHBOARD_TERMINE_LIMIT))
                     .orElse(List.of());
-            boolean canWriteBerichte = moduleSettingsService.isEnabled(AppModule.BERICHTE, unitId)
-                    && userPermissionService.hasPermission(currentUser, unitId, "berichte.write");
-            if (canWriteBerichte && !dashboardTermine.isEmpty()) {
+            boolean berichteEnabled = moduleSettingsService.isEnabled(AppModule.BERICHTE, unitId);
+            if (berichteEnabled && !dashboardTermine.isEmpty()) {
                 dashboardTermine = attendanceCheckInService.enrichDashboardTermineForCheckIn(
-                        unitId, dashboardTermine, true);
+                        unitId, dashboardTermine);
             } else {
                 dashboardTermine = dashboardTermine.stream()
                         .map(t -> t.withCheckIn(false, null))

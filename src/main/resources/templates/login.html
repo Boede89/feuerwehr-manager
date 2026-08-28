@@ -30,6 +30,19 @@
     <h1 class="start-page__title">Was möchten Sie tun?</h1>
 
     <div class="start-tile-grid">
+      <a class="start-tile" th:each="opt : ${publicCheckInOptions}"
+         th:href="@{/check-in(unit=${opt.unitId()}, terminId=${opt.terminId()})}">
+        <span class="start-tile__icon" aria-hidden="true">✅</span>
+        <strong class="start-tile__title" th:text="${opt.theme()}">Übungsdienst</strong>
+        <span class="start-tile__text">
+          <span th:text="${opt.categoryLabel()}">Übungsdienst</span>
+          <span th:if="${opt.startTimeLabel() != null and !#strings.isEmpty(opt.startTimeLabel())}"
+                th:text="' · ' + opt.startTimeLabel() + ' Uhr'"> · 19:00 Uhr</span>
+          <span th:if="${#lists.size(publicCheckInOptions) > 1}"
+                th:text="' · ' + opt.unitName()"> · Einheit</span>
+        </span>
+        <span class="start-tile__cta">Check In starten</span>
+      </a>
       <a class="start-tile" th:if="${publicReservationAvailable}" id="start-reservation-open"
          th:data-href="@{/reservieren}" href="#">
         <span class="start-tile__icon" aria-hidden="true">🚒</span>

@@ -88,6 +88,8 @@ public class SecurityConfig {
                                 "/login",
                                 "/login/bug-report",
                                 "/login/totp",
+                                "/check-in",
+                                "/check-in/**",
                                 "/reservieren",
                                 "/reservieren/**",
                                 "/datenschutz",

@@ -1674,6 +1674,23 @@ body.dashboard-editing .dashboard-widget {
 }
 
 /* Check-In Seite */
+.app-shell--checkin {
+  min-height: 100vh;
+}
+
+.app-header--checkin .app-header__brand--static {
+  pointer-events: none;
+  cursor: default;
+}
+
+.page-main--checkin .page-main__inner {
+  max-width: none;
+}
+
+.checkin-shell .checkin-page {
+  min-height: calc(100vh - 5.5rem);
+}
+
 .checkin-page {
   display: flex;
   flex-direction: column;

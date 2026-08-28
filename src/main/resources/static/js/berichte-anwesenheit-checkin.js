@@ -139,7 +139,7 @@
   }
 
   function basePath() {
-    return '/berichte/anwesenheitslisten/' + encodeURIComponent(reportId) + '/check-in';
+    return '/check-in/' + encodeURIComponent(reportId);
   }
 
   function tickClock() {

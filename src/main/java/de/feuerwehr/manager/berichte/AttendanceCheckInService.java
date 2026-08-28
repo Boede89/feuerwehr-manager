@@ -3,12 +3,17 @@ package de.feuerwehr.manager.berichte;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.security.AppUserDetails;
+import de.feuerwehr.manager.settings.AppModule;
+import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.termine.DashboardTerminWidgetView;
 import de.feuerwehr.manager.termine.UnitTermin;
 import de.feuerwehr.manager.termine.UnitTerminRepository;
+import de.feuerwehr.manager.unit.Unit;
+import de.feuerwehr.manager.unit.UnitService;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -37,16 +42,55 @@ public class AttendanceCheckInService {
     private final EinsatzberichtService einsatzberichtService;
     private final TestModeService testModeService;
     private final ObjectMapper objectMapper;
+    private final UnitService unitService;
+    private final ModuleSettingsService moduleSettingsService;
+
+    @Transactional(readOnly = true)
+    public List<PublicCheckInOption> listPublicCheckInOptions() {
+        LocalDate today = LocalDate.now();
+        LocalDateTime from = today.atStartOfDay();
+        LocalDateTime to = today.plusDays(1).atStartOfDay();
+        List<PublicCheckInOption> result = new ArrayList<>();
+        for (Unit unit : unitService.findActiveOrdered()) {
+            if (!moduleSettingsService.isEnabled(AppModule.BERICHTE, unit.getId())) {
+                continue;
+            }
+            List<UnitTermin> termins =
+                    unitTerminRepository.findByUnitIdAndStartAtBetween(unit.getId(), from, to);
+            for (UnitTermin termin : termins) {
+                if (termin.getCategory() == null || !termin.getCategory().supportsAttendanceReports()) {
+                    continue;
+                }
+                String theme = termin.getTitle() != null && !termin.getTitle().isBlank()
+                        ? termin.getTitle().trim()
+                        : termin.getCategory().displayLabel();
+                String time = termin.getStartAt() != null
+                        ? TIME_FMT.format(termin.getStartAt().toLocalTime())
+                        : "";
+                result.add(new PublicCheckInOption(
+                        unit.getId(),
+                        unit.getName(),
+                        termin.getId(),
+                        theme,
+                        termin.getCategory().displayLabel(),
+                        time));
+            }
+        }
+        result.sort(Comparator.comparing(PublicCheckInOption::startTimeLabel)
+                .thenComparing(PublicCheckInOption::unitName, String.CASE_INSENSITIVE_ORDER)
+                .thenComparing(PublicCheckInOption::theme, String.CASE_INSENSITIVE_ORDER));
+        return result;
+    }
 
     @Transactional
     public List<DashboardTerminWidgetView> enrichDashboardTermineForCheckIn(
-            long unitId, List<DashboardTerminWidgetView> termine, boolean canWriteBerichte) {
+            long unitId, List<DashboardTerminWidgetView> termine) {
         if (termine == null || termine.isEmpty()) {
             return List.of();
         }
         List<DashboardTerminWidgetView> result = new ArrayList<>();
         for (DashboardTerminWidgetView termin : termine) {
-            if (!termin.today() || !termin.checkInAvailable() || !canWriteBerichte) {
+            if (!termin.today() || !termin.checkInAvailable()) {
                 result.add(termin.withCheckIn(false, null));
                 continue;
             }

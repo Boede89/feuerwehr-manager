@@ -1,7 +1,9 @@
 package de.feuerwehr.manager.web;
 
+import de.feuerwehr.manager.berichte.AttendanceCheckInService;
 import de.feuerwehr.manager.reservierungen.ReservierungenSettingsService;
 import de.feuerwehr.manager.security.SecurityProperties;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
@@ -16,6 +18,7 @@ public class LoginController {
 
     private final SecurityProperties securityProperties;
     private final ReservierungenSettingsService reservierungenSettingsService;
+    private final AttendanceCheckInService attendanceCheckInService;
 
     @GetMapping("/login")
     public String login(
@@ -32,6 +35,12 @@ public class LoginController {
             log.warn("Öffentliche Reservierung konnte auf der Anmeldeseite nicht geprüft werden: {}", e.getMessage());
         }
         model.addAttribute("publicReservationAvailable", publicReservationAvailable);
+        try {
+            model.addAttribute("publicCheckInOptions", attendanceCheckInService.listPublicCheckInOptions());
+        } catch (Exception e) {
+            log.warn("Öffentliche Check-In-Termine konnten nicht geladen werden: {}", e.getMessage());
+            model.addAttribute("publicCheckInOptions", List.of());
+        }
         if (error != null) {
             model.addAttribute("errorMessage", "Anmeldung fehlgeschlagen. Bitte Zugangsdaten prüfen.");
         }

@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.termine;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -52,4 +53,15 @@ public interface UnitTerminRepository extends JpaRepository<UnitTermin, Long> {
             """)
     List<UnitTermin> findByUnitIdAndCategoryIn(
             @Param("unitId") long unitId, @Param("categories") Collection<TermineCategory> categories);
+
+    @Query("""
+            SELECT t FROM UnitTermin t
+            WHERE t.unit.id = :unitId
+            AND t.startAt >= :from AND t.startAt < :to
+            ORDER BY t.startAt ASC, t.id ASC
+            """)
+    List<UnitTermin> findByUnitIdAndStartAtBetween(
+            @Param("unitId") long unitId,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
 }
