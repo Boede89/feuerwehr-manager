@@ -163,6 +163,17 @@ public class PersonalService {
 
     @Transactional(readOnly = true)
     public CoursePlanResult planCourse(long unitId, long courseId) {
+        return planCourse(unitId, courseId, false);
+    }
+
+    @Transactional(readOnly = true)
+    public CoursePlanResult planCourse(long unitId, long courseId, boolean ignorePrerequisites) {
+        return planCourse(unitId, courseId, ignorePrerequisites, List.of());
+    }
+
+    @Transactional(readOnly = true)
+    public CoursePlanResult planCourse(
+            long unitId, long courseId, boolean ignorePrerequisites, Collection<Long> ignorePrerequisiteIds) {
         Course course = requireCourseForRead(courseId, unitId);
         List<Course> withPrereq = courseRepository.findWithPrerequisitesByIdIn(List.of(course.getId()));
         Course loaded = withPrereq.isEmpty() ? course : withPrereq.get(0);
@@ -171,6 +182,16 @@ public class PersonalService {
                 : loaded.getPrerequisites().stream()
                         .sorted(Comparator.comparing(Course::getName, String.CASE_INSENSITIVE_ORDER))
                         .toList();
+        LinkedHashSet<Long> ignoredIds = new LinkedHashSet<>();
+        if (ignorePrerequisiteIds != null) {
+            for (Course required : prerequisites) {
+                if (CoursePrerequisiteSupport.isIgnored(required, ignorePrerequisiteIds)) {
+                    ignoredIds.add(required.getId());
+                }
+            }
+        }
+        List<Course> enforced = CoursePrerequisiteSupport.enforcedPrerequisites(
+                prerequisites, ignoredIds, ignorePrerequisites);
 
         List<Person> members = listPersons(unitId).stream()
                 .filter(PersonMembership::isCurrentlyMember)
@@ -179,9 +200,10 @@ public class PersonalService {
                 .toList();
         Map<Long, Set<Long>> completedByPerson = loadCompletedCanonicalIds(unitId);
 
-        List<Person> eligible = new ArrayList<>();
+        List<CoursePlanCandidate> candidates = new ArrayList<>();
         int alreadyCompleted = 0;
         int missingPrerequisites = 0;
+        int eligibleCount = 0;
         for (Person person : members) {
             Set<Long> completed = completedByPerson.getOrDefault(person.getId(), Set.of());
             if (person.getProductionSourceId() != null) {
@@ -193,13 +215,30 @@ public class PersonalService {
                 alreadyCompleted++;
                 continue;
             }
-            if (CoursePrerequisiteSupport.hasAllPrerequisites(completed, prerequisites)) {
-                eligible.add(person);
+            List<Course> missingAll = CoursePrerequisiteSupport.missingPrerequisites(completed, prerequisites);
+            List<Course> missingEnforced = CoursePrerequisiteSupport.missingPrerequisites(completed, enforced);
+            boolean prerequisitesMet = missingAll.isEmpty();
+            if (prerequisitesMet) {
+                eligibleCount++;
             } else {
                 missingPrerequisites++;
             }
+            if (missingEnforced.isEmpty()) {
+                candidates.add(new CoursePlanCandidate(
+                        person,
+                        prerequisitesMet,
+                        missingAll.stream().map(Course::getName).toList()));
+            }
         }
-        return new CoursePlanResult(loaded, prerequisites, eligible, alreadyCompleted, missingPrerequisites);
+        return new CoursePlanResult(
+                loaded,
+                prerequisites,
+                List.copyOf(ignoredIds),
+                candidates,
+                eligibleCount,
+                alreadyCompleted,
+                missingPrerequisites,
+                ignorePrerequisites);
     }
 
     public List<PersonCourseCompletion> listCompletions(long personId) {
@@ -1218,12 +1257,48 @@ public class PersonalService {
 
     public record CourseCompletionInput(Long courseId, Integer completionYear, LocalDate completedOn) {}
 
+    public record CoursePlanCandidate(
+            Person person, boolean prerequisitesMet, List<String> missingPrerequisiteNames) {
+        public String missingPrerequisitesLabel() {
+            if (missingPrerequisiteNames == null || missingPrerequisiteNames.isEmpty()) {
+                return "—";
+            }
+            return String.join(", ", missingPrerequisiteNames);
+        }
+    }
+
     public record CoursePlanResult(
             Course course,
             List<Course> prerequisites,
-            List<Person> eligible,
+            List<Long> ignoredPrerequisiteIds,
+            List<CoursePlanCandidate> candidates,
+            int eligibleCount,
             int alreadyCompletedCount,
-            int missingPrerequisiteCount) {}
+            int missingPrerequisiteCount,
+            boolean ignorePrerequisites) {
+        public boolean ignoresPrerequisite(long courseId) {
+            if (ignorePrerequisites) {
+                return true;
+            }
+            return ignoredPrerequisiteIds != null && ignoredPrerequisiteIds.contains(courseId);
+        }
+
+        public String ignoredPrerequisitesLabel() {
+            if (prerequisites == null || prerequisites.isEmpty()) {
+                return "";
+            }
+            if (ignorePrerequisites) {
+                return prerequisites.stream().map(Course::getName).collect(Collectors.joining(", "));
+            }
+            if (ignoredPrerequisiteIds == null || ignoredPrerequisiteIds.isEmpty()) {
+                return "";
+            }
+            return prerequisites.stream()
+                    .filter(item -> ignoredPrerequisiteIds.contains(item.getId()))
+                    .map(Course::getName)
+                    .collect(Collectors.joining(", "));
+        }
+    }
 
     private record InitialPasswordPlan(String password, boolean sendByEmail) {}
 

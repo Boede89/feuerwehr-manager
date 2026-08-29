@@ -1,9 +1,11 @@
 package de.feuerwehr.manager.personal;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Deque;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -36,6 +38,48 @@ final class CoursePrerequisiteSupport {
             }
         }
         return true;
+    }
+
+    static List<Course> missingPrerequisites(Set<Long> completedCanonicalIds, Collection<Course> prerequisites) {
+        if (prerequisites == null || prerequisites.isEmpty()) {
+            return List.of();
+        }
+        List<Course> missing = new ArrayList<>();
+        for (Course required : prerequisites) {
+            if (!hasCourse(completedCanonicalIds, required)) {
+                missing.add(required);
+            }
+        }
+        return missing;
+    }
+
+    static boolean isIgnored(Course course, Collection<Long> ignoredIds) {
+        if (course == null || course.getId() == null || ignoredIds == null || ignoredIds.isEmpty()) {
+            return false;
+        }
+        for (Long id : ignoredIds) {
+            if (id == null) {
+                continue;
+            }
+            if (id.equals(course.getId()) || id.equals(course.getProductionSourceId())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static List<Course> enforcedPrerequisites(
+            Collection<Course> prerequisites, Collection<Long> ignoredIds, boolean ignoreAll) {
+        if (prerequisites == null || prerequisites.isEmpty() || ignoreAll) {
+            return List.of();
+        }
+        List<Course> enforced = new ArrayList<>();
+        for (Course required : prerequisites) {
+            if (!isIgnored(required, ignoredIds)) {
+                enforced.add(required);
+            }
+        }
+        return enforced;
     }
 
     static boolean hasCourse(Set<Long> completedCanonicalIds, Course course) {

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Lehrgangsplanung</title>
+  <th:block th:replace="~{fragments/atemschutz-print-header :: styles}"></th:block>
+</head>
+<body>
+  <th:block th:replace="~{fragments/atemschutz-print-header :: header}"></th:block>
+
+  <table class="summary-grid">
+    <tr>
+      <td>
+        <span class="summary-label">Lehrgang</span>
+        <strong th:text="${coursePlan.course.name}">Lehrgang</strong>
+      </td>
+      <td>
+        <span class="summary-label">Kandidaten</span>
+        <strong th:text="${#lists.size(coursePlan.candidates)}">0</strong>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <span class="summary-label">Voraussetzungen</span>
+        <strong th:if="${coursePlan.prerequisites == null or #lists.isEmpty(coursePlan.prerequisites)}">keine</strong>
+        <strong th:unless="${coursePlan.prerequisites == null or #lists.isEmpty(coursePlan.prerequisites)}">
+          <th:block th:each="pr, iter : ${coursePlan.prerequisites}">
+            <span th:text="${pr.name}">Lehrgang</span><span th:unless="${iter.last}">, </span>
+          </th:block>
+        </strong>
+      </td>
+      <td>
+        <span class="summary-label">Ignoriert</span>
+        <strong th:if="${coursePlan.ignorePrerequisites}">alle</strong>
+        <strong th:unless="${coursePlan.ignorePrerequisites}"
+                th:text="${#strings.isEmpty(coursePlan.ignoredPrerequisitesLabel()) ? '—' : coursePlan.ignoredPrerequisitesLabel()}">—</strong>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <span class="summary-label">Kommen in Frage</span>
+        <strong th:text="${coursePlan.eligibleCount}">0</strong>
+      </td>
+      <td>
+        <span class="summary-label">Bereits absolviert / Voraussetzungen fehlen</span>
+        <strong th:text="${coursePlan.alreadyCompletedCount + ' / ' + coursePlan.missingPrerequisiteCount}">0 / 0</strong>
+      </td>
+    </tr>
+  </table>
+
+  <table th:if="${!#lists.isEmpty(coursePlan.candidates)}">
+    <thead>
+    <tr>
+      <th>#</th>
+      <th>Name</th>
+      <th>Voraussetzungen erfüllt</th>
+      <th>Fehlende Voraussetzungen</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="row, stat : ${coursePlan.candidates}">
+      <td th:text="${stat.count}">1</td>
+      <td th:text="${row.person.displayName()}">Name</td>
+      <td th:text="${row.prerequisitesMet} ? 'ja' : 'nein'">ja</td>
+      <td th:text="${row.missingPrerequisitesLabel()}">—</td>
+    </tr>
+    </tbody>
+  </table>
+  <p th:if="${#lists.isEmpty(coursePlan.candidates)}" class="pdf-meta">Keine Kandidaten gefunden.</p>
+</body>
+</html>

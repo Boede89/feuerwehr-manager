@@ -4777,6 +4777,80 @@ span.required { color: var(--error); }
 .course-plan-result {
   margin-top: 1rem;
 }
+.course-plan-filter .course-plan-ignore {
+  margin-top: 0;
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+.course-plan-prereq-form {
+  margin: 0;
+}
+.course-plan-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+.course-plan-chip {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-card, #fff);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+  user-select: none;
+}
+.course-plan-chip input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.course-plan-chip:hover {
+  border-color: var(--text-subtle, #888);
+}
+.course-plan-chip--active {
+  border-color: var(--error, #dc2626);
+  background: var(--rot-subtle, #fee2e2);
+  color: var(--error, #b91c1c);
+}
+.course-plan-chip:has(input:disabled) {
+  cursor: default;
+  opacity: 0.85;
+}
+.course-plan-prereq-submit {
+  margin-top: 0.55rem;
+}
+.course-plan-status-col {
+  width: 11rem;
+  text-align: center;
+  vertical-align: middle;
+}
+.course-plan-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+.course-plan-status--ok {
+  color: #15803d;
+  background: #dcfce7;
+}
+.course-plan-status--missing {
+  color: #b91c1c;
+  background: #fee2e2;
+}
 .kpi-card--static {
   cursor: default;
 }

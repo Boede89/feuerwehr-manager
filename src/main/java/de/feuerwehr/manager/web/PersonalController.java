@@ -14,8 +14,11 @@ import de.feuerwehr.manager.personal.PersonalMemberService;
 import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.personal.PersonGroup;
 import de.feuerwehr.manager.personal.PersonalService.CourseCompletionInput;
+import de.feuerwehr.manager.personal.PersonalService.CoursePlanResult;
 import de.feuerwehr.manager.berichte.AnwesenheitslisteService;
 import de.feuerwehr.manager.mail.AccountMailService;
+import de.feuerwehr.manager.pdf.HtmlPdfService;
+import de.feuerwehr.manager.pdf.PdfDownloadResponse;
 import de.feuerwehr.manager.termine.TermineCategory;
 import de.feuerwehr.manager.personal.PersonalService.PersonCreateResult;
 import de.feuerwehr.manager.personal.PersonalService.PersonDetailView;
@@ -28,8 +31,12 @@ import de.feuerwehr.manager.unit.UnitService;
 import de.feuerwehr.manager.util.PersonMembership;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -60,6 +67,9 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @RequiredArgsConstructor
 public class PersonalController {
 
+    private static final DateTimeFormatter PRINT_STAMP_FMT =
+            DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm", Locale.GERMANY);
+
     private final UnitService unitService;
     private final PersonalService personalService;
     private final PersonalMemberService personalMemberService;
@@ -69,6 +79,7 @@ public class PersonalController {
     private final AccessControlService accessControlService;
     private final UserPermissionService userPermissionService;
     private final AccountMailService accountMailService;
+    private final HtmlPdfService htmlPdfService;
 
     @GetMapping
     public String index(
@@ -77,6 +88,8 @@ public class PersonalController {
             @RequestParam(name = "tab", defaultValue = "mitglieder") String tab,
             @RequestParam(name = "view", required = false) String membersViewParam,
             @RequestParam(name = "course", required = false) Long planCourseId,
+            @RequestParam(name = "ignorePrerequisites", defaultValue = "false") boolean ignorePrerequisites,
+            @RequestParam(name = "ignoreId", required = false) List<Long> ignorePrerequisiteIds,
             Model model) {
         Unit unit = resolveUnit(unitId, actor, model);
         String personalTab = normalizePersonalTab(tab);
@@ -124,15 +137,83 @@ public class PersonalController {
             List<Course> planCourses = personalService.listCourses(unit.getId(), false);
             model.addAttribute("planCourses", planCourses);
             model.addAttribute("selectedPlanCourseId", planCourseId);
+            model.addAttribute("ignorePrerequisites", ignorePrerequisites);
             if (planCourseId != null && planCourseId > 0) {
                 try {
-                    model.addAttribute("coursePlan", personalService.planCourse(unit.getId(), planCourseId));
+                    model.addAttribute(
+                            "coursePlan",
+                            personalService.planCourse(
+                                    unit.getId(), planCourseId, ignorePrerequisites, ignorePrerequisiteIds));
                 } catch (IllegalArgumentException e) {
                     model.addAttribute("coursePlanError", e.getMessage());
                 }
             }
         }
         return "personal/index";
+    }
+
+    @GetMapping("/lehrgangsplanung/pdf")
+    public Object coursePlanPdf(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @RequestParam(name = "course") long courseId,
+            @RequestParam(name = "ignorePrerequisites", defaultValue = "false") boolean ignorePrerequisites,
+            @RequestParam(name = "ignoreId", required = false) List<Long> ignorePrerequisiteIds,
+            Model model,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor, model);
+            CoursePlanResult plan = personalService.planCourse(
+                    unit.getId(), courseId, ignorePrerequisites, ignorePrerequisiteIds);
+            String ignoredLabel = plan.ignoredPrerequisitesLabel();
+            String subtitle = unit.getName()
+                    + (ignorePrerequisites
+                            ? " · alle Voraussetzungen ignoriert"
+                            : (!ignoredLabel.isBlank() ? " · ignoriert: " + ignoredLabel : ""))
+                    + " · Stand: "
+                    + PRINT_STAMP_FMT.format(LocalDateTime.now())
+                    + " Uhr";
+            if (unit.getLogoBase64() != null && !unit.getLogoBase64().isBlank()) {
+                model.addAttribute("unitLogoBase64", unit.getLogoBase64());
+            }
+            model.addAttribute("printTitle", "Lehrgangsplanung – " + plan.course().getName());
+            model.addAttribute("printSubtitle", subtitle);
+            model.addAttribute("coursePlan", plan);
+            byte[] pdf = htmlPdfService.renderPdf("personal/lehrgangsplanung-druck", model);
+            return PdfDownloadResponse.inline(coursePlanPdfFilename(plan.course().getName()), pdf);
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectCoursePlan(unitId, courseId, ignorePrerequisites, ignorePrerequisiteIds);
+        } catch (IllegalStateException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return redirectCoursePlan(unitId, courseId, ignorePrerequisites, ignorePrerequisiteIds);
+        }
+    }
+
+    private static String redirectCoursePlan(
+            long unitId, long courseId, boolean ignorePrerequisites, Collection<Long> ignorePrerequisiteIds) {
+        String url = "redirect:/personal?unit=" + unitId + "&tab=lehrgangsplanung&course=" + courseId;
+        if (ignorePrerequisites) {
+            url += "&ignorePrerequisites=true";
+        }
+        if (ignorePrerequisiteIds != null) {
+            for (Long id : ignorePrerequisiteIds) {
+                if (id != null && id > 0) {
+                    url += "&ignoreId=" + id;
+                }
+            }
+        }
+        return url;
+    }
+
+    private static String coursePlanPdfFilename(String courseName) {
+        String safe = courseName == null || courseName.isBlank()
+                ? "Lehrgang"
+                : courseName.replaceAll("[^a-zA-Z0-9._-äöüÄÖÜß ]", "_").trim().replace(' ', '_');
+        if (safe.isBlank()) {
+            safe = "Lehrgang";
+        }
+        return "Lehrgangsplanung-" + safe + ".pdf";
     }
 
     private List<String> listKnownInstructorThemen(long unitId) {
