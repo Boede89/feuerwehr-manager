@@ -11,6 +11,7 @@ import de.feuerwehr.manager.reservierungen.ReservierungenConflictService;
 import de.feuerwehr.manager.reservierungen.ReservierungenService;
 import de.feuerwehr.manager.reservierungen.ReservierungenTab;
 import de.feuerwehr.manager.reservierungen.RoomReservation;
+import de.feuerwehr.manager.reservierungen.UpdateReservationRequest;
 import de.feuerwehr.manager.reservierungen.VehicleReservation;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
@@ -38,6 +39,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -100,9 +102,11 @@ public class ReservierungenController {
                     "requesterEmail",
                     userRepository.findById(actor.getUserId()).map(u -> u.getLoginEmail()).orElse(""));
             if (activeTab == ReservierungenTab.MEINE) {
+                reservierungenService.relinkRequestersByEmail(unit.getId());
                 model.addAttribute("myReservations", reservierungenService.listMine(unit.getId(), actor.getUserId()));
             }
             if (activeTab == ReservierungenTab.VERWALTUNG && canWrite) {
+                reservierungenService.relinkRequestersByEmail(unit.getId());
                 model.addAttribute("pendingReservations", reservierungenService.listPending(unit.getId(), actor.getUserId()));
                 var allReservations = reservierungenService.listAll(unit.getId(), actor.getUserId());
                 model.addAttribute("allReservations", allReservations);
@@ -278,6 +282,52 @@ public class ReservierungenController {
         requireWrite(actor, unitId);
         accessControlService.requireUnitAccess(actor, unitId);
         return Map.of("conflicts", reservierungenService.checkRoomConflicts(unitId, id));
+    }
+
+    @PutMapping("/api/fahrzeuge/{id}")
+    @ResponseBody
+    public ReservationActionResultDto updateVehicle(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @PathVariable long id,
+            @RequestBody UpdateReservationRequest body) {
+        try {
+            requireModuleEnabled(unitId);
+            requireWrite(actor, unitId);
+            accessControlService.requireUnitAccess(actor, unitId);
+            List<String> notes =
+                    reservierungenService.updateVehicleReservation(unitId, id, actor.getUserId(), body);
+            return ReservationActionResultDto.success("Reservierung wurde aktualisiert.", notes);
+        } catch (ReservationConflictException e) {
+            return ReservationActionResultDto.conflicts(
+                    e.getMessage(), e.getConflicts(), e.getConflictingResourceIds());
+        } catch (LoeschfahrzeugWarningException e) {
+            return ReservationActionResultDto.loeschWarning(e.getWarning());
+        } catch (IllegalArgumentException e) {
+            return ReservationActionResultDto.failure(e.getMessage());
+        }
+    }
+
+    @PutMapping("/api/raeume/{id}")
+    @ResponseBody
+    public ReservationActionResultDto updateRoom(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @PathVariable long id,
+            @RequestBody UpdateReservationRequest body) {
+        try {
+            requireModuleEnabled(unitId);
+            requireWrite(actor, unitId);
+            accessControlService.requireUnitAccess(actor, unitId);
+            List<String> notes =
+                    reservierungenService.updateRoomReservation(unitId, id, actor.getUserId(), body);
+            return ReservationActionResultDto.success("Reservierung wurde aktualisiert.", notes);
+        } catch (ReservationConflictException e) {
+            return ReservationActionResultDto.conflicts(
+                    e.getMessage(), e.getConflicts(), e.getConflictingResourceIds());
+        } catch (IllegalArgumentException e) {
+            return ReservationActionResultDto.failure(e.getMessage());
+        }
     }
 
     @DeleteMapping("/api/fahrzeuge/{id}")

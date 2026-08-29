@@ -35,6 +35,14 @@
   var importExtraResources = [];
   var pickContext = 'create'; // create | import
   var pendingImportPayload = null;
+  var editReservationId = null;
+  var pendingEditFlags = {
+    forceConflict: false,
+    forceLoesch: false,
+    sendRequesterEmail: false,
+    testModeEmailDelivery: null,
+    payload: null
+  };
 
   function loadResourceCatalog() {
     function fromSelect(id) {
@@ -1005,6 +1013,7 @@
   document.querySelectorAll('[data-close-import-modal]').forEach(function (btn) {
     btn.addEventListener('click', function (ev) {
       ev.preventDefault();
+      resetImportEditMode();
       closeOverlay(importModal);
     });
   });
@@ -1042,6 +1051,252 @@
       hour: '2-digit',
       minute: '2-digit'
     }).format(d);
+  }
+
+  function isoToBerlinDateTimeLocal(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    var parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/Berlin',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).formatToParts(d);
+    function part(type) {
+      var found = parts.find(function (p) { return p.type === type; });
+      return found ? found.value : '';
+    }
+    var hour = part('hour');
+    if (hour === '24') hour = '00';
+    return part('year') + '-' + part('month') + '-' + part('day') + 'T' + hour + ':' + part('minute');
+  }
+
+  function resetImportEditMode() {
+    editReservationId = null;
+    pendingEditFlags = {
+      forceConflict: false,
+      forceLoesch: false,
+      sendRequesterEmail: false,
+      testModeEmailDelivery: null,
+      payload: null
+    };
+    var kindEl = document.getElementById('import-kind');
+    if (kindEl) kindEl.disabled = false;
+    var title = document.getElementById('reservierung-import-title');
+    if (title) title.textContent = 'Reservierung hinzufügen';
+    var submit = document.getElementById('import-submit');
+    if (submit) submit.textContent = 'Übernehmen';
+  }
+
+  function collectImportFormPayload() {
+    var kind = document.getElementById('import-kind').value;
+    var primaryId = Number(document.getElementById('import-primary')?.value || 0);
+    if (!primaryId) {
+      notify(kind === 'vehicle' ? 'Bitte ein Fahrzeug wählen.' : 'Bitte einen Raum wählen.', 'error');
+      return null;
+    }
+    var resourceIds = [primaryId];
+    if (kind === 'vehicle') {
+      importExtraResources.forEach(function (r) {
+        var id = Number(r.id);
+        if (id && resourceIds.indexOf(id) < 0) {
+          resourceIds.push(id);
+        }
+      });
+    }
+    var startAt = localDateTimeToIso(document.getElementById('import-start').value);
+    var endDate = document.getElementById('import-end-date')?.value;
+    var endTime = document.getElementById('import-end-time')?.value;
+    if (!startAt) {
+      notify('Bitte Beginn angeben.', 'error');
+      return null;
+    }
+    if (!endDate) {
+      notify('Bitte Endedatum angeben.', 'error');
+      return null;
+    }
+    if (!endTime) {
+      notify('Bitte Enduhrzeit manuell eintragen.', 'error');
+      return null;
+    }
+    var endAt = combineDateAndTime(endDate, endTime);
+    if (!endAt) {
+      notify('Ende ungültig.', 'error');
+      return null;
+    }
+    if (new Date(endAt).getTime() <= new Date(startAt).getTime()) {
+      notify('Das Ende muss nach dem Beginn liegen.', 'error');
+      return null;
+    }
+    return {
+      kind: kind,
+      resourceIds: resourceIds,
+      resourceId: resourceIds[0],
+      requesterName: document.getElementById('import-name').value.trim(),
+      requesterEmail: document.getElementById('import-email').value.trim(),
+      reason: document.getElementById('import-reason').value.trim(),
+      location: document.getElementById('import-location').value.trim(),
+      startAt: startAt,
+      endAt: endAt
+    };
+  }
+
+  function openEditFromSource(sourceEl) {
+    if (!sourceEl || !importModal || !importForm || !canWrite) {
+      return;
+    }
+    var status = (sourceEl.dataset.status || '').toUpperCase();
+    if (status && status !== 'APPROVED') {
+      notify('Nur genehmigte Reservierungen können bearbeitet werden.', 'error');
+      return;
+    }
+    var kind = (sourceEl.dataset.kind || '').toLowerCase() === 'room' ? 'room' : 'vehicle';
+    editReservationId = sourceEl.dataset.id;
+    pendingEditFlags = {
+      forceConflict: false,
+      forceLoesch: false,
+      sendRequesterEmail: false,
+      testModeEmailDelivery: null,
+      payload: null
+    };
+    importForm.reset();
+    var kindEl = document.getElementById('import-kind');
+    if (kindEl) {
+      kindEl.value = kind;
+      kindEl.disabled = true;
+    }
+    syncImportUiForKind();
+    if (kindEl) kindEl.disabled = true;
+    var ids = String(sourceEl.dataset.resourceIds || '')
+      .split(',')
+      .map(function (id) { return id.trim(); })
+      .filter(Boolean);
+    var primary = ids[0] || '';
+    fillSelectOptions(document.getElementById('import-primary'), kind, primary);
+    importExtraResources = [];
+    if (kind === 'vehicle') {
+      ids.slice(1).forEach(function (id) {
+        var found = findResource('vehicle', id);
+        importExtraResources.push({
+          id: Number(id),
+          name: found ? found.name : id
+        });
+      });
+    }
+    renderImportChips();
+    document.getElementById('import-name').value = sourceEl.dataset.requesterName || '';
+    document.getElementById('import-email').value = sourceEl.dataset.requesterEmail || '';
+    document.getElementById('import-reason').value = sourceEl.dataset.reason || '';
+    document.getElementById('import-location').value = sourceEl.dataset.location || '';
+    var startLocal = isoToBerlinDateTimeLocal(sourceEl.dataset.startAt);
+    var endLocal = isoToBerlinDateTimeLocal(sourceEl.dataset.endAt);
+    document.getElementById('import-start').value = startLocal;
+    document.getElementById('import-end-date').value = endLocal ? endLocal.slice(0, 10) : '';
+    document.getElementById('import-end-time').value = endLocal ? endLocal.slice(11, 16) : '';
+    var title = document.getElementById('reservierung-import-title');
+    if (title) title.textContent = 'Reservierung bearbeiten';
+    var submit = document.getElementById('import-submit');
+    if (submit) submit.textContent = 'Änderungen übernehmen';
+    var detailsOverlay = sourceEl.classList && sourceEl.classList.contains('modal-overlay')
+      ? sourceEl
+      : document.getElementById('reservierung-details-' + (sourceEl.dataset.kind || '') + '-' + sourceEl.dataset.id);
+    if (detailsOverlay) {
+      closeOverlay(detailsOverlay);
+    }
+    openOverlay(importModal);
+  }
+
+  function submitEdit() {
+    if (!editReservationId || !pendingEditFlags.payload) {
+      return;
+    }
+    var kind = pendingEditFlags.payload.kind;
+    var payload = Object.assign({}, pendingEditFlags.payload, {
+      sendRequesterEmail: !!pendingEditFlags.sendRequesterEmail,
+      forceAvailabilityOverride: !!pendingEditFlags.forceLoesch,
+      forceConflictOverride: !!pendingEditFlags.forceConflict
+    });
+    var url = (kind === 'vehicle' ? '/reservierungen/api/fahrzeuge/' : '/reservierungen/api/raeume/')
+      + encodeURIComponent(editReservationId)
+      + '?unit=' + encodeURIComponent(unitId);
+    url = appendTestModeEmailParam(url, pendingEditFlags.testModeEmailDelivery);
+    var panel = importModal ? (importModal.querySelector('.modal') || importModal) : root;
+    beginActionBusy(panel, 'Reservierung wird aktualisiert …');
+    fetch(url, {
+      method: 'PUT',
+      credentials: 'same-origin',
+      headers: Object.assign({ 'Content-Type': 'application/json', Accept: 'application/json' }, csrfHeaders()),
+      body: JSON.stringify(payload)
+    })
+      .then(parseJsonResponse)
+      .then(function (data) {
+        if (data.code === 'LOESCH_WARNING') {
+          finishActionBusy(panel);
+          showLoeschModal(data);
+          return;
+        }
+        if (data.code === 'CONFLICTS') {
+          finishActionBusy(panel);
+          showConflictModal(data);
+          return;
+        }
+        if (!data.ok) {
+          finishActionBusy(panel);
+          notify(data.message || 'Aktualisierung fehlgeschlagen.', 'error');
+          return;
+        }
+        var notes = (data.syncNotes || []).filter(Boolean);
+        notify((data.message || 'Reservierung aktualisiert.') + (notes.length ? ' ' + notes.join(' ') : ''), 'success');
+        window.location.reload();
+      })
+      .catch(function () {
+        finishActionBusy(panel);
+        notify('Aktualisierung fehlgeschlagen.', 'error');
+      });
+  }
+
+  function askEditConfirmAndSave(payload) {
+    pendingEditFlags.payload = payload;
+    pendingEditFlags.forceConflict = false;
+    pendingEditFlags.forceLoesch = false;
+    var inTestMode = window.FwConfirm && typeof window.FwConfirm.isTestMode === 'function'
+      ? window.FwConfirm.isTestMode()
+      : false;
+    var confirmOpts = {
+      title: 'Änderungen übernehmen?',
+      message: 'Die Reservierung wird gespeichert. Kalendertermine (DIVERA/Google) werden mitangepasst.',
+      confirmLabel: 'Übernehmen',
+      cancelLabel: 'Abbrechen',
+      checkboxes: [{
+        id: 'edit-send-requester-email',
+        name: 'sendRequesterEmail',
+        label: 'Antragsteller erneut per E-Mail über die Änderungen informieren',
+        checked: true
+      }],
+      emailSelect: inTestMode
+    };
+    var ask = window.FwConfirm && typeof window.FwConfirm.show === 'function'
+      ? window.FwConfirm.show(confirmOpts)
+      : Promise.resolve(window.confirm(confirmOpts.message) ? { ok: true, sendRequesterEmail: true } : { ok: false });
+    ask.then(function (result) {
+      var ok = result === true || (result && result.ok);
+      if (!ok) {
+        return;
+      }
+      pendingEditFlags.sendRequesterEmail = !!(result && result.sendRequesterEmail);
+      var delivery = 'NONE';
+      if (pendingEditFlags.sendRequesterEmail && inTestMode && result && result.testModeEmailDelivery) {
+        delivery = result.testModeEmailDelivery;
+      } else if (pendingEditFlags.sendRequesterEmail && !inTestMode) {
+        delivery = 'CONFIGURED';
+      }
+      pendingEditFlags.testModeEmailDelivery = delivery;
+      submitEdit();
+    });
   }
 
   function escapeHtml(value) {
@@ -1155,7 +1410,10 @@
     }
   });
   importModal?.addEventListener('click', function (ev) {
-    if (ev.target === importModal) closeOverlay(importModal);
+    if (ev.target === importModal) {
+      resetImportEditMode();
+      closeOverlay(importModal);
+    }
   });
   importOptionsModal?.addEventListener('click', function (ev) {
     if (ev.target === importOptionsModal) {
@@ -1178,6 +1436,11 @@
   document.getElementById('reservierung-pick-apply')?.addEventListener('click', applyPickSelection);
   document.getElementById('reservierung-conflict-force')?.addEventListener('click', function () {
     closeOverlay(conflictModal);
+    if (editReservationId) {
+      pendingEditFlags.forceConflict = true;
+      submitEdit();
+      return;
+    }
     pendingCreateFlags.forceConflict = true;
     submitCreate();
   });
@@ -1225,6 +1488,11 @@
           pending.conflictIds || []
         );
       }
+      return;
+    }
+    if (editReservationId) {
+      pendingEditFlags.forceLoesch = true;
+      submitEdit();
       return;
     }
     pendingCreateFlags.forceLoesch = true;
@@ -1403,6 +1671,7 @@
 
   document.getElementById('reservierung-import-open')?.addEventListener('click', function () {
     if (!importModal || !importForm) return;
+    resetImportEditMode();
     importForm.reset();
     document.getElementById('import-kind').value = 'vehicle';
     syncImportUiForKind();
@@ -1487,56 +1756,15 @@
       notify('Bitte alle Pflichtfelder ausfüllen.', 'error');
       return;
     }
-    var kind = document.getElementById('import-kind').value;
-    var primaryId = Number(document.getElementById('import-primary')?.value || 0);
-    if (!primaryId) {
-      notify(kind === 'vehicle' ? 'Bitte ein Fahrzeug wählen.' : 'Bitte einen Raum wählen.', 'error');
+    var payload = collectImportFormPayload();
+    if (!payload) {
       return;
     }
-    var resourceIds = [primaryId];
-    if (kind === 'vehicle') {
-      importExtraResources.forEach(function (r) {
-        var id = Number(r.id);
-        if (id && resourceIds.indexOf(id) < 0) {
-          resourceIds.push(id);
-        }
-      });
-    }
-    var startAt = localDateTimeToIso(document.getElementById('import-start').value);
-    var endDate = document.getElementById('import-end-date')?.value;
-    var endTime = document.getElementById('import-end-time')?.value;
-    if (!startAt) {
-      notify('Bitte Beginn angeben.', 'error');
+    if (editReservationId) {
+      askEditConfirmAndSave(payload);
       return;
     }
-    if (!endDate) {
-      notify('Bitte Endedatum angeben.', 'error');
-      return;
-    }
-    if (!endTime) {
-      notify('Bitte Enduhrzeit manuell eintragen.', 'error');
-      return;
-    }
-    var endAt = combineDateAndTime(endDate, endTime);
-    if (!endAt) {
-      notify('Ende ungültig.', 'error');
-      return;
-    }
-    if (new Date(endAt).getTime() <= new Date(startAt).getTime()) {
-      notify('Das Ende muss nach dem Beginn liegen.', 'error');
-      return;
-    }
-    pendingImportPayload = {
-      kind: kind,
-      resourceIds: resourceIds,
-      resourceId: resourceIds[0],
-      requesterName: document.getElementById('import-name').value.trim(),
-      requesterEmail: document.getElementById('import-email').value.trim(),
-      reason: document.getElementById('import-reason').value.trim(),
-      location: document.getElementById('import-location').value.trim(),
-      startAt: startAt,
-      endAt: endAt
-    };
+    pendingImportPayload = payload;
     var emailOpt = document.getElementById('import-opt-email');
     var calOpt = document.getElementById('import-opt-calendar');
     if (emailOpt) emailOpt.checked = true;
@@ -1843,10 +2071,24 @@
 
   document.querySelectorAll('.reservierung-details-modal [data-action]').forEach(function (btn) {
     btn.addEventListener('click', function (ev) {
+      if (btn.dataset.action === 'edit') {
+        return;
+      }
       ev.preventDefault();
       ev.stopPropagation();
       var overlay = btn.closest('.modal-overlay');
       runProcessAction(btn.dataset.kind, btn.dataset.id, btn.dataset.action, btn, { overlay: overlay });
+    });
+  });
+
+  document.querySelectorAll('[data-action="edit"]').forEach(function (btn) {
+    btn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (!canWrite) return;
+      var source = btn.closest('tr[data-id]') || btn.closest('.modal-overlay[data-id]');
+      if (!source) return;
+      openEditFromSource(source);
     });
   });
 

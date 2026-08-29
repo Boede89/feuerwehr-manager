@@ -208,6 +208,68 @@ public class ReservierungenNotificationService {
         }
     }
 
+    public void notifyRequesterUpdated(long unitId, VehicleReservation reservation) {
+        sendUpdatedMail(
+                unitId,
+                reservation.getRequesterEmail(),
+                "Fahrzeug",
+                reservation.vehicleNamesJoined(),
+                reservation.getReason(),
+                reservation.getLocation(),
+                reservation.getStartAt(),
+                reservation.getEndAt());
+    }
+
+    public void notifyRequesterUpdated(long unitId, RoomReservation reservation) {
+        sendUpdatedMail(
+                unitId,
+                reservation.getRequesterEmail(),
+                "Raum",
+                reservation.getRoom().getName(),
+                reservation.getReason(),
+                reservation.getLocation(),
+                reservation.getStartAt(),
+                reservation.getEndAt());
+    }
+
+    private void sendUpdatedMail(
+            long unitId,
+            String email,
+            String typeLabel,
+            String resourceName,
+            String reason,
+            String location,
+            Instant startAt,
+            Instant endAt) {
+        if (!unitMailService.canSendForUnit(unitId) || email == null || email.isBlank()) {
+            return;
+        }
+        List<String> recipients = resolveMailRecipients(unitId, List.of(email.trim()));
+        if (recipients.isEmpty()) {
+            return;
+        }
+        String subject = "Reservierung geändert – " + resourceName;
+        String body = """
+                <p style="color:#15803d;font-weight:700;">Ihre genehmigte Reservierung wurde geändert.</p>
+                <p>Die folgenden Daten gelten ab sofort:</p>
+                <table style="width:100%%;border-collapse:collapse;margin-top:12px;">
+                  <tr><td style="padding:6px 0;font-weight:600;">%s</td><td>%s</td></tr>
+                  <tr><td style="padding:6px 0;font-weight:600;">Grund</td><td>%s</td></tr>
+                  <tr><td style="padding:6px 0;font-weight:600;">Ort</td><td>%s</td></tr>
+                  <tr><td style="padding:6px 0;font-weight:600;">Zeitraum</td><td>%s</td></tr>
+                </table>
+                """
+                .formatted(
+                        escape(typeLabel),
+                        escape(resourceName),
+                        escape(blankToDash(reason)),
+                        escape(blankToDash(location)),
+                        escape(formatTimeRange(startAt, endAt)));
+        for (String recipient : recipients) {
+            unitMailService.sendHtmlMail(unitId, recipient, subject, wrapHtml(subject, body));
+        }
+    }
+
     private void sendDecisionMail(
             long unitId,
             String email,

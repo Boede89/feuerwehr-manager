@@ -69,7 +69,7 @@ public class ReservierungenDiveraSyncService {
                 reservation.getEndAt(),
                 groupIds,
                 actorUserId,
-                null);
+                reservation.getDiveraEventId());
     }
 
     public boolean updateVehicleEvent(

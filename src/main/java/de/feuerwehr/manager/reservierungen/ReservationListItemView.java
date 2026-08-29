@@ -20,4 +20,19 @@ public record ReservationListItemView(
         Instant createdAt,
         boolean ownedByCurrentUser,
         boolean hasConflict,
-        List<ReservationResourceItem> resources) {}
+        List<ReservationResourceItem> resources) {
+
+    public String resourceIdsCsv() {
+        if (resources == null || resources.isEmpty()) {
+            return "";
+        }
+        StringBuilder csv = new StringBuilder();
+        for (ReservationResourceItem item : resources) {
+            if (csv.length() > 0) {
+                csv.append(',');
+            }
+            csv.append(item.id());
+        }
+        return csv.toString();
+    }
+}

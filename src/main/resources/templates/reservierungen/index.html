@@ -204,7 +204,7 @@
             <tbody>
             <tr th:each="r : ${historyReservations}"
                 class="reservierungen-row--clickable"
-                th:attr="data-kind=${r.kind().name()},data-id=${r.id()},data-status=${r.status().name()},data-start-at=${r.startAt()},data-open-details=${'reservierung-details-' + r.kind().name() + '-' + r.id()}">
+                th:attr="data-kind=${r.kind().name()},data-id=${r.id()},data-status=${r.status().name()},data-start-at=${r.startAt()},data-end-at=${r.endAt()},data-requester-name=${r.requesterName()},data-requester-email=${r.requesterEmail()},data-reason=${r.reason()},data-location=${r.location()},data-resource-ids=${r.resourceIdsCsv()},data-open-details=${'reservierung-details-' + r.kind().name() + '-' + r.id()}">
               <td th:text="${r.kind() == T(de.feuerwehr.manager.reservierungen.ReservationKind).VEHICLE ? 'Fahrzeug' : 'Raum'}">Fahrzeug</td>
               <td th:text="${r.resourceName()}">TLF</td>
               <td th:text="${r.requesterName()}">Name</td>
@@ -225,6 +225,8 @@
                 <div class="btn-group">
                   <button type="button" class="btn btn--outline btn--sm"
                           th:attr="data-open-details=${'reservierung-details-' + r.kind().name() + '-' + r.id()}">Details</button>
+                  <button type="button" class="btn btn--outline btn--sm" data-action="edit"
+                          th:if="${r.status().name() == 'APPROVED'}">Bearbeiten</button>
                   <button type="button" class="btn btn--danger btn--sm" data-action="delete">Löschen</button>
                 </div>
               </td>
@@ -240,7 +242,7 @@
          th:id="${'reservierung-details-' + r.kind().name() + '-' + r.id()}"
          class="modal-overlay"
          aria-hidden="true"
-         th:attr="data-kind=${r.kind().name()},data-id=${r.id()},data-status=${r.status().name()}">
+         th:attr="data-kind=${r.kind().name()},data-id=${r.id()},data-status=${r.status().name()},data-start-at=${r.startAt()},data-end-at=${r.endAt()},data-requester-name=${r.requesterName()},data-requester-email=${r.requesterEmail()},data-reason=${r.reason()},data-location=${r.location()},data-resource-ids=${r.resourceIdsCsv()}">
       <div class="modal modal--wide reservierung-details-modal" role="dialog"
            th:attr="aria-labelledby=${'reservierung-details-title-' + r.kind().name() + '-' + r.id()}">
         <div class="modal__header">
@@ -340,6 +342,10 @@
                 th:text="${r.status().name() == 'APPROVED'} ? 'Genehmigt' : (${r.status().name() == 'PENDING'} ? 'Ausstehend' : (${r.status().name() == 'REJECTED'} ? 'Abgelehnt' : (${r.status().name() == 'CANCELLED'} ? 'Storniert' : ${r.status()})))">Ausstehend</span>
           <div class="btn-group">
             <button type="button" class="btn btn--outline" data-close-details-modal>Schließen</button>
+            <th:block th:if="${r.status().name() == 'APPROVED'}">
+              <button type="button" class="btn btn--primary" data-action="edit"
+                      th:attr="data-kind=${r.kind().name()},data-id=${r.id()}">Bearbeiten</button>
+            </th:block>
             <th:block th:if="${r.status().name() == 'PENDING'}">
               <button type="button" class="btn btn--outline" data-action="reject"
                       th:attr="data-kind=${r.kind().name()},data-id=${r.id()}">Alle ablehnen</button>
@@ -618,6 +624,6 @@
     <option th:each="r : ${roomOptions}" th:value="${r.id}" th:text="${r.name}">Raum</option>
   </select>
   <script th:src="@{/js/combo-suggest.js}" defer></script>
-  <script th:src="@{/js/reservierungen.js(v='20260828b')}" defer></script>
+  <script th:src="@{/js/reservierungen.js(v='20260829a')}" defer></script>
 </main>
 </html>

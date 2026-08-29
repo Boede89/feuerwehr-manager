@@ -65,6 +65,20 @@ public interface PersonRepository extends JpaRepository<Person, Long> {
 
     @Query("""
             SELECT p FROM Person p
+            LEFT JOIN FETCH p.user
+            WHERE p.unit.id = :unitId
+              AND p.anonymizedAt IS NULL
+              AND (
+                (p.email IS NOT NULL AND LOWER(TRIM(p.email)) = LOWER(:email))
+                OR (p.emailPrivate IS NOT NULL AND LOWER(TRIM(p.emailPrivate)) = LOWER(:email))
+              )
+            ORDER BY p.id
+            """)
+    List<Person> findByUnitIdAndAnyEmailIgnoreCase(
+            @Param("unitId") long unitId, @Param("email") String email);
+
+    @Query("""
+            SELECT p FROM Person p
             JOIN FETCH p.user u
             WHERE u.id IN :userIds
             ORDER BY p.id
