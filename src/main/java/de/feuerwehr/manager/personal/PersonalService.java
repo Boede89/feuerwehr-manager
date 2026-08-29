@@ -1283,6 +1283,17 @@ public class PersonalService {
             return ignoredPrerequisiteIds != null && ignoredPrerequisiteIds.contains(courseId);
         }
 
+        public List<Long> toggledIgnoreIds(long courseId) {
+            LinkedHashSet<Long> ids = new LinkedHashSet<>();
+            if (ignoredPrerequisiteIds != null) {
+                ids.addAll(ignoredPrerequisiteIds);
+            }
+            if (!ids.add(courseId)) {
+                ids.remove(courseId);
+            }
+            return List.copyOf(ids);
+        }
+
         public String ignoredPrerequisitesLabel() {
             if (prerequisites == null || prerequisites.isEmpty()) {
                 return "";

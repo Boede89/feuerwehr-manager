@@ -373,34 +373,32 @@
           Für diesen Lehrgang sind keine Voraussetzungen hinterlegt — angezeigt werden alle Mitglieder,
           die ihn noch nicht abgeschlossen haben.
         </p>
-        <form method="get" class="course-plan-prereq-form" th:action="@{/personal}"
-              th:unless="${coursePlan.prerequisites == null or #lists.isEmpty(coursePlan.prerequisites)}">
-          <input type="hidden" name="unit" th:value="${unitId}"/>
-          <input type="hidden" name="tab" value="lehrgangsplanung"/>
-          <input type="hidden" name="course" th:value="${selectedPlanCourseId}"/>
-          <input type="hidden" name="ignorePrerequisites" value="true" th:if="${ignorePrerequisites}"/>
+        <div class="course-plan-prereq-form"
+             th:unless="${coursePlan.prerequisites == null or #lists.isEmpty(coursePlan.prerequisites)}">
           <p class="hint" style="margin-top:0;margin-bottom:0.45rem;">
             Voraussetzungen (anklicken zum Ignorieren, mehrere möglich):
           </p>
           <div class="course-plan-chips" role="group" aria-label="Voraussetzungen ignorieren">
-            <label class="course-plan-chip"
-                   th:each="pr : ${coursePlan.prerequisites}"
-                   th:classappend="${coursePlan.ignoresPrerequisite(pr.id)} ? ' course-plan-chip--active' : ''"
-                   th:title="${coursePlan.ignoresPrerequisite(pr.id)
-                     ? 'Wird ignoriert — erneut klicken, um wieder zu verlangen'
-                     : 'Klicken, um diese Voraussetzung zu ignorieren'}">
-              <input type="checkbox" name="ignoreId" th:value="${pr.id}"
-                     th:checked="${coursePlan.ignoresPrerequisite(pr.id)}"
-                     th:disabled="${ignorePrerequisites}"
-                     onchange="this.form.submit()"/>
+            <a class="course-plan-chip"
+               th:each="pr : ${coursePlan.prerequisites}"
+               th:unless="${ignorePrerequisites}"
+               th:classappend="${coursePlan.ignoresPrerequisite(pr.id)} ? ' course-plan-chip--active' : ''"
+               th:href="@{/personal(unit=${unitId}, tab='lehrgangsplanung', course=${selectedPlanCourseId}, ignoreId=${coursePlan.toggledIgnoreIds(pr.id)})}"
+               th:attr="aria-pressed=${coursePlan.ignoresPrerequisite(pr.id)}"
+               th:title="${coursePlan.ignoresPrerequisite(pr.id)
+                 ? 'Wird ignoriert — erneut klicken, um wieder zu verlangen'
+                 : 'Klicken, um diese Voraussetzung zu ignorieren'}">
               <span th:text="${pr.name}">Lehrgang</span>
-            </label>
+            </a>
+            <span class="course-plan-chip course-plan-chip--active"
+                  th:each="pr : ${coursePlan.prerequisites}"
+                  th:if="${ignorePrerequisites}"
+                  th:text="${pr.name}">Lehrgang</span>
           </div>
           <p class="hint text-sm" style="margin:0.45rem 0 0;" th:if="${ignorePrerequisites}">
             Alle Voraussetzungen sind über die Checkbox oben ignoriert.
           </p>
-          <button type="submit" class="btn btn--outline btn--sm course-plan-prereq-submit">Aktualisieren</button>
-        </form>
+        </div>
         <p class="hint" style="margin-top:0.75rem;"
            th:if="${!ignorePrerequisites and coursePlan.ignoredPrerequisiteIds != null and !#lists.isEmpty(coursePlan.ignoredPrerequisiteIds)}">
           Ignoriert:

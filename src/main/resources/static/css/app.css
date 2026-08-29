@@ -4791,6 +4791,7 @@ span.required { color: var(--error); }
   gap: 0.4rem;
   align-items: center;
 }
+a.course-plan-chip,
 .course-plan-chip {
   display: inline-flex;
   align-items: center;
@@ -4803,29 +4804,25 @@ span.required { color: var(--error); }
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--text);
+  text-decoration: none;
   user-select: none;
 }
-.course-plan-chip input {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-  pointer-events: none;
-}
-.course-plan-chip:hover {
+a.course-plan-chip:hover {
   border-color: var(--text-subtle, #888);
+  text-decoration: none;
+  color: var(--text);
 }
 .course-plan-chip--active {
   border-color: var(--error, #dc2626);
   background: var(--rot-subtle, #fee2e2);
   color: var(--error, #b91c1c);
 }
-.course-plan-chip:has(input:disabled) {
+a.course-plan-chip--active:hover {
+  color: var(--error, #b91c1c);
+}
+span.course-plan-chip {
   cursor: default;
   opacity: 0.85;
-}
-.course-plan-prereq-submit {
-  margin-top: 0.55rem;
 }
 .course-plan-status-col {
   width: 11rem;
