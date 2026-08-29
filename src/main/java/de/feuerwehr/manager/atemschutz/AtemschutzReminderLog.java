@@ -43,6 +43,6 @@ public class AtemschutzReminderLog {
     @Column(name = "valid_until", nullable = false)
     private LocalDate validUntil;
 
-    @Column(name = "sent_at", nullable = false, insertable = false, updatable = false)
+    @Column(name = "sent_at", nullable = false)
     private Instant sentAt;
 }

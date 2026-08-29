@@ -4875,7 +4875,7 @@ span.required { color: var(--error); }
 
 .atemschutz-summary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 1rem;
 }
 .atemschutz-summary-item {
@@ -4883,12 +4883,33 @@ span.required { color: var(--error); }
   border: 1px solid var(--border);
   border-radius: var(--radius, 12px);
   background: var(--card, #fff);
+  display: flex;
+  flex-direction: column;
 }
 .atemschutz-summary-label {
   display: block;
   font-size: 0.85rem;
   color: var(--text-muted);
   margin-bottom: 0.35rem;
+}
+.atemschutz-mail-status {
+  margin: 0.5rem 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+.atemschutz-remind-form {
+  margin-top: 0.65rem;
+}
+.atemschutz-remind-btn {
+  width: 100%;
+}
+.atemschutz-validity-mail {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  line-height: 1.3;
 }
 
 .atemschutz-stammdaten-form {

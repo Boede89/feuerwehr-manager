@@ -1,11 +1,4 @@
 (function () {
-  document.querySelectorAll('form[data-confirm]').forEach(function (form) {
-    form.addEventListener('submit', function (e) {
-      var msg = form.getAttribute('data-confirm');
-      if (msg && !window.confirm(msg)) e.preventDefault();
-    });
-  });
-
   document.querySelectorAll('.atemschutz-pa-row[data-href]').forEach(function (row) {
     function go() {
       var href = row.getAttribute('data-href');

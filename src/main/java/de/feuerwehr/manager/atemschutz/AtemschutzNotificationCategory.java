@@ -51,4 +51,16 @@ public enum AtemschutzNotificationCategory {
     private final String notifyInstructorsField;
     private final String notifyCarriersField;
     private final String ccPersonIdsField;
+
+    public static AtemschutzNotificationCategory fromFitnessType(AtemschutzFitnessType type) {
+        if (type == null) {
+            throw new IllegalArgumentException("Nachweistyp fehlt.");
+        }
+        for (AtemschutzNotificationCategory category : values()) {
+            if (category.fitnessType == type) {
+                return category;
+            }
+        }
+        throw new IllegalArgumentException("Kein Benachrichtigungstyp für " + type.label() + ".");
+    }
 }

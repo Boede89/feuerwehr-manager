@@ -4,6 +4,8 @@ import de.feuerwehr.manager.atemschutz.AtemschutzCarrier;
 import de.feuerwehr.manager.atemschutz.AtemschutzCarrierStatus;
 import de.feuerwehr.manager.atemschutz.AtemschutzFitnessType;
 import de.feuerwehr.manager.atemschutz.AtemschutzPlanStatus;
+import de.feuerwehr.manager.atemschutz.AtemschutzReminderNotificationService;
+import de.feuerwehr.manager.atemschutz.AtemschutzReminderNotificationService.ManualReminderResult;
 import de.feuerwehr.manager.atemschutz.AtemschutzService;
 import de.feuerwehr.manager.atemschutz.AtemschutzService.CarrierDetailView;
 import de.feuerwehr.manager.atemschutz.AtemschutzService.CarrierListResult;
@@ -55,6 +57,7 @@ public class AtemschutzController {
     private final AccessControlService accessControlService;
     private final UserPermissionService userPermissionService;
     private final AtemschutzService atemschutzService;
+    private final AtemschutzReminderNotificationService reminderNotificationService;
     private final HtmlPdfService htmlPdfService;
 
     @GetMapping
@@ -255,6 +258,46 @@ public class AtemschutzController {
         }
     }
 
+    @PostMapping("/remind-selected")
+    public String remindSelected(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam long unit,
+            @RequestParam(name = "filter", defaultValue = "all") String filter,
+            @RequestParam(name = "carrierIds", required = false) Long[] carrierIds,
+            RedirectAttributes redirectAttributes) {
+        try {
+            requireModuleEnabled(unit);
+            requireAtemschutzWrite(actor, unit);
+            accessControlService.requireUnitAccess(actor, unit);
+            ManualReminderResult result = reminderNotificationService.sendManualForCarriers(
+                    unit, carrierIds != null ? Arrays.asList(carrierIds) : List.of());
+            applyReminderFlash(redirectAttributes, result);
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/atemschutz?unit=" + unit + "&filter=" + normalizeFilter(filter);
+    }
+
+    @PostMapping("/carriers/{id}/remind")
+    public String remindCarrier(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @RequestParam long unit,
+            @RequestParam AtemschutzFitnessType fitnessType,
+            RedirectAttributes redirectAttributes) {
+        try {
+            requireModuleEnabled(unit);
+            requireAtemschutzWrite(actor, unit);
+            AtemschutzCarrier carrier = atemschutzService.requireCarrier(id);
+            accessControlService.requireUnitAccess(actor, carrier.getUnit().getId());
+            ManualReminderResult result = reminderNotificationService.sendManualForType(unit, id, fitnessType);
+            applyReminderFlash(redirectAttributes, result);
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/atemschutz/carriers/" + id + "?unit=" + unit;
+    }
+
     @PostMapping("/bulk-records")
     public String bulkAddRecords(
             @AuthenticationPrincipal AppUserDetails actor,
@@ -361,6 +404,20 @@ public class AtemschutzController {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
         return "redirect:/atemschutz/carriers/" + id + "?unit=" + unit;
+    }
+
+    private static void applyReminderFlash(RedirectAttributes redirectAttributes, ManualReminderResult result) {
+        if (result.sent() > 0) {
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", result.message());
+            return;
+        }
+        if (result.failed() > 0) {
+            redirectAttributes.addFlashAttribute("error", result.message());
+            return;
+        }
+        redirectAttributes.addFlashAttribute("saved", true);
+        redirectAttributes.addFlashAttribute("message", result.message());
     }
 
     private void populateListModel(Model model, CarrierListResult result, String filter) {
@@ -477,6 +534,9 @@ public class AtemschutzController {
         if ("nicht_tauglich".equalsIgnoreCase(filter) || "nichttauglich".equalsIgnoreCase(filter)) {
             return "nicht_tauglich";
         }
+        if ("csa".equalsIgnoreCase(filter)) {
+            return "csa";
+        }
         return "all";
     }
 
@@ -486,6 +546,7 @@ public class AtemschutzController {
             case "warnung" -> "Warnung";
             case "uebung_abgelaufen" -> "Übung abgelaufen";
             case "nicht_tauglich" -> "Nicht tauglich";
+            case "csa" -> "CSA";
             default -> "Alle";
         };
     }

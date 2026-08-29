@@ -19,9 +19,13 @@ import de.feuerwehr.manager.user.UserRepository;
 import de.feuerwehr.manager.util.PersonMembership;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.Period;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.EnumSet;
@@ -29,6 +33,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -56,6 +61,7 @@ public class AtemschutzService {
     private final TestModeService testModeService;
     private final IncidentReportPersonnelRepository incidentReportPersonnelRepository;
     private final AttendanceReportRepository attendanceReportRepository;
+    private final AtemschutzReminderLogRepository reminderLogRepository;
     private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
@@ -88,6 +94,7 @@ public class AtemschutzService {
                 latestRecordsByCarrier(carrierIds, AtemschutzFitnessType.STRECKEN);
         Map<Long, AtemschutzFitnessRecord> latestCsa =
                 latestRecordsByCarrier(carrierIds, AtemschutzFitnessType.CSA);
+        ReminderLookup reminders = loadReminderLookup(carrierIds);
         List<CarrierOverview> all = new ArrayList<>();
         for (AtemschutzCarrier carrier : carriers) {
             Map<AtemschutzFitnessType, FitnessStatusView> summaries = new EnumMap<>(AtemschutzFitnessType.class);
@@ -96,25 +103,37 @@ public class AtemschutzService {
                     toFitnessView(
                             latestG26.get(carrier.getId()),
                             atemschutzSettingsService.warnDays(unitId, AtemschutzFitnessType.G26_UNTERSUCHUNG),
-                            today));
+                            today,
+                            carrier.getId(),
+                            AtemschutzFitnessType.G26_UNTERSUCHUNG,
+                            reminders));
             summaries.put(
                     AtemschutzFitnessType.UEBUNG,
                     toFitnessView(
                             latestUebung.get(carrier.getId()),
                             atemschutzSettingsService.warnDays(unitId, AtemschutzFitnessType.UEBUNG),
-                            today));
+                            today,
+                            carrier.getId(),
+                            AtemschutzFitnessType.UEBUNG,
+                            reminders));
             summaries.put(
                     AtemschutzFitnessType.STRECKEN,
                     toFitnessView(
                             latestStrecke.get(carrier.getId()),
                             atemschutzSettingsService.warnDays(unitId, AtemschutzFitnessType.STRECKEN),
-                            today));
+                            today,
+                            carrier.getId(),
+                            AtemschutzFitnessType.STRECKEN,
+                            reminders));
             summaries.put(
                     AtemschutzFitnessType.CSA,
                     toFitnessView(
                             latestCsa.get(carrier.getId()),
                             atemschutzSettingsService.warnDays(unitId, AtemschutzFitnessType.CSA),
-                            today));
+                            today,
+                            carrier.getId(),
+                            AtemschutzFitnessType.CSA,
+                            reminders));
             CarrierTauglichkeitStatus tauglichkeit = computeTauglichkeit(summaries, carrier.getStatus());
             boolean csaEligible = csaPersonIds.contains(carrier.getPerson().getId());
             boolean csaTauglich = isCsaTauglich(csaEligible, summaries.get(AtemschutzFitnessType.CSA));
@@ -177,6 +196,7 @@ public class AtemschutzService {
         List<AtemschutzFitnessRecord> records = fitnessRecordsForCarrier(carrier.getId());
         long unitId = carrier.getUnit().getId();
         LocalDate today = LocalDate.now();
+        ReminderLookup reminders = loadReminderLookup(List.of(carrier.getId()));
         Map<AtemschutzFitnessType, FitnessStatusView> summaries = new EnumMap<>(AtemschutzFitnessType.class);
         for (AtemschutzFitnessType type : AtemschutzFitnessType.values()) {
             AtemschutzFitnessRecord latest = records.stream()
@@ -186,7 +206,13 @@ public class AtemschutzService {
                     .orElse(null);
             summaries.put(
                     type,
-                    toFitnessView(latest, atemschutzSettingsService.warnDays(unitId, type), today));
+                    toFitnessView(
+                            latest,
+                            atemschutzSettingsService.warnDays(unitId, type),
+                            today,
+                            carrier.getId(),
+                            type,
+                            reminders));
         }
         List<FitnessRecordView> recordViews = collapseUebungRecords(records).stream()
                 .map(this::toRecordView)
@@ -932,12 +958,86 @@ public class AtemschutzService {
         return result;
     }
 
-    private FitnessStatusView toFitnessView(AtemschutzFitnessRecord record, int warnDays, LocalDate today) {
+    private FitnessStatusView toFitnessView(
+            AtemschutzFitnessRecord record,
+            int warnDays,
+            LocalDate today,
+            long carrierId,
+            AtemschutzFitnessType type,
+            ReminderLookup reminders) {
         if (record == null) {
-            return new FitnessStatusView(AtemschutzFitnessLevel.MISSING, null, null);
+            return new FitnessStatusView(AtemschutzFitnessLevel.MISSING, null, null)
+                    .withReminder(false, false, reminders.lastSentAt(carrierId, type));
         }
         AtemschutzFitnessLevel level = computeLevel(record.getValidUntil(), warnDays, today);
-        return new FitnessStatusView(level, record.getValidUntil(), record.getValidFrom());
+        boolean eligible = level == AtemschutzFitnessLevel.WARN || level == AtemschutzFitnessLevel.OVERDUE;
+        AtemschutzReminderMailKind mailKind =
+                level == AtemschutzFitnessLevel.WARN
+                        ? AtemschutzReminderMailKind.WARNUNG
+                        : level == AtemschutzFitnessLevel.OVERDUE ? AtemschutzReminderMailKind.ABGELAUFEN : null;
+        boolean sent = eligible
+                && mailKind != null
+                && reminders.sentFor(carrierId, type, mailKind, record.getValidUntil());
+        return new FitnessStatusView(level, record.getValidUntil(), record.getValidFrom())
+                .withReminder(eligible, sent, reminders.lastSentAt(carrierId, type));
+    }
+
+    private ReminderLookup loadReminderLookup(Collection<Long> carrierIds) {
+        if (carrierIds == null || carrierIds.isEmpty()) {
+            return ReminderLookup.empty();
+        }
+        List<AtemschutzReminderLog> logs = reminderLogRepository.findByCarrier_IdIn(carrierIds);
+        Map<ReminderExactKey, Boolean> sentExact = new HashMap<>();
+        Map<Long, Map<AtemschutzFitnessType, Instant>> lastSent = new HashMap<>();
+        for (AtemschutzReminderLog logEntry : logs) {
+            if (logEntry.getCarrier() == null || logEntry.getCarrier().getId() == null) {
+                continue;
+            }
+            long carrierId = logEntry.getCarrier().getId();
+            sentExact.put(
+                    new ReminderExactKey(
+                            carrierId, logEntry.getFitnessType(), logEntry.getMailKind(), logEntry.getValidUntil()),
+                    Boolean.TRUE);
+            Instant sentAt = logEntry.getSentAt();
+            if (sentAt == null) {
+                continue;
+            }
+            Map<AtemschutzFitnessType, Instant> byType =
+                    lastSent.computeIfAbsent(carrierId, ignored -> new EnumMap<>(AtemschutzFitnessType.class));
+            Instant previous = byType.get(logEntry.getFitnessType());
+            if (previous == null || sentAt.isAfter(previous)) {
+                byType.put(logEntry.getFitnessType(), sentAt);
+            }
+        }
+        return new ReminderLookup(sentExact, lastSent);
+    }
+
+    private record ReminderExactKey(
+            long carrierId,
+            AtemschutzFitnessType type,
+            AtemschutzReminderMailKind mailKind,
+            LocalDate validUntil) {}
+
+    private record ReminderLookup(
+            Map<ReminderExactKey, Boolean> sentExact,
+            Map<Long, Map<AtemschutzFitnessType, Instant>> lastSent) {
+
+        static ReminderLookup empty() {
+            return new ReminderLookup(Map.of(), Map.of());
+        }
+
+        boolean sentFor(
+                long carrierId,
+                AtemschutzFitnessType type,
+                AtemschutzReminderMailKind mailKind,
+                LocalDate validUntil) {
+            return sentExact.containsKey(new ReminderExactKey(carrierId, type, mailKind, validUntil));
+        }
+
+        Instant lastSentAt(long carrierId, AtemschutzFitnessType type) {
+            Map<AtemschutzFitnessType, Instant> byType = lastSent.get(carrierId);
+            return byType != null ? byType.get(type) : null;
+        }
     }
 
     private FitnessRecordView toRecordView(AtemschutzFitnessRecord record) {
@@ -1174,7 +1274,32 @@ public class AtemschutzService {
             Map<AtemschutzFitnessType, FitnessStatusView> summaries,
             List<FitnessRecordView> records) {}
 
-    public record FitnessStatusView(AtemschutzFitnessLevel level, LocalDate validUntil, LocalDate validFrom) {}
+    public record FitnessStatusView(
+            AtemschutzFitnessLevel level,
+            LocalDate validUntil,
+            LocalDate validFrom,
+            boolean reminderEligible,
+            boolean reminderSent,
+            Instant reminderLastSentAt) {
+
+        private static final DateTimeFormatter REMINDER_SENT_FMT =
+                DateTimeFormatter.ofPattern("dd.MM.yyyy, HH:mm", Locale.GERMANY).withZone(ZoneId.of("Europe/Berlin"));
+
+        public FitnessStatusView(AtemschutzFitnessLevel level, LocalDate validUntil, LocalDate validFrom) {
+            this(level, validUntil, validFrom, false, false, null);
+        }
+
+        public FitnessStatusView withReminder(boolean eligible, boolean sent, Instant lastSentAt) {
+            return new FitnessStatusView(level, validUntil, validFrom, eligible, sent, lastSentAt);
+        }
+
+        public String reminderLastSentLabel() {
+            if (reminderLastSentAt == null) {
+                return null;
+            }
+            return REMINDER_SENT_FMT.format(reminderLastSentAt) + " Uhr";
+        }
+    }
 
     public record FitnessRecordView(
             long id,

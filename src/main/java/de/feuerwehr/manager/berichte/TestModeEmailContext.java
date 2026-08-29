@@ -16,6 +16,10 @@ public final class TestModeEmailContext {
                 blankToNull(actorEmail)));
     }
 
+    public static boolean isSet() {
+        return HOLDER.get() != null;
+    }
+
     public static TestModeEmailDelivery getDelivery() {
         State state = HOLDER.get();
         return state != null ? state.delivery() : TestModeEmailDelivery.NONE;

@@ -81,6 +81,11 @@
                 title="Zuerst Geräteträger in der Tabelle ankreuzen, dann Nachweisdatum für alle Ausgewählten setzen.">
           Nachweis für Auswahl
         </button>
+        <button type="button" class="btn btn--outline btn--sm" id="atemschutz-remind-open"
+                th:if="${canWrite and !#lists.isEmpty(carriers)}"
+                title="Ausgewählte Geräteträger mit Warnung oder Ablauf per E-Mail erinnern.">
+          Erinnerung senden
+        </button>
         <label class="toolbar-toggle" for="atemschutz-show-paused" title="Pausierte Geräteträger anzeigen">
           <span class="toolbar-toggle__label">Pausierte</span>
           <span class="toggle-switch toggle-switch--toolbar">
@@ -141,24 +146,24 @@
           </td>
           <td>
             <span th:if="${exited}" class="text-muted">—</span>
-            <div th:unless="${exited}" th:replace="~{fragments/atemschutz-fitness-badge :: validityDate(${row.g26})}"></div>
+            <div th:unless="${exited}" th:replace="~{fragments/atemschutz-fitness-badge :: validityDateWithMail(${row.g26})}"></div>
           </td>
           <td>
             <span th:if="${exited}" class="text-muted">—</span>
             <th:block th:unless="${exited}" th:with="view=${row.summaries.get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).UEBUNG)}">
-              <div th:replace="~{fragments/atemschutz-fitness-badge :: validityDate(${view})}"></div>
+              <div th:replace="~{fragments/atemschutz-fitness-badge :: validityDateWithMail(${view})}"></div>
             </th:block>
           </td>
           <td>
             <span th:if="${exited}" class="text-muted">—</span>
             <th:block th:unless="${exited}" th:with="view=${row.summaries.get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).STRECKEN)}">
-              <div th:replace="~{fragments/atemschutz-fitness-badge :: validityDate(${view})}"></div>
+              <div th:replace="~{fragments/atemschutz-fitness-badge :: validityDateWithMail(${view})}"></div>
             </th:block>
           </td>
           <td>
             <span th:if="${exited}" class="text-muted">—</span>
             <th:block th:unless="${exited}" th:with="view=${row.summaries.get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).CSA)}">
-              <div th:replace="~{fragments/atemschutz-fitness-badge :: validityDate(${view})}"></div>
+              <div th:replace="~{fragments/atemschutz-fitness-badge :: validityDateWithMail(${view})}"></div>
             </th:block>
           </td>
           <td class="atemschutz-notes-cell">
@@ -186,6 +191,20 @@
       </p>
     </div>
   </div>
+
+  <form id="atemschutz-remind-form" method="post" th:action="@{/atemschutz/remind-selected}"
+        th:if="${canWrite}"
+        data-confirm
+        data-confirm-title="Erinnerung senden?"
+        data-confirm-message="Für alle ausgewählten Geräteträger mit Warnung oder überfälligem Nachweis wird eine Erinnerungs-E-Mail versendet."
+        data-confirm-label="Senden"
+        data-testmode-email="true"
+        hidden>
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+    <input type="hidden" name="unit" th:value="${unitId}"/>
+    <input type="hidden" name="filter" th:value="${activeFilter}"/>
+    <div id="atemschutz-remind-carrier-inputs"></div>
+  </form>
 
   <div id="modal-atemschutz-bulk" class="modal-overlay" th:if="${canWrite}">
     <div class="modal" role="dialog">
@@ -230,6 +249,6 @@
   </div>
 
   <script th:src="@{/js/atemschutz-modals.js}" defer></script>
-  <script th:src="@{/js/atemschutz-list.js(v='20260824m')}" defer></script>
+  <script th:src="@{/js/atemschutz-list.js(v='20260829r')}" defer></script>
 </main>
 </html>

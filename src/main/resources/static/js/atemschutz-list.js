@@ -17,6 +17,9 @@
   var bulkModal = document.getElementById('modal-atemschutz-bulk');
   var bulkCount = document.getElementById('atemschutz-bulk-count');
   var bulkInputs = document.getElementById('atemschutz-bulk-carrier-inputs');
+  var remindOpen = document.getElementById('atemschutz-remind-open');
+  var remindForm = document.getElementById('atemschutz-remind-form');
+  var remindInputs = document.getElementById('atemschutz-remind-carrier-inputs');
   if (!table) return;
 
   table.querySelectorAll('.carrier-row').forEach(function (row) {
@@ -215,6 +218,32 @@
         dateInput.value = today.getFullYear() + '-'
           + String(today.getMonth() + 1).padStart(2, '0') + '-'
           + String(today.getDate()).padStart(2, '0');
+      }
+    });
+  }
+
+  if (remindOpen && remindForm) {
+    remindOpen.addEventListener('click', function () {
+      var ids = selectedCarrierIds();
+      if (ids.length === 0) {
+        if (bulkHint) bulkHint.hidden = false;
+        return;
+      }
+      hideBulkHint();
+      if (remindInputs) {
+        remindInputs.innerHTML = '';
+        ids.forEach(function (id) {
+          var input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'carrierIds';
+          input.value = id;
+          remindInputs.appendChild(input);
+        });
+      }
+      if (typeof remindForm.requestSubmit === 'function') {
+        remindForm.requestSubmit();
+      } else {
+        remindForm.submit();
       }
     });
   }
