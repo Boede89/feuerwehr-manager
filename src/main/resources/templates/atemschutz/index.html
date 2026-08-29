@@ -83,7 +83,7 @@
         </button>
         <button type="button" class="btn btn--outline btn--sm" id="atemschutz-remind-open"
                 th:if="${canWrite and !#lists.isEmpty(carriers)}"
-                title="Ausgewählte Geräteträger mit Warnung oder Ablauf per E-Mail erinnern.">
+                title="Zuerst Geräteträger in der Tabelle ankreuzen. Es werden nur Personen mit Warnung oder Ablauf benachrichtigt.">
           Erinnerung senden
         </button>
         <label class="toolbar-toggle" for="atemschutz-show-paused" title="Pausierte Geräteträger anzeigen">
@@ -98,7 +98,7 @@
       </div>
     </div>
     <p id="atemschutz-bulk-hint" class="hint hint--warn atemschutz-bulk-hint" hidden>
-      Bitte zuerst Geräteträger in der Tabelle ankreuzen.
+      Bitte zuerst Geräteträger in der Tabelle ankreuzen. Ohne Auswahl wird niemand benachrichtigt.
     </p>
     <div class="card__body card__body--flush" th:if="${!#lists.isEmpty(carriers)}">
       <table class="data-table" id="atemschutz-table">
@@ -196,7 +196,7 @@
         th:if="${canWrite}"
         data-confirm
         data-confirm-title="Erinnerung senden?"
-        data-confirm-message="Für alle ausgewählten Geräteträger mit Warnung oder überfälligem Nachweis wird jeweils eine Erinnerungs-E-Mail versendet. Mehrere fällige Nachweise einer Person stehen in derselben Mail."
+        data-confirm-message="Es werden nur die angekreuzten Geräteträger benachrichtigt — und nur, wenn aktuell eine Warnung oder ein Ablauf vorliegt. Personen ohne Warnung erhalten keine E-Mail."
         data-confirm-label="Senden"
         data-testmode-email="true"
         hidden>
@@ -249,6 +249,6 @@
   </div>
 
   <script th:src="@{/js/atemschutz-modals.js}" defer></script>
-  <script th:src="@{/js/atemschutz-list.js(v='20260829s')}" defer></script>
+  <script th:src="@{/js/atemschutz-list.js(v='20260829t')}" defer></script>
 </main>
 </html>

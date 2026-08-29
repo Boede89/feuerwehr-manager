@@ -200,28 +200,30 @@ public class AtemschutzReminderNotificationService {
                 .collect(Collectors.toMap(
                         row -> row.carrier().getId(), row -> row, (left, right) -> left));
         int sent = 0;
-        int skipped = 0;
+        int skippedNoWarn = 0;
+        int skippedNoMail = 0;
+        int skippedOther = 0;
         int failed = 0;
         boolean testSkipped = false;
         for (Long carrierId : uniqueIds) {
             if (carrierId == null) {
-                skipped++;
+                skippedOther++;
                 continue;
             }
             CarrierOverview overview = byId.get(carrierId);
             if (overview == null
                     || !PersonMembership.isCurrentlyMember(overview.carrier().getPerson())) {
-                skipped++;
+                skippedOther++;
                 continue;
             }
             List<ReminderItem> items = collectEligibleItems(overview.summaries());
             if (items.isEmpty()) {
-                skipped++;
+                skippedNoWarn++;
                 continue;
             }
             if (!mayNotifyPerson(overview.carrier().getPerson())
                     || resolvePersonEmail(overview.carrier().getPerson()) == null) {
-                skipped++;
+                skippedNoMail++;
                 continue;
             }
             List<String> ccEmails = unionStaffEmails(unitId, settings, items);
@@ -234,23 +236,34 @@ public class AtemschutzReminderNotificationService {
                 case FAILED -> failed++;
                 case TEST_SKIPPED -> {
                     testSkipped = true;
-                    skipped++;
+                    skippedOther++;
                 }
-                case SKIPPED -> skipped++;
+                case SKIPPED -> skippedOther++;
             }
         }
+        int skipped = skippedNoWarn + skippedNoMail + skippedOther;
         if (sent == 0 && failed == 0 && testSkipped) {
             return ManualReminderResult.skipped("Im Testmodus wurde keine E-Mail versendet.");
         }
         if (sent == 0 && failed == 0) {
+            if (skippedNoWarn > 0 && skippedNoMail == 0 && skippedOther == 0) {
+                return ManualReminderResult.skipped(
+                        "Keine Erinnerung gesendet. Bei den ausgewählten Geräteträgern liegt aktuell keine Warnung und kein Ablauf vor.");
+            }
             return ManualReminderResult.skipped(
                     "Keine Erinnerung gesendet. Bei der Auswahl liegt aktuell keine Warnung oder kein Ablauf vor, "
                             + "oder es fehlt eine erreichbare E-Mail-Adresse.");
         }
         StringBuilder message = new StringBuilder();
         message.append(sent).append(" Erinnerung(en) gesendet.");
-        if (skipped > 0) {
-            message.append(" ").append(skipped).append(" übersprungen.");
+        if (skippedNoWarn > 0) {
+            message.append(" ").append(skippedNoWarn).append(" ohne Warnung übersprungen.");
+        }
+        if (skippedNoMail > 0) {
+            message.append(" ").append(skippedNoMail).append(" ohne erreichbare E-Mail übersprungen.");
+        }
+        if (skippedOther > 0) {
+            message.append(" ").append(skippedOther).append(" übersprungen.");
         }
         if (failed > 0) {
             message.append(" ").append(failed).append(" fehlgeschlagen.");

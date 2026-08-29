@@ -240,6 +240,11 @@
           remindInputs.appendChild(input);
         });
       }
+      var countLabel = ids.length === 1 ? '1 ausgewählten Geräteträger' : (ids.length + ' ausgewählte Geräteträger');
+      remindForm.setAttribute(
+        'data-confirm-message',
+        'Es werden nur die ' + countLabel + ' benachrichtigt — und nur, wenn aktuell eine Warnung oder ein Ablauf vorliegt. Personen ohne Warnung erhalten keine E-Mail. Mehrere fällige Nachweise einer Person stehen in derselben Mail.'
+      );
       if (typeof remindForm.requestSubmit === 'function') {
         remindForm.requestSubmit();
       } else {
