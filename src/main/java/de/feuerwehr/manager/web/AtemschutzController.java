@@ -283,14 +283,13 @@ public class AtemschutzController {
             @AuthenticationPrincipal AppUserDetails actor,
             @PathVariable long id,
             @RequestParam long unit,
-            @RequestParam AtemschutzFitnessType fitnessType,
             RedirectAttributes redirectAttributes) {
         try {
             requireModuleEnabled(unit);
             requireAtemschutzWrite(actor, unit);
             AtemschutzCarrier carrier = atemschutzService.requireCarrier(id);
             accessControlService.requireUnitAccess(actor, carrier.getUnit().getId());
-            ManualReminderResult result = reminderNotificationService.sendManualForType(unit, id, fitnessType);
+            ManualReminderResult result = reminderNotificationService.sendManualForCarrier(unit, id);
             applyReminderFlash(redirectAttributes, result);
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());

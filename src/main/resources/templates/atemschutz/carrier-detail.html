@@ -45,7 +45,23 @@
   </div>
 
   <div class="card mt-md">
-    <div class="card__header">Tauglichkeiten (Übersicht)</div>
+    <div class="card__header card__header--toolbar">
+      <span>Tauglichkeiten (Übersicht)</span>
+      <form method="post" class="atemschutz-remind-form"
+            th:if="${canWrite and detail.hasReminderEligible()}"
+            th:action="@{/atemschutz/carriers/{id}/remind(id=${carrier.id})}"
+            data-confirm
+            th:attr="data-confirm-title=${detail.anyEligibleReminderSent()} ? 'Erneut benachrichtigen?' : 'Erinnerung senden?',
+                     data-confirm-message=${detail.anyEligibleReminderSent()
+                       ? 'Am ' + detail.latestEligibleReminderLabel() + ' wurde bereits eine E-Mail an den Geräteträger gesendet. Trotzdem erneut senden? Alle aktuell fälligen Nachweise stehen in dieser einen Mail.'
+                       : 'Es wird eine Erinnerungs-E-Mail an den Geräteträger gesendet. Alle aktuell fälligen Nachweise stehen in dieser einen Mail.'}"
+            data-confirm-label="Senden"
+            data-testmode-email="true">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <button type="submit" class="btn btn--outline btn--sm">Jetzt benachrichtigen</button>
+      </form>
+    </div>
     <div class="card__body">
       <div class="atemschutz-summary-grid">
         <div class="atemschutz-summary-item" th:each="type : ${fitnessTypes}">
@@ -58,28 +74,15 @@
             <p class="hint text-sm" style="margin:0.35rem 0 0;" th:if="${view == null or view.validUntil == null}">Kein Nachweis</p>
             <p class="atemschutz-mail-status" th:if="${view != null and view.reminderEligible}">
               <span th:if="${view.reminderSent}">
-                E-Mail gesendet am <strong th:text="${view.reminderLastSentLabel()}">12.08.2026, 07:00</strong>
+                E-Mail an Geräteträger am <strong th:text="${view.reminderLastSentLabel()}">12.08.2026, 07:00</strong>
               </span>
               <span th:unless="${view.reminderSent}">
-                Noch keine E-Mail
+                Noch keine E-Mail an den Geräteträger
                 <span th:if="${view.reminderLastSentLabel() != null}">
                   (zuletzt <span th:text="${view.reminderLastSentLabel()}">12.08.2026, 07:00</span>)
                 </span>
               </span>
             </p>
-            <form method="post" class="atemschutz-remind-form"
-                  th:if="${canWrite and view != null and view.reminderEligible}"
-                  th:action="@{/atemschutz/carriers/{id}/remind(id=${carrier.id})}"
-                  data-confirm
-                  th:attr="data-confirm-title=${view.reminderSent} ? 'Erneut benachrichtigen?' : 'Erinnerung senden?',
-                           data-confirm-message=${view.reminderSent ? 'Am ' + view.reminderLastSentLabel() + ' wurde bereits eine E-Mail gesendet. Trotzdem erneut senden?' : 'Es wird eine Erinnerungs-E-Mail für diesen Nachweis an den Geräteträger gesendet.'}"
-                  data-confirm-label="Senden"
-                  data-testmode-email="true">
-              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-              <input type="hidden" name="unit" th:value="${unitId}"/>
-              <input type="hidden" name="fitnessType" th:value="${type.name()}"/>
-              <button type="submit" class="btn btn--outline btn--sm atemschutz-remind-btn">Jetzt benachrichtigen</button>
-            </form>
           </div>
         </div>
       </div>
@@ -227,6 +230,6 @@
   </div>
 
   <script th:src="@{/js/atemschutz-modals.js}" defer></script>
-  <script th:src="@{/js/atemschutz-detail.js(v='20260829r')}" defer></script>
+  <script th:src="@{/js/atemschutz-detail.js(v='20260829s')}" defer></script>
 </main>
 </html>

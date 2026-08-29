@@ -88,9 +88,58 @@ public class AtemschutzReminderNotificationService {
                 .filter(row -> PersonMembership.isCurrentlyMember(row.carrier().getPerson()))
                 .toList();
         for (CarrierOverview overview : carriers) {
-            for (AtemschutzNotificationCategory category : AtemschutzNotificationCategory.values()) {
-                SendAttempt attempt = trySend(unitId, settings, overview.carrier(), overview.summaries(), category, false);
+            List<ReminderItem> carrierItems = new ArrayList<>();
+            List<ReminderItem> staffItems = new ArrayList<>();
+            for (ReminderItem item : collectEligibleItems(overview.summaries())) {
+                boolean notifyCarrier = settingsService.isNotifyCarriers(settings, item.category());
+                List<String> staffEmails = collectStaffEmails(unitId, settings, item.category());
+                Optional<AtemschutzReminderLog> existing = reminderLogRepository
+                        .findByCarrierIdAndFitnessTypeAndMailKindAndValidUntil(
+                                overview.carrier().getId(),
+                                item.category().getFitnessType(),
+                                item.mailKind(),
+                                item.validUntil());
+                if (notifyCarrier) {
+                    if (existing.isPresent() && existing.get().isCarrierNotified()) {
+                        skipped++;
+                        continue;
+                    }
+                    carrierItems.add(item);
+                } else if (!staffEmails.isEmpty()) {
+                    if (existing.isPresent()) {
+                        skipped++;
+                        continue;
+                    }
+                    staffItems.add(item);
+                } else {
+                    skipped++;
+                }
+            }
+            if (!carrierItems.isEmpty()) {
+                List<String> ccEmails = unionStaffEmails(unitId, settings, carrierItems);
+                SendAttempt attempt = sendCarrierDigest(unitId, overview.carrier(), carrierItems, ccEmails);
                 if (attempt == SendAttempt.SENT) {
+                    boolean carrierNotified = countAsCarrierNotified(overview.carrier().getPerson());
+                    logItems(overview.carrier(), carrierItems, carrierNotified);
+                    sent++;
+                } else if (attempt == SendAttempt.FAILED) {
+                    failed++;
+                } else {
+                    skipped++;
+                }
+            }
+            for (ReminderItem item : staffItems) {
+                List<String> staffEmails = collectStaffEmails(unitId, settings, item.category());
+                SendAttempt attempt = sendReminder(
+                        unitId,
+                        item.category(),
+                        item.mailKind(),
+                        overview.carrier().getPerson(),
+                        item.validUntil(),
+                        false,
+                        staffEmails);
+                if (attempt == SendAttempt.SENT) {
+                    logReminder(overview.carrier(), item, false);
                     sent++;
                 } else if (attempt == SendAttempt.FAILED) {
                     failed++;
@@ -103,27 +152,32 @@ public class AtemschutzReminderNotificationService {
     }
 
     @Transactional
-    public ManualReminderResult sendManualForType(long unitId, long carrierId, AtemschutzFitnessType fitnessType) {
+    public ManualReminderResult sendManualForCarrier(long unitId, long carrierId) {
         requireMailReady(unitId);
         AtemschutzCarrier carrier = atemschutzService.requireCarrier(carrierId);
         requireCarrierInUnit(carrier, unitId);
         if (!PersonMembership.isCurrentlyMember(carrier.getPerson())) {
             throw new IllegalArgumentException("Ausgetretene Geräteträger können nicht benachrichtigt werden.");
         }
-        AtemschutzNotificationCategory category = AtemschutzNotificationCategory.fromFitnessType(fitnessType);
         CarrierDetailView detail = atemschutzService.loadCarrierDetail(carrierId);
-        FitnessStatusView fitness = detail.summaries().get(fitnessType);
-        AtemschutzReminderMailKind mailKind = mailKindFor(fitness);
-        if (mailKind == null) {
-            throw new IllegalArgumentException(
-                    "Für " + fitnessType.label() + " liegt aktuell keine Warnung und kein Ablauf vor.");
+        List<ReminderItem> items = collectEligibleItems(detail.summaries());
+        if (items.isEmpty()) {
+            throw new IllegalArgumentException("Aktuell liegt keine Warnung und kein Ablauf vor.");
         }
         requireCarrierReachable(carrier.getPerson());
         UnitAtemschutzSettings settings = settingsService.ensureSettings(unitId);
-        SendAttempt attempt = trySend(unitId, settings, carrier, detail.summaries(), category, true);
+        List<String> ccEmails = unionStaffEmails(unitId, settings, items);
+        SendAttempt attempt = sendCarrierDigest(unitId, carrier, items, ccEmails);
+        if (attempt == SendAttempt.SENT) {
+            logItems(carrier, items, countAsCarrierNotified(carrier.getPerson()));
+        }
         return switch (attempt) {
             case SENT -> ManualReminderResult.sent(
-                    1, "Erinnerung für " + fitnessType.label() + " wurde per E-Mail gesendet.");
+                    1,
+                    items.size() == 1
+                            ? "Erinnerung für " + items.get(0).category().getFitnessType().label()
+                                    + " wurde per E-Mail gesendet."
+                            : "Erinnerung mit " + items.size() + " Nachweisen wurde in einer E-Mail gesendet.");
             case TEST_SKIPPED -> ManualReminderResult.skipped("Im Testmodus wurde keine E-Mail versendet.");
             case FAILED -> throw new IllegalArgumentException("E-Mail konnte nicht gesendet werden.");
             case SKIPPED -> throw new IllegalArgumentException(
@@ -160,22 +214,29 @@ public class AtemschutzReminderNotificationService {
                 skipped++;
                 continue;
             }
-            AtemschutzCarrier carrier = overview.carrier();
-            for (AtemschutzNotificationCategory category : AtemschutzNotificationCategory.values()) {
-                FitnessStatusView fitness = overview.summaries().get(category.getFitnessType());
-                if (mailKindFor(fitness) == null) {
-                    continue;
+            List<ReminderItem> items = collectEligibleItems(overview.summaries());
+            if (items.isEmpty()) {
+                skipped++;
+                continue;
+            }
+            if (!mayNotifyPerson(overview.carrier().getPerson())
+                    || resolvePersonEmail(overview.carrier().getPerson()) == null) {
+                skipped++;
+                continue;
+            }
+            List<String> ccEmails = unionStaffEmails(unitId, settings, items);
+            SendAttempt attempt = sendCarrierDigest(unitId, overview.carrier(), items, ccEmails);
+            switch (attempt) {
+                case SENT -> {
+                    logItems(overview.carrier(), items, countAsCarrierNotified(overview.carrier().getPerson()));
+                    sent++;
                 }
-                SendAttempt attempt = trySend(unitId, settings, carrier, overview.summaries(), category, true);
-                switch (attempt) {
-                    case SENT -> sent++;
-                    case FAILED -> failed++;
-                    case TEST_SKIPPED -> {
-                        testSkipped = true;
-                        skipped++;
-                    }
-                    case SKIPPED -> skipped++;
+                case FAILED -> failed++;
+                case TEST_SKIPPED -> {
+                    testSkipped = true;
+                    skipped++;
                 }
+                case SKIPPED -> skipped++;
             }
         }
         if (sent == 0 && failed == 0 && testSkipped) {
@@ -220,50 +281,114 @@ public class AtemschutzReminderNotificationService {
         }
     }
 
-    private SendAttempt trySend(
-            long unitId,
-            UnitAtemschutzSettings settings,
-            AtemschutzCarrier carrier,
-            Map<AtemschutzFitnessType, FitnessStatusView> summaries,
-            AtemschutzNotificationCategory category,
-            boolean manual) {
-        boolean notifyCarriersSetting = settingsService.isNotifyCarriers(settings, category);
-        List<String> staffEmails = collectStaffEmails(unitId, settings, category);
-        boolean includeCarrier = manual || notifyCarriersSetting;
-        if (!includeCarrier && staffEmails.isEmpty()) {
-            return SendAttempt.SKIPPED;
+    private List<ReminderItem> collectEligibleItems(Map<AtemschutzFitnessType, FitnessStatusView> summaries) {
+        List<ReminderItem> items = new ArrayList<>();
+        if (summaries == null) {
+            return items;
         }
-        FitnessStatusView fitness = summaries.get(category.getFitnessType());
-        if (fitness == null || fitness.validUntil() == null) {
-            return SendAttempt.SKIPPED;
-        }
-        AtemschutzReminderMailKind mailKind = mailKindFor(fitness);
-        if (mailKind == null) {
-            return SendAttempt.SKIPPED;
-        }
-        if (!manual
-                && reminderLogRepository.existsByCarrierIdAndFitnessTypeAndMailKindAndValidUntil(
-                        carrier.getId(), category.getFitnessType(), mailKind, fitness.validUntil())) {
-            return SendAttempt.SKIPPED;
-        }
-        if (manual) {
-            if (!mayNotifyPerson(carrier.getPerson()) || resolvePersonEmail(carrier.getPerson()) == null) {
-                return SendAttempt.SKIPPED;
+        for (AtemschutzNotificationCategory category : AtemschutzNotificationCategory.values()) {
+            FitnessStatusView fitness = summaries.get(category.getFitnessType());
+            AtemschutzReminderMailKind mailKind = mailKindFor(fitness);
+            if (mailKind == null || fitness.validUntil() == null) {
+                continue;
             }
-            includeCarrier = true;
+            items.add(new ReminderItem(category, mailKind, fitness.validUntil()));
         }
-        SendAttempt attempt = sendReminder(
-                unitId,
-                category,
-                mailKind,
-                carrier.getPerson(),
-                fitness.validUntil(),
-                includeCarrier,
-                staffEmails);
-        if (attempt == SendAttempt.SENT) {
-            logReminder(carrier, category, mailKind, fitness.validUntil());
+        return items;
+    }
+
+    private List<String> unionStaffEmails(
+            long unitId, UnitAtemschutzSettings settings, List<ReminderItem> items) {
+        LinkedHashSet<String> emails = new LinkedHashSet<>();
+        for (ReminderItem item : items) {
+            emails.addAll(collectStaffEmails(unitId, settings, item.category()));
         }
-        return attempt;
+        return new ArrayList<>(emails);
+    }
+
+    private SendAttempt sendCarrierDigest(
+            long unitId, AtemschutzCarrier carrier, List<ReminderItem> items, List<String> staffEmails) {
+        if (items == null || items.isEmpty()) {
+            return SendAttempt.SKIPPED;
+        }
+        Person person = carrier.getPerson();
+        if (items.size() == 1) {
+            ReminderItem item = items.get(0);
+            return sendReminder(
+                    unitId,
+                    item.category(),
+                    item.mailKind(),
+                    person,
+                    item.validUntil(),
+                    true,
+                    staffEmails);
+        }
+        String subject = digestSubject(items);
+        String body = textToHtml(digestBody(person, items));
+        String carrierEmail = mayNotifyPerson(person) ? resolvePersonEmail(person) : null;
+        List<String> allowedStaff = staffEmails.stream().filter(this::mayNotifyEmail).toList();
+        if (carrierEmail != null) {
+            List<String> cc = allowedStaff.stream()
+                    .filter(email -> !email.equalsIgnoreCase(carrierEmail))
+                    .toList();
+            return dispatchMail(unitId, carrierEmail, cc, subject, body, person, items.get(0).category());
+        }
+        if (!allowedStaff.isEmpty()) {
+            String to = allowedStaff.get(0);
+            List<String> cc = allowedStaff.size() > 1 ? allowedStaff.subList(1, allowedStaff.size()) : List.of();
+            return dispatchMail(unitId, to, cc, subject, body, person, items.get(0).category());
+        }
+        return SendAttempt.SKIPPED;
+    }
+
+    private static String digestSubject(List<ReminderItem> items) {
+        boolean overdue = items.stream().anyMatch(item -> item.mailKind() == AtemschutzReminderMailKind.ABGELAUFEN);
+        String names = items.stream()
+                .map(item -> item.category().getLabel())
+                .collect(Collectors.joining(", "));
+        if (overdue) {
+            return "ACHTUNG: Atemschutz-Nachweise prüfen (" + names + ")";
+        }
+        return "Erinnerung: Atemschutz-Nachweise (" + names + ")";
+    }
+
+    private static String digestBody(Person person, List<ReminderItem> items) {
+        String firstName = person.getFirstName() != null ? person.getFirstName().trim() : "";
+        String lastName = person.getLastName() != null ? person.getLastName().trim() : "";
+        StringBuilder body = new StringBuilder();
+        body.append("Hallo ").append(firstName);
+        if (!lastName.isBlank()) {
+            if (!firstName.isBlank()) {
+                body.append(' ');
+            }
+            body.append(lastName);
+        }
+        body.append(",\n\n");
+        body.append("für Sie sind aktuell folgende Atemschutz-Nachweise relevant:\n\n");
+        for (ReminderItem item : items) {
+            String expiry = item.validUntil() != null ? DATE_FMT.format(item.validUntil()) : "—";
+            String status = item.mailKind() == AtemschutzReminderMailKind.ABGELAUFEN ? "überfällig" : "bald fällig";
+            body.append("• ")
+                    .append(item.category().getFitnessType().label())
+                    .append(" — gültig bis ")
+                    .append(expiry)
+                    .append(" (")
+                    .append(status)
+                    .append(")\n");
+        }
+        body.append("\nBitte kümmern Sie sich zeitnah um die Verlängerung.\n\n");
+        body.append("Mit freundlichen Grüßen\nIhre Feuerwehr");
+        return body.toString();
+    }
+
+    private boolean countAsCarrierNotified(Person person) {
+        if (!mayNotifyPerson(person) || resolvePersonEmail(person) == null) {
+            return false;
+        }
+        if (testModeService.isEnabled() && TestModeEmailContext.isSet()) {
+            return TestModeEmailContext.getDelivery() == TestModeEmailDelivery.CONFIGURED;
+        }
+        return true;
     }
 
     private static AtemschutzReminderMailKind mailKindFor(FitnessStatusView fitness) {
@@ -277,24 +402,34 @@ public class AtemschutzReminderNotificationService {
         };
     }
 
-    private void logReminder(
-            AtemschutzCarrier carrier,
-            AtemschutzNotificationCategory category,
-            AtemschutzReminderMailKind mailKind,
-            LocalDate validUntil) {
+    private void logItems(AtemschutzCarrier carrier, List<ReminderItem> items, boolean carrierNotified) {
+        for (ReminderItem item : items) {
+            logReminder(carrier, item, carrierNotified);
+        }
+    }
+
+    private void logReminder(AtemschutzCarrier carrier, ReminderItem item, boolean carrierNotified) {
         Instant now = Instant.now();
         AtemschutzReminderLog logEntry = reminderLogRepository
                 .findByCarrierIdAndFitnessTypeAndMailKindAndValidUntil(
-                        carrier.getId(), category.getFitnessType(), mailKind, validUntil)
+                        carrier.getId(),
+                        item.category().getFitnessType(),
+                        item.mailKind(),
+                        item.validUntil())
                 .orElseGet(() -> {
                     AtemschutzReminderLog created = new AtemschutzReminderLog();
                     created.setCarrier(carrier);
-                    created.setFitnessType(category.getFitnessType());
-                    created.setMailKind(mailKind);
-                    created.setValidUntil(validUntil);
+                    created.setFitnessType(item.category().getFitnessType());
+                    created.setMailKind(item.mailKind());
+                    created.setValidUntil(item.validUntil());
                     return created;
                 });
-        logEntry.setSentAt(now);
+        if (carrierNotified || logEntry.getId() == null) {
+            logEntry.setSentAt(now);
+        }
+        if (carrierNotified) {
+            logEntry.setCarrierNotified(true);
+        }
         reminderLogRepository.save(logEntry);
     }
 
@@ -466,6 +601,11 @@ public class AtemschutzReminderNotificationService {
         FAILED,
         TEST_SKIPPED
     }
+
+    private record ReminderItem(
+            AtemschutzNotificationCategory category,
+            AtemschutzReminderMailKind mailKind,
+            LocalDate validUntil) {}
 
     public record ReminderRunResult(int sent, int skipped, int failed) {}
 

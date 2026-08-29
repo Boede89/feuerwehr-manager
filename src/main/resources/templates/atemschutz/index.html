@@ -196,7 +196,7 @@
         th:if="${canWrite}"
         data-confirm
         data-confirm-title="Erinnerung senden?"
-        data-confirm-message="Für alle ausgewählten Geräteträger mit Warnung oder überfälligem Nachweis wird eine Erinnerungs-E-Mail versendet."
+        data-confirm-message="Für alle ausgewählten Geräteträger mit Warnung oder überfälligem Nachweis wird jeweils eine Erinnerungs-E-Mail versendet. Mehrere fällige Nachweise einer Person stehen in derselben Mail."
         data-confirm-label="Senden"
         data-testmode-email="true"
         hidden>
@@ -249,6 +249,6 @@
   </div>
 
   <script th:src="@{/js/atemschutz-modals.js}" defer></script>
-  <script th:src="@{/js/atemschutz-list.js(v='20260829r')}" defer></script>
+  <script th:src="@{/js/atemschutz-list.js(v='20260829s')}" defer></script>
 </main>
 </html>

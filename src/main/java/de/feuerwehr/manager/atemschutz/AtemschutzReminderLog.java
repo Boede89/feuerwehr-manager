@@ -45,4 +45,7 @@ public class AtemschutzReminderLog {
 
     @Column(name = "sent_at", nullable = false)
     private Instant sentAt;
+
+    @Column(name = "carrier_notified", nullable = false)
+    private boolean carrierNotified;
 }

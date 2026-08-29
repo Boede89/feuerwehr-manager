@@ -18,10 +18,10 @@
   <div th:replace="~{fragments/atemschutz-fitness-badge :: validityDate(${view})}"></div>
   <span class="atemschutz-validity-mail" th:if="${view != null and view.reminderEligible}">
     <span th:if="${view.reminderSent}">
-      E-Mail: <span th:text="${view.reminderLastSentLabel()}">12.08.2026, 07:00</span>
+      E-Mail an Träger: <span th:text="${view.reminderLastSentLabel()}">12.08.2026, 07:00</span>
     </span>
     <span th:unless="${view.reminderSent}">
-      E-Mail: noch nicht
+      E-Mail an Träger: noch nicht
       <span th:if="${view.reminderLastSentLabel() != null}"
             th:text="' · zuletzt ' + ${view.reminderLastSentLabel()}"> · zuletzt</span>
     </span>

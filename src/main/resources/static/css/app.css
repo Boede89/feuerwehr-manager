@@ -4898,11 +4898,8 @@ span.required { color: var(--error); }
   color: var(--text-muted);
   line-height: 1.35;
 }
-.atemschutz-remind-form {
-  margin-top: 0.65rem;
-}
-.atemschutz-remind-btn {
-  width: 100%;
+.card__header .atemschutz-remind-form {
+  margin: 0;
 }
 .atemschutz-validity-mail {
   display: block;

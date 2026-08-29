@@ -993,6 +993,9 @@ public class AtemschutzService {
             if (logEntry.getCarrier() == null || logEntry.getCarrier().getId() == null) {
                 continue;
             }
+            if (!logEntry.isCarrierNotified()) {
+                continue;
+            }
             long carrierId = logEntry.getCarrier().getId();
             sentExact.put(
                     new ReminderExactKey(
@@ -1272,7 +1275,34 @@ public class AtemschutzService {
     public record CarrierDetailView(
             AtemschutzCarrier carrier,
             Map<AtemschutzFitnessType, FitnessStatusView> summaries,
-            List<FitnessRecordView> records) {}
+            List<FitnessRecordView> records) {
+
+        public boolean hasReminderEligible() {
+            if (summaries == null || summaries.isEmpty()) {
+                return false;
+            }
+            return summaries.values().stream().anyMatch(view -> view != null && view.reminderEligible());
+        }
+
+        public boolean anyEligibleReminderSent() {
+            if (summaries == null || summaries.isEmpty()) {
+                return false;
+            }
+            return summaries.values().stream()
+                    .anyMatch(view -> view != null && view.reminderEligible() && view.reminderSent());
+        }
+
+        public String latestEligibleReminderLabel() {
+            if (summaries == null || summaries.isEmpty()) {
+                return null;
+            }
+            return summaries.values().stream()
+                    .filter(view -> view != null && view.reminderEligible() && view.reminderLastSentAt() != null)
+                    .max(Comparator.comparing(FitnessStatusView::reminderLastSentAt))
+                    .map(FitnessStatusView::reminderLastSentLabel)
+                    .orElse(null);
+        }
+    }
 
     public record FitnessStatusView(
             AtemschutzFitnessLevel level,
