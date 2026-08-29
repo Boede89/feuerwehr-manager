@@ -76,6 +76,25 @@ public class PersonalService {
                 .toList();
     }
 
+    /** Verknüpfte Person des Benutzerkontos in dieser Einheit (für Anzeigenamen). */
+    @Transactional(readOnly = true)
+    public Optional<Person> findLinkedPerson(long userId, long unitId) {
+        boolean testData = testModeService.isEnabled();
+        Optional<Person> match = personRepository.findActiveByUserIdAndUnitId(userId, unitId, testData);
+        if (match.isPresent()) {
+            return match;
+        }
+        if (testData) {
+            Optional<Person> production = personRepository.findActiveByUserIdAndUnitId(userId, unitId, false);
+            if (production.isPresent()) {
+                return production;
+            }
+        }
+        return personRepository.findAllByUserIdAndAnonymizedAtIsNull(userId).stream()
+                .filter(person -> person.getUnit() != null && person.getUnit().getId().equals(unitId))
+                .findFirst();
+    }
+
     public Person requirePerson(long personId) {
         if (!testModeService.isEnabled()) {
             return personRepository

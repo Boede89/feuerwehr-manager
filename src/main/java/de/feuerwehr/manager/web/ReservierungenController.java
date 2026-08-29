@@ -6,6 +6,7 @@ import de.feuerwehr.manager.reservierungen.LegacyReservationExportFile;
 import de.feuerwehr.manager.reservierungen.LoeschfahrzeugWarningException;
 import de.feuerwehr.manager.reservierungen.ProcessReservationRequest;
 import de.feuerwehr.manager.reservierungen.ReservationConflictException;
+import de.feuerwehr.manager.reservierungen.ReservationStatus;
 import de.feuerwehr.manager.reservierungen.ReservierungenConflictService;
 import de.feuerwehr.manager.reservierungen.ReservierungenService;
 import de.feuerwehr.manager.reservierungen.ReservierungenTab;
@@ -94,7 +95,7 @@ public class ReservierungenController {
                             .map(r -> new ResourceOptionDto(r.getId(), r.getName() != null ? r.getName() : ""))
                             .toList());
             model.addAttribute("unitPersons", personalService.listSelectablePersons(unit.getId()));
-            model.addAttribute("requesterName", actor.getDisplayName());
+            model.addAttribute("requesterName", requesterDisplayName(actor, unit.getId()));
             model.addAttribute(
                     "requesterEmail",
                     userRepository.findById(actor.getUserId()).map(u -> u.getLoginEmail()).orElse(""));
@@ -103,7 +104,13 @@ public class ReservierungenController {
             }
             if (activeTab == ReservierungenTab.VERWALTUNG && canWrite) {
                 model.addAttribute("pendingReservations", reservierungenService.listPending(unit.getId(), actor.getUserId()));
-                model.addAttribute("allReservations", reservierungenService.listAll(unit.getId(), actor.getUserId()));
+                var allReservations = reservierungenService.listAll(unit.getId(), actor.getUserId());
+                model.addAttribute("allReservations", allReservations);
+                model.addAttribute(
+                        "historyReservations",
+                        allReservations.stream()
+                                .filter(r -> r.status() != ReservationStatus.PENDING)
+                                .toList());
             }
             return "reservierungen/index";
         } catch (IllegalArgumentException e) {
@@ -334,6 +341,14 @@ public class ReservierungenController {
 
     private boolean canWrite(AppUserDetails actor, long unitId) {
         return userPermissionService.hasPermission(actor, unitId, "reservierungen.write");
+    }
+
+    private String requesterDisplayName(AppUserDetails actor, long unitId) {
+        return personalService
+                .findLinkedPerson(actor.getUserId(), unitId)
+                .map(p -> p.anwesenheitDisplayName())
+                .filter(name -> name != null && !name.isBlank())
+                .orElse(actor.getDisplayName());
     }
 
     private static String redirectHome(Long unitId) {

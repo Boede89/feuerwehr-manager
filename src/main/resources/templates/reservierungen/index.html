@@ -101,7 +101,7 @@
       <h3>Meine Anträge</h3>
     </div>
     <div class="card" th:if="${#lists.isEmpty(myReservations)}">
-      <div class="card__body"><p class="hint">Sie haben noch keine Reservierungsanträge gestellt.</p></div>
+            <div class="card__body"><p class="hint">Keine aktuellen oder kommenden Reservierungen.</p></div>
     </div>
     <div class="card" th:if="${!#lists.isEmpty(myReservations)}">
       <div class="card__body card__body--flush">
@@ -193,7 +193,8 @@
         </div>
       </div>
       <div class="card__body card__body--flush">
-        <div class="table-wrapper">
+        <p class="hint" th:if="${historyReservations == null or #lists.isEmpty(historyReservations)}" style="padding:16px 20px;margin:0;">Keine aktuellen oder kommenden Reservierungen.</p>
+        <div class="table-wrapper" th:if="${historyReservations != null and !#lists.isEmpty(historyReservations)}">
           <table class="table">
             <thead>
             <tr>
@@ -201,8 +202,7 @@
             </tr>
             </thead>
             <tbody>
-            <tr th:each="r : ${allReservations}"
-                th:if="${r.status().name() != 'PENDING'}"
+            <tr th:each="r : ${historyReservations}"
                 class="reservierungen-row--clickable"
                 th:attr="data-kind=${r.kind().name()},data-id=${r.id()},data-status=${r.status().name()},data-start-at=${r.startAt()},data-open-details=${'reservierung-details-' + r.kind().name() + '-' + r.id()}">
               <td th:text="${r.kind() == T(de.feuerwehr.manager.reservierungen.ReservationKind).VEHICLE ? 'Fahrzeug' : 'Raum'}">Fahrzeug</td>

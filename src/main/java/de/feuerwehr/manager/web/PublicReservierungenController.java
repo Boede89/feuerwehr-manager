@@ -87,7 +87,7 @@ public class PublicReservierungenController {
                         .toList());
         model.addAttribute("unitPersons", personalService.listSelectablePersons(unit.getId()));
         if (actor != null) {
-            model.addAttribute("requesterName", actor.getDisplayName());
+            model.addAttribute("requesterName", requesterDisplayName(actor, unit.getId()));
             model.addAttribute(
                     "requesterEmail",
                     userRepository.findById(actor.getUserId()).map(u -> u.getLoginEmail()).orElse(""));
@@ -148,6 +148,14 @@ public class PublicReservierungenController {
         if (!settingsService.isPublicReservationOpen(unitId)) {
             throw new IllegalArgumentException("Reservierung ohne Anmeldung ist für diese Einheit nicht freigegeben.");
         }
+    }
+
+    private String requesterDisplayName(AppUserDetails actor, long unitId) {
+        return personalService
+                .findLinkedPerson(actor.getUserId(), unitId)
+                .map(p -> p.anwesenheitDisplayName())
+                .filter(name -> name != null && !name.isBlank())
+                .orElse(actor.getDisplayName());
     }
 
     private static Long actorUserId(AppUserDetails actor) {

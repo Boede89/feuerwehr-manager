@@ -1,5 +1,7 @@
 package de.feuerwehr.manager.reservierungen;
 
+import de.feuerwehr.manager.personal.Person;
+import de.feuerwehr.manager.personal.PersonRepository;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.technik.Room;
 import de.feuerwehr.manager.technik.RoomRepository;
@@ -35,6 +37,7 @@ public class ReservierungenService {
     private final RoomRepository roomRepository;
     private final UnitRepository unitRepository;
     private final UserRepository userRepository;
+    private final PersonRepository personRepository;
     private final UnitAdminService unitAdminService;
     private final ReservierungenSettingsService settingsService;
     private final ReservierungenConflictService conflictService;
@@ -45,63 +48,81 @@ public class ReservierungenService {
 
     @Transactional(readOnly = true)
     public List<ReservationListItemView> listMine(long unitId, long userId) {
-        List<ReservationListItemView> items = new ArrayList<>();
+        List<VehicleReservation> vehicles = new ArrayList<>();
         for (VehicleReservation reservation :
                 vehicleReservationRepository.findByUnitIdAndRequesterUserIdOrderByStartAtDesc(unitId, userId)) {
-            if (!isVisible(reservation.isTestData())) {
-                continue;
+            if (isVisible(reservation.isTestData())) {
+                vehicles.add(reservation);
             }
-            items.add(toView(reservation, userId, false));
         }
+        List<RoomReservation> rooms = new ArrayList<>();
         for (RoomReservation reservation :
                 roomReservationRepository.findByUnitIdAndRequesterUserIdOrderByStartAtDesc(unitId, userId)) {
-            if (!isVisible(reservation.isTestData())) {
-                continue;
+            if (isVisible(reservation.isTestData())) {
+                rooms.add(reservation);
             }
-            items.add(toView(reservation, userId, false));
         }
-        items.sort(Comparator.comparing(ReservationListItemView::startAt).reversed());
-        return items;
+        Map<Long, String> personNames = personNamesByUserId(vehicles, rooms);
+        List<ReservationListItemView> items = new ArrayList<>();
+        for (VehicleReservation reservation : vehicles) {
+            items.add(toView(reservation, userId, false, personNames));
+        }
+        for (RoomReservation reservation : rooms) {
+            items.add(toView(reservation, userId, false, personNames));
+        }
+        return upcomingSorted(items);
     }
 
     @Transactional(readOnly = true)
     public List<ReservationListItemView> listPending(long unitId, long currentUserId) {
-        List<ReservationListItemView> items = new ArrayList<>();
+        List<VehicleReservation> vehicles = new ArrayList<>();
         for (VehicleReservation reservation :
                 vehicleReservationRepository.findByUnitIdAndStatusOrderByStartAtAsc(unitId, ReservationStatus.PENDING)) {
-            if (!isVisible(reservation.isTestData())) {
-                continue;
+            if (isVisible(reservation.isTestData())) {
+                vehicles.add(reservation);
             }
-            items.add(toView(reservation, currentUserId, hasVehicleConflict(reservation)));
         }
+        List<RoomReservation> rooms = new ArrayList<>();
         for (RoomReservation reservation :
                 roomReservationRepository.findByUnitIdAndStatusOrderByStartAtAsc(unitId, ReservationStatus.PENDING)) {
-            if (!isVisible(reservation.isTestData())) {
-                continue;
+            if (isVisible(reservation.isTestData())) {
+                rooms.add(reservation);
             }
-            items.add(toView(reservation, currentUserId, hasRoomConflict(reservation)));
         }
-        items.sort(Comparator.comparing(ReservationListItemView::startAt));
-        return items;
+        Map<Long, String> personNames = personNamesByUserId(vehicles, rooms);
+        List<ReservationListItemView> items = new ArrayList<>();
+        for (VehicleReservation reservation : vehicles) {
+            items.add(toView(reservation, currentUserId, hasVehicleConflict(reservation), personNames));
+        }
+        for (RoomReservation reservation : rooms) {
+            items.add(toView(reservation, currentUserId, hasRoomConflict(reservation), personNames));
+        }
+        return upcomingSorted(items);
     }
 
     @Transactional(readOnly = true)
     public List<ReservationListItemView> listAll(long unitId, long currentUserId) {
-        List<ReservationListItemView> items = new ArrayList<>();
+        List<VehicleReservation> vehicles = new ArrayList<>();
         for (VehicleReservation reservation : vehicleReservationRepository.findByUnitIdOrderByStartAtDesc(unitId)) {
-            if (!isVisible(reservation.isTestData())) {
-                continue;
+            if (isVisible(reservation.isTestData())) {
+                vehicles.add(reservation);
             }
-            items.add(toView(reservation, currentUserId, hasVehicleConflict(reservation)));
         }
+        List<RoomReservation> rooms = new ArrayList<>();
         for (RoomReservation reservation : roomReservationRepository.findByUnitIdOrderByStartAtDesc(unitId)) {
-            if (!isVisible(reservation.isTestData())) {
-                continue;
+            if (isVisible(reservation.isTestData())) {
+                rooms.add(reservation);
             }
-            items.add(toView(reservation, currentUserId, hasRoomConflict(reservation)));
         }
-        items.sort(Comparator.comparing(ReservationListItemView::startAt).reversed());
-        return items;
+        Map<Long, String> personNames = personNamesByUserId(vehicles, rooms);
+        List<ReservationListItemView> items = new ArrayList<>();
+        for (VehicleReservation reservation : vehicles) {
+            items.add(toView(reservation, currentUserId, hasVehicleConflict(reservation), personNames));
+        }
+        for (RoomReservation reservation : rooms) {
+            items.add(toView(reservation, currentUserId, hasRoomConflict(reservation), personNames));
+        }
+        return upcomingSorted(items);
     }
 
     @Transactional
@@ -111,12 +132,12 @@ public class ReservierungenService {
         if (vehicleIds.isEmpty()) {
             throw new IllegalArgumentException("Bitte mindestens ein Fahrzeug wählen.");
         }
-        String requesterName = requireText(request.requesterName(), "Antragsteller");
         String requesterEmail = requireText(request.requesterEmail(), "E-Mail");
         String reason = requireText(request.reason(), "Grund");
         String location = requireText(request.location(), "Ort / Standort");
         Unit unit = requireUnit(unitId);
         User requester = userId == null ? null : requireUser(userId);
+        String requesterName = resolveStoredRequesterName(requester, requireText(request.requesterName(), "Antragsteller"));
 
         List<Vehicle> vehicles = new ArrayList<>();
         for (Long vehicleId : vehicleIds) {
@@ -187,12 +208,12 @@ public class ReservierungenService {
         if (roomIds.isEmpty()) {
             throw new IllegalArgumentException("Bitte mindestens einen Raum wählen.");
         }
-        String requesterName = requireText(request.requesterName(), "Antragsteller");
         String requesterEmail = requireText(request.requesterEmail(), "E-Mail");
         String reason = requireText(request.reason(), "Grund");
         String location = requireText(request.location(), "Ort / Standort");
         Unit unit = requireUnit(unitId);
         User requester = userId == null ? null : requireUser(userId);
+        String requesterName = resolveStoredRequesterName(requester, requireText(request.requesterName(), "Antragsteller"));
 
         List<Room> rooms = new ArrayList<>();
         for (Long roomId : roomIds) {
@@ -1080,7 +1101,11 @@ public class ReservierungenService {
         return reservation;
     }
 
-    private ReservationListItemView toView(VehicleReservation reservation, long currentUserId, boolean hasConflict) {
+    private ReservationListItemView toView(
+            VehicleReservation reservation,
+            long currentUserId,
+            boolean hasConflict,
+            Map<Long, String> personNamesByUserId) {
         List<ReservationResourceItem> resources = reservation.resolvedVehicles().stream()
                 .map(v -> new ReservationResourceItem(v.getId(), v.getName()))
                 .toList();
@@ -1088,7 +1113,7 @@ public class ReservierungenService {
                 reservation.getId(),
                 ReservationKind.VEHICLE,
                 reservation.vehicleNamesJoined(),
-                reservation.getRequesterName(),
+                displayRequesterName(reservation.getRequesterUser(), reservation.getRequesterName(), personNamesByUserId),
                 reservation.getRequesterEmail(),
                 reservation.getReason(),
                 reservation.getLocation(),
@@ -1105,7 +1130,11 @@ public class ReservierungenService {
                 resources);
     }
 
-    private ReservationListItemView toView(RoomReservation reservation, long currentUserId, boolean hasConflict) {
+    private ReservationListItemView toView(
+            RoomReservation reservation,
+            long currentUserId,
+            boolean hasConflict,
+            Map<Long, String> personNamesByUserId) {
         List<ReservationResourceItem> resources = reservation.getRoom() != null
                 ? List.of(new ReservationResourceItem(reservation.getRoom().getId(), reservation.getRoom().getName()))
                 : List.of();
@@ -1113,7 +1142,7 @@ public class ReservierungenService {
                 reservation.getId(),
                 ReservationKind.ROOM,
                 reservation.getRoom().getName(),
-                reservation.getRequesterName(),
+                displayRequesterName(reservation.getRequesterUser(), reservation.getRequesterName(), personNamesByUserId),
                 reservation.getRequesterEmail(),
                 reservation.getReason(),
                 reservation.getLocation(),
@@ -1128,6 +1157,125 @@ public class ReservierungenService {
                         && Objects.equals(reservation.getRequesterUser().getId(), currentUserId),
                 hasConflict,
                 resources);
+    }
+
+    /**
+     * Nur aktuelle und kommende Reservierungen, nächster Zeitraum zuerst.
+     * Abgelaufene Termine ({@code endAt} vor jetzt) erscheinen nicht in der Liste.
+     */
+    private static List<ReservationListItemView> upcomingSorted(List<ReservationListItemView> items) {
+        Instant now = Instant.now();
+        items.removeIf(item -> item.endAt() == null || item.endAt().isBefore(now));
+        items.sort(Comparator.comparing(ReservationListItemView::startAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(ReservationListItemView::id));
+        return items;
+    }
+
+    private Map<Long, String> personNamesByUserId(
+            List<VehicleReservation> vehicles, List<RoomReservation> rooms) {
+        LinkedHashSet<Long> userIds = new LinkedHashSet<>();
+        for (VehicleReservation reservation : vehicles) {
+            if (reservation.getRequesterUser() != null && reservation.getRequesterUser().getId() != null) {
+                userIds.add(reservation.getRequesterUser().getId());
+            }
+        }
+        for (RoomReservation reservation : rooms) {
+            if (reservation.getRequesterUser() != null && reservation.getRequesterUser().getId() != null) {
+                userIds.add(reservation.getRequesterUser().getId());
+            }
+        }
+        return loadPersonNamesByUserId(userIds);
+    }
+
+    private Map<Long, String> loadPersonNamesByUserId(LinkedHashSet<Long> userIds) {
+        if (userIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, String> names = new LinkedHashMap<>();
+        for (Person person : personRepository.findAllByUserIdIn(userIds)) {
+            if (person.getUser() == null || person.getUser().getId() == null) {
+                continue;
+            }
+            String fullName = personFullName(person);
+            if (fullName != null) {
+                names.putIfAbsent(person.getUser().getId(), fullName);
+            }
+        }
+        return names;
+    }
+
+    private String resolveStoredRequesterName(User requester, String submitted) {
+        if (requester == null || submitted == null) {
+            return submitted;
+        }
+        if (!matchesAccountName(requester, submitted)) {
+            return submitted;
+        }
+        String fromPerson = lookupPersonFullName(requester.getId());
+        return fromPerson != null ? fromPerson : submitted;
+    }
+
+    private String displayRequesterName(
+            User requesterUser, String storedName, Map<Long, String> personNamesByUserId) {
+        if (storedName != null && looksLikeFullName(storedName)) {
+            return storedName.trim();
+        }
+        if (requesterUser != null && requesterUser.getId() != null) {
+            String fromPerson = personNamesByUserId.get(requesterUser.getId());
+            if (fromPerson != null && !fromPerson.isBlank()) {
+                return fromPerson;
+            }
+            String displayName = requesterUser.getDisplayName();
+            if (displayName != null && looksLikeFullName(displayName)) {
+                return displayName.trim();
+            }
+        }
+        return storedName;
+    }
+
+    private String lookupPersonFullName(long userId) {
+        return personRepository.findAllByUserIdAndAnonymizedAtIsNull(userId).stream()
+                .map(ReservierungenService::personFullName)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static String personFullName(Person person) {
+        String first = person.getFirstName() != null ? person.getFirstName().trim() : "";
+        String last = person.getLastName() != null ? person.getLastName().trim() : "";
+        if ("—".equals(last) || "-".equals(last) || "–".equals(last)) {
+            last = "";
+        }
+        if ("—".equals(first) || "-".equals(first) || "–".equals(first)) {
+            first = "";
+        }
+        if (last.isEmpty() && first.isEmpty()) {
+            return null;
+        }
+        if (last.isEmpty()) {
+            return looksLikeFullName(first) ? first : null;
+        }
+        if (first.isEmpty()) {
+            return looksLikeFullName(last) ? last : null;
+        }
+        return last + ", " + first;
+    }
+
+    private static boolean matchesAccountName(User user, String submitted) {
+        String name = submitted.trim();
+        if (name.equalsIgnoreCase(user.getUsername())) {
+            return true;
+        }
+        return user.getDisplayName() != null && name.equalsIgnoreCase(user.getDisplayName().trim());
+    }
+
+    private static boolean looksLikeFullName(String name) {
+        if (name == null) {
+            return false;
+        }
+        String trimmed = name.trim();
+        return trimmed.contains(" ") || trimmed.contains(",");
     }
 
     private boolean hasVehicleConflict(VehicleReservation reservation) {
