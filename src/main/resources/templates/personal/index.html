@@ -316,6 +316,8 @@
     <div class="card">
       <div class="card__header card__header--toolbar">
         <span>Lehrgangsplanung</span>
+        <a class="btn btn--primary btn--sm"
+           th:href="@{/personal/lehrgangsplanung/detail(unit=${unitId})}">Detailplanung</a>
       </div>
       <div class="card__body">
         <p class="hint" style="margin-top:0;">
@@ -379,12 +381,11 @@
             Voraussetzungen (anklicken zum Ignorieren, mehrere möglich):
           </p>
           <div class="course-plan-chips" role="group" aria-label="Voraussetzungen ignorieren">
-            <a class="course-plan-chip"
-               th:each="pr : ${coursePlan.prerequisites}"
+            <a th:each="pr : ${coursePlan.prerequisites}"
                th:unless="${ignorePrerequisites}"
-               th:classappend="${coursePlan.ignoresPrerequisite(pr.id)} ? ' course-plan-chip--active' : ''"
+               th:class="${coursePlan.ignoresPrerequisite(pr.id)} ? 'course-plan-chip course-plan-chip--active' : 'course-plan-chip'"
                th:href="@{/personal(unit=${unitId}, tab='lehrgangsplanung', course=${selectedPlanCourseId}, ignoreId=${coursePlan.toggledIgnoreIds(pr.id)})}"
-               th:attr="aria-pressed=${coursePlan.ignoresPrerequisite(pr.id)}"
+               th:attr="aria-pressed=${coursePlan.ignoresPrerequisite(pr.id) ? 'true' : 'false'}"
                th:title="${coursePlan.ignoresPrerequisite(pr.id)
                  ? 'Wird ignoriert — erneut klicken, um wieder zu verlangen'
                  : 'Klicken, um diese Voraussetzung zu ignorieren'}">

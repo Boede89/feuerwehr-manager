@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('Lehrgangs-Detailplanung', ~{::main})}">
+<main>
+  <div class="member-detail-header">
+    <a class="btn btn--outline btn--sm page-back"
+       th:href="@{/personal(unit=${unitId}, tab='lehrgangsplanung')}">← Zurück zur Lehrgangsplanung</a>
+    <div>
+      <h2 class="member-detail-title">Detailplanung</h2>
+      <p>Lehrgänge und Plätze für ein Planungsjahr · <strong th:text="${currentUnitName}">—</strong></p>
+    </div>
+  </div>
+
+  <div th:replace="~{fragments/testmode-banner :: banner}"></div>
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
+
+  <div class="card">
+    <div class="card__header card__header--toolbar">
+      <span>Einstellungen</span>
+      <form method="get" class="filter-bar course-plan-filter" th:action="@{/personal/lehrgangsplanung/detail}">
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <label for="detail-plan-year">Jahr</label>
+        <select id="detail-plan-year" name="jahr" class="berichte-filter-select" onchange="this.form.submit()">
+          <option th:each="y : ${yearOptions}" th:value="${y}" th:text="${y}"
+                  th:selected="${y == planYear}">2027</option>
+        </select>
+      </form>
+    </div>
+    <div class="card__body">
+      <p class="hint" style="margin-top:0;">
+        Hinterlegen Sie die Lehrgänge des Jahres und die Anzahl der zu vergebenden Plätze.
+        Die Ergebnisliste enthält alle Mitglieder, denen der jeweilige Lehrgang noch fehlt.
+        Die ersten Plätze in der Reihenfolge werden als vorgesehene Teilnehmer markiert.
+        <span th:if="${planView.plan != null and planView.plan.useParticipation}">
+          Die Sortierung nach Dienstbeteiligung bezieht sich auf
+          <strong th:text="${planView.participationYear}">2026</strong>.
+        </span>
+      </p>
+      <form method="post" th:action="@{/personal/lehrgangsplanung/detail}" class="course-detail-plan-form">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <input type="hidden" name="jahr" th:value="${planYear}"/>
+        <label class="checkbox-row course-plan-ignore">
+          <input type="checkbox" name="useParticipation" value="true"
+                 th:checked="${planView.plan != null and planView.plan.useParticipation}"/>
+          Ergebnisse nach Dienstbeteiligung sortieren
+        </label>
+        <label class="checkbox-row course-plan-ignore" th:if="${planView.plan != null}">
+          <input type="checkbox" name="resort" value="true"/>
+          Reihenfolge neu berechnen (manuelle Verschiebungen werden überschrieben)
+        </label>
+        <div class="table-wrapper" th:if="${!#lists.isEmpty(planView.availableCourses)}">
+          <table class="data-table">
+            <thead>
+            <tr>
+              <th>Einbeziehen</th>
+              <th>Lehrgang</th>
+              <th>Plätze</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="c : ${planView.availableCourses}">
+              <td>
+                <input type="checkbox" name="includeCourseIds" th:value="${c.id}"
+                       th:checked="${planView.includesCourse(c.id)}"/>
+              </td>
+              <td th:text="${c.name}">Lehrgang</td>
+              <td>
+                <input type="number" class="field course-detail-seats" min="1" max="500"
+                       th:name="${'seats_' + c.id}"
+                       th:value="${planView.seatsFor(c.id)}"/>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="hint" th:if="${#lists.isEmpty(planView.availableCourses)}">Noch keine Lehrgänge vorhanden.</p>
+        <div class="toolbar-actions" style="margin-top:1rem;" th:if="${canWrite}">
+          <button type="submit" class="btn btn--primary">Speichern und Liste erzeugen</button>
+        </div>
+      </form>
+      <form method="post" th:action="@{/personal/lehrgangsplanung/detail/delete}"
+            th:if="${canWrite and planView.plan != null}" class="course-detail-delete"
+            data-confirm="Planung für dieses Jahr wirklich löschen?">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <input type="hidden" name="jahr" th:value="${planYear}"/>
+        <button type="submit" class="btn btn--danger btn--sm">Planung löschen</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card course-plan-result" th:each="item : ${planView.items}" th:id="${'item-' + item.itemId()}">
+    <div class="card__header card__header--toolbar">
+      <span th:text="${item.course().name + ' · ' + item.seats() + ' Plätze · ' + item.assignedCount() + ' vorgesehen'}">Lehrgang</span>
+    </div>
+    <div class="card__body card__body--flush" th:if="${!#lists.isEmpty(item.entries())}">
+      <table class="data-table course-detail-entry-table"
+             th:attr="data-item-id=${item.itemId()},
+                      data-reorder-url=@{/personal/lehrgangsplanung/detail/items/{id}/reorder(id=${item.itemId()})},
+                      data-unit=${unitId},
+                      data-jahr=${planYear},
+                      data-can-write=${canWrite}">
+        <thead>
+        <tr>
+          <th class="course-detail-rank-col">Platz</th>
+          <th th:if="${canWrite}">Reihenfolge</th>
+          <th>Name</th>
+          <th th:if="${planView.plan != null and planView.plan.useParticipation}">Dienstbeteiligung</th>
+          <th>Voraussetzungen</th>
+          <th>Vorgesehen</th>
+          <th>Bestätigt</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="row, stat : ${item.entries()}"
+            th:classappend="${row.withinSeats()} ? ' course-detail-row--seat' : ''"
+            th:attr="data-entry-id=${row.entryId()}, draggable=${canWrite}">
+          <td class="course-detail-rank-col" th:text="${row.rank()}">1</td>
+          <td th:if="${canWrite}" class="course-detail-order-col">
+            <div class="row-order" role="group" aria-label="Reihenfolge">
+              <form method="post" class="table-inline-form"
+                    th:action="@{/personal/lehrgangsplanung/detail/entries/{id}/move(id=${row.entryId()})}">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <input type="hidden" name="unit" th:value="${unitId}"/>
+                <input type="hidden" name="jahr" th:value="${planYear}"/>
+                <input type="hidden" name="itemId" th:value="${item.itemId()}"/>
+                <input type="hidden" name="direction" value="up"/>
+                <button type="submit" class="row-order__btn" th:disabled="${stat.first}"
+                        title="Nach oben" aria-label="Nach oben"><span aria-hidden="true">▴</span></button>
+              </form>
+              <form method="post" class="table-inline-form"
+                    th:action="@{/personal/lehrgangsplanung/detail/entries/{id}/move(id=${row.entryId()})}">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <input type="hidden" name="unit" th:value="${unitId}"/>
+                <input type="hidden" name="jahr" th:value="${planYear}"/>
+                <input type="hidden" name="itemId" th:value="${item.itemId()}"/>
+                <input type="hidden" name="direction" value="down"/>
+                <button type="submit" class="row-order__btn" th:disabled="${stat.last}"
+                        title="Nach unten" aria-label="Nach unten"><span aria-hidden="true">▾</span></button>
+              </form>
+            </div>
+          </td>
+          <td>
+            <a th:href="@{/personal/{id}(id=${row.person().id}, unit=${unitId})}"
+               th:text="${row.person().displayName()}">Name</a>
+          </td>
+          <td th:if="${planView.plan != null and planView.plan.useParticipation}"
+              th:text="${row.dienstbeteiligung()}">—</td>
+          <td class="text-muted text-sm">
+            <span th:if="${row.prerequisitesMet()}">erfüllt</span>
+            <span th:unless="${row.prerequisitesMet()}" th:text="${row.missingPrerequisitesLabel()}">—</span>
+          </td>
+          <td>
+            <span class="badge active" th:if="${row.withinSeats()}">Platz</span>
+            <span class="text-muted" th:unless="${row.withinSeats()}">—</span>
+          </td>
+          <td>
+            <form method="post" class="table-inline-form"
+                  th:action="@{/personal/lehrgangsplanung/detail/entries/{id}/confirm(id=${row.entryId()})}"
+                  th:if="${canWrite}">
+              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+              <input type="hidden" name="unit" th:value="${unitId}"/>
+              <input type="hidden" name="jahr" th:value="${planYear}"/>
+              <input type="hidden" name="itemId" th:value="${item.itemId()}"/>
+              <label class="checkbox-row course-detail-confirm">
+                <input type="checkbox" name="confirmed" value="true"
+                       th:checked="${row.confirmed()}" onchange="this.form.submit()"/>
+                bestätigt
+              </label>
+            </form>
+            <span th:unless="${canWrite}" th:text="${row.confirmed()} ? 'ja' : 'nein'">nein</span>
+          </td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card__body" th:if="${#lists.isEmpty(item.entries())}">
+      <p class="hint" style="margin:0;">Niemand hat diesen Lehrgang noch offen.</p>
+    </div>
+  </div>
+
+  <p class="hint" th:if="${planView.plan == null}">
+    Noch keine gespeicherte Planung für <span th:text="${planYear}">2027</span>.
+    Wählen Sie Lehrgänge und Plätze und speichern Sie die Liste.
+  </p>
+
+  <script th:src="@{/js/course-detail-plan.js(v='20260829y')}"></script>
+</main>
+</html>

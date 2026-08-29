@@ -9,6 +9,7 @@ import de.feuerwehr.manager.berichte.IncidentReportRepository;
 import de.feuerwehr.manager.config.StorageProperties;
 import de.feuerwehr.manager.divera.TestDiveraAlarmRepository;
 import de.feuerwehr.manager.personal.CourseRepository;
+import de.feuerwehr.manager.personal.CourseDetailPlanRepository;
 import de.feuerwehr.manager.personal.InstructorGroupRepository;
 import de.feuerwehr.manager.personal.PersonGroupRepository;
 import de.feuerwehr.manager.personal.PersonRepository;
@@ -40,6 +41,7 @@ public class TestModeService {
     private final PersonRepository personRepository;
     private final CourseRepository courseRepository;
     private final QualificationTypeRepository qualificationTypeRepository;
+    private final CourseDetailPlanRepository courseDetailPlanRepository;
     private final UnitRepository unitRepository;
     private final UnitDiveraSettingsRepository diveraSettingsRepository;
     private final TestDiveraAlarmRepository testDiveraAlarmRepository;
@@ -113,6 +115,7 @@ public class TestModeService {
                 .executeUpdate();
         personGroupRepository.deleteAllByTestDataTrue();
         instructorGroupRepository.deleteAllByTestDataTrue();
+        courseDetailPlanRepository.deleteAllByTestDataTrue();
         personRepository.deleteAllByTestDataTrue();
         courseRepository.deleteAllByTestDataTrue();
         qualificationTypeRepository.deleteAllByTestDataTrue();

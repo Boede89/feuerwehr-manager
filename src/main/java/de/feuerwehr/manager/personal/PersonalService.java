@@ -1084,7 +1084,7 @@ public class PersonalService {
         }
     }
 
-    private Course requireCourseForRead(long courseId, long unitId) {
+    public Course requireCourseForRead(long courseId, long unitId) {
         Course course = courseRepository
                 .findById(courseId)
                 .orElseThrow(() -> new IllegalArgumentException("Lehrgang nicht gefunden"));
@@ -1276,22 +1276,50 @@ public class PersonalService {
             int alreadyCompletedCount,
             int missingPrerequisiteCount,
             boolean ignorePrerequisites) {
-        public boolean ignoresPrerequisite(long courseId) {
+        public boolean ignoresPrerequisite(Object courseId) {
+            Long id = toCourseId(courseId);
+            return id != null && ignoresPrerequisiteId(id);
+        }
+
+        private boolean ignoresPrerequisiteId(long courseId) {
             if (ignorePrerequisites) {
                 return true;
             }
-            return ignoredPrerequisiteIds != null && ignoredPrerequisiteIds.contains(courseId);
+            if (ignoredPrerequisiteIds == null || ignoredPrerequisiteIds.isEmpty()) {
+                return false;
+            }
+            for (Long id : ignoredPrerequisiteIds) {
+                if (id != null && id == courseId) {
+                    return true;
+                }
+            }
+            return false;
         }
 
-        public List<Long> toggledIgnoreIds(long courseId) {
+        public List<Long> toggledIgnoreIds(Object courseId) {
+            Long toggleId = toCourseId(courseId);
             LinkedHashSet<Long> ids = new LinkedHashSet<>();
             if (ignoredPrerequisiteIds != null) {
                 ids.addAll(ignoredPrerequisiteIds);
             }
-            if (!ids.add(courseId)) {
-                ids.remove(courseId);
+            if (toggleId != null && !ids.add(toggleId)) {
+                ids.remove(toggleId);
             }
             return List.copyOf(ids);
+        }
+
+        private static Long toCourseId(Object courseId) {
+            if (courseId instanceof Number number) {
+                return number.longValue();
+            }
+            if (courseId instanceof String raw && !raw.isBlank()) {
+                try {
+                    return Long.parseLong(raw.trim());
+                } catch (NumberFormatException ignored) {
+                    return null;
+                }
+            }
+            return null;
         }
 
         public String ignoredPrerequisitesLabel() {
