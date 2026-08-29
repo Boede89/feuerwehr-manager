@@ -16,12 +16,16 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -150,6 +154,52 @@ public class PersonalService {
                 Course::getProductionSourceId,
                 Course::getId,
                 Comparator.comparing(Course::getSortOrder).thenComparing(Course::getName));
+    }
+
+    @Transactional(readOnly = true)
+    public Map<Long, List<Course>> prerequisitesByCourseId(long unitId) {
+        return loadPrerequisites(listCourses(unitId, false));
+    }
+
+    @Transactional(readOnly = true)
+    public CoursePlanResult planCourse(long unitId, long courseId) {
+        Course course = requireCourseForRead(courseId, unitId);
+        List<Course> withPrereq = courseRepository.findWithPrerequisitesByIdIn(List.of(course.getId()));
+        Course loaded = withPrereq.isEmpty() ? course : withPrereq.get(0);
+        List<Course> prerequisites = loaded.getPrerequisites() == null
+                ? List.of()
+                : loaded.getPrerequisites().stream()
+                        .sorted(Comparator.comparing(Course::getName, String.CASE_INSENSITIVE_ORDER))
+                        .toList();
+
+        List<Person> members = listPersons(unitId).stream()
+                .filter(PersonMembership::isCurrentlyMember)
+                .sorted(Comparator.comparing(Person::getLastName, String.CASE_INSENSITIVE_ORDER)
+                        .thenComparing(Person::getFirstName, String.CASE_INSENSITIVE_ORDER))
+                .toList();
+        Map<Long, Set<Long>> completedByPerson = loadCompletedCanonicalIds(unitId);
+
+        List<Person> eligible = new ArrayList<>();
+        int alreadyCompleted = 0;
+        int missingPrerequisites = 0;
+        for (Person person : members) {
+            Set<Long> completed = completedByPerson.getOrDefault(person.getId(), Set.of());
+            if (person.getProductionSourceId() != null) {
+                completed = new HashSet<>(completed);
+                completed.addAll(completedByPerson.getOrDefault(person.getProductionSourceId(), Set.of()));
+            }
+            boolean hasTarget = CoursePrerequisiteSupport.hasCourse(completed, loaded);
+            if (hasTarget) {
+                alreadyCompleted++;
+                continue;
+            }
+            if (CoursePrerequisiteSupport.hasAllPrerequisites(completed, prerequisites)) {
+                eligible.add(person);
+            } else {
+                missingPrerequisites++;
+            }
+        }
+        return new CoursePlanResult(loaded, prerequisites, eligible, alreadyCompleted, missingPrerequisites);
     }
 
     public List<PersonCourseCompletion> listCompletions(long personId) {
@@ -587,6 +637,11 @@ public class PersonalService {
 
     @Transactional
     public Course createCourse(long unitId, String name, Long qualificationTypeId) {
+        return createCourse(unitId, name, qualificationTypeId, List.of());
+    }
+
+    @Transactional
+    public Course createCourse(long unitId, String name, Long qualificationTypeId, Collection<Long> prerequisiteIds) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Name fehlt");
         }
@@ -603,7 +658,9 @@ public class PersonalService {
         course.setActive(true);
         course.setTestData(testModeService.isEnabled());
         course.setProductionSourceId(null);
-        return courseRepository.save(course);
+        Course saved = courseRepository.save(course);
+        applyPrerequisites(unit, saved, prerequisiteIds);
+        return courseRepository.save(saved);
     }
 
     @Transactional
@@ -649,7 +706,12 @@ public class PersonalService {
 
     @Transactional
     public Course updateCourse(
-            long unitId, long courseId, String name, Long qualificationTypeId, boolean active) {
+            long unitId,
+            long courseId,
+            String name,
+            Long qualificationTypeId,
+            boolean active,
+            Collection<Long> prerequisiteIds) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Name fehlt");
         }
@@ -662,6 +724,7 @@ public class PersonalService {
         } else {
             course.setQualificationType(null);
         }
+        applyPrerequisites(unit, course, prerequisiteIds);
         Course saved = courseRepository.save(course);
         for (Long personId : completionRepository.findPersonIdsByCourseId(saved.getId())) {
             syncPersonQualificationFromCompletions(personId);
@@ -940,6 +1003,101 @@ public class PersonalService {
         }
     }
 
+    private Map<Long, List<Course>> loadPrerequisites(List<Course> courses) {
+        if (courses == null || courses.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> ids = courses.stream().map(Course::getId).filter(id -> id != null).toList();
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, Course> fetched = courseRepository.findWithPrerequisitesByIdIn(ids).stream()
+                .collect(Collectors.toMap(Course::getId, course -> course, (left, right) -> left));
+        Map<Long, List<Course>> result = new HashMap<>();
+        for (Course course : courses) {
+            Course withPrereq = fetched.get(course.getId());
+            List<Course> prerequisites = withPrereq == null || withPrereq.getPrerequisites() == null
+                    ? List.of()
+                    : withPrereq.getPrerequisites().stream()
+                            .sorted(Comparator.comparing(Course::getName, String.CASE_INSENSITIVE_ORDER))
+                            .toList();
+            result.put(course.getId(), prerequisites);
+        }
+        return result;
+    }
+
+    private Map<Long, Set<Long>> loadCompletedCanonicalIds(long unitId) {
+        Map<Long, Set<Long>> result = new HashMap<>();
+        addCompletions(result, completionRepository.findByUnitIdAndTestData(unitId, false));
+        if (testModeService.isEnabled()) {
+            addCompletions(result, completionRepository.findByUnitIdAndTestData(unitId, true));
+        }
+        return result;
+    }
+
+    private static void addCompletions(Map<Long, Set<Long>> result, List<PersonCourseCompletion> rows) {
+        for (PersonCourseCompletion row : rows) {
+            if (row.getPerson() == null || row.getCourse() == null || row.getPerson().getId() == null) {
+                continue;
+            }
+            result.computeIfAbsent(row.getPerson().getId(), ignored -> new HashSet<>())
+                    .addAll(CoursePrerequisiteSupport.canonicalIds(row.getCourse()));
+        }
+    }
+
+    private Course requireCourseForRead(long courseId, long unitId) {
+        Course course = courseRepository
+                .findById(courseId)
+                .orElseThrow(() -> new IllegalArgumentException("Lehrgang nicht gefunden"));
+        if (course.getUnit() == null || !course.getUnit().getId().equals(unitId)) {
+            throw new IllegalArgumentException("Lehrgang gehört nicht zur Einheit");
+        }
+        return course;
+    }
+
+    private void applyPrerequisites(Unit unit, Course course, Collection<Long> prerequisiteIds) {
+        LinkedHashSet<Course> next = new LinkedHashSet<>();
+        Set<Long> nextIds = new LinkedHashSet<>();
+        if (prerequisiteIds != null) {
+            for (Long id : prerequisiteIds) {
+                if (id == null || id <= 0) {
+                    continue;
+                }
+                Course required = resolveCourseForWrite(id, unit);
+                if (required.getId().equals(course.getId())) {
+                    throw new IllegalArgumentException("Ein Lehrgang kann nicht Voraussetzung von sich selbst sein.");
+                }
+                next.add(required);
+                nextIds.add(required.getId());
+            }
+        }
+        Map<Long, Set<Long>> graph = prerequisiteGraph(unit.getId());
+        if (CoursePrerequisiteSupport.createsCycle(course.getId(), nextIds, graph)) {
+            throw new IllegalArgumentException(
+                    "Voraussetzungen dürfen keine Schleife bilden (gegenseitige Abhängigkeit).");
+        }
+        if (course.getPrerequisites() == null) {
+            course.setPrerequisites(new LinkedHashSet<>());
+        }
+        course.getPrerequisites().clear();
+        course.getPrerequisites().addAll(next);
+    }
+
+    private Map<Long, Set<Long>> prerequisiteGraph(long unitId) {
+        Map<Long, List<Course>> byCourse = loadPrerequisites(listCourses(unitId, false));
+        Map<Long, Set<Long>> graph = new HashMap<>();
+        for (Map.Entry<Long, List<Course>> entry : byCourse.entrySet()) {
+            Set<Long> ids = new LinkedHashSet<>();
+            for (Course required : entry.getValue()) {
+                if (required.getId() != null) {
+                    ids.add(required.getId());
+                }
+            }
+            graph.put(entry.getKey(), ids);
+        }
+        return graph;
+    }
+
     private void persistCourseSortOrder(Unit unit, List<Course> items) {
         for (int i = 0; i < items.size(); i++) {
             Course c = resolveCourseForWrite(items.get(i).getId(), unit);
@@ -964,7 +1122,25 @@ public class PersonalService {
         }
         return courseRepository
                 .findShadowByProductionSourceId(course.getId())
-                .orElseGet(() -> courseRepository.save(copyCourseToShadow(course)));
+                .orElseGet(() -> {
+                    Course shadow = courseRepository.save(copyCourseToShadow(course));
+                    copyPrerequisitesOnto(course, shadow, unit);
+                    return courseRepository.save(shadow);
+                });
+    }
+
+    private void copyPrerequisitesOnto(Course source, Course target, Unit unit) {
+        List<Course> fetched = courseRepository.findWithPrerequisitesByIdIn(List.of(source.getId()));
+        Course loaded = fetched.isEmpty() ? source : fetched.get(0);
+        if (loaded.getPrerequisites() == null || loaded.getPrerequisites().isEmpty()) {
+            return;
+        }
+        if (target.getPrerequisites() == null) {
+            target.setPrerequisites(new LinkedHashSet<>());
+        }
+        for (Course required : loaded.getPrerequisites()) {
+            target.getPrerequisites().add(resolveCourseForWrite(required.getId(), unit));
+        }
     }
 
     private Course copyCourseToShadow(Course prod) {
@@ -1041,6 +1217,13 @@ public class PersonalService {
     }
 
     public record CourseCompletionInput(Long courseId, Integer completionYear, LocalDate completedOn) {}
+
+    public record CoursePlanResult(
+            Course course,
+            List<Course> prerequisites,
+            List<Person> eligible,
+            int alreadyCompletedCount,
+            int missingPrerequisiteCount) {}
 
     private record InitialPasswordPlan(String password, boolean sendByEmail) {}
 

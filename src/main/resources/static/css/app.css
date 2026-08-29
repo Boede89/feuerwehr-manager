@@ -4759,6 +4759,31 @@ span.required { color: var(--error); }
   max-height: 320px;
   overflow-y: auto;
 }
+.course-prereq-picker {
+  margin: 0.4rem 0 0;
+  max-height: 220px;
+  grid-template-columns: 1fr;
+}
+.course-plan-filter {
+  margin: 0.75rem 0 0;
+}
+.course-plan-filter select {
+  min-width: 16rem;
+  max-width: 28rem;
+}
+.course-plan-kpis {
+  margin-bottom: 0;
+}
+.course-plan-result {
+  margin-top: 1rem;
+}
+.kpi-card--static {
+  cursor: default;
+}
+.kpi-card--static:hover {
+  box-shadow: none;
+  border-color: var(--border);
+}
 .atemschutz-select-col {
   width: 48px;
   text-align: center;

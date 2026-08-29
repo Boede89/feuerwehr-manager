@@ -919,6 +919,7 @@ public class AdminUnitController {
             @RequestParam long unit,
             @RequestParam String name,
             @RequestParam(required = false) Long qualificationTypeId,
+            @RequestParam(name = "prerequisiteIds", required = false) List<Long> prerequisiteIds,
             RedirectAttributes redirectAttributes) {
         return withUnit(
                 actor,
@@ -926,7 +927,7 @@ public class AdminUnitController {
                 redirectAttributes,
                 "ausbildung",
                 () -> {
-                    personalService.createCourse(unit, name, qualificationTypeId);
+                    personalService.createCourse(unit, name, qualificationTypeId, prerequisiteIds);
                     redirectAttributes.addFlashAttribute("message", "Lehrgang angelegt.");
                 },
                 "openModal=course-new");
@@ -940,6 +941,7 @@ public class AdminUnitController {
             @RequestParam String name,
             @RequestParam(required = false) Long qualificationTypeId,
             @RequestParam(required = false, defaultValue = "false") boolean active,
+            @RequestParam(name = "prerequisiteIds", required = false) List<Long> prerequisiteIds,
             RedirectAttributes redirectAttributes) {
         return withUnit(
                 actor,
@@ -947,7 +949,8 @@ public class AdminUnitController {
                 redirectAttributes,
                 "ausbildung",
                 () -> {
-                    personalService.updateCourse(unit, courseId, name, qualificationTypeId, active);
+                    personalService.updateCourse(
+                            unit, courseId, name, qualificationTypeId, active, prerequisiteIds);
                     redirectAttributes.addFlashAttribute("message", "Lehrgang gespeichert.");
                 });
     }

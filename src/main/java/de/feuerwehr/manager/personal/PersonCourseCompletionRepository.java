@@ -24,6 +24,17 @@ public interface PersonCourseCompletionRepository extends JpaRepository<PersonCo
     void deleteByPersonId(long personId);
 
     @Query("""
+            SELECT cc FROM PersonCourseCompletion cc
+            JOIN FETCH cc.course course
+            JOIN FETCH cc.person p
+            WHERE p.unit.id = :unitId
+              AND p.anonymizedAt IS NULL
+              AND p.testData = :testData
+            """)
+    List<PersonCourseCompletion> findByUnitIdAndTestData(
+            @Param("unitId") long unitId, @Param("testData") boolean testData);
+
+    @Query("""
             SELECT DISTINCT cc.person FROM PersonCourseCompletion cc
             JOIN cc.person p
             JOIN cc.course c

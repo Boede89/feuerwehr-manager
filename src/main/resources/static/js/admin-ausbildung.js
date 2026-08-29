@@ -103,6 +103,12 @@
         var qual = document.getElementById('courseQualNew');
         if (name) name.value = '';
         if (qual) qual.value = '';
+        var wrap = document.getElementById('course-prereq-new');
+        if (wrap) {
+          wrap.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
+            cb.checked = false;
+          });
+        }
       });
     });
 
@@ -124,6 +130,22 @@
         var qualId = btn.getAttribute('data-qualification-id') || '';
         var sel = document.getElementById('courseQualEdit');
         if (sel) sel.value = qualId;
+        var wrap = document.getElementById('course-prereq-edit');
+        if (wrap) {
+          var selected = (btn.getAttribute('data-prerequisite-ids') || '')
+            .split(',')
+            .map(function (id) { return id.trim(); })
+            .filter(Boolean);
+          wrap.querySelectorAll('.user-picker__item').forEach(function (item) {
+            var courseId = item.getAttribute('data-course-id') || '';
+            item.hidden = courseId === (btn.getAttribute('data-id') || '');
+            var cb = item.querySelector('input[type="checkbox"]');
+            if (cb) {
+              cb.checked = selected.indexOf(cb.value) !== -1;
+              cb.disabled = item.hidden;
+            }
+          });
+        }
       });
     });
 

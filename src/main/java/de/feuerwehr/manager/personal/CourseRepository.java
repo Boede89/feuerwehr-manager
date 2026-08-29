@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.personal;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -25,6 +26,9 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
             """)
     List<Course> findByUnitIdAndTestDataOrderBySortOrderAscNameAsc(
             @Param("unitId") long unitId, @Param("testData") boolean testData);
+
+    @Query("SELECT DISTINCT c FROM Course c LEFT JOIN FETCH c.prerequisites WHERE c.id IN :ids")
+    List<Course> findWithPrerequisitesByIdIn(@Param("ids") Collection<Long> ids);
 
     @Query("SELECT c FROM Course c LEFT JOIN FETCH c.qualificationType WHERE c.productionSourceId = :sourceId")
     Optional<Course> findShadowByProductionSourceId(@Param("sourceId") long sourceId);

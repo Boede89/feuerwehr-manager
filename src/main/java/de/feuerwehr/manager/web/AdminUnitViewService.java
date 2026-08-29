@@ -175,7 +175,23 @@ public class AdminUnitViewService {
         unitRoleService.ensureSystemRoles(unitId);
         model.addAttribute("unitDienstgrade", unitRoleService.listDienstgrade(unitId));
         model.addAttribute("qualificationTypes", personalService.listQualificationTypes(unitId, false));
-        model.addAttribute("courses", personalService.listCourses(unitId, false));
+        List<Course> courses = personalService.listCourses(unitId, false);
+        model.addAttribute("courses", courses);
+        Map<Long, List<Course>> prerequisites = personalService.prerequisitesByCourseId(unitId);
+        model.addAttribute("coursePrerequisites", prerequisites);
+        Map<Long, String> prerequisiteLabels = new HashMap<>();
+        Map<Long, String> prerequisiteIdCsv = new HashMap<>();
+        for (Course course : courses) {
+            List<Course> required = prerequisites.getOrDefault(course.getId(), List.of());
+            prerequisiteLabels.put(
+                    course.getId(),
+                    required.stream().map(Course::getName).collect(Collectors.joining(", ")));
+            prerequisiteIdCsv.put(
+                    course.getId(),
+                    required.stream().map(c -> String.valueOf(c.getId())).collect(Collectors.joining(",")));
+        }
+        model.addAttribute("coursePrerequisiteLabels", prerequisiteLabels);
+        model.addAttribute("coursePrerequisiteIds", prerequisiteIdCsv);
     }
 
     private static EquipmentRow toEquipmentRow(VehicleEquipment eq) {

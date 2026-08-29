@@ -76,6 +76,7 @@ public class PersonalController {
             @RequestParam(name = "unit", required = false) Long unitId,
             @RequestParam(name = "tab", defaultValue = "mitglieder") String tab,
             @RequestParam(name = "view", required = false) String membersViewParam,
+            @RequestParam(name = "course", required = false) Long planCourseId,
             Model model) {
         Unit unit = resolveUnit(unitId, actor, model);
         String personalTab = normalizePersonalTab(tab);
@@ -118,6 +119,18 @@ public class PersonalController {
             model.addAttribute("instructorGroups", instructorGroups);
             model.addAttribute("instructorGroupCount", instructorGroups.size());
             model.addAttribute("knownInstructorThemen", listKnownInstructorThemen(unit.getId()));
+        }
+        if ("lehrgangsplanung".equals(personalTab)) {
+            List<Course> planCourses = personalService.listCourses(unit.getId(), false);
+            model.addAttribute("planCourses", planCourses);
+            model.addAttribute("selectedPlanCourseId", planCourseId);
+            if (planCourseId != null && planCourseId > 0) {
+                try {
+                    model.addAttribute("coursePlan", personalService.planCourse(unit.getId(), planCourseId));
+                } catch (IllegalArgumentException e) {
+                    model.addAttribute("coursePlanError", e.getMessage());
+                }
+            }
         }
         return "personal/index";
     }
@@ -932,6 +945,9 @@ public class PersonalController {
         }
         if ("ausbildergruppen".equals(tab)) {
             return "ausbildergruppen";
+        }
+        if ("lehrgangsplanung".equals(tab)) {
+            return "lehrgangsplanung";
         }
         return "mitglieder";
     }

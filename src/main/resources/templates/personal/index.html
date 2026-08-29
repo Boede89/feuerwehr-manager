@@ -19,6 +19,8 @@
        th:href="@{/personal(unit=${unitId}, tab='gruppen')}">Gruppen</a>
     <a class="tab-btn" th:classappend="${personalTab == 'ausbildergruppen'} ? ' tab-btn--active' : ''"
        th:href="@{/personal(unit=${unitId}, tab='ausbildergruppen')}">Ausbildergruppen</a>
+    <a class="tab-btn" th:classappend="${personalTab == 'lehrgangsplanung'} ? ' tab-btn--active' : ''"
+       th:href="@{/personal(unit=${unitId}, tab='lehrgangsplanung')}">Lehrgangsplanung</a>
   </nav>
 
   <!-- Tab: Mitglieder -->
@@ -307,6 +309,109 @@
 
     <script th:src="@{/js/combo-suggest.js}"></script>
     <script th:src="@{/js/personal-ausbilder-groups.js}"></script>
+  </div>
+
+  <!-- Tab: Lehrgangsplanung -->
+  <div th:if="${personalTab == 'lehrgangsplanung'}" class="personal-module-panel">
+    <div class="card">
+      <div class="card__header card__header--toolbar">
+        <span>Lehrgangsplanung</span>
+      </div>
+      <div class="card__body">
+        <p class="hint" style="margin-top:0;">
+          Wählen Sie einen Lehrgang, um alle aktuellen Mitglieder zu sehen, die die Voraussetzungen erfüllen
+          und den Lehrgang noch nicht abgeschlossen haben.
+          Voraussetzungen legen Sie unter
+          <a th:href="@{/admin(scope='einheit', tab='ausbildung', unit=${unitId})}">Admin → Einheit → Ausbildung</a>
+          fest.
+        </p>
+        <form method="get" class="filter-bar course-plan-filter" th:action="@{/personal}"
+              th:if="${planCourses != null and !#lists.isEmpty(planCourses)}">
+          <input type="hidden" name="unit" th:value="${unitId}"/>
+          <input type="hidden" name="tab" value="lehrgangsplanung"/>
+          <label for="plan-course">Lehrgang</label>
+          <select id="plan-course" name="course" class="berichte-filter-select" aria-label="Lehrgang wählen"
+                  onchange="this.form.submit()">
+            <option value="">— Lehrgang wählen —</option>
+            <option th:each="c : ${planCourses}" th:value="${c.id}"
+                    th:selected="${selectedPlanCourseId != null and selectedPlanCourseId == c.id}"
+                    th:text="${c.active ? c.name : c.name + ' (inaktiv)'}">Lehrgang</option>
+          </select>
+          <button type="submit" class="btn btn--outline btn--sm">Anzeigen</button>
+        </form>
+        <p class="hint" th:if="${planCourses == null or #lists.isEmpty(planCourses)}" style="margin:0;">
+          Noch keine Lehrgänge vorhanden. Legen Sie diese unter
+          <a th:href="@{/admin(scope='einheit', tab='ausbildung', unit=${unitId})}">Admin → Einheit → Ausbildung</a>
+          an.
+        </p>
+        <p class="hint text-error" th:if="${coursePlanError != null}" th:text="${coursePlanError}">Fehler</p>
+      </div>
+    </div>
+
+    <div class="card course-plan-result" th:if="${coursePlan != null}">
+      <div class="card__header card__header--toolbar">
+        <span th:text="${'Kandidaten für „' + coursePlan.course.name + '“'}">Kandidaten</span>
+        <input type="search" class="field personal-search-field" id="personal-search"
+               placeholder="Suchen…" maxlength="100" autocomplete="off" aria-label="Personen suchen"
+               th:if="${!#lists.isEmpty(coursePlan.eligible)}"/>
+      </div>
+      <div class="card__body">
+        <p class="hint" style="margin-top:0;"
+           th:if="${coursePlan.prerequisites == null or #lists.isEmpty(coursePlan.prerequisites)}">
+          Für diesen Lehrgang sind keine Voraussetzungen hinterlegt — angezeigt werden alle Mitglieder,
+          die ihn noch nicht abgeschlossen haben.
+        </p>
+        <p class="hint" style="margin-top:0;"
+           th:unless="${coursePlan.prerequisites == null or #lists.isEmpty(coursePlan.prerequisites)}">
+          Voraussetzungen:
+          <strong>
+            <th:block th:each="pr, iter : ${coursePlan.prerequisites}">
+              <span th:text="${pr.name}">Lehrgang</span><span th:unless="${iter.last}">, </span>
+            </th:block>
+          </strong>
+        </p>
+        <div class="kpi-grid course-plan-kpis">
+          <div class="kpi-card kpi-card--static">
+            <span class="kpi-card__label">Kommen in Frage</span>
+            <span class="kpi-card__value kpi-card__value--success"
+                  th:text="${#lists.size(coursePlan.eligible)}">0</span>
+          </div>
+          <div class="kpi-card kpi-card--static">
+            <span class="kpi-card__label">Bereits absolviert</span>
+            <span class="kpi-card__value" th:text="${coursePlan.alreadyCompletedCount}">0</span>
+          </div>
+          <div class="kpi-card kpi-card--static">
+            <span class="kpi-card__label">Voraussetzungen fehlen</span>
+            <span class="kpi-card__value kpi-card__value--warn"
+                  th:text="${coursePlan.missingPrerequisiteCount}">0</span>
+          </div>
+        </div>
+      </div>
+      <div class="card__body card__body--flush" th:if="${!#lists.isEmpty(coursePlan.eligible)}">
+        <table class="data-table" id="personal-course-plan-table">
+          <thead>
+          <tr>
+            <th>Name</th>
+            <th>Pers.-Nr.</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="p : ${coursePlan.eligible}" class="member-row" role="link" tabindex="0"
+              th:attr="data-search=${p.lastName + ' ' + p.firstName + ' ' + (p.personnelNumber != null ? p.personnelNumber : '')}"
+              th:data-href="@{/personal/{id}(id=${p.id},unit=${unitId})}">
+            <td><strong th:text="${p.displayName()}">Name</strong></td>
+            <td th:text="${p.personnelNumber != null ? p.personnelNumber : '–'}">–</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card__body" th:if="${#lists.isEmpty(coursePlan.eligible)}">
+        <p class="hint" style="margin:0;">
+          Niemand kommt aktuell in Frage: entweder haben alle den Lehrgang bereits, oder es fehlen Voraussetzungen.
+        </p>
+      </div>
+    </div>
+    <script th:if="${coursePlan != null}" th:src="@{/js/personal-list.js}"></script>
   </div>
 </main>
 </html>
