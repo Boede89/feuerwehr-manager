@@ -4903,6 +4903,20 @@ span.course-plan-chip {
 .course-plan-page .course-plan-shell--filled {
   min-height: min(72vh, 820px);
 }
+.course-plan-toolbar {
+  align-items: center;
+}
+.course-plan-toolbar__main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.course-plan-toolbar .course-plan-filter {
+  margin: 0;
+}
 .course-plan-shell .card__header {
   flex-shrink: 0;
 }
@@ -5045,14 +5059,14 @@ span.course-plan-chip {
 }
 .course-seat-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
   gap: 8px;
   margin: 12px 0;
 }
 .course-seat-tile {
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
   gap: 8px;
   margin: 0;
   padding: 8px 10px;
@@ -5061,6 +5075,9 @@ span.course-plan-chip {
   background: var(--bg);
   cursor: pointer;
 }
+.course-seat-tile input[type="checkbox"] {
+  margin-top: 3px;
+}
 .course-seat-tile.is-selected {
   border-color: color-mix(in srgb, var(--personal-c) 45%, var(--border));
   background: var(--personal-hell, rgba(22, 163, 74, 0.12));
@@ -5068,9 +5085,9 @@ span.course-plan-chip {
 .course-seat-tile__name {
   font-weight: 600;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .course-seat-tile__seats {
   display: inline-flex;
@@ -5078,6 +5095,8 @@ span.course-plan-chip {
   gap: 6px;
   font-size: 0.75rem;
   color: var(--text-muted);
+  align-self: start;
+  padding-top: 1px;
 }
 .course-seat-tile .course-detail-seats {
   width: 4.2rem;
@@ -5097,7 +5116,7 @@ span.course-plan-chip {
 }
 .course-detail-workspace {
   display: grid;
-  grid-template-columns: minmax(200px, 240px) 1fr;
+  grid-template-columns: minmax(220px, 280px) 1fr;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--bg-card);
@@ -5109,10 +5128,12 @@ span.course-plan-chip {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 8px;
+  padding: 10px 8px;
   overflow-y: auto;
+  overflow-x: hidden;
   border-right: 1px solid var(--border);
   background: var(--bg);
+  min-height: 0;
 }
 .course-detail-nav-btn {
   display: flex;
@@ -5128,6 +5149,7 @@ span.course-plan-chip {
   color: inherit;
   text-align: left;
   cursor: pointer;
+  flex-shrink: 0;
 }
 .course-detail-nav-btn:hover {
   background: var(--bg-card);
@@ -5140,6 +5162,9 @@ span.course-plan-chip {
 .course-detail-nav-btn__name {
   font-weight: 700;
   font-size: 0.85rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .course-detail-nav-btn__meta {
   display: flex;

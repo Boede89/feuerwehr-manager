@@ -114,12 +114,24 @@
       buttons[0].classList.add('is-active');
     }
     panels.forEach(function (panel) {
-      var id = (panel.id || '').replace(/^item-/, '');
+      var id = panel.getAttribute('data-item-id') || (panel.id || '').replace(/^item-/, '');
       var active = String(id) === String(itemId);
       panel.classList.toggle('is-active', active);
     });
+    var activeBtn = document.querySelector('.course-detail-nav-btn.is-active');
+    var nav = document.querySelector('.course-detail-nav');
+    if (activeBtn && nav) {
+      var btnRect = activeBtn.getBoundingClientRect();
+      var navRect = nav.getBoundingClientRect();
+      if (btnRect.top < navRect.top) {
+        nav.scrollTop += btnRect.top - navRect.top - 8;
+      } else if (btnRect.bottom > navRect.bottom) {
+        nav.scrollTop += btnRect.bottom - navRect.bottom + 8;
+      }
+    }
     if (itemId && history.replaceState) {
-      history.replaceState(null, '', '#item-' + itemId);
+      var url = window.location.pathname + window.location.search + '#item-' + itemId;
+      history.replaceState(null, '', url);
     }
     applyFilters();
   }
@@ -136,12 +148,16 @@
 
     var nav = document.querySelector('.course-detail-nav');
     if (nav) {
+      if ('scrollRestoration' in history) {
+        history.scrollRestoration = 'manual';
+      }
       nav.addEventListener('click', function (e) {
         var btn = e.target.closest('.course-detail-nav-btn');
         if (!btn || !nav.contains(btn)) return;
         activateItem(btn.getAttribute('data-item-id'));
       });
       activateItem(itemIdFromHash());
+      window.scrollTo(0, 0);
     }
 
     var search = document.getElementById('course-detail-search');

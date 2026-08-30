@@ -314,16 +314,18 @@
   <!-- Tab: Lehrgangsplanung -->
   <div th:if="${personalTab == 'lehrgangsplanung'}" class="personal-module-panel course-plan-page">
     <div class="card course-plan-shell" th:classappend="${coursePlan != null} ? ' course-plan-shell--filled' : ''">
-      <div class="card__header card__header--toolbar">
-        <span>Lehrgangsplanung</span>
-        <div class="toolbar-actions">
+      <div class="card__header card__header--toolbar course-plan-toolbar">
+        <div class="course-plan-toolbar__main">
+          <span>Lehrgangsplanung</span>
           <form method="get" class="filter-bar course-plan-filter" th:action="@{/personal}"
                 th:if="${planCourses != null and !#lists.isEmpty(planCourses)}">
             <input type="hidden" name="unit" th:value="${unitId}"/>
             <input type="hidden" name="tab" value="lehrgangsplanung"/>
+            <th:block th:if="${coursePlan != null and !ignorePrerequisites}">
+              <input type="hidden" name="ignoreId" th:each="id : ${coursePlan.ignoredPrerequisiteIds}" th:value="${id}"/>
+            </th:block>
             <label class="sr-only" for="plan-course">Lehrgang</label>
-            <select id="plan-course" name="course" class="berichte-filter-select" aria-label="Lehrgang wählen"
-                    onchange="this.form.submit()">
+            <select id="plan-course" name="course" class="berichte-filter-select" aria-label="Lehrgang wählen">
               <option value="">— Lehrgang wählen —</option>
               <option th:each="c : ${planCourses}" th:value="${c.id}"
                       th:selected="${selectedPlanCourseId != null and selectedPlanCourseId == c.id}"
@@ -331,10 +333,13 @@
             </select>
             <label class="checkbox-row course-plan-ignore">
               <input type="checkbox" name="ignorePrerequisites" value="true"
-                     th:checked="${ignorePrerequisites}" onchange="this.form.submit()"/>
+                     th:checked="${ignorePrerequisites}"/>
               Voraussetzungen ignorieren
             </label>
+            <button type="submit" class="btn btn--outline btn--sm">Anzeigen</button>
           </form>
+        </div>
+        <div class="toolbar-actions">
           <a class="btn btn--outline btn--sm"
              th:if="${coursePlan != null and !#lists.isEmpty(coursePlan.candidates)}"
              th:href="@{/personal/lehrgangsplanung/pdf(unit=${unitId}, course=${selectedPlanCourseId}, ignorePrerequisites=${ignorePrerequisites}, ignoreId=${coursePlan.ignoredPrerequisiteIds})}"

@@ -62,7 +62,8 @@
         <input type="hidden" name="jahr" th:value="${planYear}"/>
         <div class="course-seat-grid" th:if="${!#lists.isEmpty(planView.availableCourses)}">
           <label class="course-seat-tile" th:each="c : ${planView.availableCourses}"
-                 th:classappend="${planView.includesCourse(c.id)} ? ' is-selected'">
+                 th:classappend="${planView.includesCourse(c.id)} ? ' is-selected'"
+                 th:title="${c.name}">
             <input type="checkbox" name="includeCourseIds" th:value="${c.id}"
                    th:checked="${planView.includesCourse(c.id)}"/>
             <span class="course-seat-tile__name" th:text="${c.name}">Lehrgang</span>
@@ -115,7 +116,7 @@
         </label>
       </div>
       <section class="course-detail-panel" th:each="item, iter : ${planView.items}"
-               th:id="${'item-' + item.itemId()}"
+               th:attr="data-item-id=${item.itemId()}"
                th:classappend="${iter.first} ? ' is-active' : ''">
         <header class="course-detail-panel__header">
           <div>
@@ -229,6 +230,6 @@
     Wählen Sie oben Lehrgänge und Plätze und speichern Sie die Liste.
   </p>
 
-  <script th:src="@{/js/course-detail-plan.js(v='20260830a')}"></script>
+  <script th:src="@{/js/course-detail-plan.js(v='20260830b')}"></script>
 </main>
 </html>
