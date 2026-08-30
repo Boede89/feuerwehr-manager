@@ -1,5 +1,7 @@
 package de.feuerwehr.manager.web;
 
+import de.feuerwehr.manager.pdf.HtmlPdfService;
+import de.feuerwehr.manager.pdf.PdfDownloadResponse;
 import de.feuerwehr.manager.personal.CourseDetailPlanService;
 import de.feuerwehr.manager.personal.CourseDetailPlanService.CourseSeatInput;
 import de.feuerwehr.manager.personal.CourseDetailPlanService.DetailPlanView;
@@ -8,8 +10,11 @@ import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.UserPermissionService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -28,10 +33,14 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @RequiredArgsConstructor
 public class CourseDetailPlanController {
 
+    private static final DateTimeFormatter PRINT_STAMP_FMT =
+            DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm", Locale.GERMANY);
+
     private final UnitService unitService;
     private final AccessControlService accessControlService;
     private final UserPermissionService userPermissionService;
     private final CourseDetailPlanService courseDetailPlanService;
+    private final HtmlPdfService htmlPdfService;
 
     @GetMapping
     public String view(
@@ -57,6 +66,45 @@ public class CourseDetailPlanController {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return unitId != null
                     ? "redirect:/personal?unit=" + unitId + "&tab=lehrgangsplanung"
+                    : "redirect:/personal";
+        }
+    }
+
+    @GetMapping("/pdf")
+    public Object pdf(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @RequestParam(name = "jahr", required = false) Integer jahr,
+            Model model,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Unit unit = resolveUnit(unitId, actor, model);
+            int planYear = resolveYear(unit.getId(), jahr);
+            DetailPlanView view = courseDetailPlanService.loadView(unit.getId(), planYear);
+            if (view.plan() == null) {
+                redirectAttributes.addFlashAttribute("error", "Für " + planYear + " liegt noch keine gespeicherte Planung vor.");
+                return redirect(unit.getId(), planYear);
+            }
+            if (unit.getLogoBase64() != null && !unit.getLogoBase64().isBlank()) {
+                model.addAttribute("unitLogoBase64", unit.getLogoBase64());
+            }
+            String subtitle = unit.getName()
+                    + (view.plan().isUseParticipation()
+                            ? " · sortiert nach Dienstbeteiligung " + view.participationYear()
+                            : "")
+                    + " · Stand: "
+                    + PRINT_STAMP_FMT.format(LocalDateTime.now())
+                    + " Uhr";
+            model.addAttribute("printTitle", "Lehrgangsplanung " + planYear);
+            model.addAttribute("printSubtitle", subtitle);
+            model.addAttribute("planView", view);
+            model.addAttribute("planYear", planYear);
+            byte[] pdf = htmlPdfService.renderPdf("personal/lehrgangsplanung-detail-druck", model);
+            return PdfDownloadResponse.inline("Lehrgangsplanung-Detail-" + planYear + ".pdf", pdf);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return unitId > 0
+                    ? redirect(unitId, jahr != null ? jahr : CourseDetailPlanService.defaultPlanYear())
                     : "redirect:/personal";
         }
     }

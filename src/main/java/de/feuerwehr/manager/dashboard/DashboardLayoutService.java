@@ -265,7 +265,7 @@ public class DashboardLayoutService {
         CarrierTauglichkeitStatus status = row.tauglichkeit();
         return switch (metric) {
             case TOTAL -> true;
-            case TAUGLICH -> status == CarrierTauglichkeitStatus.TAUGLICH;
+            case TAUGLICH -> status.countsAsTauglich();
             case WARNUNG -> status == CarrierTauglichkeitStatus.WARNUNG;
             case UEBUNG_ABGELAUFEN -> status == CarrierTauglichkeitStatus.UEBUNG_ABGELAUFEN;
             case NICHT_TAUGLICH -> status == CarrierTauglichkeitStatus.NICHT_TAUGLICH;

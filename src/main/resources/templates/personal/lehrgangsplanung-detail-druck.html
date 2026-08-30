@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Lehrgangsplanung</title>
+  <th:block th:replace="~{fragments/atemschutz-print-header :: styles}"></th:block>
+  <style>
+    .course-block { page-break-inside: avoid; margin-bottom: 16px; }
+    .waitlist-row td { color: #555; }
+    .seat-row td { font-weight: 600; }
+    .section-kicker { font-size: 9pt; color: #555; margin: 0 0 6px; }
+  </style>
+</head>
+<body>
+  <th:block th:replace="~{fragments/atemschutz-print-header :: header}"></th:block>
+
+  <table class="summary-grid">
+    <tr>
+      <td>
+        <span class="summary-label">Jahr</span>
+        <strong th:text="${planYear}">2027</strong>
+      </td>
+      <td>
+        <span class="summary-label">Lehrgänge / Plätze</span>
+        <strong th:text="${planView.items.size() + ' / ' + planView.totalSeats()}">0 / 0</strong>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <span class="summary-label">Vorgesehen / bestätigt</span>
+        <strong th:text="${planView.totalAssigned() + ' / ' + planView.totalConfirmed()}">0 / 0</strong>
+      </td>
+      <td>
+        <span class="summary-label">Dienstbeteiligung</span>
+        <strong th:if="${planView.plan != null and planView.plan.useParticipation}"
+                th:text="${'Ja (' + planView.participationYear + ')'}">Ja</strong>
+        <strong th:unless="${planView.plan != null and planView.plan.useParticipation}">Nein</strong>
+      </td>
+    </tr>
+  </table>
+
+  <div class="course-block" th:each="item : ${planView.items}">
+    <h2 th:text="${item.course().name + ' · ' + item.seats() + ' Plätze'}">Lehrgang</h2>
+    <p class="section-kicker">
+      Vorgesehen: <span th:text="${item.assignedCount()}">0</span>
+      · bestätigt: <span th:text="${item.confirmedCount()}">0</span>
+      <span th:if="${item.waitlistCount() > 0}">
+        · Nachrücker: <span th:text="${item.waitlistCount()}">0</span>
+      </span>
+    </p>
+    <table th:if="${!#lists.isEmpty(item.entries())}">
+      <thead>
+      <tr>
+        <th>#</th>
+        <th>Name</th>
+        <th th:if="${planView.plan != null and planView.plan.useParticipation}">Dienstbeteiligung</th>
+        <th>Voraussetzungen</th>
+        <th>Status</th>
+        <th>Bestätigt</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr th:each="row : ${item.entries()}"
+          th:class="${row.withinSeats()} ? 'seat-row' : 'waitlist-row'">
+        <td th:text="${row.rank()}">1</td>
+        <td th:text="${row.person().displayName()}">Name</td>
+        <td th:if="${planView.plan != null and planView.plan.useParticipation}"
+            th:text="${row.dienstbeteiligung()}">—</td>
+        <td th:text="${row.prerequisitesMet()} ? 'erfüllt' : row.missingPrerequisitesLabel()">—</td>
+        <td th:text="${row.withinSeats()} ? 'Platz' : 'Nachrücker'">Platz</td>
+        <td th:text="${row.confirmed()} ? 'ja' : 'nein'">nein</td>
+      </tr>
+      </tbody>
+    </table>
+    <p th:if="${#lists.isEmpty(item.entries())}" class="pdf-meta">Niemand hat diesen Lehrgang noch offen.</p>
+  </div>
+</body>
+</html>

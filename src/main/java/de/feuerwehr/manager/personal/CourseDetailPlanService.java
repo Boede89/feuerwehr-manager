@@ -422,7 +422,25 @@ public class CourseDetailPlanService {
             double dienstPct) {}
 
     public record CourseItemView(
-            long itemId, Course course, int seats, List<EntryView> entries, int assignedCount) {}
+            long itemId, Course course, int seats, List<EntryView> entries, int assignedCount) {
+        public int waitlistCount() {
+            int total = entries == null ? 0 : entries.size();
+            return Math.max(0, total - assignedCount);
+        }
+
+        public int confirmedCount() {
+            if (entries == null || entries.isEmpty()) {
+                return 0;
+            }
+            int count = 0;
+            for (EntryView row : entries) {
+                if (row.withinSeats() && row.confirmed()) {
+                    count++;
+                }
+            }
+            return count;
+        }
+    }
 
     public record DetailPlanView(
             Unit unit,
@@ -445,6 +463,27 @@ public class CourseDetailPlanService {
             }
             Integer seats = seatsByCourseId.get(id);
             return seats == null || seats < 1 ? 1 : seats;
+        }
+
+        public int totalSeats() {
+            if (items == null || items.isEmpty()) {
+                return 0;
+            }
+            return items.stream().mapToInt(CourseItemView::seats).sum();
+        }
+
+        public int totalAssigned() {
+            if (items == null || items.isEmpty()) {
+                return 0;
+            }
+            return items.stream().mapToInt(CourseItemView::assignedCount).sum();
+        }
+
+        public int totalConfirmed() {
+            if (items == null || items.isEmpty()) {
+                return 0;
+            }
+            return items.stream().mapToInt(CourseItemView::confirmedCount).sum();
         }
 
         private static Long asLong(Object courseId) {

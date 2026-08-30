@@ -23,4 +23,17 @@ public enum CarrierTauglichkeitStatus {
             case NICHT_TAUGLICH -> "badge inactive";
         };
     }
+
+    /** Warnung bleibt einsatzfähig, bis ein Nachweisdatum wirklich abgelaufen ist. */
+    public boolean countsAsTauglich() {
+        return this == TAUGLICH || this == WARNUNG;
+    }
+
+    public String operationalLabel() {
+        return countsAsTauglich() ? "Tauglich" : label();
+    }
+
+    public String operationalBadgeClass() {
+        return countsAsTauglich() ? "badge active" : badgeClass();
+    }
 }

@@ -1087,7 +1087,7 @@ public class AtemschutzService {
 
     public static boolean isOverallTauglich(
             Map<AtemschutzFitnessType, FitnessStatusView> summaries, AtemschutzCarrierStatus status) {
-        return computeTauglichkeit(summaries, status) == CarrierTauglichkeitStatus.TAUGLICH;
+        return computeTauglichkeit(summaries, status).countsAsTauglich();
     }
 
     public static CarrierTauglichkeitStatus computeTauglichkeit(
@@ -1112,7 +1112,7 @@ public class AtemschutzService {
                 .toList();
         if ("tauglich".equalsIgnoreCase(filter)) {
             return activeMembers.stream()
-                    .filter(row -> row.tauglichkeit() == CarrierTauglichkeitStatus.TAUGLICH)
+                    .filter(row -> row.tauglichkeit().countsAsTauglich())
                     .toList();
         }
         if ("warnung".equalsIgnoreCase(filter)) {
@@ -1212,7 +1212,7 @@ public class AtemschutzService {
 
     private static CarrierListStats computeStats(List<CarrierOverview> carriers) {
         int tauglich = (int) carriers.stream()
-                .filter(row -> row.tauglichkeit() == CarrierTauglichkeitStatus.TAUGLICH)
+                .filter(row -> row.tauglichkeit().countsAsTauglich())
                 .count();
         int warnung = (int) carriers.stream()
                 .filter(row -> row.tauglichkeit() == CarrierTauglichkeitStatus.WARNUNG)

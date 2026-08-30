@@ -2,7 +2,7 @@
 <html lang="de" xmlns:th="http://www.thymeleaf.org"
       th:replace="~{fragments/layout :: layout('Personal', ~{::main})}">
 <main>
-  <div class="page-header">
+  <div class="page-header" th:classappend="${personalTab == 'lehrgangsplanung'} ? ' page-header--compact' : ''">
     <div>
       <h2>Personal</h2>
       <p>Mitgliederverwaltung · <strong th:text="${currentUnitName}">—</strong></p>
@@ -312,150 +312,118 @@
   </div>
 
   <!-- Tab: Lehrgangsplanung -->
-  <div th:if="${personalTab == 'lehrgangsplanung'}" class="personal-module-panel">
-    <div class="card">
+  <div th:if="${personalTab == 'lehrgangsplanung'}" class="personal-module-panel course-plan-page">
+    <div class="card course-plan-shell" th:classappend="${coursePlan != null} ? ' course-plan-shell--filled' : ''">
       <div class="card__header card__header--toolbar">
         <span>Lehrgangsplanung</span>
-        <a class="btn btn--primary btn--sm"
-           th:href="@{/personal/lehrgangsplanung/detail(unit=${unitId})}">Detailplanung</a>
+        <div class="toolbar-actions">
+          <form method="get" class="filter-bar course-plan-filter" th:action="@{/personal}"
+                th:if="${planCourses != null and !#lists.isEmpty(planCourses)}">
+            <input type="hidden" name="unit" th:value="${unitId}"/>
+            <input type="hidden" name="tab" value="lehrgangsplanung"/>
+            <label class="sr-only" for="plan-course">Lehrgang</label>
+            <select id="plan-course" name="course" class="berichte-filter-select" aria-label="Lehrgang wählen"
+                    onchange="this.form.submit()">
+              <option value="">— Lehrgang wählen —</option>
+              <option th:each="c : ${planCourses}" th:value="${c.id}"
+                      th:selected="${selectedPlanCourseId != null and selectedPlanCourseId == c.id}"
+                      th:text="${c.active ? c.name : c.name + ' (inaktiv)'}">Lehrgang</option>
+            </select>
+            <label class="checkbox-row course-plan-ignore">
+              <input type="checkbox" name="ignorePrerequisites" value="true"
+                     th:checked="${ignorePrerequisites}" onchange="this.form.submit()"/>
+              Voraussetzungen ignorieren
+            </label>
+          </form>
+          <a class="btn btn--outline btn--sm"
+             th:if="${coursePlan != null and !#lists.isEmpty(coursePlan.candidates)}"
+             th:href="@{/personal/lehrgangsplanung/pdf(unit=${unitId}, course=${selectedPlanCourseId}, ignorePrerequisites=${ignorePrerequisites}, ignoreId=${coursePlan.ignoredPrerequisiteIds})}"
+             target="_blank" rel="noopener">PDF / Druck</a>
+          <a class="btn btn--primary btn--sm"
+             th:href="@{/personal/lehrgangsplanung/detail(unit=${unitId})}">Detailplanung</a>
+        </div>
       </div>
-      <div class="card__body">
-        <p class="hint" style="margin-top:0;">
-          Wählen Sie einen Lehrgang, um Kandidaten zu sehen. Standardmäßig erscheinen nur Personen,
-          die alle Voraussetzungen erfüllen und den Lehrgang noch nicht abgeschlossen haben.
-          Über „Voraussetzungen ignorieren“ oder durch Anklicken einzelner Voraussetzungen können Sie
-          fehlende Lehrgänge zulassen.
-          Voraussetzungen legen Sie unter
-          <a th:href="@{/admin(scope='einheit', tab='ausbildung', unit=${unitId})}">Admin → Einheit → Ausbildung</a>
-          fest.
-        </p>
-        <form method="get" class="filter-bar course-plan-filter" th:action="@{/personal}"
-              th:if="${planCourses != null and !#lists.isEmpty(planCourses)}">
-          <input type="hidden" name="unit" th:value="${unitId}"/>
-          <input type="hidden" name="tab" value="lehrgangsplanung"/>
-          <label for="plan-course">Lehrgang</label>
-          <select id="plan-course" name="course" class="berichte-filter-select" aria-label="Lehrgang wählen"
-                  onchange="this.form.submit()">
-            <option value="">— Lehrgang wählen —</option>
-            <option th:each="c : ${planCourses}" th:value="${c.id}"
-                    th:selected="${selectedPlanCourseId != null and selectedPlanCourseId == c.id}"
-                    th:text="${c.active ? c.name : c.name + ' (inaktiv)'}">Lehrgang</option>
-          </select>
-          <label class="checkbox-row course-plan-ignore">
-            <input type="checkbox" name="ignorePrerequisites" value="true"
-                   th:checked="${ignorePrerequisites}" onchange="this.form.submit()"/>
-            Voraussetzungen ignorieren
-          </label>
-          <button type="submit" class="btn btn--outline btn--sm">Anzeigen</button>
-        </form>
-        <p class="hint" th:if="${planCourses == null or #lists.isEmpty(planCourses)}" style="margin:0;">
+      <div class="course-plan-shell__body">
+        <p class="hint course-plan-lead"
+           th:if="${planCourses == null or #lists.isEmpty(planCourses)}">
           Noch keine Lehrgänge vorhanden. Legen Sie diese unter
           <a th:href="@{/admin(scope='einheit', tab='ausbildung', unit=${unitId})}">Admin → Einheit → Ausbildung</a>
           an.
         </p>
         <p class="hint text-error" th:if="${coursePlanError != null}" th:text="${coursePlanError}">Fehler</p>
-      </div>
-    </div>
+        <p class="hint course-plan-lead" th:if="${coursePlan == null and coursePlanError == null and planCourses != null and !#lists.isEmpty(planCourses)}">
+          Lehrgang wählen, um Kandidaten zu sehen. Voraussetzungen können einzeln oder komplett ignoriert werden.
+        </p>
 
-    <div class="card course-plan-result" th:if="${coursePlan != null}">
-      <div class="card__header card__header--toolbar">
-        <span th:text="${'Kandidaten für „' + coursePlan.course.name + '“'}">Kandidaten</span>
-        <div class="toolbar-actions">
+        <div class="course-plan-meta" th:if="${coursePlan != null}">
+          <div class="course-plan-prereq-form"
+               th:unless="${coursePlan.prerequisites == null or #lists.isEmpty(coursePlan.prerequisites)}">
+            <span class="course-plan-meta__label">Voraussetzungen</span>
+            <div class="course-plan-chips" role="group" aria-label="Voraussetzungen ignorieren">
+              <a th:each="pr : ${coursePlan.prerequisites}"
+                 th:unless="${ignorePrerequisites}"
+                 th:class="${coursePlan.ignoresPrerequisite(pr.id)} ? 'course-plan-chip course-plan-chip--active' : 'course-plan-chip'"
+                 th:href="@{/personal(unit=${unitId}, tab='lehrgangsplanung', course=${selectedPlanCourseId}, ignoreId=${coursePlan.toggledIgnoreIds(pr.id)})}"
+                 th:attr="aria-pressed=${coursePlan.ignoresPrerequisite(pr.id) ? 'true' : 'false'}"
+                 th:title="${coursePlan.ignoresPrerequisite(pr.id)
+                   ? 'Wird ignoriert — erneut klicken, um wieder zu verlangen'
+                   : 'Klicken, um diese Voraussetzung zu ignorieren'}">
+                <span th:text="${pr.name}">Lehrgang</span>
+              </a>
+              <span class="course-plan-chip course-plan-chip--active"
+                    th:each="pr : ${coursePlan.prerequisites}"
+                    th:if="${ignorePrerequisites}"
+                    th:text="${pr.name}">Lehrgang</span>
+            </div>
+          </div>
+          <div class="course-plan-stats">
+            <span class="course-plan-stat course-plan-stat--ok">
+              <strong th:text="${coursePlan.eligibleCount}">0</strong> kommen in Frage
+            </span>
+            <span class="course-plan-stat">
+              <strong th:text="${coursePlan.alreadyCompletedCount}">0</strong> bereits
+            </span>
+            <span class="course-plan-stat course-plan-stat--warn">
+              <strong th:text="${coursePlan.missingPrerequisiteCount}">0</strong> fehlen Voraussetzungen
+            </span>
+          </div>
           <input type="search" class="field personal-search-field" id="personal-search"
                  placeholder="Suchen…" maxlength="100" autocomplete="off" aria-label="Personen suchen"
                  th:if="${!#lists.isEmpty(coursePlan.candidates)}"/>
-          <a class="btn btn--outline btn--sm"
-             th:href="@{/personal/lehrgangsplanung/pdf(unit=${unitId}, course=${selectedPlanCourseId}, ignorePrerequisites=${ignorePrerequisites}, ignoreId=${coursePlan.ignoredPrerequisiteIds})}"
-             target="_blank" rel="noopener">PDF anzeigen</a>
         </div>
-      </div>
-      <div class="card__body">
-        <p class="hint" style="margin-top:0;"
-           th:if="${coursePlan.prerequisites == null or #lists.isEmpty(coursePlan.prerequisites)}">
-          Für diesen Lehrgang sind keine Voraussetzungen hinterlegt — angezeigt werden alle Mitglieder,
-          die ihn noch nicht abgeschlossen haben.
-        </p>
-        <div class="course-plan-prereq-form"
-             th:unless="${coursePlan.prerequisites == null or #lists.isEmpty(coursePlan.prerequisites)}">
-          <p class="hint" style="margin-top:0;margin-bottom:0.45rem;">
-            Voraussetzungen (anklicken zum Ignorieren, mehrere möglich):
-          </p>
-          <div class="course-plan-chips" role="group" aria-label="Voraussetzungen ignorieren">
-            <a th:each="pr : ${coursePlan.prerequisites}"
-               th:unless="${ignorePrerequisites}"
-               th:class="${coursePlan.ignoresPrerequisite(pr.id)} ? 'course-plan-chip course-plan-chip--active' : 'course-plan-chip'"
-               th:href="@{/personal(unit=${unitId}, tab='lehrgangsplanung', course=${selectedPlanCourseId}, ignoreId=${coursePlan.toggledIgnoreIds(pr.id)})}"
-               th:attr="aria-pressed=${coursePlan.ignoresPrerequisite(pr.id) ? 'true' : 'false'}"
-               th:title="${coursePlan.ignoresPrerequisite(pr.id)
-                 ? 'Wird ignoriert — erneut klicken, um wieder zu verlangen'
-                 : 'Klicken, um diese Voraussetzung zu ignorieren'}">
-              <span th:text="${pr.name}">Lehrgang</span>
-            </a>
-            <span class="course-plan-chip course-plan-chip--active"
-                  th:each="pr : ${coursePlan.prerequisites}"
-                  th:if="${ignorePrerequisites}"
-                  th:text="${pr.name}">Lehrgang</span>
-          </div>
-          <p class="hint text-sm" style="margin:0.45rem 0 0;" th:if="${ignorePrerequisites}">
-            Alle Voraussetzungen sind über die Checkbox oben ignoriert.
-          </p>
+
+        <div class="course-plan-table-wrap" th:if="${coursePlan != null and !#lists.isEmpty(coursePlan.candidates)}">
+          <table class="data-table course-plan-table" id="personal-course-plan-table">
+            <thead>
+            <tr>
+              <th>Name</th>
+              <th class="course-plan-status-col">Voraussetzungen</th>
+              <th>Fehlende Lehrgänge</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="row : ${coursePlan.candidates}" class="member-row" role="link" tabindex="0"
+                th:attr="data-search=${row.person.lastName + ' ' + row.person.firstName + ' ' + row.missingPrerequisitesLabel()}"
+                th:data-href="@{/personal/{id}(id=${row.person.id},unit=${unitId})}">
+              <td><strong th:text="${row.person.displayName()}">Name</strong></td>
+              <td class="course-plan-status-col">
+                <span th:if="${row.prerequisitesMet}" class="course-plan-status course-plan-status--ok"
+                      title="Voraussetzungen erfüllt" aria-label="Voraussetzungen erfüllt">✓</span>
+                <span th:unless="${row.prerequisitesMet}" class="course-plan-status course-plan-status--missing"
+                      title="Voraussetzungen nicht erfüllt" aria-label="Voraussetzungen nicht erfüllt">✕</span>
+              </td>
+              <td class="text-muted text-sm" th:text="${row.missingPrerequisitesLabel()}">—</td>
+            </tr>
+            </tbody>
+          </table>
         </div>
-        <p class="hint" style="margin-top:0.75rem;"
-           th:if="${!ignorePrerequisites and coursePlan.ignoredPrerequisiteIds != null and !#lists.isEmpty(coursePlan.ignoredPrerequisiteIds)}">
-          Ignoriert:
-          <strong th:text="${coursePlan.ignoredPrerequisitesLabel()}">—</strong>
-        </p>
-        <div class="kpi-grid course-plan-kpis">
-          <div class="kpi-card kpi-card--static">
-            <span class="kpi-card__label">Kommen in Frage</span>
-            <span class="kpi-card__value kpi-card__value--success"
-                  th:text="${coursePlan.eligibleCount}">0</span>
-          </div>
-          <div class="kpi-card kpi-card--static">
-            <span class="kpi-card__label">Bereits absolviert</span>
-            <span class="kpi-card__value" th:text="${coursePlan.alreadyCompletedCount}">0</span>
-          </div>
-          <div class="kpi-card kpi-card--static">
-            <span class="kpi-card__label">Voraussetzungen fehlen</span>
-            <span class="kpi-card__value kpi-card__value--warn"
-                  th:text="${coursePlan.missingPrerequisiteCount}">0</span>
-          </div>
-        </div>
-      </div>
-      <div class="card__body card__body--flush" th:if="${!#lists.isEmpty(coursePlan.candidates)}">
-        <table class="data-table" id="personal-course-plan-table">
-          <thead>
-          <tr>
-            <th>Name</th>
-            <th class="course-plan-status-col">Voraussetzungen erfüllt</th>
-            <th>Fehlende Voraussetzungen</th>
-          </tr>
-          </thead>
-          <tbody>
-          <tr th:each="row : ${coursePlan.candidates}" class="member-row" role="link" tabindex="0"
-              th:attr="data-search=${row.person.lastName + ' ' + row.person.firstName + ' ' + row.missingPrerequisitesLabel()}"
-              th:data-href="@{/personal/{id}(id=${row.person.id},unit=${unitId})}">
-            <td><strong th:text="${row.person.displayName()}">Name</strong></td>
-            <td class="course-plan-status-col">
-              <span th:if="${row.prerequisitesMet}" class="course-plan-status course-plan-status--ok"
-                    title="Voraussetzungen erfüllt" aria-label="Voraussetzungen erfüllt">✓</span>
-              <span th:unless="${row.prerequisitesMet}" class="course-plan-status course-plan-status--missing"
-                    title="Voraussetzungen nicht erfüllt" aria-label="Voraussetzungen nicht erfüllt">✕</span>
-            </td>
-            <td class="text-muted text-sm" th:text="${row.missingPrerequisitesLabel()}">—</td>
-          </tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="card__body" th:if="${#lists.isEmpty(coursePlan.candidates)}">
-        <p class="hint" style="margin:0;"
-           th:if="${coursePlan.ignorePrerequisites or (coursePlan.ignoredPrerequisiteIds != null and !#lists.isEmpty(coursePlan.ignoredPrerequisiteIds))}">
+        <p class="hint course-plan-empty" th:if="${coursePlan != null and #lists.isEmpty(coursePlan.candidates)
+             and (coursePlan.ignorePrerequisites or (coursePlan.ignoredPrerequisiteIds != null and !#lists.isEmpty(coursePlan.ignoredPrerequisiteIds)))}">
           Alle aktuellen Mitglieder haben diesen Lehrgang bereits abgeschlossen.
         </p>
-        <p class="hint" style="margin:0;"
-           th:unless="${coursePlan.ignorePrerequisites or (coursePlan.ignoredPrerequisiteIds != null and !#lists.isEmpty(coursePlan.ignoredPrerequisiteIds))}">
-          Niemand kommt aktuell in Frage: entweder haben alle den Lehrgang bereits, oder es fehlen Voraussetzungen.
-          Klicken Sie einzelne Voraussetzungen an oder aktivieren Sie „Voraussetzungen ignorieren“.
+        <p class="hint course-plan-empty" th:if="${coursePlan != null and #lists.isEmpty(coursePlan.candidates)
+             and !coursePlan.ignorePrerequisites and (coursePlan.ignoredPrerequisiteIds == null or #lists.isEmpty(coursePlan.ignoredPrerequisiteIds))}">
+          Niemand kommt aktuell in Frage. Klicken Sie einzelne Voraussetzungen an oder aktivieren Sie „Voraussetzungen ignorieren“.
         </p>
       </div>
     </div>

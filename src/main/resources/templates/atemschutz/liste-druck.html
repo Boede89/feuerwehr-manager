@@ -24,7 +24,7 @@
     <tr th:each="row : ${carriers}">
       <td th:text="${row.carrier.person.displayName()}">Name</td>
       <td th:text="${row.carrier.status.label()}">Aktiv</td>
-      <td th:text="${row.tauglichkeit.label()}">—</td>
+      <td th:text="${row.tauglichkeit.operationalLabel()}">—</td>
       <td>
         <th:block th:with="view=${row.g26}">
           <span th:if="${view == null or view.validUntil == null}">—</span>

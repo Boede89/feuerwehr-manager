@@ -46,12 +46,14 @@
       <span class="kpi-card__value" id="kpi-value-total" th:text="${stats.total()}">0</span>
     </a>
     <a class="kpi-card kpi-card--success" th:classappend="${activeFilter == 'tauglich'} ? ' kpi-card--active' : ''"
-       th:href="@{/atemschutz(unit=${unitId}, filter='tauglich')}">
+       th:href="@{/atemschutz(unit=${unitId}, filter='tauglich')}"
+       title="Inklusive Personen mit Warnung, solange kein Nachweisdatum abgelaufen ist.">
       <span class="kpi-card__label">Tauglich</span>
       <span class="kpi-card__value kpi-card__value--success" id="kpi-value-tauglich" th:text="${stats.tauglich()}">0</span>
     </a>
     <a class="kpi-card kpi-card--warn" th:classappend="${activeFilter == 'warnung'} ? ' kpi-card--active' : ''"
-       th:href="@{/atemschutz(unit=${unitId}, filter='warnung')}">
+       th:href="@{/atemschutz(unit=${unitId}, filter='warnung')}"
+       title="Bald fällige Nachweise. Die Personen bleiben tauglich, bis ein Datum wirklich abgelaufen ist.">
       <span class="kpi-card__label">Warnung</span>
       <span class="kpi-card__value kpi-card__value--warn" id="kpi-value-warnung" th:text="${stats.warnung()}">0</span>
     </a>
@@ -141,8 +143,8 @@
           </td>
           <td>
             <span th:if="${exited}" class="badge badge--muted">—</span>
-            <span th:unless="${exited}" th:class="${row.tauglichkeit.badgeClass()}"
-                  th:text="${row.tauglichkeit.label()}">—</span>
+            <span th:unless="${exited}" th:class="${row.tauglichkeit.operationalBadgeClass()}"
+                  th:text="${row.tauglichkeit.operationalLabel()}">—</span>
           </td>
           <td>
             <span th:if="${exited}" class="text-muted">—</span>
