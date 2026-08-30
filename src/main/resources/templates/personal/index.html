@@ -346,9 +346,15 @@
       <div class="course-plan-shell__body">
         <p class="hint course-plan-lead"
            th:if="${planCourses == null or #lists.isEmpty(planCourses)}">
-          Noch keine Lehrgänge vorhanden. Legen Sie diese unter
-          <a th:href="@{/admin(scope='einheit', tab='ausbildung', unit=${unitId})}">Admin → Einheit → Ausbildung</a>
-          an.
+          Noch keine Lehrgänge vorhanden.
+          <th:block th:if="${isAdmin}">
+            Legen Sie diese unter
+            <a th:href="@{/admin(scope='einheit', tab='ausbildung', unit=${unitId})}">Admin → Einheit → Ausbildung</a>
+            an.
+          </th:block>
+          <th:block th:unless="${isAdmin}">
+            Bitte einen Administrator, diese unter Ausbildung anzulegen.
+          </th:block>
         </p>
         <p class="hint text-error" th:if="${coursePlanError != null}" th:text="${coursePlanError}">Fehler</p>
         <p class="hint course-plan-lead" th:if="${coursePlan == null and coursePlanError == null and planCourses != null and !#lists.isEmpty(planCourses)}">

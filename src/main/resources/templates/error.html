@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Fehler – Feuerwehr-Manager</title>
+  <title th:text="${errorTitle != null ? errorTitle + ' – Feuerwehr-Manager' : 'Fehler – Feuerwehr-Manager'}">Fehler – Feuerwehr-Manager</title>
   <style>
     body { font-family: system-ui, sans-serif; margin: 2rem; color: #1a1a1a; background: #f6f7f9; }
     .card { max-width: 32rem; margin: 0 auto; background: #fff; border: 1px solid #d8dde6; border-radius: 8px; padding: 1.5rem; }
@@ -20,12 +20,14 @@
 </head>
 <body>
   <div class="card">
-    <h1>Fehler</h1>
+    <h1 th:text="${errorTitle != null ? errorTitle : 'Fehler'}">Fehler</h1>
     <p th:text="${errorMessage != null ? errorMessage : 'Ein unerwarteter Fehler ist aufgetreten.'}">
       Ein unerwarteter Fehler ist aufgetreten.
     </p>
-    <p class="hint" th:if="${status != null}">Status: <span th:text="${status}">500</span></p>
-    <p class="hint">Bitte die Seite neu laden oder zur Startseite zurückkehren. Wenn der Fehler bleibt, den Administrator informieren.</p>
+    <p class="hint" th:if="${errorHint != null}" th:text="${errorHint}">
+      Bitte zur Startseite zurückkehren.
+    </p>
+    <p class="hint" th:if="${showStatusCode and status != null}">Status: <span th:text="${status}">500</span></p>
     <div class="actions">
       <a href="/">Zur Startseite</a>
       <button type="button" onclick="history.back()">Zurück</button>
