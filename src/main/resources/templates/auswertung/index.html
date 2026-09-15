@@ -333,7 +333,25 @@
               <ul id="apm-einsaetze" class="auswertung-detail-modal__list"></ul>
             </section>
           </div>
-          <div class="auswertung-teilnahmen-grid" id="apm-missed-grid" hidden>
+        </div>
+        <div class="modal__footer">
+          <button type="button" class="btn btn--outline" id="apm-open-missed">Verpasste anzeigen</button>
+          <button type="button" class="btn btn-secondary" data-auswertung-person-modal-close>Schließen</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="auswertung-person-missed-modal" class="incident-modal" style="display:none" aria-hidden="true"
+         th:if="${!#lists.isEmpty(personRows)}">
+      <div class="modal__backdrop" data-auswertung-person-missed-modal-close></div>
+      <div class="modal__box" role="dialog" aria-modal="true" aria-labelledby="auswertung-person-missed-modal-title">
+        <div class="modal__header">
+          <h3 id="auswertung-person-missed-modal-title">Verpasste Termine</h3>
+          <button type="button" class="modal__close" data-auswertung-person-missed-modal-close aria-label="Schließen">✕</button>
+        </div>
+        <div class="modal__body auswertung-detail-modal__body auswertung-person-modal__body">
+          <p class="hint" id="apm-missed-name" style="margin-top:0;">—</p>
+          <div class="auswertung-teilnahmen-grid">
             <section class="auswertung-detail-modal__section">
               <h4>Verpasste Dienste</h4>
               <ul id="apm-verpasste-dienste" class="auswertung-detail-modal__list"></ul>
@@ -345,8 +363,7 @@
           </div>
         </div>
         <div class="modal__footer">
-          <button type="button" class="btn btn--outline" id="apm-toggle-missed">Verpasste anzeigen</button>
-          <button type="button" class="btn btn-secondary" data-auswertung-person-modal-close>Schließen</button>
+          <button type="button" class="btn btn-secondary" data-auswertung-person-missed-modal-close>Schließen</button>
         </div>
       </div>
     </div>
@@ -355,7 +372,7 @@
             th:if="${!#lists.isEmpty(personRows)}"
             th:utext="${personRowsJson}"></script>
     <script th:src="@{/js/personal-list.js(v='20260915a')}" defer></script>
-    <script th:if="${!#lists.isEmpty(personRows)}" th:src="@{/js/auswertung-personen.js(v='20260915a')}" defer></script>
+    <script th:if="${!#lists.isEmpty(personRows)}" th:src="@{/js/auswertung-personen.js(v='20260915c')}" defer></script>
   </section>
 
   <!-- Andere Bereiche: Platzhalter -->

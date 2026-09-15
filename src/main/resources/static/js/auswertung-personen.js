@@ -3,6 +3,7 @@
 
   var jsonEl = document.getElementById('auswertung-person-rows-data');
   var modal = document.getElementById('auswertung-person-modal');
+  var missedModal = document.getElementById('auswertung-person-missed-modal');
   var tbody = document.getElementById('auswertung-personen-tbody');
   if (!jsonEl || !modal || !tbody) {
     return;
@@ -22,16 +23,15 @@
   var einsatzEl = document.getElementById('apm-einsatz');
   var diensteListEl = document.getElementById('apm-dienste');
   var einsaetzeListEl = document.getElementById('apm-einsaetze');
+  var missedTitleEl = document.getElementById('auswertung-person-missed-modal-title');
+  var missedNameEl = document.getElementById('apm-missed-name');
   var missedDiensteListEl = document.getElementById('apm-verpasste-dienste');
   var missedEinsaetzeListEl = document.getElementById('apm-verpasste-einsaetze');
-  var attendedGrid = document.getElementById('apm-attended-grid');
-  var missedGrid = document.getElementById('apm-missed-grid');
-  var toggleMissedBtn = document.getElementById('apm-toggle-missed');
+  var openMissedBtn = document.getElementById('apm-open-missed');
   var sortButtons = document.querySelectorAll('.auswertung-sort-btn');
 
   var sortKey = 'name';
   var sortDir = 'asc';
-  var showMissed = false;
   var currentRow = null;
 
   function esc(text) {
@@ -61,24 +61,12 @@
     }).join('');
   }
 
-  function syncMissedToggle() {
-    if (attendedGrid) {
-      attendedGrid.hidden = showMissed;
-    }
-    if (missedGrid) {
-      missedGrid.hidden = !showMissed;
-    }
-    if (toggleMissedBtn) {
-      toggleMissedBtn.textContent = showMissed ? 'Anwesende anzeigen' : 'Verpasste anzeigen';
-    }
-  }
-
   function openModal(row) {
     if (!row) {
       return;
     }
     currentRow = row;
-    showMissed = false;
+    closeMissedModal(false);
     if (titleEl) {
       titleEl.textContent = row.name || 'Person';
     }
@@ -93,21 +81,46 @@
     }
     fillTeilnahmen(diensteListEl, row.dienste, 'Keine Dienste');
     fillTeilnahmen(einsaetzeListEl, row.einsaetze, 'Keine Einsätze');
-    fillTeilnahmen(missedDiensteListEl, row.verpassteDienste, 'Keine verpassten Dienste');
-    fillTeilnahmen(missedEinsaetzeListEl, row.verpassteEinsaetze, 'Keine verpassten Einsätze');
-    syncMissedToggle();
     modal.style.display = 'flex';
     modal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('modal-open');
   }
 
   function closeModal() {
+    closeMissedModal(false);
     modal.style.display = 'none';
     modal.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('modal-open');
     currentRow = null;
-    showMissed = false;
-    syncMissedToggle();
+  }
+
+  function openMissedModal() {
+    if (!missedModal || !currentRow) {
+      return;
+    }
+    var name = currentRow.name || 'Person';
+    if (missedTitleEl) {
+      missedTitleEl.textContent = 'Verpasste Termine – ' + name;
+    }
+    if (missedNameEl) {
+      missedNameEl.textContent = name;
+    }
+    fillTeilnahmen(missedDiensteListEl, currentRow.verpassteDienste, 'Keine verpassten Dienste');
+    fillTeilnahmen(missedEinsaetzeListEl, currentRow.verpassteEinsaetze, 'Keine verpassten Einsätze');
+    missedModal.style.display = 'flex';
+    missedModal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+  }
+
+  function closeMissedModal(keepBodyLock) {
+    if (!missedModal) {
+      return;
+    }
+    missedModal.style.display = 'none';
+    missedModal.setAttribute('aria-hidden', 'true');
+    if (!keepBodyLock && modal.style.display !== 'flex') {
+      document.body.classList.remove('modal-open');
+    }
   }
 
   function compareRows(a, b) {
@@ -221,13 +234,9 @@
     });
   });
 
-  if (toggleMissedBtn) {
-    toggleMissedBtn.addEventListener('click', function () {
-      if (!currentRow) {
-        return;
-      }
-      showMissed = !showMissed;
-      syncMissedToggle();
+  if (openMissedBtn) {
+    openMissedBtn.addEventListener('click', function () {
+      openMissedModal();
     });
   }
 
@@ -235,8 +244,23 @@
     el.addEventListener('click', closeModal);
   });
 
+  if (missedModal) {
+    missedModal.querySelectorAll('[data-auswertung-person-missed-modal-close]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        closeMissedModal(true);
+      });
+    });
+  }
+
   document.addEventListener('keydown', function (ev) {
-    if (ev.key === 'Escape' && modal.style.display === 'flex') {
+    if (ev.key !== 'Escape') {
+      return;
+    }
+    if (missedModal && missedModal.style.display === 'flex') {
+      closeMissedModal(true);
+      return;
+    }
+    if (modal.style.display === 'flex') {
       closeModal();
     }
   });
