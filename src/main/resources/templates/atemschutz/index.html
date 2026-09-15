@@ -138,7 +138,6 @@
         <tbody>
         <tr th:each="row : ${carriers}" class="carrier-row member-row" role="link" tabindex="0"
             th:with="exited=${!T(de.feuerwehr.manager.util.PersonMembership).isCurrentlyMember(row.carrier.person)},
-                     g26View=${row.g26},
                      uebungView=${row.summaries.get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).UEBUNG)},
                      streckeView=${row.summaries.get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).STRECKEN)},
                      csaView=${row.summaries.get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).CSA)}"
@@ -146,15 +145,15 @@
                      data-status=${row.carrier.status.name()},
                      data-tauglichkeit=${exited ? 'AUSGETRETEN' : row.tauglichkeit.name()},
                      data-carrier-id=${row.carrier.id},
-                     data-href=@{/atemschutz/carriers/{id}(id=${row.carrier.id},unit=${unitId})},
-                     data-sort-name=${row.carrier.person.lastName + ', ' + row.carrier.person.firstName},
-                     data-sort-status=${exited ? 'Ausgetreten' : row.carrier.status.label()},
-                     data-sort-tauglichkeit=${exited ? 99 : (row.tauglichkeit == T(de.feuerwehr.manager.atemschutz.CarrierTauglichkeitStatus).TAUGLICH ? 1 : (row.tauglichkeit == T(de.feuerwehr.manager.atemschutz.CarrierTauglichkeitStatus).WARNUNG ? 2 : (row.tauglichkeit == T(de.feuerwehr.manager.atemschutz.CarrierTauglichkeitStatus).UEBUNG_ABGELAUFEN ? 3 : 4)))},
-                     data-sort-g26=${exited or g26View == null or g26View.validUntil == null ? '9999-12-31' : #temporals.format(g26View.validUntil, 'yyyy-MM-dd')},
-                     data-sort-uebung=${exited or uebungView == null or uebungView.validUntil == null ? '9999-12-31' : #temporals.format(uebungView.validUntil, 'yyyy-MM-dd')},
-                     data-sort-strecke=${exited or streckeView == null or streckeView.validUntil == null ? '9999-12-31' : #temporals.format(streckeView.validUntil, 'yyyy-MM-dd')},
-                     data-sort-csa=${exited or csaView == null or csaView.validUntil == null ? '9999-12-31' : #temporals.format(csaView.validUntil, 'yyyy-MM-dd')},
-                     data-sort-notiz=${row.carrier.notes != null ? row.carrier.notes : ''}">
+                     data-href=@{/atemschutz/carriers/{id}(id=${row.carrier.id},unit=${unitId})}"
+            th:data-sort-name="${row.carrier.person.lastName + ' ' + row.carrier.person.firstName}"
+            th:data-sort-status="${exited ? 'Ausgetreten' : row.carrier.status.label()}"
+            th:data-sort-tauglichkeit="${exited ? 99 : (row.tauglichkeit.name() == 'TAUGLICH' ? 1 : (row.tauglichkeit.name() == 'WARNUNG' ? 2 : (row.tauglichkeit.name() == 'UEBUNG_ABGELAUFEN' ? 3 : 4)))}"
+            th:data-sort-g26="${(exited or row.g26 == null or row.g26.validUntil == null) ? '9999-12-31' : #temporals.format(row.g26.validUntil, 'yyyy-MM-dd')}"
+            th:data-sort-uebung="${(exited or uebungView == null or uebungView.validUntil == null) ? '9999-12-31' : #temporals.format(uebungView.validUntil, 'yyyy-MM-dd')}"
+            th:data-sort-strecke="${(exited or streckeView == null or streckeView.validUntil == null) ? '9999-12-31' : #temporals.format(streckeView.validUntil, 'yyyy-MM-dd')}"
+            th:data-sort-csa="${(exited or csaView == null or csaView.validUntil == null) ? '9999-12-31' : #temporals.format(csaView.validUntil, 'yyyy-MM-dd')}"
+            th:data-sort-notiz="${row.carrier.notes != null ? row.carrier.notes : ''}">
           <td th:if="${canWrite}" class="atemschutz-select-col">
             <input type="checkbox" class="atemschutz-row-select" th:value="${row.carrier.id}"
                    th:disabled="${exited}"
