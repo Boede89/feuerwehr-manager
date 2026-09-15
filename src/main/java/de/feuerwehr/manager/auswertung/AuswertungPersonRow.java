@@ -6,6 +6,7 @@ import java.util.List;
 public record AuswertungPersonRow(
         long personId,
         String name,
+        boolean archived,
         String dienstbeteiligung,
         String einsatzbeteiligung,
         double dienstPct,
@@ -13,4 +14,6 @@ public record AuswertungPersonRow(
         String dienstQuote,
         String einsatzQuote,
         List<AuswertungPersonTeilnahme> dienste,
-        List<AuswertungPersonTeilnahme> einsaetze) {}
+        List<AuswertungPersonTeilnahme> einsaetze,
+        List<AuswertungPersonTeilnahme> verpassteDienste,
+        List<AuswertungPersonTeilnahme> verpassteEinsaetze) {}

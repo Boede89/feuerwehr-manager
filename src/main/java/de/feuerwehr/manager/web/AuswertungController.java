@@ -44,6 +44,7 @@ public class AuswertungController {
             @RequestParam(name = "bereich", required = false) String bereichKey,
             @RequestParam(name = "jahr", required = false) Integer jahr,
             @RequestParam(name = "detail", required = false) String detailKey,
+            @RequestParam(name = "view", required = false) String membersViewParam,
             Model model,
             RedirectAttributes redirectAttributes) {
         try {
@@ -78,8 +79,18 @@ public class AuswertungController {
                     model.addAttribute("detailRowsJson", toJson(rows));
                 }
             } else if (bereich == AuswertungBereich.PERSONEN) {
-                List<AuswertungPersonRow> personRows =
+                List<AuswertungPersonRow> allPersonRows =
                         auswertungService.listPersonRows(unit.getId(), filterYear);
+                boolean archiveView = "archiv".equalsIgnoreCase(membersViewParam);
+                String membersView = archiveView ? "archiv" : "aktiv";
+                List<AuswertungPersonRow> personRows = allPersonRows.stream()
+                        .filter(row -> archiveView == row.archived())
+                        .toList();
+                long activeCount = allPersonRows.stream().filter(row -> !row.archived()).count();
+                long archivedCount = allPersonRows.stream().filter(AuswertungPersonRow::archived).count();
+                model.addAttribute("membersView", membersView);
+                model.addAttribute("activePersonCount", activeCount);
+                model.addAttribute("archivedPersonCount", archivedCount);
                 model.addAttribute("personRows", personRows);
                 model.addAttribute("personRowsJson", toJson(personRows));
             }

@@ -9318,6 +9318,18 @@ a.auswertung-stat-card {
   margin-bottom: 12px;
 }
 
+.auswertung-detail__header--toolbar {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.auswertung-detail__header--toolbar .personal-members-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
 .auswertung-detail__header h3 {
   margin: 0;
   font-size: 1.1rem;
@@ -9389,18 +9401,18 @@ a.auswertung-stat-card {
 }
 
 .auswertung-sort-btn::after {
-  content: "?";
+  content: "↕";
   font-size: 0.75em;
   opacity: 0.35;
 }
 
 .auswertung-sort-btn[aria-sort="ascending"]::after {
-  content: "?";
+  content: "↑";
   opacity: 1;
 }
 
 .auswertung-sort-btn[aria-sort="descending"]::after {
-  content: "?";
+  content: "↓";
   opacity: 1;
 }
 

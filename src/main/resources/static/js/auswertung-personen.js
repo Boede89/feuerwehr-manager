@@ -22,10 +22,17 @@
   var einsatzEl = document.getElementById('apm-einsatz');
   var diensteListEl = document.getElementById('apm-dienste');
   var einsaetzeListEl = document.getElementById('apm-einsaetze');
+  var missedDiensteListEl = document.getElementById('apm-verpasste-dienste');
+  var missedEinsaetzeListEl = document.getElementById('apm-verpasste-einsaetze');
+  var attendedGrid = document.getElementById('apm-attended-grid');
+  var missedGrid = document.getElementById('apm-missed-grid');
+  var toggleMissedBtn = document.getElementById('apm-toggle-missed');
   var sortButtons = document.querySelectorAll('.auswertung-sort-btn');
 
   var sortKey = 'name';
   var sortDir = 'asc';
+  var showMissed = false;
+  var currentRow = null;
 
   function esc(text) {
     return String(text == null ? '' : text)
@@ -54,10 +61,24 @@
     }).join('');
   }
 
+  function syncMissedToggle() {
+    if (attendedGrid) {
+      attendedGrid.hidden = showMissed;
+    }
+    if (missedGrid) {
+      missedGrid.hidden = !showMissed;
+    }
+    if (toggleMissedBtn) {
+      toggleMissedBtn.textContent = showMissed ? 'Anwesende anzeigen' : 'Verpasste anzeigen';
+    }
+  }
+
   function openModal(row) {
     if (!row) {
       return;
     }
+    currentRow = row;
+    showMissed = false;
     if (titleEl) {
       titleEl.textContent = row.name || 'Person';
     }
@@ -72,6 +93,9 @@
     }
     fillTeilnahmen(diensteListEl, row.dienste, 'Keine Dienste');
     fillTeilnahmen(einsaetzeListEl, row.einsaetze, 'Keine Einsätze');
+    fillTeilnahmen(missedDiensteListEl, row.verpassteDienste, 'Keine verpassten Dienste');
+    fillTeilnahmen(missedEinsaetzeListEl, row.verpassteEinsaetze, 'Keine verpassten Einsätze');
+    syncMissedToggle();
     modal.style.display = 'flex';
     modal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('modal-open');
@@ -81,6 +105,9 @@
     modal.style.display = 'none';
     modal.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('modal-open');
+    currentRow = null;
+    showMissed = false;
+    syncMissedToggle();
   }
 
   function compareRows(a, b) {
@@ -193,6 +220,16 @@
       renderTable();
     });
   });
+
+  if (toggleMissedBtn) {
+    toggleMissedBtn.addEventListener('click', function () {
+      if (!currentRow) {
+        return;
+      }
+      showMissed = !showMissed;
+      syncMissedToggle();
+    });
+  }
 
   modal.querySelectorAll('[data-auswertung-person-modal-close]').forEach(function (el) {
     el.addEventListener('click', closeModal);

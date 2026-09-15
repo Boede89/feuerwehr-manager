@@ -82,6 +82,10 @@
                    th:checked="${planView.plan != null and planView.plan.useParticipation}"/>
             Nach Dienstbeteiligung sortieren
           </label>
+          <p class="hint" style="margin:0;">
+            Personen mit erfüllten Voraussetzungen stehen immer oben.
+            Mit „Nach Dienstbeteiligung sortieren“ zusätzlich innerhalb dieser Gruppen nach Beteiligung.
+          </p>
           <label class="checkbox-row course-plan-ignore" th:if="${planView.plan != null}">
             <input type="checkbox" name="resort" value="true"/>
             Reihenfolge neu berechnen

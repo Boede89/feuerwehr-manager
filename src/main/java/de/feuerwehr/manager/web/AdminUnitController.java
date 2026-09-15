@@ -63,9 +63,10 @@ public class AdminUnitController {
             @RequestParam String name,
             @RequestParam(required = false) String street,
             @RequestParam(required = false) String postalCity,
+            @RequestParam(name = "idleLogoutMinutes", required = false) Integer idleLogoutMinutes,
             RedirectAttributes redirectAttributes) {
         return withUnit(actor, unit, redirectAttributes, "konfiguration", () -> {
-            unitAdminService.saveStammdaten(unit, name, street, postalCity);
+            unitAdminService.saveStammdaten(unit, name, street, postalCity, idleLogoutMinutes);
             redirectAttributes.addFlashAttribute("message", "Stammdaten gespeichert.");
         });
     }

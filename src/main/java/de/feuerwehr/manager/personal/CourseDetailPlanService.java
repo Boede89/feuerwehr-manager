@@ -254,6 +254,7 @@ public class CourseDetailPlanService {
                 }
             }
             List<Long> nextIds = CourseDetailPlanRanking.mergeOrder(previousIds, rankedIds, resort);
+            nextIds = CourseDetailPlanRanking.ensurePrerequisitesFirst(nextIds, candidatesByPerson);
             Set<Long> keepPeople = new HashSet<>(nextIds);
             if (item.getEntries() == null) {
                 item.setEntries(new ArrayList<>());
@@ -359,14 +360,18 @@ public class CourseDetailPlanService {
                 .thenComparing(
                         row -> row.person().getFirstName() != null ? row.person().getFirstName() : "",
                         String.CASE_INSENSITIVE_ORDER);
+        Comparator<CoursePlanCandidate> byPrerequisites = Comparator.comparing(
+                        (CoursePlanCandidate row) -> !row.prerequisitesMet())
+                .thenComparing(byName);
         if (!useParticipation) {
-            return byName;
+            return byPrerequisites;
         }
-        return Comparator.comparingDouble((CoursePlanCandidate row) -> {
-                    AuswertungPersonRow stats = participation.get(row.person().getId());
-                    return stats == null ? 0 : stats.dienstPct();
-                })
-                .reversed()
+        return Comparator.comparing((CoursePlanCandidate row) -> !row.prerequisitesMet())
+                .thenComparing(Comparator.comparingDouble((CoursePlanCandidate row) -> {
+                            AuswertungPersonRow stats = participation.get(row.person().getId());
+                            return stats == null ? 0 : stats.dienstPct();
+                        })
+                        .reversed())
                 .thenComparing(byName);
     }
 

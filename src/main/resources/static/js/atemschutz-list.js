@@ -22,35 +22,44 @@
   var remindInputs = document.getElementById('atemschutz-remind-carrier-inputs');
   if (!table) return;
 
-  table.querySelectorAll('.carrier-row').forEach(function (row) {
-    function go() {
-      var href = row.getAttribute('data-href');
-      if (href) window.location.href = href;
+  var tbody = table.querySelector('tbody');
+  var sortKey = 'name';
+  var sortDir = 'asc';
+
+  function go(row) {
+    var href = row.getAttribute('data-href');
+    if (href) window.location.href = href;
+  }
+
+  function toggleRowSelect(cb) {
+    if (!cb || cb.disabled) {
+      return;
     }
-    row.addEventListener('click', function (e) {
-      var selectCol = e.target.closest('td.atemschutz-select-col');
-      if (selectCol) {
-        e.preventDefault();
-        e.stopPropagation();
-        var cb = selectCol.querySelector('.atemschutz-row-select');
-        if (!cb || cb.disabled) {
-          return;
-        }
-        // Direkter Klick aufs Kästchen: Browser schaltet bereits um.
-        if (e.target === cb || e.target.closest('input.atemschutz-row-select')) {
-          return;
-        }
-        cb.checked = !cb.checked;
-        cb.dispatchEvent(new Event('change', { bubbles: true }));
-        return;
-      }
-      if (e.target.closest('button, a, form, input, label')) return;
-      go();
-    });
+    cb.checked = !cb.checked;
+    cb.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  table.addEventListener('click', function (e) {
+    var selectCol = e.target.closest('td.atemschutz-select-col');
+    if (selectCol && table.contains(selectCol)) {
+      e.preventDefault();
+      e.stopPropagation();
+      var cb = selectCol.querySelector('.atemschutz-row-select');
+      toggleRowSelect(cb);
+      return;
+    }
+    var row = e.target.closest('tr.carrier-row');
+    if (!row || !table.contains(row)) return;
+    if (e.target.closest('button, a, form, input, label')) return;
+    go(row);
+  });
+
+  table.querySelectorAll('.carrier-row').forEach(function (row) {
     row.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' || e.key === ' ') {
+        if (e.target.closest('input, button, a, label')) return;
         e.preventDefault();
-        go();
+        go(row);
       }
     });
   });
@@ -142,6 +151,60 @@
     }
   }
 
+  function sortValue(row, key) {
+    if (key === 'name') {
+      return (row.getAttribute('data-sort-name') || '').toLowerCase();
+    }
+    if (key === 'status') {
+      return (row.getAttribute('data-sort-status') || '').toLowerCase();
+    }
+    if (key === 'tauglichkeit') {
+      return Number(row.getAttribute('data-sort-tauglichkeit') || '99');
+    }
+    if (key === 'g26' || key === 'uebung' || key === 'strecke' || key === 'csa') {
+      return row.getAttribute('data-sort-' + key) || '9999-12-31';
+    }
+    if (key === 'notiz') {
+      return (row.getAttribute('data-sort-notiz') || '').toLowerCase();
+    }
+    return '';
+  }
+
+  function compareRows(a, b) {
+    var av = sortValue(a, sortKey);
+    var bv = sortValue(b, sortKey);
+    var cmp;
+    if (typeof av === 'number' && typeof bv === 'number') {
+      cmp = av - bv;
+    } else {
+      cmp = String(av).localeCompare(String(bv), 'de', { sensitivity: 'base', numeric: true });
+    }
+    if (cmp === 0) {
+      cmp = sortValue(a, 'name').localeCompare(sortValue(b, 'name'), 'de', { sensitivity: 'base' });
+    }
+    return sortDir === 'asc' ? cmp : -cmp;
+  }
+
+  function sortRows() {
+    if (!tbody) return;
+    var rows = Array.prototype.slice.call(tbody.querySelectorAll('.carrier-row'));
+    rows.sort(compareRows);
+    rows.forEach(function (row) {
+      tbody.appendChild(row);
+    });
+  }
+
+  function updateSortButtons() {
+    table.querySelectorAll('.atemschutz-sort-btn').forEach(function (btn) {
+      var key = btn.getAttribute('data-sort');
+      if (key === sortKey) {
+        btn.setAttribute('aria-sort', sortDir === 'asc' ? 'ascending' : 'descending');
+      } else {
+        btn.setAttribute('aria-sort', 'none');
+      }
+    });
+  }
+
   function applyTableFilters() {
     var q = search ? search.value.trim().toLowerCase() : '';
     var includePausedRows = includePaused();
@@ -181,7 +244,7 @@
       var checked = selectAll.checked;
       visibleRows().forEach(function (row) {
         var cb = row.querySelector('.atemschutz-row-select');
-        if (cb) cb.checked = checked;
+        if (cb && !cb.disabled) cb.checked = checked;
       });
       updateBulkState();
     });
@@ -189,6 +252,21 @@
 
   table.querySelectorAll('.atemschutz-row-select').forEach(function (cb) {
     cb.addEventListener('change', updateBulkState);
+  });
+
+  table.querySelectorAll('.atemschutz-sort-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var key = btn.getAttribute('data-sort') || 'name';
+      if (sortKey === key) {
+        sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortKey = key;
+        sortDir = 'asc';
+      }
+      updateSortButtons();
+      sortRows();
+      applyTableFilters();
+    });
   });
 
   if (bulkOpen && bulkModal) {
@@ -268,5 +346,6 @@
     bulkUntil.placeholder = 'wird pro Person berechnet';
   }
 
+  updateSortButtons();
   applyTableFilters();
 })();

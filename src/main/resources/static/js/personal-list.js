@@ -1,6 +1,7 @@
 (function () {
   var search = document.getElementById('personal-search');
-  var archiveToggle = document.getElementById('personal-archive-toggle');
+  var archiveToggle = document.getElementById('personal-archive-toggle')
+    || document.getElementById('auswertung-archive-toggle');
 
   function rows() {
     return Array.prototype.slice.call(document.querySelectorAll('.member-row'));

@@ -305,10 +305,12 @@ public class AuswertungService {
     private AuswertungPersonRow toPersonRow(Person person, ParticipationMaps maps) {
         LocalDate entryDate = person.getEntryDate();
         LocalDate exitDate = person.getExitDate();
-        int totalUebungen =
-                countEventsInMembership(maps.uebungen(), AttendanceReport::getEventDate, entryDate, exitDate);
-        int totalEinsaetze =
-                countEventsInMembership(maps.einsaetze(), IncidentReport::getIncidentDate, entryDate, exitDate);
+        List<DatedTeilnahme> allUebungen =
+                eventsInMembership(maps.uebungen(), AttendanceReport::getEventDate, entryDate, exitDate);
+        List<DatedTeilnahme> allEinsaetze =
+                eventsInMembership(maps.einsaetze(), IncidentReport::getIncidentDate, entryDate, exitDate);
+        int totalUebungen = allUebungen.size();
+        int totalEinsaetze = allEinsaetze.size();
 
         List<DatedTeilnahme> dienste =
                 filterTeilnahmen(maps.diensteByPerson().get(person.getId()), entryDate, exitDate);
@@ -321,6 +323,7 @@ public class AuswertungService {
         return new AuswertungPersonRow(
                 person.getId(),
                 person.anwesenheitDisplayName(),
+                PersonMembership.isArchived(person),
                 formatBeteiligungPct(dienst, totalUebungen),
                 formatBeteiligungPct(einsatz, totalEinsaetze),
                 dienstPct,
@@ -328,7 +331,66 @@ public class AuswertungService {
                 formatBeteiligungQuote(dienst, totalUebungen),
                 formatBeteiligungQuote(einsatz, totalEinsaetze),
                 toTeilnahmeList(dienste),
-                toTeilnahmeList(einsatzTeilnahmen));
+                toTeilnahmeList(einsatzTeilnahmen),
+                toTeilnahmeList(missedEvents(allUebungen, dienste)),
+                toTeilnahmeList(missedEvents(allEinsaetze, einsatzTeilnahmen)));
+    }
+
+    private static <T> List<DatedTeilnahme> eventsInMembership(
+            List<T> events,
+            java.util.function.Function<T, LocalDate> dateGetter,
+            LocalDate entryDate,
+            LocalDate exitDate) {
+        if (events == null || events.isEmpty()) {
+            return List.of();
+        }
+        List<DatedTeilnahme> result = new ArrayList<>();
+        for (T event : events) {
+            LocalDate date = dateGetter.apply(event);
+            if (!YearFilterSupport.isWithinMembership(date, entryDate, exitDate)) {
+                continue;
+            }
+            String label;
+            if (event instanceof AttendanceReport report) {
+                label = report.getTitle() != null && !report.getTitle().isBlank()
+                        ? report.getTitle().trim()
+                        : "Übungsdienst";
+            } else if (event instanceof IncidentReport report) {
+                label = report.getStichwort() != null && !report.getStichwort().isBlank()
+                        ? report.getStichwort().trim()
+                        : "Einsatz";
+            } else {
+                label = "—";
+            }
+            result.add(new DatedTeilnahme(date, label, false));
+        }
+        return result;
+    }
+
+    private static List<DatedTeilnahme> missedEvents(
+            List<DatedTeilnahme> allEvents, List<DatedTeilnahme> attended) {
+        if (allEvents == null || allEvents.isEmpty()) {
+            return List.of();
+        }
+        java.util.HashSet<String> attendedKeys = new java.util.HashSet<>();
+        if (attended != null) {
+            for (DatedTeilnahme item : attended) {
+                attendedKeys.add(teilnahmeKey(item));
+            }
+        }
+        List<DatedTeilnahme> missed = new ArrayList<>();
+        for (DatedTeilnahme event : allEvents) {
+            if (!attendedKeys.contains(teilnahmeKey(event))) {
+                missed.add(event);
+            }
+        }
+        return missed;
+    }
+
+    private static String teilnahmeKey(DatedTeilnahme item) {
+        String date = item.date() != null ? item.date().toString() : "";
+        String label = item.label() != null ? item.label() : "";
+        return date + "|" + label;
     }
 
     private record ParticipationMaps(

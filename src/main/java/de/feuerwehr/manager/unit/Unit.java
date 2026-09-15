@@ -42,4 +42,11 @@ public class Unit {
     /** Aktivierte Navigations-Module für diese Einheit (JSON). */
     @Column(name = "modules_json")
     private String modulesJson;
+
+    /**
+     * Automatische Abmeldung nach Inaktivität in Minuten.
+     * {@code 0} oder {@code null} = deaktiviert.
+     */
+    @Column(name = "idle_logout_minutes")
+    private Integer idleLogoutMinutes;
 }

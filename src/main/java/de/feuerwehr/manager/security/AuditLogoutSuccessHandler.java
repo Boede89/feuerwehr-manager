@@ -30,6 +30,10 @@ public class AuditLogoutSuccessHandler implements LogoutSuccessHandler {
         if (authentication != null && authentication.getPrincipal() instanceof AppUserDetails details) {
             auditService.record(AuditEventType.LOGOUT, details.getUserId(), request);
         }
+        if ("1".equals(request.getParameter("idle"))) {
+            response.sendRedirect(request.getContextPath() + "/login?expired=1");
+            return;
+        }
         delegate.onLogoutSuccess(request, response, authentication);
     }
 }

@@ -41,7 +41,8 @@ public class UnitAdminService {
     private final UnitVehicleTypeService unitVehicleTypeService;
 
     @Transactional
-    public Unit saveStammdaten(long unitId, String name, String street, String postalCity) {
+    public Unit saveStammdaten(
+            long unitId, String name, String street, String postalCity, Integer idleLogoutMinutes) {
         Unit unit = requireUnit(unitId);
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Bitte einen Namen für die Einheit eingeben.");
@@ -49,7 +50,18 @@ public class UnitAdminService {
         unit.setName(name.trim());
         unit.setStreet(trimToNull(street));
         unit.setPostalCity(trimToNull(postalCity));
+        unit.setIdleLogoutMinutes(normalizeIdleLogoutMinutes(idleLogoutMinutes));
         return unitRepository.save(unit);
+    }
+
+    private static int normalizeIdleLogoutMinutes(Integer idleLogoutMinutes) {
+        if (idleLogoutMinutes == null || idleLogoutMinutes < 0) {
+            return 0;
+        }
+        if (idleLogoutMinutes > 10_080) {
+            throw new IllegalArgumentException("Die Abmeldezeit darf höchstens 10080 Minuten (7 Tage) betragen.");
+        }
+        return idleLogoutMinutes;
     }
 
     @Transactional

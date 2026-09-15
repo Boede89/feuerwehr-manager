@@ -109,24 +109,52 @@
           <th th:if="${canWrite}" class="atemschutz-select-col">
             <input type="checkbox" id="atemschutz-select-all" aria-label="Alle sichtbaren auswählen"/>
           </th>
-          <th>Name</th>
-          <th>Status</th>
-          <th>Tauglichkeit</th>
-          <th>G26</th>
-          <th>Übung/Einsatz</th>
-          <th>Strecke</th>
-          <th>CSA</th>
-          <th>Notiz</th>
+          <th scope="col">
+            <button type="button" class="atemschutz-sort-btn auswertung-sort-btn" data-sort="name" aria-sort="ascending">Name</button>
+          </th>
+          <th scope="col">
+            <button type="button" class="atemschutz-sort-btn auswertung-sort-btn" data-sort="status" aria-sort="none">Status</button>
+          </th>
+          <th scope="col">
+            <button type="button" class="atemschutz-sort-btn auswertung-sort-btn" data-sort="tauglichkeit" aria-sort="none">Tauglichkeit</button>
+          </th>
+          <th scope="col">
+            <button type="button" class="atemschutz-sort-btn auswertung-sort-btn" data-sort="g26" aria-sort="none">G26</button>
+          </th>
+          <th scope="col">
+            <button type="button" class="atemschutz-sort-btn auswertung-sort-btn" data-sort="uebung" aria-sort="none">Übung/Einsatz</button>
+          </th>
+          <th scope="col">
+            <button type="button" class="atemschutz-sort-btn auswertung-sort-btn" data-sort="strecke" aria-sort="none">Strecke</button>
+          </th>
+          <th scope="col">
+            <button type="button" class="atemschutz-sort-btn auswertung-sort-btn" data-sort="csa" aria-sort="none">CSA</button>
+          </th>
+          <th scope="col">
+            <button type="button" class="atemschutz-sort-btn auswertung-sort-btn" data-sort="notiz" aria-sort="none">Notiz</button>
+          </th>
         </tr>
         </thead>
         <tbody>
         <tr th:each="row : ${carriers}" class="carrier-row member-row" role="link" tabindex="0"
-            th:with="exited=${!T(de.feuerwehr.manager.util.PersonMembership).isCurrentlyMember(row.carrier.person)}"
+            th:with="exited=${!T(de.feuerwehr.manager.util.PersonMembership).isCurrentlyMember(row.carrier.person)},
+                     g26View=${row.g26},
+                     uebungView=${row.summaries.get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).UEBUNG)},
+                     streckeView=${row.summaries.get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).STRECKEN)},
+                     csaView=${row.summaries.get(T(de.feuerwehr.manager.atemschutz.AtemschutzFitnessType).CSA)}"
             th:attr="data-search=${row.carrier.person.lastName + ' ' + row.carrier.person.firstName + ' ' + (row.carrier.notes != null ? row.carrier.notes : '')},
                      data-status=${row.carrier.status.name()},
                      data-tauglichkeit=${exited ? 'AUSGETRETEN' : row.tauglichkeit.name()},
                      data-carrier-id=${row.carrier.id},
-                     data-href=@{/atemschutz/carriers/{id}(id=${row.carrier.id},unit=${unitId})}">
+                     data-href=@{/atemschutz/carriers/{id}(id=${row.carrier.id},unit=${unitId})},
+                     data-sort-name=${row.carrier.person.lastName + ', ' + row.carrier.person.firstName},
+                     data-sort-status=${exited ? 'Ausgetreten' : row.carrier.status.label()},
+                     data-sort-tauglichkeit=${exited ? 99 : (row.tauglichkeit == T(de.feuerwehr.manager.atemschutz.CarrierTauglichkeitStatus).TAUGLICH ? 1 : (row.tauglichkeit == T(de.feuerwehr.manager.atemschutz.CarrierTauglichkeitStatus).WARNUNG ? 2 : (row.tauglichkeit == T(de.feuerwehr.manager.atemschutz.CarrierTauglichkeitStatus).UEBUNG_ABGELAUFEN ? 3 : 4)))},
+                     data-sort-g26=${exited or g26View == null or g26View.validUntil == null ? '9999-12-31' : #temporals.format(g26View.validUntil, 'yyyy-MM-dd')},
+                     data-sort-uebung=${exited or uebungView == null or uebungView.validUntil == null ? '9999-12-31' : #temporals.format(uebungView.validUntil, 'yyyy-MM-dd')},
+                     data-sort-strecke=${exited or streckeView == null or streckeView.validUntil == null ? '9999-12-31' : #temporals.format(streckeView.validUntil, 'yyyy-MM-dd')},
+                     data-sort-csa=${exited or csaView == null or csaView.validUntil == null ? '9999-12-31' : #temporals.format(csaView.validUntil, 'yyyy-MM-dd')},
+                     data-sort-notiz=${row.carrier.notes != null ? row.carrier.notes : ''}">
           <td th:if="${canWrite}" class="atemschutz-select-col">
             <input type="checkbox" class="atemschutz-row-select" th:value="${row.carrier.id}"
                    th:disabled="${exited}"
@@ -251,6 +279,6 @@
   </div>
 
   <script th:src="@{/js/atemschutz-modals.js}" defer></script>
-  <script th:src="@{/js/atemschutz-list.js(v='20260829t')}" defer></script>
+  <script th:src="@{/js/atemschutz-list.js(v='20260915a')}" defer></script>
 </main>
 </html>

@@ -127,6 +127,8 @@ public class WebUiAdvice {
                 model.addAttribute("unitId", u.getId());
                 model.addAttribute("currentUnitName", u.getName());
                 model.addAttribute("smtpConfigured", accountMailService.canSendMailForUnit(u.getId()));
+                int idleMinutes = u.getIdleLogoutMinutes() != null ? u.getIdleLogoutMinutes() : 0;
+                model.addAttribute("idleLogoutMinutes", idleMinutes);
             });
         } catch (Exception e) {
             log.warn("Einheiten-Kontext konnte nicht geladen werden: {}", e.getMessage());
