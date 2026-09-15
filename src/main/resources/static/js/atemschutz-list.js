@@ -42,9 +42,17 @@
   table.addEventListener('click', function (e) {
     var selectCol = e.target.closest('td.atemschutz-select-col');
     if (selectCol && table.contains(selectCol)) {
-      e.preventDefault();
+      // Zeilen-Navigation verhindern, Checkbox selbst vom Browser umschalten lassen.
       e.stopPropagation();
       var cb = selectCol.querySelector('.atemschutz-row-select');
+      if (!cb || cb.disabled) {
+        e.preventDefault();
+        return;
+      }
+      if (e.target === cb || e.target.closest('input.atemschutz-row-select')) {
+        return;
+      }
+      e.preventDefault();
       toggleRowSelect(cb);
       return;
     }
