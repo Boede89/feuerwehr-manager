@@ -8,13 +8,11 @@
 
   var bugOverlay = document.getElementById('bug-report-overlay');
   var bugOpenBtn = document.getElementById('start-bug-report-open');
-  var bugCloseBtn = document.getElementById('start-bug-report-close');
   var bugCancelBtn = document.getElementById('start-bug-report-cancel');
   var bugForm = document.getElementById('start-bug-report-form');
   var bugError = document.getElementById('bug-report-error');
   var bugSubmitBtn = document.getElementById('start-bug-report-submit');
   var bugNameInput = document.getElementById('bug-report-name');
-  var reservationOpen = document.getElementById('start-reservation-open');
 
   if (!overlay) {
     return;
@@ -112,36 +110,8 @@
   if (bugOpenBtn) {
     bugOpenBtn.addEventListener('click', openBugReport);
   }
-  if (bugCloseBtn) {
-    bugCloseBtn.addEventListener('click', closeBugReport);
-  }
   if (bugCancelBtn) {
     bugCancelBtn.addEventListener('click', closeBugReport);
-  }
-
-  if (reservationOpen) {
-    reservationOpen.addEventListener('click', function (event) {
-      event.preventDefault();
-      var target = reservationOpen.getAttribute('data-href');
-      if (!target) {
-        return;
-      }
-      var message =
-        'Diese Funktion kann noch Fehler enthalten. Bitte melden Sie Fehler über „Fehler melden“ auf der Startseite.';
-      var promise = window.FwConfirm && window.FwConfirm.show
-        ? window.FwConfirm.show({
-            title: 'Hinweis zur Reservierung',
-            message: message,
-            confirmLabel: 'OK',
-            cancelLabel: 'Abbrechen'
-          })
-        : Promise.resolve(window.confirm(message));
-      promise.then(function (confirmed) {
-        if (confirmed) {
-          window.location.href = target;
-        }
-      });
-    });
   }
 
   overlay.addEventListener('click', function (event) {
@@ -149,14 +119,6 @@
       closeLogin();
     }
   });
-
-  if (bugOverlay) {
-    bugOverlay.addEventListener('click', function (event) {
-      if (event.target === bugOverlay) {
-        closeBugReport();
-      }
-    });
-  }
 
   if (bugForm) {
     bugForm.addEventListener('submit', function (event) {
@@ -220,8 +182,8 @@
     if (unknownModal && unknownModal.classList.contains('active')) {
       return;
     }
+    // Fehler-melden-Dialog bleibt bei Escape offen (nur Abbrechen / Absenden).
     if (isBugOpen()) {
-      closeBugReport();
       return;
     }
     if (isOpen()) {

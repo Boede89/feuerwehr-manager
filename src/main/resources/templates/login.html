@@ -43,8 +43,7 @@
         </span>
         <span class="start-tile__cta">Check In starten</span>
       </a>
-      <a class="start-tile" th:if="${publicReservationAvailable}" id="start-reservation-open"
-         th:data-href="@{/reservieren}" href="#">
+      <a class="start-tile" th:if="${publicReservationAvailable}" th:href="@{/reservieren}">
         <span class="start-tile__icon" aria-hidden="true">🚒</span>
         <strong class="start-tile__title">Fahrzeug oder Raum reservieren</strong>
         <span class="start-tile__text">Fahrzeuge und Räume für einen Zeitraum anfragen.</span>
@@ -76,7 +75,6 @@
     <div class="modal start-bug-report-modal">
       <div class="modal__header">
         <h3 id="bug-report-overlay-title">Fehler melden</h3>
-        <button type="button" class="modal__close" id="start-bug-report-close" aria-label="Schließen">✕</button>
       </div>
       <form id="start-bug-report-form">
         <div class="modal__body">
@@ -181,7 +179,7 @@
   <script th:src="@{/js/flash-toast.js}" defer></script>
   <script th:src="@{/js/theme.js}" defer></script>
   <script th:src="@{/js/confirm-dialog.js}" defer></script>
-  <script th:src="@{/js/login-start.js(v='20260828c')}" defer></script>
+  <script th:src="@{/js/login-start.js(v='20260917a')}" defer></script>
   <script th:if="${rfidLoginEnabled}" th:src="@{/js/login-rfid.js}" defer></script>
 </body>
 </html>
