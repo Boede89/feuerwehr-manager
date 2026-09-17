@@ -20,17 +20,22 @@
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
 
         <div class="form-group" th:if="${aclFolder.parent != null}">
-          <label>
+          <label class="checkbox-row">
             <input type="checkbox" name="inheritAcl" value="true" id="mediathek-inherit-acl"
                    th:checked="${aclFolder.inheritAcl}"/>
-            Rechte vom Elternordner erben
+            <span>Rechte vom Elternordner erben</span>
           </label>
           <p class="hint">Wenn aktiv, gelten die Rechte des nächsten Elternordners mit eigener ACL.</p>
         </div>
 
-        <div id="mediathek-acl-entries" th:classappend="${aclFolder.inheritAcl and aclFolder.parent != null} ? ' is-disabled' : ''">
+        <div id="mediathek-acl-entries"
+             th:classappend="${aclFolder.inheritAcl and aclFolder.parent != null} ? ' is-disabled' : ''">
           <h3>Einträge</h3>
           <p class="hint">Admins der Einheit sehen den Ordner immer. Hier zusätzliche Personen und Gruppen.</p>
+          <p id="mediathek-acl-inherit-hint" class="hint hint--warn"
+             th:hidden="${!(aclFolder.inheritAcl and aclFolder.parent != null)}">
+            Vererbung ist aktiv. Deaktivieren Sie „Rechte vom Elternordner erben“, um eigene Einträge zu setzen.
+          </p>
 
           <div class="table-wrap">
             <table class="data-table" id="mediathek-acl-table">
@@ -78,10 +83,11 @@
             </table>
           </div>
 
-          <button type="button" class="btn btn--outline btn--sm mt-md" id="mediathek-acl-add">+ Eintrag</button>
+          <button type="button" class="btn btn--outline btn--sm mt-md" id="mediathek-acl-add"
+                  th:disabled="${aclFolder.inheritAcl and aclFolder.parent != null}">+ Eintrag</button>
         </div>
 
-        <div class="modal-actions" style="margin-top: 1.25rem;">
+        <div style="margin-top: 1.25rem; display: flex; justify-content: flex-end; gap: 0.5rem;">
           <button type="submit" class="btn btn--primary">Speichern</button>
         </div>
       </form>
@@ -120,37 +126,9 @@
   </template>
 
   <style>
-    #mediathek-acl-entries.is-disabled { opacity: 0.45; pointer-events: none; }
+    #mediathek-acl-entries.is-disabled .data-table { opacity: 0.45; }
     .mediathek-acl-row select { min-width: 10rem; max-width: 100%; }
   </style>
-  <script>
-    (function () {
-      var inherit = document.getElementById('mediathek-inherit-acl');
-      var entries = document.getElementById('mediathek-acl-entries');
-      function syncInherit() {
-        if (!entries) return;
-        if (inherit && inherit.checked) entries.classList.add('is-disabled');
-        else entries.classList.remove('is-disabled');
-      }
-      if (inherit) inherit.addEventListener('change', syncInherit);
-      syncInherit();
-
-      var table = document.getElementById('mediathek-acl-table');
-      var tbody = table ? table.querySelector('tbody') : null;
-      var tpl = document.getElementById('mediathek-acl-row-template');
-      var addBtn = document.getElementById('mediathek-acl-add');
-      if (addBtn && tbody && tpl) {
-        addBtn.addEventListener('click', function () {
-          tbody.appendChild(tpl.content.cloneNode(true));
-        });
-      }
-      document.addEventListener('click', function (e) {
-        var btn = e.target.closest('[data-remove-row]');
-        if (!btn) return;
-        var row = btn.closest('tr');
-        if (row) row.remove();
-      });
-    })();
-  </script>
+  <script th:src="@{/js/mediathek.js(v='20260917b')}"></script>
 </main>
 </html>

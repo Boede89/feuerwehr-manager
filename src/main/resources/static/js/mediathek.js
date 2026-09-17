@@ -20,6 +20,42 @@
     }
   }
 
+  function syncAclInherit() {
+    var inherit = document.getElementById('mediathek-inherit-acl');
+    var entries = document.getElementById('mediathek-acl-entries');
+    var hint = document.getElementById('mediathek-acl-inherit-hint');
+    var addBtn = document.getElementById('mediathek-acl-add');
+    var inheriting = !!(inherit && inherit.checked);
+    if (entries) {
+      entries.classList.toggle('is-disabled', inheriting);
+    }
+    if (hint) {
+      hint.hidden = !inheriting;
+    }
+    if (addBtn) {
+      addBtn.disabled = inheriting;
+    }
+    if (entries) {
+      entries.querySelectorAll('select, button[data-remove-row]').forEach(function (el) {
+        el.disabled = inheriting;
+      });
+    }
+  }
+
+  function addAclRow() {
+    var table = document.getElementById('mediathek-acl-table');
+    var tbody = table ? table.querySelector('tbody') : null;
+    var tpl = document.getElementById('mediathek-acl-row-template');
+    var inherit = document.getElementById('mediathek-inherit-acl');
+    if (inherit && inherit.checked) {
+      return;
+    }
+    if (!tbody || !tpl) {
+      return;
+    }
+    tbody.appendChild(tpl.content.cloneNode(true));
+  }
+
   document.addEventListener('click', function (ev) {
     var openBtn = ev.target.closest('[data-open-modal]');
     if (openBtn) {
@@ -36,6 +72,27 @@
     var overlay = ev.target;
     if (overlay.classList && overlay.classList.contains('modal-overlay') && overlay.classList.contains('active')) {
       closeModal(overlay);
+      return;
+    }
+    var addBtn = ev.target.closest('#mediathek-acl-add');
+    if (addBtn) {
+      ev.preventDefault();
+      addAclRow();
+      return;
+    }
+    var removeBtn = ev.target.closest('[data-remove-row]');
+    if (removeBtn) {
+      ev.preventDefault();
+      var row = removeBtn.closest('tr');
+      if (row) {
+        row.remove();
+      }
+    }
+  });
+
+  document.addEventListener('change', function (ev) {
+    if (ev.target && ev.target.id === 'mediathek-inherit-acl') {
+      syncAclInherit();
     }
   });
 
@@ -48,4 +105,10 @@
       closeModal(active);
     }
   });
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', syncAclInherit);
+  } else {
+    syncAclInherit();
+  }
 })();
