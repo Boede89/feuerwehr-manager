@@ -3,7 +3,6 @@ package de.feuerwehr.manager.personal;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -32,7 +31,10 @@ public interface PersonGroupRepository extends JpaRepository<PersonGroup, Long> 
     boolean existsByUnitIdAndNameIgnoreCaseAndTestDataAndIdNot(
             long unitId, String name, boolean testData, long id);
 
-    @Modifying
-    @Query("DELETE FROM PersonGroup g WHERE g.testData = true")
-    void deleteAllByTestDataTrue();
+    @Query("""
+            SELECT g.id FROM PersonGroup g
+            JOIN g.members m
+            WHERE m.id = :personId
+            """)
+    java.util.Set<Long> findGroupIdsByMemberId(@Param("personId") long personId);
 }

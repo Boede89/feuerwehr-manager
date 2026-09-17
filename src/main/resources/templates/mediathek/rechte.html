@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('Mediathek – Rechte', ~{::main})}">
+<main class="mediathek-acl-page">
+  <div class="page-header">
+    <div>
+      <h2>Rechte: <span th:text="${aclFolder.name}">Ordner</span></h2>
+      <p>Personen und Gruppen mit Lese-/Schreibrechten</p>
+    </div>
+    <a class="btn btn--outline"
+       th:href="@{/mediathek(unit=${unitId}, folder=${aclFolder.id})}">Zurück zum Ordner</a>
+  </div>
+
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
+
+  <div class="card">
+    <div class="card__body">
+      <form method="post" th:action="@{/mediathek/folders/{id}/acl(id=${aclFolder.id})}" id="mediathek-acl-form">
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+        <div class="form-group" th:if="${aclFolder.parent != null}">
+          <label>
+            <input type="checkbox" name="inheritAcl" value="true" id="mediathek-inherit-acl"
+                   th:checked="${aclFolder.inheritAcl}"/>
+            Rechte vom Elternordner erben
+          </label>
+          <p class="hint">Wenn aktiv, gelten die Rechte des nächsten Elternordners mit eigener ACL.</p>
+        </div>
+
+        <div id="mediathek-acl-entries" th:classappend="${aclFolder.inheritAcl and aclFolder.parent != null} ? ' is-disabled' : ''">
+          <h3>Einträge</h3>
+          <p class="hint">Admins der Einheit sehen den Ordner immer. Hier zusätzliche Personen und Gruppen.</p>
+
+          <div class="table-wrap">
+            <table class="data-table" id="mediathek-acl-table">
+              <thead>
+              <tr>
+                <th>Person</th>
+                <th>Gruppe</th>
+                <th>Recht</th>
+                <th></th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr th:each="entry : ${aclEntries}" class="mediathek-acl-row">
+                <td>
+                  <select name="aclPersonId">
+                    <option value="">—</option>
+                    <option th:each="p : ${aclPersons}"
+                            th:value="${p.id}"
+                            th:selected="${entry.person != null and entry.person.id == p.id}"
+                            th:text="${p.displayName()}">Person</option>
+                  </select>
+                </td>
+                <td>
+                  <select name="aclGroupId">
+                    <option value="">—</option>
+                    <option th:each="g : ${aclGroups}"
+                            th:value="${g.id}"
+                            th:selected="${entry.group != null and entry.group.id == g.id}"
+                            th:text="${g.name}">Gruppe</option>
+                  </select>
+                </td>
+                <td>
+                  <select name="aclLevel" required>
+                    <option th:each="lvl : ${accessLevels}"
+                            th:value="${lvl.name()}"
+                            th:selected="${entry.accessLevel == lvl}"
+                            th:text="${lvl.label()}">Lesen</option>
+                  </select>
+                </td>
+                <td>
+                  <button type="button" class="btn btn--outline btn--sm" data-remove-row>Entfernen</button>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <button type="button" class="btn btn--outline btn--sm mt-md" id="mediathek-acl-add">+ Eintrag</button>
+        </div>
+
+        <div class="modal-actions" style="margin-top: 1.25rem;">
+          <button type="submit" class="btn btn--primary">Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <template id="mediathek-acl-row-template">
+    <tr class="mediathek-acl-row">
+      <td>
+        <select name="aclPersonId">
+          <option value="">—</option>
+          <option th:each="p : ${aclPersons}"
+                  th:value="${p.id}"
+                  th:text="${p.displayName()}">Person</option>
+        </select>
+      </td>
+      <td>
+        <select name="aclGroupId">
+          <option value="">—</option>
+          <option th:each="g : ${aclGroups}"
+                  th:value="${g.id}"
+                  th:text="${g.name}">Gruppe</option>
+        </select>
+      </td>
+      <td>
+        <select name="aclLevel" required>
+          <option th:each="lvl : ${accessLevels}"
+                  th:value="${lvl.name()}"
+                  th:text="${lvl.label()}">Lesen</option>
+        </select>
+      </td>
+      <td>
+        <button type="button" class="btn btn--outline btn--sm" data-remove-row>Entfernen</button>
+      </td>
+    </tr>
+  </template>
+
+  <style>
+    #mediathek-acl-entries.is-disabled { opacity: 0.45; pointer-events: none; }
+    .mediathek-acl-row select { min-width: 10rem; max-width: 100%; }
+  </style>
+  <script>
+    (function () {
+      var inherit = document.getElementById('mediathek-inherit-acl');
+      var entries = document.getElementById('mediathek-acl-entries');
+      function syncInherit() {
+        if (!entries) return;
+        if (inherit && inherit.checked) entries.classList.add('is-disabled');
+        else entries.classList.remove('is-disabled');
+      }
+      if (inherit) inherit.addEventListener('change', syncInherit);
+      syncInherit();
+
+      var table = document.getElementById('mediathek-acl-table');
+      var tbody = table ? table.querySelector('tbody') : null;
+      var tpl = document.getElementById('mediathek-acl-row-template');
+      var addBtn = document.getElementById('mediathek-acl-add');
+      if (addBtn && tbody && tpl) {
+        addBtn.addEventListener('click', function () {
+          tbody.appendChild(tpl.content.cloneNode(true));
+        });
+      }
+      document.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-remove-row]');
+        if (!btn) return;
+        var row = btn.closest('tr');
+        if (row) row.remove();
+      });
+    })();
+  </script>
+</main>
+</html>

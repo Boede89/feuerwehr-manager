@@ -209,6 +209,9 @@ public class WebUiAdvice {
         if (path.startsWith("/einsatzapp")) {
             return "einsatzapp";
         }
+        if (path.startsWith("/mediathek")) {
+            return "mediathek";
+        }
         if (path.startsWith("/einsatz/manuell")) {
             return "einsatz-manuell";
         }
