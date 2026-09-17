@@ -32,7 +32,9 @@
              th:classappend="${aclFolder.inheritAcl and aclFolder.parent != null} ? ' is-disabled' : ''">
           <h3>Einträge</h3>
           <p class="hint">
-            Pro Zeile genau eine Zuordnung wählen: Person <strong>oder</strong> Gruppe <strong>oder</strong> Dienstgrad.
+            Ohne Einträge ist der Ordner für alle mit Mediathek-Lesen sichtbar.
+            Sobald Einträge existieren, gilt nur noch die Feinsteuerung:
+            Pro Zeile genau eine Zuordnung (Person <strong>oder</strong> Gruppe <strong>oder</strong> Dienstgrad).
             Beim Dienstgrad erhalten alle Personen mit diesem oder einem höheren Dienstgrad das Recht
             (Reihenfolge wie unter Admin → Qualifikationen).
           </p>

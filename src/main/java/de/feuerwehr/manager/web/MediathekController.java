@@ -191,9 +191,9 @@ public class MediathekController {
             @RequestParam(name = "unit") long unitId,
             @PathVariable long folderId,
             @RequestParam(name = "inheritAcl", defaultValue = "false") boolean inheritAcl,
-            @RequestParam(name = "aclPersonId", required = false) List<Long> personIds,
-            @RequestParam(name = "aclGroupId", required = false) List<Long> groupIds,
-            @RequestParam(name = "aclQualificationTypeId", required = false) List<Long> qualificationTypeIds,
+            @RequestParam(name = "aclPersonId", required = false) List<String> personIds,
+            @RequestParam(name = "aclGroupId", required = false) List<String> groupIds,
+            @RequestParam(name = "aclQualificationTypeId", required = false) List<String> qualificationTypeIds,
             @RequestParam(name = "aclLevel", required = false) List<String> levels,
             RedirectAttributes redirectAttributes) {
         try {
@@ -289,9 +289,9 @@ public class MediathekController {
     }
 
     private static List<AclInput> parseAclInputs(
-            List<Long> personIds,
-            List<Long> groupIds,
-            List<Long> qualificationTypeIds,
+            List<String> personIds,
+            List<String> groupIds,
+            List<String> qualificationTypeIds,
             List<String> levels) {
         List<AclInput> result = new ArrayList<>();
         int n = levels == null ? 0 : levels.size();
@@ -306,12 +306,9 @@ public class MediathekController {
             } catch (IllegalArgumentException ex) {
                 continue;
             }
-            Long personId = personIds != null && i < personIds.size() ? personIds.get(i) : null;
-            Long groupId = groupIds != null && i < groupIds.size() ? groupIds.get(i) : null;
-            Long qualificationTypeId =
-                    qualificationTypeIds != null && i < qualificationTypeIds.size()
-                            ? qualificationTypeIds.get(i)
-                            : null;
+            Long personId = parseOptionalLong(personIds, i);
+            Long groupId = parseOptionalLong(groupIds, i);
+            Long qualificationTypeId = parseOptionalLong(qualificationTypeIds, i);
             boolean hasPerson = personId != null && personId > 0;
             boolean hasGroup = groupId != null && groupId > 0;
             boolean hasQualification = qualificationTypeId != null && qualificationTypeId > 0;
@@ -326,6 +323,21 @@ public class MediathekController {
                     level));
         }
         return result;
+    }
+
+    private static Long parseOptionalLong(List<String> values, int index) {
+        if (values == null || index >= values.size()) {
+            return null;
+        }
+        String raw = values.get(index);
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return Long.parseLong(raw.trim());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
     private Unit resolveUnit(Long unitId, AppUserDetails actor, Model model) {

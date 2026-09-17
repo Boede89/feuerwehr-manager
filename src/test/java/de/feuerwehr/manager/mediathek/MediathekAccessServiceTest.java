@@ -105,24 +105,41 @@ class MediathekAccessServiceTest {
     }
 
     @Test
-    void userNeedsAclEntryForRead() {
+    void emptyAclGrantsReadToUsersWithModuleAccess() {
+        MediathekFolder folder = rootFolder(53L, unitA, Set.of(unitA));
+        folder.setInheritAcl(false);
+        folder.setAclEntries(List.of());
+        when(folderRepository.findByIdWithUnits(53L)).thenReturn(Optional.of(folder));
+        when(folderRepository.findByIdWithAcl(53L)).thenReturn(Optional.of(folder));
+
+        assertThat(accessService.canRead(userActor, unitA.getId(), folder)).isTrue();
+        assertThat(accessService.canWrite(userActor, unitA.getId(), folder)).isFalse();
+    }
+
+    @Test
+    void explicitAclRestrictsAccessToMatchingPerson() {
         when(testModeService.isEnabled()).thenReturn(false);
         when(personRepository.findActiveByUserIdAndUnitId(10L, 1L, false)).thenReturn(Optional.of(person));
         when(personGroupRepository.findGroupIdsByMemberId(100L)).thenReturn(Set.of());
 
-        MediathekFolder folder = rootFolder(53L, unitA, Set.of(unitA));
+        Person other = new Person();
+        other.setId(999L);
+        other.setUnit(unitA);
+
+        MediathekFolder folder = rootFolder(54L, unitA, Set.of(unitA));
         folder.setInheritAcl(false);
-        when(folderRepository.findByIdWithUnits(53L)).thenReturn(Optional.of(folder));
-        when(folderRepository.findByIdWithAcl(53L)).thenReturn(Optional.of(folder));
-
-        assertThat(accessService.canRead(userActor, unitA.getId(), folder)).isFalse();
-
         MediathekFolderAcl acl = new MediathekFolderAcl();
         acl.setFolder(folder);
-        acl.setPerson(person);
+        acl.setPerson(other);
         acl.setAccessLevel(MediathekAccessLevel.READ);
         folder.setAclEntries(List.of(acl));
 
+        when(folderRepository.findByIdWithUnits(54L)).thenReturn(Optional.of(folder));
+        when(folderRepository.findByIdWithAcl(54L)).thenReturn(Optional.of(folder));
+
+        assertThat(accessService.canRead(userActor, unitA.getId(), folder)).isFalse();
+
+        acl.setPerson(person);
         assertThat(accessService.canRead(userActor, unitA.getId(), folder)).isTrue();
         assertThat(accessService.canWrite(userActor, unitA.getId(), folder)).isFalse();
     }

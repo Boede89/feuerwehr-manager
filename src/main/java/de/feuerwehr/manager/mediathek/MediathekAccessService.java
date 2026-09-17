@@ -47,6 +47,13 @@ public class MediathekAccessService {
         if (actor.getRole().isAdminLevel()) {
             return Optional.of(MediathekAccessLevel.WRITE);
         }
+        MediathekFolder aclFolder = resolveAclFolder(folder);
+        List<MediathekFolderAcl> entries =
+                folderRepository.findByIdWithAcl(aclFolder.getId()).map(MediathekFolder::getAclEntries).orElse(List.of());
+        // Ohne Feinrechte: für alle mit Modulzugriff lesbar (mediathek.read prüft der Controller)
+        if (entries == null || entries.isEmpty()) {
+            return Optional.of(MediathekAccessLevel.READ);
+        }
         Optional<Person> personOpt = linkedPerson(actor, unitId);
         if (personOpt.isEmpty()) {
             return Optional.empty();
@@ -54,12 +61,6 @@ public class MediathekAccessService {
         Person person = personOpt.get();
         long personId = person.getId();
         Set<Long> groupIds = new HashSet<>(personGroupRepository.findGroupIdsByMemberId(personId));
-        MediathekFolder aclFolder = resolveAclFolder(folder);
-        List<MediathekFolderAcl> entries =
-                folderRepository.findByIdWithAcl(aclFolder.getId()).map(MediathekFolder::getAclEntries).orElse(List.of());
-        if (entries.isEmpty()) {
-            return Optional.empty();
-        }
         MediathekAccessLevel best = null;
         for (MediathekFolderAcl entry : entries) {
             if (!matchesEntry(entry, person, personId, groupIds)) {

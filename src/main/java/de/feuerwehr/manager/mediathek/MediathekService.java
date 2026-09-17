@@ -30,7 +30,6 @@ public class MediathekService {
 
     private final MediathekFolderRepository folderRepository;
     private final MediathekFileRepository fileRepository;
-    private final MediathekFolderAclRepository aclRepository;
     private final MediathekAccessService accessService;
     private final MediathekStorageService storageService;
     private final UnitRepository unitRepository;
@@ -134,12 +133,14 @@ public class MediathekService {
             long folderId,
             boolean inheritAcl,
             List<AclInput> entries) {
-        MediathekFolder folder = accessService.requireWritable(actor, unitId, folderId);
+        accessService.requireWritable(actor, unitId, folderId);
+        MediathekFolder folder = folderRepository
+                .findByIdWithAcl(folderId)
+                .orElseThrow(() -> new IllegalArgumentException("Ordner nicht gefunden."));
         if (folder.getParent() == null) {
             inheritAcl = false;
         }
         folder.setInheritAcl(inheritAcl);
-        aclRepository.deleteByFolderId(folderId);
         folder.getAclEntries().clear();
         if (!inheritAcl && entries != null) {
             for (AclInput input : entries) {
