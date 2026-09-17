@@ -636,6 +636,16 @@ input:focus, select:focus, textarea:focus {
 
 .checkbox-row input { width: 1.1rem; height: 1.1rem; min-height: auto; }
 
+.checkbox-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.25rem;
+}
+
+.checkbox-grid .checkbox-row {
+  margin-top: 0;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));

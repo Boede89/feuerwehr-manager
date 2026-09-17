@@ -1,7 +1,8 @@
 package de.feuerwehr.manager.notification;
 
 public enum UserNotificationTopic {
-    ATEMSCHUTZ("Atemschutz", "Erinnerungen, Terminplanung und Mitteilungen zum Atemschutz");
+    ATEMSCHUTZ("Atemschutz", "Erinnerungen, Terminplanung und Mitteilungen zum Atemschutz"),
+    FUEHRERSCHEIN("Führerschein", "Erinnerungen zur jährlichen Führerscheinkontrolle");
 
     private final String label;
     private final String description;

@@ -26,6 +26,9 @@
             <a th:if="${m.key == 'atemschutz' and m.implemented and modulesEnabled.get(m)}"
                class="btn btn--outline btn--sm"
                th:href="@{/settings/atemschutz(unit=${unitId})}">Einstellungen</a>
+            <a th:if="${m.key == 'personal' and m.implemented and modulesEnabled.get(m)}"
+               class="btn btn--outline btn--sm"
+               th:href="@{/settings/fuehrerschein(unit=${unitId})}">Führerschein</a>
             <a th:if="${m.key == 'berichte' and m.implemented and modulesEnabled.get(m)}"
                class="btn btn--outline btn--sm"
                th:href="@{/settings/berichte(unit=${unitId})}">Einstellungen</a>
@@ -36,7 +39,7 @@
                class="btn btn--outline btn--sm"
                th:href="@{/settings/reservierungen(unit=${unitId})}">Einstellungen</a>
             <button type="button" class="btn btn--outline btn--sm"
-                    th:unless="${(m.key == 'atemschutz' or m.key == 'berichte' or m.key == 'einsatzapp' or m.key == 'reservierungen') and m.implemented and modulesEnabled.get(m)}"
+                    th:unless="${(m.key == 'atemschutz' or m.key == 'personal' or m.key == 'berichte' or m.key == 'einsatzapp' or m.key == 'reservierungen') and m.implemented and modulesEnabled.get(m)}"
                     disabled title="Modul-Einstellungen folgen in einer späteren Version">Einstellungen</button>
             <label class="toggle-switch">
               <input type="checkbox"

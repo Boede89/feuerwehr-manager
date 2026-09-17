@@ -15,6 +15,8 @@
   <nav class="tab-bar personal-module-tabs" aria-label="Personalbereiche">
     <a class="tab-btn" th:classappend="${personalTab == 'mitglieder'} ? ' tab-btn--active' : ''"
        th:href="@{/personal(unit=${unitId}, tab='mitglieder')}">Mitglieder</a>
+    <a class="tab-btn" th:classappend="${personalTab == 'fuehrerscheine'} ? ' tab-btn--active' : ''"
+       th:href="@{/personal(unit=${unitId}, tab='fuehrerscheine')}">Führerscheine</a>
     <a class="tab-btn" th:classappend="${personalTab == 'gruppen'} ? ' tab-btn--active' : ''"
        th:href="@{/personal(unit=${unitId}, tab='gruppen')}">Gruppen</a>
     <a class="tab-btn" th:classappend="${personalTab == 'ausbildergruppen'} ? ' tab-btn--active' : ''"
@@ -93,6 +95,89 @@
       </div>
     </div>
     <script th:src="@{/js/personal-list.js(v='20260915a')}"></script>
+  </div>
+
+  <!-- Tab: Führerscheine -->
+  <div th:if="${personalTab == 'fuehrerscheine'}" class="personal-module-panel">
+    <div class="page-header page-header--toolbar" style="margin-bottom:1rem;padding:0;">
+      <div>
+        <p class="hint" style="margin:0;">
+          Jährliche Sichtkontrolle (Standard <span th:text="${licenseIntervalMonths}">12</span> Monate,
+          Warnung <span th:text="${licenseWarnDays}">30</span> Tage vorher). Keine Führerschein-Kopien.
+          <a th:if="${isAdmin}" th:href="@{/settings/fuehrerschein(unit=${unitId})}">Einstellungen</a>
+        </p>
+      </div>
+    </div>
+    <div class="kpi-grid" th:if="${licenseStats != null}">
+      <a class="kpi-card" th:href="@{/personal(unit=${unitId}, tab='fuehrerscheine', filter='all')}">
+        <span class="kpi-card__value" th:text="${licenseStats.total()}">0</span>
+        <span class="kpi-card__label">Personen</span>
+      </a>
+      <a class="kpi-card" th:href="@{/personal(unit=${unitId}, tab='fuehrerscheine', filter='overdue')}">
+        <span class="kpi-card__value" th:text="${licenseStats.overdue()}">0</span>
+        <span class="kpi-card__label">Überfällig</span>
+      </a>
+      <a class="kpi-card" th:href="@{/personal(unit=${unitId}, tab='fuehrerscheine', filter='warn')}">
+        <span class="kpi-card__value" th:text="${licenseStats.warn()}">0</span>
+        <span class="kpi-card__label">Bald fällig</span>
+      </a>
+      <a class="kpi-card" th:href="@{/personal(unit=${unitId}, tab='fuehrerscheine', filter='missing')}">
+        <span class="kpi-card__value" th:text="${licenseStats.missing()}">0</span>
+        <span class="kpi-card__label">Kontrolle fehlt</span>
+      </a>
+      <a class="kpi-card" th:href="@{/personal(unit=${unitId}, tab='fuehrerscheine', filter='ok')}">
+        <span class="kpi-card__value" th:text="${licenseStats.ok()}">0</span>
+        <span class="kpi-card__label">OK</span>
+      </a>
+    </div>
+    <div class="card mt-md">
+      <div class="card__header card__header--toolbar">
+        <span>Übersicht</span>
+        <div class="toolbar-actions">
+          <a class="btn btn--outline btn--sm"
+             th:classappend="${licenseFilter == 'all'} ? ' btn--primary' : ''"
+             th:href="@{/personal(unit=${unitId}, tab='fuehrerscheine', filter='all')}">Alle</a>
+          <a class="btn btn--outline btn--sm"
+             th:classappend="${licenseFilter == 'overdue'} ? ' btn--primary' : ''"
+             th:href="@{/personal(unit=${unitId}, tab='fuehrerscheine', filter='overdue')}">Überfällig</a>
+          <a class="btn btn--outline btn--sm"
+             th:classappend="${licenseFilter == 'warn'} ? ' btn--primary' : ''"
+             th:href="@{/personal(unit=${unitId}, tab='fuehrerscheine', filter='warn')}">Bald fällig</a>
+          <a class="btn btn--outline btn--sm"
+             th:classappend="${licenseFilter == 'missing'} ? ' btn--primary' : ''"
+             th:href="@{/personal(unit=${unitId}, tab='fuehrerscheine', filter='missing')}">Fehlt</a>
+        </div>
+      </div>
+      <div class="card__body card__body--flush" th:if="${licenseRows != null and !#lists.isEmpty(licenseRows)}">
+        <table class="data-table">
+          <thead>
+          <tr>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Klassen</th>
+            <th>Nächste Kontrolle</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="row : ${licenseRows}">
+            <td>
+              <a th:href="@{/personal/{id}(id=${row.person().id}, unit=${unitId}, tab='fuehrerschein')}"
+                 th:text="${row.person().displayName()}">Name</a>
+            </td>
+            <td>
+              <span class="fitness-badge" th:classappend="${row.level().cssClass()}"
+                    th:text="${row.level().label()}">OK</span>
+            </td>
+            <td th:text="${row.classesCsv() != null ? row.classesCsv() : '—'}">B</td>
+            <td th:text="${row.nextDueOn() != null ? #temporals.format(row.nextDueOn(), 'dd.MM.yyyy') : '—'}">—</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card__body" th:unless="${licenseRows != null and !#lists.isEmpty(licenseRows)}">
+        <p class="hint" style="margin:0;">Keine Einträge für diesen Filter.</p>
+      </div>
+    </div>
   </div>
 
   <!-- Tab: Gruppen -->

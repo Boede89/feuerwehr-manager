@@ -16,6 +16,10 @@ import de.feuerwehr.manager.personal.PersonGroup;
 import de.feuerwehr.manager.personal.PersonalService.CourseCompletionInput;
 import de.feuerwehr.manager.personal.PersonalService.CoursePlanResult;
 import de.feuerwehr.manager.berichte.AnwesenheitslisteService;
+import de.feuerwehr.manager.drivinglicense.DrivingLicenseCheckResult;
+import de.feuerwehr.manager.drivinglicense.DrivingLicenseClass;
+import de.feuerwehr.manager.drivinglicense.DrivingLicensePresence;
+import de.feuerwehr.manager.drivinglicense.DrivingLicenseService;
 import de.feuerwehr.manager.mail.AccountMailService;
 import de.feuerwehr.manager.pdf.HtmlPdfService;
 import de.feuerwehr.manager.pdf.PdfDownloadResponse;
@@ -75,6 +79,7 @@ public class PersonalController {
     private final PersonalMemberService personalMemberService;
     private final PersonalGroupService personalGroupService;
     private final PersonalInstructorGroupService personalInstructorGroupService;
+    private final DrivingLicenseService drivingLicenseService;
     private final AnwesenheitslisteService anwesenheitslisteService;
     private final AccessControlService accessControlService;
     private final UserPermissionService userPermissionService;
@@ -87,6 +92,7 @@ public class PersonalController {
             @RequestParam(name = "unit", required = false) Long unitId,
             @RequestParam(name = "tab", defaultValue = "mitglieder") String tab,
             @RequestParam(name = "view", required = false) String membersViewParam,
+            @RequestParam(name = "filter", required = false) String licenseFilter,
             @RequestParam(name = "course", required = false) Long planCourseId,
             @RequestParam(name = "ignorePrerequisites", defaultValue = "false") boolean ignorePrerequisites,
             @RequestParam(name = "ignoreId", required = false) List<Long> ignorePrerequisiteIds,
@@ -148,6 +154,16 @@ public class PersonalController {
                     model.addAttribute("coursePlanError", e.getMessage());
                 }
             }
+        }
+        if ("fuehrerscheine".equals(personalTab)) {
+            DrivingLicenseService.OverviewPage licenseOverview =
+                    drivingLicenseService.listOverview(unit.getId(), licenseFilter);
+            model.addAttribute("licenseOverview", licenseOverview);
+            model.addAttribute("licenseStats", licenseOverview.stats());
+            model.addAttribute("licenseRows", licenseOverview.rows());
+            model.addAttribute("licenseFilter", licenseOverview.activeFilter());
+            model.addAttribute("licenseIntervalMonths", licenseOverview.intervalMonths());
+            model.addAttribute("licenseWarnDays", licenseOverview.warnDays());
         }
         return "personal/index";
     }
@@ -549,6 +565,37 @@ public class PersonalController {
         return "redirect:/personal/" + id + "?unit=" + unit + "&tab=stammdaten";
     }
 
+    @PostMapping("/{id}/driving-license")
+    public String saveDrivingLicense(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @RequestParam long unit,
+            @RequestParam(defaultValue = "UNKNOWN") DrivingLicensePresence presence,
+            @RequestParam(name = "classes", required = false) String[] classes,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate issuedOn,
+            @RequestParam(required = false) String numberSuffix,
+            @RequestParam(required = false) String restrictions,
+            @RequestParam(required = false, defaultValue = "false") boolean selfReportAcknowledged,
+            RedirectAttributes redirectAttributes) {
+        return memberAction(actor, id, unit, "fuehrerschein", redirectAttributes, () ->
+                drivingLicenseService.saveStammdaten(
+                        id, presence, classes, issuedOn, numberSuffix, restrictions, selfReportAcknowledged));
+    }
+
+    @PostMapping("/{id}/driving-license/check")
+    public String recordDrivingLicenseCheck(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @RequestParam long unit,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkedOn,
+            @RequestParam DrivingLicenseCheckResult result,
+            @RequestParam(name = "classes", required = false) String[] classes,
+            @RequestParam(required = false) String notes,
+            RedirectAttributes redirectAttributes) {
+        return memberAction(actor, id, unit, "fuehrerschein", redirectAttributes, () ->
+                drivingLicenseService.recordCheck(id, checkedOn, result, classes, notes, actor));
+    }
+
     @PostMapping("/{id}/fw-stammdaten")
     public String updateFwStammdaten(
             @AuthenticationPrincipal AppUserDetails actor,
@@ -944,6 +991,24 @@ public class PersonalController {
         model.addAttribute("attendanceRecords", attendance.events());
         model.addAttribute("attendanceServiceTypes", AttendanceServiceType.values());
         model.addAttribute("smtpConfigured", accountMailService.canSendMailForUnit(person.getUnit().getId()));
+        if ("fuehrerschein".equals(activeTab)) {
+            DrivingLicenseService.PersonLicenseView licenseView = drivingLicenseService.loadPersonView(personId);
+            model.addAttribute("licenseView", licenseView);
+            model.addAttribute("drivingLicense", licenseView.license());
+            model.addAttribute("licenseChecks", licenseView.checks());
+            model.addAttribute("licenseLevel", licenseView.level());
+            model.addAttribute("licenseIntervalMonths", licenseView.intervalMonths());
+            model.addAttribute("licenseWarnDays", licenseView.warnDays());
+            model.addAttribute("licenseClasses", licenseView.availableClasses());
+            model.addAttribute(
+                    "selectedLicenseClasses",
+                    licenseView.license() != null
+                            ? DrivingLicenseClass.parseCsv(licenseView.license().getClassesCsv())
+                            : Set.of());
+            model.addAttribute("licensePresences", DrivingLicensePresence.values());
+            model.addAttribute("licenseCheckResults", DrivingLicenseCheckResult.values());
+            model.addAttribute("today", LocalDate.now());
+        }
         populatePersonDetailData(model, person.getUnit().getId(), detail);
     }
 
@@ -1030,6 +1095,9 @@ public class PersonalController {
         if ("lehrgangsplanung".equals(tab)) {
             return "lehrgangsplanung";
         }
+        if ("fuehrerscheine".equals(tab)) {
+            return "fuehrerscheine";
+        }
         return "mitglieder";
     }
 
@@ -1038,7 +1106,7 @@ public class PersonalController {
             return "stammdaten";
         }
         return switch (tab) {
-            case "lehrgaenge", "anwesenheit", "schnittstellen" -> tab;
+            case "lehrgaenge", "anwesenheit", "schnittstellen", "fuehrerschein" -> tab;
             case "divera" -> "schnittstellen";
             default -> "stammdaten";
         };
