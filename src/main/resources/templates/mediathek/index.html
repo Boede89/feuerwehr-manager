@@ -8,8 +8,8 @@
       <p>Dokumente, Präsentationen und Medien · <strong th:text="${currentUnitName}">—</strong></p>
     </div>
     <div class="page-header__actions" th:if="${canWrite}">
-      <button type="button" class="btn btn--primary" id="mediathek-new-folder-btn">+ Ordner</button>
-      <button type="button" class="btn btn--outline" id="mediathek-upload-btn"
+      <button type="button" class="btn btn--primary" data-open-modal="modal-mediathek-folder">+ Ordner</button>
+      <button type="button" class="btn btn--outline" data-open-modal="modal-mediathek-upload"
               th:if="${currentFolder != null}">Datei hochladen</button>
     </div>
   </div>
@@ -32,10 +32,10 @@
     <div class="card__body mediathek-folder-actions">
       <a class="btn btn--outline btn--sm" th:if="${canManageAcl}"
          th:href="@{/mediathek/folders/{id}/rechte(id=${currentFolder.id}, unit=${unitId})}">Rechte bearbeiten</a>
-      <button type="button" class="btn btn--outline btn--sm" id="mediathek-units-btn"
+      <button type="button" class="btn btn--outline btn--sm" data-open-modal="modal-mediathek-units"
               th:if="${isAdminLevel and currentFolder.parent == null}">Einheiten zuordnen</button>
-      <button type="button" class="btn btn--outline btn--sm" id="mediathek-rename-btn"
-              th:if="${canWrite}" th:attr="data-folder-name=${currentFolder.name}">Umbenennen</button>
+      <button type="button" class="btn btn--outline btn--sm" data-open-modal="modal-mediathek-rename"
+              th:if="${canWrite}">Umbenennen</button>
       <form th:if="${canWrite}" method="post"
             th:action="@{/mediathek/folders/{id}/delete(id=${currentFolder.id})}"
             class="mediathek-inline-form"
@@ -133,100 +133,128 @@
   </div>
 
   <!-- Modal: Ordner anlegen -->
-  <dialog id="mediathek-folder-dialog" class="modal-dialog" th:if="${canWrite}">
-    <form method="post" th:action="@{/mediathek/folders}" class="modal-form">
-      <input type="hidden" name="unit" th:value="${unitId}"/>
-      <input type="hidden" name="parentId" th:value="${currentFolder != null ? currentFolder.id : ''}"/>
-      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-      <h3>Neuer Ordner</h3>
-      <div class="form-group">
-        <label for="mediathek-folder-name">Name</label>
-        <input id="mediathek-folder-name" name="name" type="text" required maxlength="255"/>
+  <div id="modal-mediathek-folder" class="modal-overlay" th:if="${canWrite}">
+    <div class="modal modal--md" role="dialog" aria-labelledby="mediathek-folder-title">
+      <div class="modal__header">
+        <h3 id="mediathek-folder-title">Neuer Ordner</h3>
+        <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
       </div>
-      <div class="form-group" th:if="${currentFolder != null}">
-        <label>
-          <input type="checkbox" name="inheritAcl" value="true" checked/>
-          Rechte vom Elternordner erben
-        </label>
-      </div>
-      <div class="form-group" th:if="${currentFolder == null and isAdminLevel}">
-        <label>Zusätzliche Einheiten</label>
-        <div class="mediathek-unit-checks">
-          <label th:each="u : ${assignableUnits}" th:if="${u.id != unitId}">
-            <input type="checkbox" name="sharedUnitIds" th:value="${u.id}"/>
-            <span th:text="${u.name}">Einheit</span>
-          </label>
+      <form method="post" th:action="@{/mediathek/folders}">
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <input type="hidden" name="parentId" th:value="${currentFolder != null ? currentFolder.id : ''}"/>
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <div class="modal__body">
+          <div class="form-group">
+            <label for="mediathek-folder-name">Name</label>
+            <input id="mediathek-folder-name" name="name" type="text" required maxlength="255"/>
+          </div>
+          <div class="form-group" th:if="${currentFolder != null}">
+            <label class="checkbox-row">
+              <input type="checkbox" name="inheritAcl" value="true" checked/>
+              <span>Rechte vom Elternordner erben</span>
+            </label>
+          </div>
+          <div class="form-group" th:if="${currentFolder == null and isAdminLevel}">
+            <label>Zusätzliche Einheiten</label>
+            <div class="mediathek-unit-checks">
+              <label class="checkbox-row" th:each="u : ${assignableUnits}" th:if="${u.id != unitId}">
+                <input type="checkbox" name="sharedUnitIds" th:value="${u.id}"/>
+                <span th:text="${u.name}">Einheit</span>
+              </label>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="modal-actions">
-        <button type="button" class="btn btn--outline" data-close-dialog="mediathek-folder-dialog">Abbrechen</button>
-        <button type="submit" class="btn btn--primary">Anlegen</button>
-      </div>
-    </form>
-  </dialog>
+        <div class="modal__footer">
+          <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
+          <button type="submit" class="btn btn--primary">Anlegen</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- Modal: Upload -->
-  <dialog id="mediathek-upload-dialog" class="modal-dialog" th:if="${canWrite and currentFolder != null}">
-    <form method="post" enctype="multipart/form-data"
-          th:action="@{/mediathek/folders/{id}/upload(id=${currentFolder.id})}" class="modal-form">
-      <input type="hidden" name="unit" th:value="${unitId}"/>
-      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-      <h3>Datei hochladen</h3>
-      <p class="hint">Erlaubt: PDF, Bilder (JPEG/PNG/GIF/WebP), DOCX, PPTX, ODT · max. 40 MB</p>
-      <div class="form-group">
-        <label for="mediathek-file">Datei</label>
-        <input id="mediathek-file" name="file" type="file" required
-               accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.docx,.pptx,.odt,application/pdf,image/*"/>
+  <div id="modal-mediathek-upload" class="modal-overlay" th:if="${canWrite and currentFolder != null}">
+    <div class="modal modal--md" role="dialog" aria-labelledby="mediathek-upload-title">
+      <div class="modal__header">
+        <h3 id="mediathek-upload-title">Datei hochladen</h3>
+        <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
       </div>
-      <div class="modal-actions">
-        <button type="button" class="btn btn--outline" data-close-dialog="mediathek-upload-dialog">Abbrechen</button>
-        <button type="submit" class="btn btn--primary">Hochladen</button>
-      </div>
-    </form>
-  </dialog>
+      <form method="post" enctype="multipart/form-data"
+            th:action="@{/mediathek/folders/{id}/upload(id=${currentFolder.id})}">
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <div class="modal__body">
+          <p class="hint">Erlaubt: PDF, Bilder (JPEG/PNG/GIF/WebP), DOCX, PPTX, ODT · max. 40 MB</p>
+          <div class="form-group">
+            <label for="mediathek-file">Datei</label>
+            <input id="mediathek-file" name="file" type="file" required
+                   accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.docx,.pptx,.odt,application/pdf,image/*"/>
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
+          <button type="submit" class="btn btn--primary">Hochladen</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- Modal: Umbenennen -->
-  <dialog id="mediathek-rename-dialog" class="modal-dialog" th:if="${canWrite and currentFolder != null}">
-    <form method="post" th:action="@{/mediathek/folders/{id}/rename(id=${currentFolder.id})}" class="modal-form">
-      <input type="hidden" name="unit" th:value="${unitId}"/>
-      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-      <h3>Ordner umbenennen</h3>
-      <div class="form-group">
-        <label for="mediathek-rename-name">Name</label>
-        <input id="mediathek-rename-name" name="name" type="text" required maxlength="255"
-               th:value="${currentFolder.name}"/>
+  <div id="modal-mediathek-rename" class="modal-overlay" th:if="${canWrite and currentFolder != null}">
+    <div class="modal modal--md" role="dialog" aria-labelledby="mediathek-rename-title">
+      <div class="modal__header">
+        <h3 id="mediathek-rename-title">Ordner umbenennen</h3>
+        <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
       </div>
-      <div class="modal-actions">
-        <button type="button" class="btn btn--outline" data-close-dialog="mediathek-rename-dialog">Abbrechen</button>
-        <button type="submit" class="btn btn--primary">Speichern</button>
-      </div>
-    </form>
-  </dialog>
+      <form method="post" th:action="@{/mediathek/folders/{id}/rename(id=${currentFolder.id})}">
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <div class="modal__body">
+          <div class="form-group">
+            <label for="mediathek-rename-name">Name</label>
+            <input id="mediathek-rename-name" name="name" type="text" required maxlength="255"
+                   th:value="${currentFolder.name}"/>
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
+          <button type="submit" class="btn btn--primary">Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- Modal: Einheiten -->
-  <dialog id="mediathek-units-dialog" class="modal-dialog"
-          th:if="${isAdminLevel and currentFolder != null and currentFolder.parent == null}">
-    <form method="post" th:action="@{/mediathek/folders/{id}/units(id=${currentFolder.id})}" class="modal-form">
-      <input type="hidden" name="unit" th:value="${unitId}"/>
-      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-      <h3>Einheiten zuordnen</h3>
-      <p class="hint">Owner-Einheit bleibt immer zugeordnet. Weitere Einheiten sehen den Ordner in ihrer Mediathek.</p>
-      <div class="form-group mediathek-unit-checks">
-        <input type="hidden" name="sharedUnitIds" th:value="${unitId}"/>
-        <label th:each="u : ${assignableUnits}">
-          <input type="checkbox" name="sharedUnitIds" th:value="${u.id}"
-                 th:checked="${currentFolder.isSharedWith(u.id)}"
-                 th:disabled="${u.id == unitId}"/>
-          <span th:text="${u.name}">Einheit</span>
-          <span th:if="${u.id == unitId}" class="hint"> (Owner)</span>
-        </label>
+  <div id="modal-mediathek-units" class="modal-overlay"
+       th:if="${isAdminLevel and currentFolder != null and currentFolder.parent == null}">
+    <div class="modal modal--md" role="dialog" aria-labelledby="mediathek-units-title">
+      <div class="modal__header">
+        <h3 id="mediathek-units-title">Einheiten zuordnen</h3>
+        <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
       </div>
-      <div class="modal-actions">
-        <button type="button" class="btn btn--outline" data-close-dialog="mediathek-units-dialog">Abbrechen</button>
-        <button type="submit" class="btn btn--primary">Speichern</button>
-      </div>
-    </form>
-  </dialog>
+      <form method="post" th:action="@{/mediathek/folders/{id}/units(id=${currentFolder.id})}">
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <div class="modal__body">
+          <p class="hint">Owner-Einheit bleibt immer zugeordnet. Weitere Einheiten sehen den Ordner in ihrer Mediathek.</p>
+          <div class="form-group mediathek-unit-checks">
+            <input type="hidden" name="sharedUnitIds" th:value="${unitId}"/>
+            <label class="checkbox-row" th:each="u : ${assignableUnits}">
+              <input type="checkbox" name="sharedUnitIds" th:value="${u.id}"
+                     th:checked="${currentFolder.isSharedWith(u.id)}"
+                     th:disabled="${u.id == unitId}"/>
+              <span th:text="${u.name}">Einheit</span>
+              <span th:if="${u.id == unitId}" class="hint"> (Owner)</span>
+            </label>
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button type="button" class="btn btn--outline" data-close-modal>Abbrechen</button>
+          <button type="submit" class="btn btn--primary">Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <style>
     .mediathek-breadcrumb { margin: 0.5rem 0 0; font-size: 0.95rem; }
@@ -235,32 +263,7 @@
     .mediathek-file-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
     .mediathek-inline-form { display: inline; margin: 0; }
     .mediathek-unit-checks { display: flex; flex-direction: column; gap: 0.35rem; max-height: 240px; overflow: auto; }
-    .modal-dialog { border: 1px solid var(--border); border-radius: 8px; padding: 0; max-width: 480px; width: calc(100% - 2rem); }
-    .modal-dialog::backdrop { background: rgba(0,0,0,.4); }
-    .modal-form { padding: 1.25rem; }
-    .modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; }
   </style>
-  <script>
-    (function () {
-      function openDialog(id) {
-        var el = document.getElementById(id);
-        if (el && typeof el.showModal === 'function') el.showModal();
-      }
-      function wire(btnId, dialogId) {
-        var btn = document.getElementById(btnId);
-        if (btn) btn.addEventListener('click', function () { openDialog(dialogId); });
-      }
-      wire('mediathek-new-folder-btn', 'mediathek-folder-dialog');
-      wire('mediathek-upload-btn', 'mediathek-upload-dialog');
-      wire('mediathek-rename-btn', 'mediathek-rename-dialog');
-      wire('mediathek-units-btn', 'mediathek-units-dialog');
-      document.querySelectorAll('[data-close-dialog]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          var d = document.getElementById(btn.getAttribute('data-close-dialog'));
-          if (d) d.close();
-        });
-      });
-    })();
-  </script>
+  <script th:src="@{/js/mediathek.js(v='20260917a')}"></script>
 </main>
 </html>

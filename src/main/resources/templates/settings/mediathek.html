@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('Mediathek – Einstellungen', ~{::main})}">
+<main class="settings-page">
+  <div class="page-header">
+    <div>
+      <h2>Mediathek – Einstellungen</h2>
+      <p><strong th:text="${currentUnitName}">—</strong></p>
+    </div>
+    <a class="btn btn--primary" th:href="@{/mediathek(unit=${unitId})}">Zur Mediathek</a>
+  </div>
+
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
+
+  <div class="card">
+    <div class="card__header">Ablage</div>
+    <div class="card__body">
+      <p>
+        In der Mediathek legen Sie Ordner und Dateien ab (Ausbildung, Präsentationen, Protokolle).
+        Ordner können mehreren Einheiten zugeordnet und mit Personen- bzw. Gruppenrechten versehen werden.
+      </p>
+      <dl class="detail-list">
+        <dt>Maximale Dateigröße</dt>
+        <dd th:text="${maxFileSizeMb + ' MB'}">40 MB</dd>
+        <dt>Erlaubte Dateitypen</dt>
+        <dd>PDF, Bilder (JPEG, PNG, GIF, WebP), Word (DOCX), PowerPoint (PPTX), ODT</dd>
+        <dt>Rechte</dt>
+        <dd>
+          Modulrechte <code>mediathek.read</code> / <code>mediathek.write</code> in den Rollen,
+          plus Ordner-ACL für Personen und Gruppen. Admins sehen alle Ordner der Einheit.
+        </dd>
+      </dl>
+      <p class="hint" style="margin-top: 1rem;">
+        Rollenrechte verwalten Sie unter
+        <a th:href="@{/admin(scope='einheit', tab='rollen', unit=${unitId})}">Adminpanel → Rollen</a>.
+      </p>
+    </div>
+  </div>
+</main>
+</html>
