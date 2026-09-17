@@ -20,6 +20,7 @@ import de.feuerwehr.manager.drivinglicense.DrivingLicenseCheckResult;
 import de.feuerwehr.manager.drivinglicense.DrivingLicenseClass;
 import de.feuerwehr.manager.drivinglicense.DrivingLicensePresence;
 import de.feuerwehr.manager.drivinglicense.DrivingLicenseService;
+import de.feuerwehr.manager.uvv.UvvService;
 import de.feuerwehr.manager.mail.AccountMailService;
 import de.feuerwehr.manager.pdf.HtmlPdfService;
 import de.feuerwehr.manager.pdf.PdfDownloadResponse;
@@ -80,6 +81,7 @@ public class PersonalController {
     private final PersonalGroupService personalGroupService;
     private final PersonalInstructorGroupService personalInstructorGroupService;
     private final DrivingLicenseService drivingLicenseService;
+    private final UvvService uvvService;
     private final AnwesenheitslisteService anwesenheitslisteService;
     private final AccessControlService accessControlService;
     private final UserPermissionService userPermissionService;
@@ -164,6 +166,15 @@ public class PersonalController {
             model.addAttribute("licenseFilter", licenseOverview.activeFilter());
             model.addAttribute("licenseIntervalMonths", licenseOverview.intervalMonths());
             model.addAttribute("licenseWarnDays", licenseOverview.warnDays());
+        }
+        if ("uvv".equals(personalTab)) {
+            UvvService.OverviewPage uvvOverview = uvvService.listOverview(unit.getId(), licenseFilter);
+            model.addAttribute("uvvStats", uvvOverview.stats());
+            model.addAttribute("uvvRows", uvvOverview.rows());
+            model.addAttribute("uvvFilter", uvvOverview.activeFilter());
+            model.addAttribute("uvvIntervalMonths", uvvOverview.intervalMonths());
+            model.addAttribute("uvvWarnDays", uvvOverview.warnDays());
+            model.addAttribute("uvvOpenCampaigns", uvvOverview.openCampaigns());
         }
         return "personal/index";
     }
@@ -596,6 +607,19 @@ public class PersonalController {
                 drivingLicenseService.recordCheck(id, checkedOn, result, classes, notes, actor));
     }
 
+    @PostMapping("/{id}/uvv/complete")
+    public String recordUvvManual(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @RequestParam long unit,
+            @RequestParam long campaignId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate completedOn,
+            @RequestParam(required = false) String notes,
+            RedirectAttributes redirectAttributes) {
+        return memberAction(actor, id, unit, "uvv", redirectAttributes, () ->
+                uvvService.recordManualPresence(id, campaignId, completedOn, notes, actor));
+    }
+
     @PostMapping("/{id}/fw-stammdaten")
     public String updateFwStammdaten(
             @AuthenticationPrincipal AppUserDetails actor,
@@ -1009,6 +1033,17 @@ public class PersonalController {
             model.addAttribute("licenseCheckResults", DrivingLicenseCheckResult.values());
             model.addAttribute("today", LocalDate.now());
         }
+        if ("uvv".equals(activeTab)) {
+            UvvService.PersonUvvView uvvView = uvvService.loadPersonView(personId);
+            model.addAttribute("uvvView", uvvView);
+            model.addAttribute("uvvCompletions", uvvView.completions());
+            model.addAttribute("uvvLevel", uvvView.level());
+            model.addAttribute("uvvNextDue", uvvView.nextDueOn());
+            model.addAttribute("uvvIntervalMonths", uvvView.intervalMonths());
+            model.addAttribute("uvvWarnDays", uvvView.warnDays());
+            model.addAttribute("uvvCampaigns", uvvView.campaigns());
+            model.addAttribute("today", LocalDate.now());
+        }
         populatePersonDetailData(model, person.getUnit().getId(), detail);
     }
 
@@ -1098,6 +1133,9 @@ public class PersonalController {
         if ("fuehrerscheine".equals(tab)) {
             return "fuehrerscheine";
         }
+        if ("uvv".equals(tab)) {
+            return "uvv";
+        }
         return "mitglieder";
     }
 
@@ -1106,7 +1144,7 @@ public class PersonalController {
             return "stammdaten";
         }
         return switch (tab) {
-            case "lehrgaenge", "anwesenheit", "schnittstellen", "fuehrerschein" -> tab;
+            case "lehrgaenge", "anwesenheit", "schnittstellen", "fuehrerschein", "uvv" -> tab;
             case "divera" -> "schnittstellen";
             default -> "stammdaten";
         };

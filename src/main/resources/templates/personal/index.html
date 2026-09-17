@@ -17,6 +17,8 @@
        th:href="@{/personal(unit=${unitId}, tab='mitglieder')}">Mitglieder</a>
     <a class="tab-btn" th:classappend="${personalTab == 'fuehrerscheine'} ? ' tab-btn--active' : ''"
        th:href="@{/personal(unit=${unitId}, tab='fuehrerscheine')}">Führerscheine</a>
+    <a class="tab-btn" th:classappend="${personalTab == 'uvv'} ? ' tab-btn--active' : ''"
+       th:href="@{/personal(unit=${unitId}, tab='uvv')}">UVV</a>
     <a class="tab-btn" th:classappend="${personalTab == 'gruppen'} ? ' tab-btn--active' : ''"
        th:href="@{/personal(unit=${unitId}, tab='gruppen')}">Gruppen</a>
     <a class="tab-btn" th:classappend="${personalTab == 'ausbildergruppen'} ? ' tab-btn--active' : ''"
@@ -175,6 +177,84 @@
         </table>
       </div>
       <div class="card__body" th:unless="${licenseRows != null and !#lists.isEmpty(licenseRows)}">
+        <p class="hint" style="margin:0;">Keine Einträge für diesen Filter.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: UVV -->
+  <div th:if="${personalTab == 'uvv'}" class="personal-module-panel">
+    <div class="page-header page-header--toolbar" style="margin-bottom:1rem;padding:0;">
+      <div>
+        <p class="hint" style="margin:0;">
+          Jährliche UVV-/Kraftfahrer-Belehrung (Intervall <span th:text="${uvvIntervalMonths}">12</span> Monate).
+          <a th:if="${isAdmin}" th:href="@{/settings/uvv(unit=${unitId})}">Kampagnen &amp; Einstellungen</a>
+        </p>
+      </div>
+    </div>
+    <div class="kpi-grid" th:if="${uvvStats != null}">
+      <a class="kpi-card" th:href="@{/personal(unit=${unitId}, tab='uvv', filter='all')}">
+        <span class="kpi-card__value" th:text="${uvvStats.total()}">0</span>
+        <span class="kpi-card__label">Personen</span>
+      </a>
+      <a class="kpi-card" th:href="@{/personal(unit=${unitId}, tab='uvv', filter='overdue')}">
+        <span class="kpi-card__value" th:text="${uvvStats.overdue()}">0</span>
+        <span class="kpi-card__label">Überfällig</span>
+      </a>
+      <a class="kpi-card" th:href="@{/personal(unit=${unitId}, tab='uvv', filter='warn')}">
+        <span class="kpi-card__value" th:text="${uvvStats.warn()}">0</span>
+        <span class="kpi-card__label">Bald fällig</span>
+      </a>
+      <a class="kpi-card" th:href="@{/personal(unit=${unitId}, tab='uvv', filter='missing')}">
+        <span class="kpi-card__value" th:text="${uvvStats.missing()}">0</span>
+        <span class="kpi-card__label">Fehlt</span>
+      </a>
+      <a class="kpi-card" th:href="@{/personal(unit=${unitId}, tab='uvv', filter='ok')}">
+        <span class="kpi-card__value" th:text="${uvvStats.ok()}">0</span>
+        <span class="kpi-card__label">OK</span>
+      </a>
+    </div>
+    <div class="card mt-md">
+      <div class="card__header card__header--toolbar">
+        <span>Übersicht</span>
+        <div class="toolbar-actions">
+          <a class="btn btn--outline btn--sm" th:classappend="${uvvFilter == 'all'} ? ' btn--primary' : ''"
+             th:href="@{/personal(unit=${unitId}, tab='uvv', filter='all')}">Alle</a>
+          <a class="btn btn--outline btn--sm" th:classappend="${uvvFilter == 'overdue'} ? ' btn--primary' : ''"
+             th:href="@{/personal(unit=${unitId}, tab='uvv', filter='overdue')}">Überfällig</a>
+          <a class="btn btn--outline btn--sm" th:classappend="${uvvFilter == 'warn'} ? ' btn--primary' : ''"
+             th:href="@{/personal(unit=${unitId}, tab='uvv', filter='warn')}">Bald fällig</a>
+          <a class="btn btn--outline btn--sm" th:classappend="${uvvFilter == 'missing'} ? ' btn--primary' : ''"
+             th:href="@{/personal(unit=${unitId}, tab='uvv', filter='missing')}">Fehlt</a>
+        </div>
+      </div>
+      <div class="card__body card__body--flush" th:if="${uvvRows != null and !#lists.isEmpty(uvvRows)}">
+        <table class="data-table">
+          <thead>
+          <tr>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Zuletzt</th>
+            <th>Nächste Fälligkeit</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="row : ${uvvRows}">
+            <td>
+              <a th:href="@{/personal/{id}(id=${row.person().id}, unit=${unitId}, tab='uvv')}"
+                 th:text="${row.person().displayName()}">Name</a>
+            </td>
+            <td>
+              <span class="fitness-badge" th:classappend="${row.level().cssClass()}"
+                    th:text="${row.level().label()}">OK</span>
+            </td>
+            <td th:text="${row.lastCompletedOn() != null ? #temporals.format(row.lastCompletedOn(), 'dd.MM.yyyy') : '—'}">—</td>
+            <td th:text="${row.nextDueOn() != null ? #temporals.format(row.nextDueOn(), 'dd.MM.yyyy') : '—'}">—</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card__body" th:unless="${uvvRows != null and !#lists.isEmpty(uvvRows)}">
         <p class="hint" style="margin:0;">Keine Einträge für diesen Filter.</p>
       </div>
     </div>

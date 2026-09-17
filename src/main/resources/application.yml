@@ -83,3 +83,5 @@ feuerwehr:
     service-account-path: ${FEUERWEHR_FCM_SERVICE_ACCOUNT_PATH:}
   driving-license:
     reminder-cron: ${FEUERWEHR_DRIVING_LICENSE_REMINDER_CRON:0 15 7 * * *}
+  uvv:
+    reminder-cron: ${FEUERWEHR_UVV_REMINDER_CRON:0 30 7 * * *}

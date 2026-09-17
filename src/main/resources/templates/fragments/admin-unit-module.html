@@ -29,6 +29,9 @@
             <a th:if="${m.key == 'personal' and m.implemented and modulesEnabled.get(m)}"
                class="btn btn--outline btn--sm"
                th:href="@{/settings/fuehrerschein(unit=${unitId})}">Führerschein</a>
+            <a th:if="${m.key == 'personal' and m.implemented and modulesEnabled.get(m)}"
+               class="btn btn--outline btn--sm"
+               th:href="@{/settings/uvv(unit=${unitId})}">UVV</a>
             <a th:if="${m.key == 'berichte' and m.implemented and modulesEnabled.get(m)}"
                class="btn btn--outline btn--sm"
                th:href="@{/settings/berichte(unit=${unitId})}">Einstellungen</a>
