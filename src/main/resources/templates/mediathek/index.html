@@ -180,7 +180,11 @@
         <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
       </div>
       <form method="post" enctype="multipart/form-data"
-            th:action="@{/mediathek/folders/{id}/upload(id=${currentFolder.id})}">
+            th:action="@{/mediathek/folders/{id}/upload(id=${currentFolder.id})}"
+            data-upload-busy="true"
+            data-busy-page="true"
+            data-busy-message="Datei wird hochgeladen …"
+            data-busy-button-label="Hochladen …">
         <input type="hidden" name="unit" th:value="${unitId}"/>
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <div class="modal__body">
@@ -264,6 +268,6 @@
     .mediathek-inline-form { display: inline; margin: 0; }
     .mediathek-unit-checks { display: flex; flex-direction: column; gap: 0.35rem; max-height: 240px; overflow: auto; }
   </style>
-  <script th:src="@{/js/mediathek.js(v='20260917c')}"></script>
+  <script th:src="@{/js/mediathek.js(v='20260917d')}"></script>
 </main>
 </html>

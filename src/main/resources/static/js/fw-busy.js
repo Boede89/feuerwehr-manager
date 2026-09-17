@@ -125,6 +125,10 @@
     if (!form) {
       return EMAIL_MESSAGE;
     }
+    var customBusy = form.getAttribute('data-busy-message');
+    if (customBusy) {
+      return customBusy;
+    }
     var custom = form.getAttribute('data-email-busy-message');
     if (custom) {
       return custom;
@@ -141,6 +145,9 @@
       return false;
     }
     if (form.dataset.confirmSubmitting === 'true') {
+      return true;
+    }
+    if (form.getAttribute('data-upload-busy') === 'true') {
       return true;
     }
     if (form.getAttribute('data-email-busy') === 'true') {
@@ -174,9 +181,12 @@
       return null;
     }
     form.dataset.fwBusyActive = 'true';
+    var pageLevel = form.getAttribute('data-busy-page') === 'true';
     return beginAction(submitter || form, {
       message: message || busyMessageForForm(form),
-      container: resolveContainer(submitter || form)
+      container: pageLevel ? document.body : resolveContainer(submitter || form),
+      pageLevel: pageLevel,
+      buttonLabel: form.getAttribute('data-busy-button-label') || undefined
     });
   }
 

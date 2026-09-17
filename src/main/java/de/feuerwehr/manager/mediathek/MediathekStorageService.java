@@ -51,8 +51,18 @@ public class MediathekStorageService {
             Files.createDirectories(dir);
             String storedName = "file-" + UUID.randomUUID().toString().replace("-", "") + extensionOf(originalName);
             Path target = dir.resolve(storedName);
-            Files.write(target, file.getBytes());
-            return new StoredUpload(originalName, storedName, mimeType, file.getSize());
+            // Streaming auf Disk — vermeidet doppelte Speicherlast und OOM bei großen Dateien
+            file.transferTo(target);
+            long size = Files.size(target);
+            if (size <= 0) {
+                Files.deleteIfExists(target);
+                throw new IllegalArgumentException("Datei konnte nicht gespeichert werden.");
+            }
+            if (size > MAX_FILE_SIZE) {
+                Files.deleteIfExists(target);
+                throw new IllegalArgumentException("Datei zu groß (max. 40 MB).");
+            }
+            return new StoredUpload(originalName, storedName, mimeType, size);
         } catch (IOException e) {
             throw new IllegalArgumentException("Datei konnte nicht gespeichert werden: " + e.getMessage());
         }

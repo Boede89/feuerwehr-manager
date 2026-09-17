@@ -21,6 +21,12 @@ https://fw-manager.home.arpa {
 		header_up X-Forwarded-Proto https
 		header_up X-Forwarded-For {remote_ip}
 		header_up X-Forwarded-Port 443
+		# Große Mediathek-/Anhänge-Uploads (PDF, PPTX, …)
+		transport http {
+			read_timeout 15m
+			write_timeout 15m
+			response_header_timeout 15m
+		}
 	}
 }
 
@@ -37,5 +43,10 @@ https://fw-manager.home.arpa {
 		header_up X-Forwarded-Proto https
 		header_up X-Forwarded-For {remote_ip}
 		header_up X-Forwarded-Port 443
+		transport http {
+			read_timeout 15m
+			write_timeout 15m
+			response_header_timeout 15m
+		}
 	}
 }
