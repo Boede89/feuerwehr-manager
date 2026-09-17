@@ -31,6 +31,8 @@ public interface PersonGroupRepository extends JpaRepository<PersonGroup, Long> 
     boolean existsByUnitIdAndNameIgnoreCaseAndTestDataAndIdNot(
             long unitId, String name, boolean testData, long id);
 
+    void deleteAllByTestDataTrue();
+
     @Query("""
             SELECT g.id FROM PersonGroup g
             JOIN g.members m
