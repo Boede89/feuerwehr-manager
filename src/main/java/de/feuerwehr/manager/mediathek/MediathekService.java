@@ -209,7 +209,7 @@ public class MediathekService {
         fileRepository.delete(file);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AclFormData loadAclForm(AppUserDetails actor, long unitId, long folderId) {
         MediathekFolder folder = accessService.requireWritable(actor, unitId, folderId);
         cleanupAnonymizedAclEntries();
