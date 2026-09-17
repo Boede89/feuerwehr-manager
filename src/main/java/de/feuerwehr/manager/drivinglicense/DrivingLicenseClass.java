@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 
 /** Relevante Fahrerlaubnisklassen für den Feuerwehr-Einsatz. */
 public enum DrivingLicenseClass {
+    A("A"),
     B("B"),
     BE("BE"),
     C1("C1"),

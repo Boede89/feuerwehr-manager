@@ -47,9 +47,13 @@ class DrivingLicenseServiceTest {
 
     @Test
     void parseAndSerializeClasses() {
-        assertThat(DrivingLicenseClass.toCsvFromCodes(new String[] {"b", "CE", "X"}))
-                .isEqualTo("B,CE");
-        assertThat(DrivingLicenseClass.parseCsv("B, BE ,C1"))
-                .containsExactly(DrivingLicenseClass.B, DrivingLicenseClass.BE, DrivingLicenseClass.C1);
+        assertThat(DrivingLicenseClass.toCsvFromCodes(new String[] {"a", "b", "CE", "X"}))
+                .isEqualTo("A,B,CE");
+        assertThat(DrivingLicenseClass.parseCsv("A, B, BE ,C1"))
+                .containsExactly(
+                        DrivingLicenseClass.A,
+                        DrivingLicenseClass.B,
+                        DrivingLicenseClass.BE,
+                        DrivingLicenseClass.C1);
     }
 }
