@@ -61,8 +61,10 @@ public class MediathekController {
             model.addAttribute("breadcrumb", view.breadcrumb());
             model.addAttribute("children", view.children());
             model.addAttribute("files", view.files());
-            model.addAttribute("canWrite", view.canWrite() && canWrite(actor, unit.getId()));
-            model.addAttribute("canManageAcl", view.canManageAcl() && canWrite(actor, unit.getId()));
+            // canWrite = Ordner-ACL Schreiben (nicht zwingend Modulrecht mediathek.write)
+            model.addAttribute("canWrite", view.canWrite());
+            // ACL/Einheiten: Admin oder Ordner-Schreiben; Modul mediathek.write für Rollenverwaltung separat
+            model.addAttribute("canManageAcl", view.canManageAcl());
             model.addAttribute("isAdminLevel", actor.getRole().isAdminLevel());
             model.addAttribute("assignableUnits", mediathekService.listAssignableUnits(actor));
             model.addAttribute("accessLevels", MediathekAccessLevel.values());
@@ -83,7 +85,7 @@ public class MediathekController {
         try {
             Unit unit = resolveUnit(unitId, actor, model);
             requireModuleEnabled(unit.getId());
-            requireWrite(actor, unit.getId());
+            requireRead(actor, unit.getId());
             AclFormData form = mediathekService.loadAclForm(actor, unit.getId(), folderId);
             model.addAttribute("pageTitle", "Mediathek – Rechte");
             model.addAttribute("aclFolder", form.folder());
@@ -111,7 +113,7 @@ public class MediathekController {
             RedirectAttributes redirectAttributes) {
         try {
             requireModuleEnabled(unitId);
-            requireWrite(actor, unitId);
+            requireRead(actor, unitId);
             accessControlService.requireUnitAccess(actor, unitId);
             MediathekFolder created =
                     mediathekService.createFolder(actor, unitId, parentId, name, sharedUnitIds, inheritAcl);
@@ -132,7 +134,7 @@ public class MediathekController {
             RedirectAttributes redirectAttributes) {
         try {
             requireModuleEnabled(unitId);
-            requireWrite(actor, unitId);
+            requireRead(actor, unitId);
             accessControlService.requireUnitAccess(actor, unitId);
             mediathekService.renameFolder(actor, unitId, folderId, name);
             redirectAttributes.addFlashAttribute("success", "Ordner umbenannt.");
@@ -151,7 +153,7 @@ public class MediathekController {
         Long parentId = null;
         try {
             requireModuleEnabled(unitId);
-            requireWrite(actor, unitId);
+            requireRead(actor, unitId);
             accessControlService.requireUnitAccess(actor, unitId);
             FolderView before = mediathekService.openFolder(actor, unitId, folderId);
             if (before.folder() != null && before.folder().getParent() != null) {
@@ -198,7 +200,7 @@ public class MediathekController {
             RedirectAttributes redirectAttributes) {
         try {
             requireModuleEnabled(unitId);
-            requireWrite(actor, unitId);
+            requireRead(actor, unitId);
             accessControlService.requireUnitAccess(actor, unitId);
             mediathekService.replaceAcl(
                     actor,
@@ -223,7 +225,7 @@ public class MediathekController {
             RedirectAttributes redirectAttributes) {
         try {
             requireModuleEnabled(unitId);
-            requireWrite(actor, unitId);
+            requireRead(actor, unitId);
             accessControlService.requireUnitAccess(actor, unitId);
             MediathekFile uploaded = mediathekService.upload(actor, unitId, folderId, file);
             redirectAttributes.addFlashAttribute("success", "Datei hochgeladen: " + uploaded.getOriginalName());
@@ -242,7 +244,7 @@ public class MediathekController {
             RedirectAttributes redirectAttributes) {
         try {
             requireModuleEnabled(unitId);
-            requireWrite(actor, unitId);
+            requireRead(actor, unitId);
             accessControlService.requireUnitAccess(actor, unitId);
             mediathekService.deleteFile(actor, unitId, fileId);
             redirectAttributes.addFlashAttribute("success", "Datei gelöscht.");
@@ -371,18 +373,12 @@ public class MediathekController {
         userPermissionService.requirePermission(actor, unitId, "mediathek.read");
     }
 
+    /** Modul-Schreiben: für Einheiten-Zuordnung (Admin-Funktionen). */
     private void requireWrite(AppUserDetails actor, long unitId) {
         if (actor != null && actor.getRole().isAdminLevel()) {
             return;
         }
         userPermissionService.requirePermission(actor, unitId, "mediathek.write");
-    }
-
-    private boolean canWrite(AppUserDetails actor, long unitId) {
-        if (actor != null && actor.getRole().isAdminLevel()) {
-            return true;
-        }
-        return userPermissionService.hasPermission(actor, unitId, "mediathek.write");
     }
 
     private static String redirectHome(Long unitId) {
