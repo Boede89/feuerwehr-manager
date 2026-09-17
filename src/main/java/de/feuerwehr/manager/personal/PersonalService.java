@@ -1,6 +1,7 @@
 package de.feuerwehr.manager.personal;
 
 import de.feuerwehr.manager.mail.AccountMailService;
+import de.feuerwehr.manager.mediathek.MediathekFolderAclRepository;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
@@ -47,6 +48,7 @@ public class PersonalService {
     private final AccountMailService accountMailService;
     private final UnitRoleService unitRoleService;
     private final TestModeService testModeService;
+    private final MediathekFolderAclRepository mediathekFolderAclRepository;
 
     private static final SecureRandom LOGIN_PASSWORD_RANDOM = new SecureRandom();
 
@@ -799,6 +801,7 @@ public class PersonalService {
         person.setAnonymizedAt(Instant.now());
         completionRepository.deleteByPersonId(person.getId());
         diveraRicRepository.deleteByPersonId(person.getId());
+        mediathekFolderAclRepository.deleteByPersonId(person.getId());
         personRepository.save(person);
         if (linkedUser != null && linkedUser.getAnonymizedAt() == null) {
             userManagementService.deleteUserByAdmin(linkedUser.getId(), actor, request);

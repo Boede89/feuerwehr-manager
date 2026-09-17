@@ -90,6 +90,8 @@ public class MediathekController {
             model.addAttribute("pageTitle", "Mediathek – Rechte");
             model.addAttribute("aclFolder", form.folder());
             model.addAttribute("aclEntries", form.entries());
+            model.addAttribute("inheritedAclEntries", form.inheritedEntries());
+            model.addAttribute("inheritedFromName", form.inheritedFromName());
             model.addAttribute("aclPersons", form.persons());
             model.addAttribute("aclGroups", form.groups());
             model.addAttribute("aclQualifications", form.qualifications());

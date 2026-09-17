@@ -13,4 +13,16 @@ public interface MediathekFolderAclRepository extends JpaRepository<MediathekFol
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("DELETE FROM MediathekFolderAcl a WHERE a.folder.id = :folderId")
     void deleteByFolderId(@Param("folderId") long folderId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("DELETE FROM MediathekFolderAcl a WHERE a.person.id = :personId")
+    void deleteByPersonId(@Param("personId") long personId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+            """
+            DELETE FROM MediathekFolderAcl a
+            WHERE a.person IS NOT NULL AND a.person.anonymizedAt IS NOT NULL
+            """)
+    int deleteWherePersonAnonymized();
 }

@@ -23,11 +23,15 @@
   function syncAclInherit() {
     var inherit = document.getElementById('mediathek-inherit-acl');
     var entries = document.getElementById('mediathek-acl-entries');
+    var inherited = document.getElementById('mediathek-inherited-acl');
     var hint = document.getElementById('mediathek-acl-inherit-hint');
     var addBtn = document.getElementById('mediathek-acl-add');
     var inheriting = !!(inherit && inherit.checked);
     if (entries) {
-      entries.classList.toggle('is-disabled', inheriting);
+      entries.hidden = inheriting;
+    }
+    if (inherited) {
+      inherited.hidden = !inheriting;
     }
     if (hint) {
       hint.hidden = !inheriting;

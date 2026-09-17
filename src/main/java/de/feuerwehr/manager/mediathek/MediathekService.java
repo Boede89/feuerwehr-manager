@@ -30,6 +30,7 @@ public class MediathekService {
 
     private final MediathekFolderRepository folderRepository;
     private final MediathekFileRepository fileRepository;
+    private final MediathekFolderAclRepository aclRepository;
     private final MediathekAccessService accessService;
     private final MediathekStorageService storageService;
     private final UnitRepository unitRepository;
@@ -211,6 +212,7 @@ public class MediathekService {
     @Transactional(readOnly = true)
     public AclFormData loadAclForm(AppUserDetails actor, long unitId, long folderId) {
         MediathekFolder folder = accessService.requireWritable(actor, unitId, folderId);
+        cleanupAnonymizedAclEntries();
         MediathekFolder withAcl = folderRepository.findByIdWithAcl(folderId).orElse(folder);
         MediathekFolder withUnits = folderRepository.findByIdWithUnits(folderId).orElse(folder);
         List<Unit> units = withUnits.getSharedUnits() == null || withUnits.getSharedUnits().isEmpty()
@@ -234,14 +236,66 @@ public class MediathekService {
                     groups.add(g);
                 }
             }
-            for (QualificationType q :
-                    personalService.listQualificationTypes(u.getId(), true)) {
+            for (QualificationType q : personalService.listQualificationTypes(u.getId(), true)) {
                 if (seenQualifications.add(q.getId())) {
                     qualifications.add(q);
                 }
             }
         }
-        return new AclFormData(withAcl, withAcl.getAclEntries(), persons, groups, qualifications, units);
+        List<MediathekFolderAcl> ownEntries = validAclEntries(withAcl.getAclEntries());
+        List<MediathekFolderAcl> inheritedEntries = List.of();
+        String inheritedFromName = null;
+        if (withAcl.isInheritAcl() && withAcl.getParent() != null) {
+            MediathekFolder source = resolveEffectiveAclFolder(withAcl);
+            if (source != null && !source.getId().equals(withAcl.getId())) {
+                MediathekFolder sourceAcl = folderRepository.findByIdWithAcl(source.getId()).orElse(source);
+                inheritedEntries = validAclEntries(sourceAcl.getAclEntries());
+                inheritedFromName = sourceAcl.getName();
+            }
+        }
+        return new AclFormData(
+                withAcl,
+                ownEntries,
+                inheritedEntries,
+                inheritedFromName,
+                persons,
+                groups,
+                qualifications,
+                units);
+    }
+
+    private void cleanupAnonymizedAclEntries() {
+        aclRepository.deleteWherePersonAnonymized();
+    }
+
+    private static List<MediathekFolderAcl> validAclEntries(List<MediathekFolderAcl> entries) {
+        if (entries == null || entries.isEmpty()) {
+            return List.of();
+        }
+        return entries.stream().filter(MediathekService::isValidAclEntry).toList();
+    }
+
+    private static boolean isValidAclEntry(MediathekFolderAcl entry) {
+        if (entry == null) {
+            return false;
+        }
+        if (entry.getPerson() != null) {
+            return entry.getPerson().getAnonymizedAt() == null;
+        }
+        return entry.getGroup() != null || entry.getQualificationType() != null;
+    }
+
+    private MediathekFolder resolveEffectiveAclFolder(MediathekFolder folder) {
+        MediathekFolder current = folderRepository.findByIdWithUnits(folder.getId()).orElse(folder);
+        int guard = 0;
+        while (current.isInheritAcl() && current.getParent() != null && guard++ < 50) {
+            Long parentId = current.getParent().getId();
+            current = folderRepository.findByIdWithUnits(parentId).orElse(current);
+            if (current.getId().equals(parentId) && current.isInheritAcl() && current.getParent() == null) {
+                break;
+            }
+        }
+        return current;
     }
 
     @Transactional(readOnly = true)
@@ -329,6 +383,8 @@ public class MediathekService {
     public record AclFormData(
             MediathekFolder folder,
             List<MediathekFolderAcl> entries,
+            List<MediathekFolderAcl> inheritedEntries,
+            String inheritedFromName,
             List<Person> persons,
             List<PersonGroup> groups,
             List<QualificationType> qualifications,

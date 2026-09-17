@@ -28,19 +28,51 @@
           <p class="hint">Wenn aktiv, gelten die Rechte des nächsten Elternordners mit eigener ACL.</p>
         </div>
 
+        <div id="mediathek-inherited-acl"
+             th:if="${aclFolder.parent != null}"
+             th:attr="hidden=${!(aclFolder.inheritAcl)}"
+             style="margin: 1rem 0; border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem;">
+          <h4 style="margin: 0 0 0.5rem;">
+            Geerbte Rechte
+            <span th:if="${inheritedFromName != null}">
+              von „<span th:text="${inheritedFromName}">Elternordner</span>“
+            </span>
+          </h4>
+          <p class="hint" th:if="${inheritedAclEntries == null or #lists.isEmpty(inheritedAclEntries)}">
+            Der Elternordner hat keine Feinrechte — für alle mit Mediathek-Lesen sichtbar.
+          </p>
+          <div class="table-wrap" th:if="${inheritedAclEntries != null and !#lists.isEmpty(inheritedAclEntries)}">
+            <table class="data-table">
+              <thead>
+              <tr>
+                <th>Person</th>
+                <th>Gruppe</th>
+                <th>Dienstgrad (mind.)</th>
+                <th>Recht</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr th:each="entry : ${inheritedAclEntries}">
+                <td th:text="${entry.person != null ? entry.person.displayName() : '—'}">—</td>
+                <td th:text="${entry.group != null ? entry.group.name : '—'}">—</td>
+                <td th:text="${entry.qualificationType != null ? entry.qualificationType.name : '—'}">—</td>
+                <td th:text="${entry.accessLevel != null ? entry.accessLevel.label() : '—'}">—</td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <div id="mediathek-acl-entries"
-             th:classappend="${aclFolder.inheritAcl and aclFolder.parent != null} ? ' is-disabled' : ''">
-          <h3>Einträge</h3>
+             th:attr="hidden=${aclFolder.inheritAcl and aclFolder.parent != null}">
+          <h3>Eigene Einträge</h3>
           <p class="hint">
             Ohne Einträge ist der Ordner für alle mit Mediathek-Lesen sichtbar.
             Sobald Einträge existieren, gilt nur noch die Feinsteuerung.
-            <strong>Schreiben</strong> erlaubt Upload, Löschen und Unterordner anlegen (auch ohne Modulrecht „Mediathek Schreiben“).
+            <strong>Schreiben</strong> erlaubt Upload, Löschen und Unterordner anlegen.
             Pro Zeile genau eine Zuordnung (Person <strong>oder</strong> Gruppe <strong>oder</strong> Dienstgrad).
-            Beim Dienstgrad erhalten alle Personen mit diesem oder einem höheren Dienstgrad das Recht
-            (Reihenfolge wie unter Admin → Qualifikationen).
           </p>
-          <p id="mediathek-acl-inherit-hint" class="hint hint--warn"
-             th:hidden="${!(aclFolder.inheritAcl and aclFolder.parent != null)}">
+          <p id="mediathek-acl-inherit-hint" class="hint hint--warn" hidden>
             Vererbung ist aktiv. Deaktivieren Sie „Rechte vom Elternordner erben“, um eigene Einträge zu setzen.
           </p>
 
@@ -100,8 +132,7 @@
             </table>
           </div>
 
-          <button type="button" class="btn btn--outline btn--sm mt-md" id="mediathek-acl-add"
-                  th:disabled="${aclFolder.inheritAcl and aclFolder.parent != null}">+ Eintrag</button>
+          <button type="button" class="btn btn--outline btn--sm mt-md" id="mediathek-acl-add">+ Eintrag</button>
         </div>
 
         <div style="margin-top: 1.25rem; display: flex; justify-content: flex-end; gap: 0.5rem;">
@@ -151,9 +182,8 @@
   </template>
 
   <style>
-    #mediathek-acl-entries.is-disabled .data-table { opacity: 0.45; }
     .mediathek-acl-row select { min-width: 8rem; max-width: 100%; }
   </style>
-  <script th:src="@{/js/mediathek.js(v='20260917c')}"></script>
+  <script th:src="@{/js/mediathek.js(v='20260917e')}"></script>
 </main>
 </html>
