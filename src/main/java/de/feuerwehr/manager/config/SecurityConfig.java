@@ -1,10 +1,12 @@
 package de.feuerwehr.manager.config;
 
+import de.feuerwehr.manager.dsgvo.AuditService;
 import de.feuerwehr.manager.dsgvo.DsgvoProperties;
 import de.feuerwehr.manager.einsatzapp.FcmProperties;
 import de.feuerwehr.manager.security.ApiAuthenticationEntryPoint;
 import de.feuerwehr.manager.security.AppUserDetailsService;
 import de.feuerwehr.manager.security.AuditLogoutSuccessHandler;
+import de.feuerwehr.manager.security.IdleLogoutFilter;
 import de.feuerwehr.manager.security.RfidAuthenticationProvider;
 import de.feuerwehr.manager.security.SecurityProperties;
 import de.feuerwehr.manager.security.TestModeLogoutHandler;
@@ -67,7 +69,8 @@ public class SecurityConfig {
             AuditLogoutSuccessHandler auditLogoutSuccessHandler,
             TestModeLogoutHandler testModeLogoutHandler,
             TotpAuthenticationSuccessHandler totpAuthenticationSuccessHandler,
-            ApiAuthenticationEntryPoint apiAuthenticationEntryPoint)
+            ApiAuthenticationEntryPoint apiAuthenticationEntryPoint,
+            AuditService auditService)
             throws Exception {
         http.authenticationManager(authenticationManager);
         http
@@ -145,6 +148,9 @@ public class SecurityConfig {
                                         + "connect-src 'self'; "
                                         + "frame-ancestors 'none'"))
                         .frameOptions(frame -> frame.sameOrigin()))
+                .addFilterAfter(
+                        new IdleLogoutFilter(testModeLogoutHandler, auditService),
+                        BasicAuthenticationFilter.class)
                 .addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class);
 
         return http.build();

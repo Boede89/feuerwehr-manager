@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de" xmlns:th="http://www.thymeleaf.org" th:fragment="layout(title, main)">
 <head th:replace="~{fragments/head :: head(${title})}"></head>
-<body th:attr="data-test-mode=${testModeEnabled ? 'true' : 'false'}">
+<body th:attr="data-test-mode=${testModeEnabled ? 'true' : 'false'}, data-idle-logout-minutes=${idleLogoutMinutes != null ? idleLogoutMinutes : 0}">
 <div class="app-shell">
   <header class="app-header">
     <a class="app-header__brand" th:href="@{/(unit=${unitId})}">
@@ -78,13 +78,15 @@
     </div>
   </main>
 </div>
-<form id="idle-logout-form" method="post" th:action="@{/logout(idle=1)}" hidden th:if="${_csrf != null}">
+<form id="idle-logout-form" method="post" th:action="@{/logout(idle=1)}" hidden th:if="${_csrf != null}"
+      th:attr="data-idle-logout-minutes=${idleLogoutMinutes != null ? idleLogoutMinutes : 0}">
   <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
 </form>
-<script th:if="${idleLogoutMinutes != null and idleLogoutMinutes > 0}"
-        th:inline="javascript">
-  window.__FW_IDLE_LOGOUT_MINUTES__ = /*[[${idleLogoutMinutes}]]*/ 0;
-</script>
+<div id="idle-logout-warning" class="idle-logout-warning" hidden role="alertdialog"
+     aria-live="assertive" aria-labelledby="idle-logout-warning-text">
+  <p id="idle-logout-warning-text">Sie werden in Kürze automatisch abgemeldet.</p>
+  <button type="button" class="btn btn--primary" id="idle-logout-stay">Angemeldet bleiben</button>
+</div>
 <script th:src="@{/js/toast.js}" defer></script>
 <script th:src="@{/js/fw-busy.js(v='20260828c')}" defer></script>
 <script th:src="@{/js/year-filter-submit.js}" defer></script>
@@ -93,6 +95,6 @@
 <script th:src="@{/js/flash-toast.js}" defer></script>
 <script th:src="@{/js/theme.js}" defer></script>
 <script th:src="@{/js/unit-switcher.js}" defer></script>
-<script th:src="@{/js/idle-logout.js(v='20260915a')}" defer></script>
+<script th:src="@{/js/idle-logout.js(v='20260917a')}" defer></script>
 </body>
 </html>

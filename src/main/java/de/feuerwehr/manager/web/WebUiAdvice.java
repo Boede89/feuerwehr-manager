@@ -2,6 +2,7 @@ package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.mail.AccountMailService;
 import de.feuerwehr.manager.security.AppUserDetails;
+import de.feuerwehr.manager.security.IdleLogoutSupport;
 import de.feuerwehr.manager.security.SecurityProperties;
 import de.feuerwehr.manager.security.UserPermissionService;
 import de.feuerwehr.manager.settings.AppModule;
@@ -123,13 +124,17 @@ public class WebUiAdvice {
             model.addAttribute("unitSwitchDisabled", !user.getRole().isSuperAdmin());
             List<Unit> units = unitService.findActiveOrdered(user);
             model.addAttribute("units", units);
-            unitService.resolveActiveUnit(unitParam, user).ifPresent(u -> {
+            int idleMinutes = 0;
+            var activeUnit = unitService.resolveActiveUnit(unitParam, user);
+            if (activeUnit.isPresent()) {
+                Unit u = activeUnit.get();
                 model.addAttribute("unitId", u.getId());
                 model.addAttribute("currentUnitName", u.getName());
                 model.addAttribute("smtpConfigured", accountMailService.canSendMailForUnit(u.getId()));
-                int idleMinutes = u.getIdleLogoutMinutes() != null ? u.getIdleLogoutMinutes() : 0;
+                idleMinutes = u.getIdleLogoutMinutes() != null ? u.getIdleLogoutMinutes() : 0;
                 model.addAttribute("idleLogoutMinutes", idleMinutes);
-            });
+            }
+            IdleLogoutSupport.storeConfig(request.getSession(false), idleMinutes);
         } catch (Exception e) {
             log.warn("Einheiten-Kontext konnte nicht geladen werden: {}", e.getMessage());
             model.addAttribute("unitSwitchDisabled", true);

@@ -9596,3 +9596,33 @@ a.auswertung-stat-card {
 .public-page .app-header {
   border-bottom: 1px solid var(--border);
 }
+
+.idle-logout-warning {
+  position: fixed;
+  top: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 280;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem 1rem;
+  max-width: min(36rem, calc(100vw - 1.5rem));
+  padding: 0.85rem 1.1rem;
+  border: 1px solid var(--rot-border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  box-shadow: var(--schatten-lg);
+  color: var(--text);
+}
+
+.idle-logout-warning[hidden] {
+  display: none !important;
+}
+
+.idle-logout-warning p {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: 600;
+}

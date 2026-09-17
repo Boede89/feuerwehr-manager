@@ -25,8 +25,8 @@
           <input id="unitIdleLogoutMinutes" name="idleLogoutMinutes" type="number" min="0" max="10080" step="1"
                  th:value="${unit.idleLogoutMinutes != null ? unit.idleLogoutMinutes : 0}"/>
           <p class="hint">
-            Nach dieser Zeit ohne Aktivität wird die Sitzung beendet.
-            <strong>0</strong> = deaktiviert.
+            Nach dieser Zeit ohne Maus-, Tastatur- oder Touch-Eingabe wird die Sitzung beendet.
+            Kurz vorher erscheint ein Hinweis. <strong>0</strong> = deaktiviert.
           </p>
         </div>
         <div class="form-group form-group--full form-group--submit">
