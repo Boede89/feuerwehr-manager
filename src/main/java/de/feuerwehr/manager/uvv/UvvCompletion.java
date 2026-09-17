@@ -34,9 +34,15 @@ public class UvvCompletion {
     @JoinColumn(name = "person_id", nullable = false)
     private Person person;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "campaign_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "campaign_id")
     private UvvCampaign campaign;
+
+    @Column(name = "campaign_title", nullable = false, length = 255)
+    private String campaignTitle;
+
+    @Column(name = "campaign_event_date")
+    private LocalDate campaignEventDate;
 
     @Column(name = "completed_on", nullable = false)
     private LocalDate completedOn;
@@ -60,4 +66,14 @@ public class UvvCompletion {
 
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;
+
+    public String displayCampaignTitle() {
+        if (campaignTitle != null && !campaignTitle.isBlank()) {
+            return campaignTitle;
+        }
+        if (campaign != null && campaign.getTitle() != null && !campaign.getTitle().isBlank()) {
+            return campaign.getTitle();
+        }
+        return "UVV (Kampagne entfernt)";
+    }
 }

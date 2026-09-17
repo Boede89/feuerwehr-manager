@@ -215,7 +215,7 @@
         </form>
         <form method="post" th:action="@{/settings/uvv/campaigns/{id}/delete(id=${selectedCampaign.id})}"
               class="mt-md"
-              onsubmit="return confirm('Kampagne wirklich löschen? Fragen und bereits erfasste Erledigungen zu dieser Kampagne werden mitgelöscht.');">
+              onsubmit="return confirm('Kampagne wirklich löschen? Die Historie der bereits erfassten Erledigungen bleibt erhalten (Datum und Kampagnentitel). Präsentation und Fragen der Kampagne werden entfernt.');">
           <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
           <input type="hidden" name="unit" th:value="${unitId}"/>
           <button type="submit" class="btn btn--danger">Kampagne löschen</button>

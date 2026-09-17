@@ -386,6 +386,8 @@ public class UvvService {
         UvvCompletion completion = new UvvCompletion();
         completion.setPerson(person);
         completion.setCampaign(campaign);
+        completion.setCampaignTitle(campaign.getTitle());
+        completion.setCampaignEventDate(campaign.getEventDate());
         completion.setCompletedOn(completedOn);
         completion.setChannel(channel);
         completion.setQuizPassed(quizPassed);

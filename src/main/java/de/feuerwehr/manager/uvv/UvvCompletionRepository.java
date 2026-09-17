@@ -16,7 +16,7 @@ public interface UvvCompletionRepository extends JpaRepository<UvvCompletion, Lo
     @Query(
             """
             SELECT c FROM UvvCompletion c
-            JOIN FETCH c.campaign
+            LEFT JOIN FETCH c.campaign
             LEFT JOIN FETCH c.recordedBy
             WHERE c.person.id = :personId
             ORDER BY c.completedOn DESC, c.id DESC

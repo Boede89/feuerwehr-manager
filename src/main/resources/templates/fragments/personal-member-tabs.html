@@ -498,7 +498,7 @@
             <tbody>
             <tr th:each="c : ${uvvCompletions}">
               <td th:text="${#temporals.format(c.completedOn, 'dd.MM.yyyy')}">01.01.2026</td>
-              <td th:text="${c.campaign.title}">UVV</td>
+              <td th:text="${c.displayCampaignTitle()}">UVV</td>
               <td th:text="${c.channel.label()}">Präsenz</td>
               <td th:text="${c.recordedByDisplayName != null ? c.recordedByDisplayName : '—'}">—</td>
             </tr>
