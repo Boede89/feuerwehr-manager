@@ -340,9 +340,13 @@
                    th:value="${drivingLicense != null ? drivingLicense.issuedOn : null}"/>
           </div>
           <div class="form-group">
-            <label for="dl-expires">Ablaufdatum</label>
+            <label for="dl-expires">Ablaufdatum / Gültig bis</label>
             <input id="dl-expires" type="date" name="expiresOn"
                    th:value="${drivingLicense != null ? drivingLicense.expiresOn : null}"/>
+            <p class="hint" style="margin:0.35rem 0 0;">
+              Bei LKW-Klassen (C1, C1E, C, CE) ist der Führerschein nur befristet gültig (in der Regel 5&nbsp;Jahre).
+              Bitte hier das „Gültig bis“-Datum aus dem Führerschein eintragen.
+            </p>
           </div>
           <div class="form-group">
             <label for="dl-suffix">Führerscheinnummer (optional, z.&nbsp;B. letzte Zeichen)</label>
