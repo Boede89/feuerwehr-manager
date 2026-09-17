@@ -29,7 +29,7 @@
       <div class="card__header">Offene UVV-Nachholung</div>
       <div class="card__body">
         <p class="hint">Für Sie steht eine Online-Nachholung der UVV-/Kraftfahrer-Belehrung bereit.</p>
-        <a class="btn btn--primary" th:href="@{/my-area(tab='uvv')}">Jetzt nachholen</a>
+        <a class="btn btn--primary" th:href="@{/my-area(tab='uvv', start=1)}">Jetzt durchführen</a>
       </div>
     </div>
 
@@ -229,7 +229,7 @@
 
   <!-- Tab: UVV Online-Nachholung -->
   <div th:if="${myAreaTab == 'uvv' and hasLinkedPerson}" class="my-area-tab-panel">
-    <div class="card card--uvv" th:if="${uvvOnline != null and uvvOnline.available()}">
+    <div class="card card--narrow" th:if="${uvvOnline != null and uvvOnline.available()}" id="uvv-landing">
       <div class="card__header" th:text="${uvvOnline.campaign().title}">UVV</div>
       <div class="card__body">
         <p class="hint">
@@ -237,14 +237,46 @@
           <strong th:text="${#temporals.format(uvvOnline.campaign().eventDate, 'dd.MM.yyyy')}">01.01.2026</strong>
           · Online-Nachholung für Abwesende
         </p>
-        <div class="uvv-content"
-             style="white-space:pre-wrap;margin:1rem 0;padding:1rem;border:1px solid var(--border);border-radius:6px;background:var(--surface-2, transparent);"
+        <p class="hint">
+          Die Unterweisung läuft im Vollbild ab
+          <th:block th:if="${uvvOnline.campaign().hasPresentation()}">
+            (Präsentation durchklicken
+            <th:block th:if="${!#lists.isEmpty(uvvOnline.questions())}">, danach Kurzquiz</th:block>)
+          </th:block>
+          <th:block th:unless="${uvvOnline.campaign().hasPresentation()}">
+            <th:block th:if="${!#lists.isEmpty(uvvOnline.questions())}">(Inhalt lesen und Kurzquiz)</th:block>
+            <th:block th:if="${#lists.isEmpty(uvvOnline.questions())}">(Inhalt lesen und bestätigen)</th:block>
+          </th:block>.
+          Bitte starten Sie erst, wenn Sie ungestört Zeit dafür haben.
+        </p>
+        <div class="btn-group mt-md">
+          <button type="button" class="btn btn--primary" id="uvv-start-btn">Jetzt durchführen</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="uvv-runner" class="uvv-runner" hidden
+         th:if="${uvvOnline != null and uvvOnline.available()}"
+         role="dialog" aria-modal="true" aria-labelledby="uvv-runner-title"
+         th:attr="data-has-presentation=${uvvOnline.campaign().hasPresentation()}">
+      <div class="uvv-runner__bar">
+        <div class="uvv-runner__bar-text">
+          <strong id="uvv-runner-title" th:text="${uvvOnline.campaign().title}">UVV</strong>
+          <span class="hint">
+            Dienstabend
+            <span th:text="${#temporals.format(uvvOnline.campaign().eventDate, 'dd.MM.yyyy')}">01.01.2026</span>
+          </span>
+        </div>
+        <button type="button" class="btn btn--outline btn--sm" id="uvv-runner-exit">Abbrechen</button>
+      </div>
+
+      <div class="uvv-runner__body">
+        <div class="uvv-content uvv-runner__content"
              th:if="${uvvOnline.campaign().contentText != null and !#strings.isEmpty(uvvOnline.campaign().contentText)}"
              th:text="${uvvOnline.campaign().contentText}">
           Inhalt
         </div>
-        <div class="uvv-content"
-             style="white-space:pre-wrap;margin:1rem 0;padding:1rem;border:1px solid var(--border);border-radius:6px;background:var(--surface-2, transparent);"
+        <div class="uvv-content uvv-runner__content"
              th:unless="${(uvvOnline.campaign().contentText != null and !#strings.isEmpty(uvvOnline.campaign().contentText))
                           or uvvOnline.campaign().hasPresentation()}"
              th:text="'Für diese Kampagne wurde noch kein Online-Inhalt hinterlegt. Bitte wenden Sie sich an die Verwaltung.'">
@@ -252,7 +284,7 @@
         </div>
 
         <div th:if="${uvvOnline.campaign().hasPresentation()}"
-             class="uvv-presentation mt-md"
+             class="uvv-presentation uvv-runner__presentation"
              id="uvv-online-presentation"
              th:attr="data-page-count=${uvvOnline.campaign().presentationPageCount},
                       data-require-complete='true',
@@ -331,7 +363,7 @@
   </div>
 
   <script th:src="@{/js/my-area.js}"></script>
-  <script th:src="@{/js/uvv-presentation.js}"></script>
+  <script th:src="@{/js/uvv-presentation.js(v='20260917b')}"></script>
   <script th:src="@{/js/toast.js}"></script>
   <script th:src="@{/js/flash-toast.js}"></script>
 </main>
