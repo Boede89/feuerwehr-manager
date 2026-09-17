@@ -161,6 +161,25 @@ public class UvvSettingsController {
         return "redirect:/settings/uvv?unit=" + unit + "&campaign=" + campaignId;
     }
 
+    @PostMapping("/campaigns/{campaignId}/delete")
+    public String deleteCampaign(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long campaignId,
+            @RequestParam long unit,
+            RedirectAttributes redirectAttributes) {
+        try {
+            accessControlService.requireAdminLevel(actor);
+            accessControlService.requireUnitAccess(actor, unit);
+            requireModuleEnabled(unit);
+            uvvService.deleteCampaign(unit, campaignId);
+            redirectAttributes.addFlashAttribute("message", "Kampagne gelöscht.");
+            return "redirect:/settings/uvv?unit=" + unit;
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return "redirect:/settings/uvv?unit=" + unit + "&campaign=" + campaignId;
+        }
+    }
+
     @PostMapping("/campaigns/{campaignId}/import-attendance")
     public String importAttendance(
             @AuthenticationPrincipal AppUserDetails actor,

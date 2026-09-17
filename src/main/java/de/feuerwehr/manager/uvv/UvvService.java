@@ -138,6 +138,12 @@ public class UvvService {
     }
 
     @Transactional
+    public void deleteCampaign(long unitId, long campaignId) {
+        UvvCampaign campaign = requireCampaign(unitId, campaignId);
+        campaignRepository.delete(campaign);
+    }
+
+    @Transactional
     public void replaceQuestions(long unitId, long campaignId, List<QuestionInput> inputs) {
         UvvCampaign campaign = requireCampaign(unitId, campaignId);
         List<QuestionInput> cleaned = inputs == null ? List.of() : inputs.stream()

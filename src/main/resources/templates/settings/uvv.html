@@ -159,6 +159,13 @@
           <input type="hidden" name="unit" th:value="${unitId}"/>
           <button type="submit" class="btn btn--outline">Anwesenheit als UVV übernehmen</button>
         </form>
+        <form method="post" th:action="@{/settings/uvv/campaigns/{id}/delete(id=${selectedCampaign.id})}"
+              class="mt-md"
+              onsubmit="return confirm('Kampagne wirklich löschen? Fragen und bereits erfasste Erledigungen zu dieser Kampagne werden mitgelöscht.');">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <input type="hidden" name="unit" th:value="${unitId}"/>
+          <button type="submit" class="btn btn--danger">Kampagne löschen</button>
+        </form>
       </div>
     </div>
 
