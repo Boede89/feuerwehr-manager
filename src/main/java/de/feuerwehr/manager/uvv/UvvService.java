@@ -43,6 +43,7 @@ public class UvvService {
     private final AnwesenheitslisteService anwesenheitslisteService;
     private final AttendanceReportRepository attendanceReportRepository;
     private final TestModeService testModeService;
+    private final UvvPresentationService presentationService;
 
     public static UvvStatusLevel computeLevel(LocalDate lastCompletedOn, int intervalMonths, int warnDays, LocalDate today) {
         if (lastCompletedOn == null) {
@@ -140,6 +141,7 @@ public class UvvService {
     @Transactional
     public void deleteCampaign(long unitId, long campaignId) {
         UvvCampaign campaign = requireCampaign(unitId, campaignId);
+        presentationService.deleteAllFilesForCampaign(campaign.getId());
         campaignRepository.delete(campaign);
     }
 
@@ -302,6 +304,7 @@ public class UvvService {
             long campaignId,
             Map<Long, String> answersByQuestionId,
             boolean confirmed,
+            boolean presentationCompleted,
             AppUserDetails actor) {
         if (!confirmed) {
             throw new IllegalArgumentException("Bitte die Durchführung bestätigen.");
@@ -313,6 +316,10 @@ public class UvvService {
         }
         if (completionRepository.existsByPersonIdAndCampaignId(personId, campaignId)) {
             throw new IllegalArgumentException("Die Unterweisung wurde bereits erledigt.");
+        }
+        if (campaign.hasPresentation() && !presentationCompleted) {
+            throw new IllegalArgumentException(
+                    "Bitte die Präsentation zuerst vollständig durchklicken.");
         }
         List<UvvQuestion> questions = listQuestions(campaignId);
         boolean quizPassed = true;

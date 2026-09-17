@@ -44,9 +44,28 @@ public class UvvCampaign {
     @Column(name = "content_text", columnDefinition = "MEDIUMTEXT")
     private String contentText;
 
+    @Column(name = "presentation_original_name", length = 255)
+    private String presentationOriginalName;
+
+    @Column(name = "presentation_stored_name", length = 255)
+    private String presentationStoredName;
+
+    @Column(name = "presentation_mime_type", length = 128)
+    private String presentationMimeType;
+
+    @Column(name = "presentation_page_count")
+    private Integer presentationPageCount;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     private UvvCampaignStatus status = UvvCampaignStatus.OPEN;
+
+    public boolean hasPresentation() {
+        return presentationStoredName != null
+                && !presentationStoredName.isBlank()
+                && presentationPageCount != null
+                && presentationPageCount > 0;
+    }
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "attendance_report_id")

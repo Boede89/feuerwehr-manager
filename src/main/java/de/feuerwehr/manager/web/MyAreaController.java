@@ -5,6 +5,7 @@ import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.settings.ApplicationSettings;
 import de.feuerwehr.manager.settings.GlobalSettingsService;
+import de.feuerwehr.manager.uvv.UvvPresentationService;
 import de.feuerwehr.manager.uvv.UvvService;
 import java.time.LocalDate;
 import java.util.HashMap;
@@ -17,6 +18,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -30,6 +32,7 @@ public class MyAreaController {
     private final MyAreaService myAreaService;
     private final GlobalSettingsService globalSettingsService;
     private final UvvService uvvService;
+    private final UvvPresentationService uvvPresentationService;
 
     @GetMapping
     public String index(
@@ -141,6 +144,27 @@ public class MyAreaController {
         return "redirect:/my-area?tab=profile";
     }
 
+    @GetMapping("/uvv/campaigns/{campaignId}/slides/{page}")
+    public ResponseEntity<org.springframework.core.io.Resource> uvvSlide(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long campaignId,
+            @PathVariable int page) {
+        Person person = myAreaService.loadView(actor.getUserId(), actor.getUnitId()).person();
+        if (person == null) {
+            throw new IllegalArgumentException(
+                    "Ihrem Benutzerkonto ist keine Person zugeordnet. Bitte wenden Sie sich an die Verwaltung.");
+        }
+        long unitId = person.getUnit().getId();
+        uvvService.requireCampaign(unitId, campaignId);
+        UvvPresentationService.SlideFile slide = uvvPresentationService.loadSlide(unitId, campaignId, page);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + slide.filename() + "\"")
+                .header(HttpHeaders.CACHE_CONTROL, "private, max-age=300")
+                .contentType(MediaType.parseMediaType(slide.mimeType()))
+                .contentLength(slide.fileSize())
+                .body(slide.resource());
+    }
+
     @PostMapping("/uvv/complete")
     public String completeUvvOnline(
             @AuthenticationPrincipal AppUserDetails actor,
@@ -156,7 +180,15 @@ public class MyAreaController {
                 throw new IllegalArgumentException(
                         "Ihrem Benutzerkonto ist keine Person zugeordnet. Bitte wenden Sie sich an die Verwaltung.");
             }
-            uvvService.completeOnline(person.getId(), campaignId, parseAnswers(allParams), confirmed, actor);
+            boolean presentationCompleted = Boolean.parseBoolean(
+                    allParams.getOrDefault("presentationCompleted", "false"));
+            uvvService.completeOnline(
+                    person.getId(),
+                    campaignId,
+                    parseAnswers(allParams),
+                    confirmed,
+                    presentationCompleted,
+                    actor);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "UVV-/Kraftfahrer-Belehrung als erledigt gespeichert.");
             return "redirect:/my-area?tab=uvv";

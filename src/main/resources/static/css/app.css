@@ -9651,3 +9651,59 @@ a.auswertung-stat-card {
   font-size: var(--fs-md);
   font-weight: 600;
 }
+
+/* UVV Präsentations-Viewer */
+.card--uvv {
+  max-width: 920px;
+}
+
+.uvv-slide-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2, transparent);
+  overflow: hidden;
+}
+
+.uvv-slide-image {
+  display: block;
+  max-width: 100%;
+  max-height: min(70vh, 640px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  background: #fff;
+}
+
+.uvv-slide-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.uvv-slide-status {
+  margin: 0;
+  text-align: center;
+  flex: 1;
+}
+
+.uvv-slide-done {
+  margin: 0.75rem 0 0;
+  color: var(--ok, inherit);
+  font-weight: 600;
+}
+
+.uvv-complete-locked #uvv-after-presentation {
+  display: none;
+}
+
+.uvv-admin-preview {
+  max-width: 720px;
+}
+

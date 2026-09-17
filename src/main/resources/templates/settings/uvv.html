@@ -70,9 +70,12 @@
           <input id="new-date" name="eventDate" type="date" required/>
         </div>
         <div class="form-group form-group--full">
-          <label for="new-content">Online-Inhalt (Text)</label>
+          <label for="new-content">Online-Inhalt (Text, optional)</label>
           <textarea id="new-content" name="contentText" rows="6"
                     placeholder="Unterweisungstext für die Online-Nachholung …"></textarea>
+          <p class="hint" style="margin:0.35rem 0 0;">
+            Eine Präsentation (PDF) kann nach dem Anlegen der Kampagne hochgeladen werden.
+          </p>
         </div>
         <div class="form-group form-group--full form-group--submit">
           <button type="submit" class="btn btn--primary">Kampagne anlegen</button>
@@ -144,13 +147,64 @@
             </select>
           </div>
           <div class="form-group form-group--full">
-            <label for="c-content">Online-Inhalt</label>
+            <label for="c-content">Online-Inhalt (Text, optional)</label>
             <textarea id="c-content" name="contentText" rows="8" th:text="${selectedCampaign.contentText}"></textarea>
           </div>
           <div class="form-group form-group--full form-group--submit">
             <button type="submit" class="btn btn--primary">Kampagne speichern</button>
           </div>
         </form>
+
+        <div class="mt-md">
+          <h4 style="margin:0 0 0.5rem;">Präsentation (PDF)</h4>
+          <p class="hint">
+            Optional: PDF hochladen (z. B. aus PowerPoint exportiert). Online muss die Präsentation Folie für Folie
+            durchgeklickt werden; danach erscheinen ggf. die Fragen.
+          </p>
+          <div th:if="${selectedCampaign.hasPresentation()}" class="hint" style="margin-bottom:0.75rem;">
+            Aktuell:
+            <strong th:text="${selectedCampaign.presentationOriginalName}">datei.pdf</strong>
+            ·
+            <span th:text="${selectedCampaign.presentationPageCount}">0</span> Folien
+          </div>
+          <div th:if="${selectedCampaign.hasPresentation()}" class="uvv-admin-preview mt-md"
+               th:attr="data-page-count=${selectedCampaign.presentationPageCount},
+                        data-slide-url-prefix=@{/settings/uvv/campaigns/{id}/slides(id=${selectedCampaign.id})},
+                        data-slide-url-query=${'unit=' + unitId}">
+            <div class="uvv-slide-frame">
+              <img class="uvv-slide-image" alt="Folienvorschau" src=""/>
+            </div>
+            <div class="uvv-slide-controls">
+              <button type="button" class="btn btn--outline btn--sm uvv-slide-prev">Zurück</button>
+              <span class="uvv-slide-status hint">Folie 1 / 1</span>
+              <button type="button" class="btn btn--outline btn--sm uvv-slide-next">Weiter</button>
+            </div>
+          </div>
+          <form method="post" th:action="@{/settings/uvv/campaigns/{id}/presentation(id=${selectedCampaign.id})}"
+                enctype="multipart/form-data" class="form-grid form-grid--2 mt-md">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <input type="hidden" name="unit" th:value="${unitId}"/>
+            <div class="form-group form-group--full">
+              <label for="presentation-file">PDF-Datei</label>
+              <input id="presentation-file" name="file" type="file" accept="application/pdf,.pdf" required/>
+            </div>
+            <div class="form-group form-group--full form-group--submit">
+              <button type="submit" class="btn btn--primary"
+                      th:text="${selectedCampaign.hasPresentation()} ? 'Präsentation ersetzen' : 'Präsentation hochladen'">
+                Hochladen
+              </button>
+            </div>
+          </form>
+          <form method="post" th:action="@{/settings/uvv/campaigns/{id}/presentation/delete(id=${selectedCampaign.id})}"
+                class="mt-md"
+                th:if="${selectedCampaign.hasPresentation()}"
+                onsubmit="return confirm('Präsentation wirklich entfernen?');">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <input type="hidden" name="unit" th:value="${unitId}"/>
+            <button type="submit" class="btn btn--outline btn--danger">Präsentation entfernen</button>
+          </form>
+        </div>
+
         <form method="post" th:action="@{/settings/uvv/campaigns/{id}/import-attendance(id=${selectedCampaign.id})}"
               class="mt-md"
               th:if="${selectedCampaign.attendanceReport != null}"
@@ -172,7 +226,7 @@
     <div class="card mt-md">
       <div class="card__header">Kurzquiz (0–5 Fragen, optional)</div>
       <div class="card__body">
-        <p class="hint">Ohne Fragen reicht Online Lesen + Bestätigung. Mit Fragen müssen alle Antworten korrekt sein.</p>
+        <p class="hint">Ohne Fragen reicht Präsentation/Text + Bestätigung. Mit Fragen müssen alle Antworten korrekt sein.</p>
         <form method="post" th:action="@{/settings/uvv/campaigns/{id}/questions(id=${selectedCampaign.id})}">
           <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
           <input type="hidden" name="unit" th:value="${unitId}"/>
@@ -224,5 +278,6 @@
       </div>
     </div>
   </th:block>
+  <script th:src="@{/js/uvv-presentation.js}"></script>
 </main>
 </html>
