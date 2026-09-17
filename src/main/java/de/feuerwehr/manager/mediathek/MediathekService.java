@@ -6,6 +6,8 @@ import de.feuerwehr.manager.personal.PersonGroupRepository;
 import de.feuerwehr.manager.personal.PersonRepository;
 import de.feuerwehr.manager.personal.PersonalGroupService;
 import de.feuerwehr.manager.personal.PersonalService;
+import de.feuerwehr.manager.personal.QualificationType;
+import de.feuerwehr.manager.personal.QualificationTypeRepository;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
@@ -37,6 +39,7 @@ public class MediathekService {
     private final PersonGroupRepository personGroupRepository;
     private final PersonalGroupService personalGroupService;
     private final PersonalService personalService;
+    private final QualificationTypeRepository qualificationTypeRepository;
     private final UserRepository userRepository;
     private final TestModeService testModeService;
 
@@ -153,6 +156,11 @@ public class MediathekService {
                             .findById(input.groupId())
                             .orElseThrow(() -> new IllegalArgumentException("Gruppe nicht gefunden."));
                     acl.setGroup(group);
+                } else if (input.qualificationTypeId() != null && input.qualificationTypeId() > 0) {
+                    QualificationType qualification = qualificationTypeRepository
+                            .findById(input.qualificationTypeId())
+                            .orElseThrow(() -> new IllegalArgumentException("Dienstgrad nicht gefunden."));
+                    acl.setQualificationType(qualification);
                 } else {
                     continue;
                 }
@@ -209,9 +217,11 @@ public class MediathekService {
                 : new ArrayList<>(withUnits.getSharedUnits());
         List<Person> persons = new ArrayList<>();
         List<PersonGroup> groups = new ArrayList<>();
+        List<QualificationType> qualifications = new ArrayList<>();
         boolean test = testModeService.isEnabled();
         Set<Long> seenPersons = new LinkedHashSet<>();
         Set<Long> seenGroups = new LinkedHashSet<>();
+        Set<Long> seenQualifications = new LinkedHashSet<>();
         for (Unit u : units) {
             for (Person p : personRepository.findActiveByUnitId(u.getId(), test)) {
                 if (seenPersons.add(p.getId())) {
@@ -223,8 +233,14 @@ public class MediathekService {
                     groups.add(g);
                 }
             }
+            for (QualificationType q :
+                    personalService.listQualificationTypes(u.getId(), true)) {
+                if (seenQualifications.add(q.getId())) {
+                    qualifications.add(q);
+                }
+            }
         }
-        return new AclFormData(withAcl, withAcl.getAclEntries(), persons, groups, units);
+        return new AclFormData(withAcl, withAcl.getAclEntries(), persons, groups, qualifications, units);
     }
 
     @Transactional(readOnly = true)
@@ -307,13 +323,14 @@ public class MediathekService {
             boolean canWrite,
             boolean canManageAcl) {}
 
-    public record AclInput(Long personId, Long groupId, MediathekAccessLevel level) {}
+    public record AclInput(Long personId, Long groupId, Long qualificationTypeId, MediathekAccessLevel level) {}
 
     public record AclFormData(
             MediathekFolder folder,
             List<MediathekFolderAcl> entries,
             List<Person> persons,
             List<PersonGroup> groups,
+            List<QualificationType> qualifications,
             List<Unit> units) {}
 
     public record FileDownload(Resource resource, String filename, String mimeType, long fileSize) {}

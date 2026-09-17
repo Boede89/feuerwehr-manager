@@ -2,6 +2,7 @@ package de.feuerwehr.manager.mediathek;
 
 import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.personal.PersonGroup;
+import de.feuerwehr.manager.personal.QualificationType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -39,6 +40,11 @@ public class MediathekFolderAcl {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "group_id")
     private PersonGroup group;
+
+    /** Mindest-Dienstgrad: Person mit dieser oder höherer Qualifikation (niedrigere sort_order). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "qualification_type_id")
+    private QualificationType qualificationType;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "access_level", nullable = false, length = 16)

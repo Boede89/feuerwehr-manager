@@ -3,10 +3,12 @@ package de.feuerwehr.manager.mediathek;
 import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.personal.PersonGroupRepository;
 import de.feuerwehr.manager.personal.PersonRepository;
+import de.feuerwehr.manager.personal.QualificationType;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.settings.TestModeService;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -49,7 +51,8 @@ public class MediathekAccessService {
         if (personOpt.isEmpty()) {
             return Optional.empty();
         }
-        long personId = personOpt.get().getId();
+        Person person = personOpt.get();
+        long personId = person.getId();
         Set<Long> groupIds = new HashSet<>(personGroupRepository.findGroupIdsByMemberId(personId));
         MediathekFolder aclFolder = resolveAclFolder(folder);
         List<MediathekFolderAcl> entries =
@@ -59,13 +62,7 @@ public class MediathekAccessService {
         }
         MediathekAccessLevel best = null;
         for (MediathekFolderAcl entry : entries) {
-            boolean match = false;
-            if (entry.getPerson() != null && entry.getPerson().getId().equals(personId)) {
-                match = true;
-            } else if (entry.getGroup() != null && groupIds.contains(entry.getGroup().getId())) {
-                match = true;
-            }
-            if (!match) {
+            if (!matchesEntry(entry, person, personId, groupIds)) {
                 continue;
             }
             if (best == null || entry.getAccessLevel() == MediathekAccessLevel.WRITE) {
@@ -76,6 +73,38 @@ public class MediathekAccessService {
             }
         }
         return Optional.ofNullable(best);
+    }
+
+    /**
+     * Dienstgrad-ACL: Person muss denselben Einheits-Kontext haben und eine Qualifikation
+     * mit gleicher oder höherer Stufe (niedrigere {@code sort_order}) besitzen.
+     */
+    static boolean matchesQualification(QualificationType required, Person person) {
+        if (required == null || person == null) {
+            return false;
+        }
+        QualificationType personQual = person.getQualificationType();
+        if (personQual == null || !personQual.isActive()) {
+            return false;
+        }
+        Long requiredUnitId = required.getUnit() != null ? required.getUnit().getId() : null;
+        Long personUnitId = person.getUnit() != null ? person.getUnit().getId() : null;
+        if (requiredUnitId == null || !Objects.equals(requiredUnitId, personUnitId)) {
+            return false;
+        }
+        return personQual.getSortOrder() <= required.getSortOrder();
+    }
+
+    private static boolean matchesEntry(
+            MediathekFolderAcl entry, Person person, long personId, Set<Long> groupIds) {
+        if (entry.getPerson() != null && entry.getPerson().getId().equals(personId)) {
+            return true;
+        }
+        if (entry.getGroup() != null && groupIds.contains(entry.getGroup().getId())) {
+            return true;
+        }
+        return entry.getQualificationType() != null
+                && matchesQualification(entry.getQualificationType(), person);
     }
 
     @Transactional(readOnly = true)

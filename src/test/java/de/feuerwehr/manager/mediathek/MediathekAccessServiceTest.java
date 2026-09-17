@@ -7,6 +7,7 @@ import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.personal.PersonGroup;
 import de.feuerwehr.manager.personal.PersonGroupRepository;
 import de.feuerwehr.manager.personal.PersonRepository;
+import de.feuerwehr.manager.personal.QualificationType;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
@@ -210,11 +211,80 @@ class MediathekAccessServiceTest {
         assertThat(accessService.canWrite(userActor, unitA.getId(), folder)).isFalse();
     }
 
+    @Test
+    void qualificationGrantsAccessForSameOrHigherRank() {
+        when(testModeService.isEnabled()).thenReturn(false);
+        when(personRepository.findActiveByUserIdAndUnitId(10L, 1L, false)).thenReturn(Optional.of(person));
+        when(personGroupRepository.findGroupIdsByMemberId(100L)).thenReturn(Set.of());
+
+        QualificationType zugfuehrer = qualification(1L, "Zugführer", unitA, 1);
+        QualificationType gruppenfuehrer = qualification(2L, "Gruppenführer", unitA, 2);
+        person.setQualificationType(zugfuehrer);
+
+        MediathekFolder folder = rootFolder(90L, unitA, Set.of(unitA));
+        folder.setInheritAcl(false);
+        MediathekFolderAcl acl = new MediathekFolderAcl();
+        acl.setFolder(folder);
+        acl.setQualificationType(gruppenfuehrer);
+        acl.setAccessLevel(MediathekAccessLevel.WRITE);
+        folder.setAclEntries(List.of(acl));
+
+        when(folderRepository.findByIdWithUnits(90L)).thenReturn(Optional.of(folder));
+        when(folderRepository.findByIdWithAcl(90L)).thenReturn(Optional.of(folder));
+
+        assertThat(accessService.canWrite(userActor, unitA.getId(), folder)).isTrue();
+    }
+
+    @Test
+    void lowerQualificationDoesNotMatchMinimumRank() {
+        when(testModeService.isEnabled()).thenReturn(false);
+        when(personRepository.findActiveByUserIdAndUnitId(10L, 1L, false)).thenReturn(Optional.of(person));
+        when(personGroupRepository.findGroupIdsByMemberId(100L)).thenReturn(Set.of());
+
+        QualificationType truppmann = qualification(3L, "Truppmann", unitA, 4);
+        QualificationType gruppenfuehrer = qualification(2L, "Gruppenführer", unitA, 2);
+        person.setQualificationType(truppmann);
+
+        MediathekFolder folder = rootFolder(91L, unitA, Set.of(unitA));
+        folder.setInheritAcl(false);
+        MediathekFolderAcl acl = new MediathekFolderAcl();
+        acl.setFolder(folder);
+        acl.setQualificationType(gruppenfuehrer);
+        acl.setAccessLevel(MediathekAccessLevel.READ);
+        folder.setAclEntries(List.of(acl));
+
+        when(folderRepository.findByIdWithUnits(91L)).thenReturn(Optional.of(folder));
+        when(folderRepository.findByIdWithAcl(91L)).thenReturn(Optional.of(folder));
+
+        assertThat(accessService.canRead(userActor, unitA.getId(), folder)).isFalse();
+    }
+
+    @Test
+    void qualificationFromOtherUnitDoesNotMatch() {
+        QualificationType gfUnitA = qualification(2L, "Gruppenführer", unitA, 2);
+        QualificationType gfUnitB = qualification(12L, "Gruppenführer", unitB, 2);
+        person.setUnit(unitB);
+        person.setQualificationType(gfUnitB);
+
+        assertThat(MediathekAccessService.matchesQualification(gfUnitA, person)).isFalse();
+        assertThat(MediathekAccessService.matchesQualification(gfUnitB, person)).isTrue();
+    }
+
     private static Unit unit(long id, String name) {
         Unit unit = new Unit();
         unit.setId(id);
         unit.setName(name);
         return unit;
+    }
+
+    private static QualificationType qualification(long id, String name, Unit unit, int sortOrder) {
+        QualificationType type = new QualificationType();
+        type.setId(id);
+        type.setName(name);
+        type.setUnit(unit);
+        type.setSortOrder(sortOrder);
+        type.setActive(true);
+        return type;
     }
 
     private static MediathekFolder rootFolder(long id, Unit owner, Set<Unit> shared) {

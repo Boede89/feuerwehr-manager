@@ -5,7 +5,7 @@
   <div class="page-header">
     <div>
       <h2>Rechte: <span th:text="${aclFolder.name}">Ordner</span></h2>
-      <p>Personen und Gruppen mit Lese-/Schreibrechten</p>
+      <p>Personen, Gruppen und Dienstgrade mit Lese-/Schreibrechten</p>
     </div>
     <a class="btn btn--outline"
        th:href="@{/mediathek(unit=${unitId}, folder=${aclFolder.id})}">Zurück zum Ordner</a>
@@ -31,7 +31,11 @@
         <div id="mediathek-acl-entries"
              th:classappend="${aclFolder.inheritAcl and aclFolder.parent != null} ? ' is-disabled' : ''">
           <h3>Einträge</h3>
-          <p class="hint">Admins der Einheit sehen den Ordner immer. Hier zusätzliche Personen und Gruppen.</p>
+          <p class="hint">
+            Pro Zeile genau eine Zuordnung wählen: Person <strong>oder</strong> Gruppe <strong>oder</strong> Dienstgrad.
+            Beim Dienstgrad erhalten alle Personen mit diesem oder einem höheren Dienstgrad das Recht
+            (Reihenfolge wie unter Admin → Qualifikationen).
+          </p>
           <p id="mediathek-acl-inherit-hint" class="hint hint--warn"
              th:hidden="${!(aclFolder.inheritAcl and aclFolder.parent != null)}">
             Vererbung ist aktiv. Deaktivieren Sie „Rechte vom Elternordner erben“, um eigene Einträge zu setzen.
@@ -43,6 +47,7 @@
               <tr>
                 <th>Person</th>
                 <th>Gruppe</th>
+                <th>Dienstgrad (mind.)</th>
                 <th>Recht</th>
                 <th></th>
               </tr>
@@ -65,6 +70,15 @@
                             th:value="${g.id}"
                             th:selected="${entry.group != null and entry.group.id == g.id}"
                             th:text="${g.name}">Gruppe</option>
+                  </select>
+                </td>
+                <td>
+                  <select name="aclQualificationTypeId">
+                    <option value="">—</option>
+                    <option th:each="q : ${aclQualifications}"
+                            th:value="${q.id}"
+                            th:selected="${entry.qualificationType != null and entry.qualificationType.id == q.id}"
+                            th:text="${q.unit != null ? q.name + ' (' + q.unit.name + ')' : q.name}">Dienstgrad</option>
                   </select>
                 </td>
                 <td>
@@ -113,6 +127,14 @@
         </select>
       </td>
       <td>
+        <select name="aclQualificationTypeId">
+          <option value="">—</option>
+          <option th:each="q : ${aclQualifications}"
+                  th:value="${q.id}"
+                  th:text="${q.unit != null ? q.name + ' (' + q.unit.name + ')' : q.name}">Dienstgrad</option>
+        </select>
+      </td>
+      <td>
         <select name="aclLevel" required>
           <option th:each="lvl : ${accessLevels}"
                   th:value="${lvl.name()}"
@@ -127,8 +149,8 @@
 
   <style>
     #mediathek-acl-entries.is-disabled .data-table { opacity: 0.45; }
-    .mediathek-acl-row select { min-width: 10rem; max-width: 100%; }
+    .mediathek-acl-row select { min-width: 8rem; max-width: 100%; }
   </style>
-  <script th:src="@{/js/mediathek.js(v='20260917b')}"></script>
+  <script th:src="@{/js/mediathek.js(v='20260917c')}"></script>
 </main>
 </html>

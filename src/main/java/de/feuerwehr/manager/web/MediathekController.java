@@ -90,6 +90,7 @@ public class MediathekController {
             model.addAttribute("aclEntries", form.entries());
             model.addAttribute("aclPersons", form.persons());
             model.addAttribute("aclGroups", form.groups());
+            model.addAttribute("aclQualifications", form.qualifications());
             model.addAttribute("aclUnits", form.units());
             model.addAttribute("accessLevels", MediathekAccessLevel.values());
             return "mediathek/rechte";
@@ -192,13 +193,19 @@ public class MediathekController {
             @RequestParam(name = "inheritAcl", defaultValue = "false") boolean inheritAcl,
             @RequestParam(name = "aclPersonId", required = false) List<Long> personIds,
             @RequestParam(name = "aclGroupId", required = false) List<Long> groupIds,
+            @RequestParam(name = "aclQualificationTypeId", required = false) List<Long> qualificationTypeIds,
             @RequestParam(name = "aclLevel", required = false) List<String> levels,
             RedirectAttributes redirectAttributes) {
         try {
             requireModuleEnabled(unitId);
             requireWrite(actor, unitId);
             accessControlService.requireUnitAccess(actor, unitId);
-            mediathekService.replaceAcl(actor, unitId, folderId, inheritAcl, parseAclInputs(personIds, groupIds, levels));
+            mediathekService.replaceAcl(
+                    actor,
+                    unitId,
+                    folderId,
+                    inheritAcl,
+                    parseAclInputs(personIds, groupIds, qualificationTypeIds, levels));
             redirectAttributes.addFlashAttribute("success", "Rechte gespeichert.");
             return redirectFolder(unitId, folderId);
         } catch (IllegalArgumentException e) {
@@ -282,7 +289,10 @@ public class MediathekController {
     }
 
     private static List<AclInput> parseAclInputs(
-            List<Long> personIds, List<Long> groupIds, List<String> levels) {
+            List<Long> personIds,
+            List<Long> groupIds,
+            List<Long> qualificationTypeIds,
+            List<String> levels) {
         List<AclInput> result = new ArrayList<>();
         int n = levels == null ? 0 : levels.size();
         for (int i = 0; i < n; i++) {
@@ -298,12 +308,21 @@ public class MediathekController {
             }
             Long personId = personIds != null && i < personIds.size() ? personIds.get(i) : null;
             Long groupId = groupIds != null && i < groupIds.size() ? groupIds.get(i) : null;
-            if ((personId == null || personId <= 0) && (groupId == null || groupId <= 0)) {
+            Long qualificationTypeId =
+                    qualificationTypeIds != null && i < qualificationTypeIds.size()
+                            ? qualificationTypeIds.get(i)
+                            : null;
+            boolean hasPerson = personId != null && personId > 0;
+            boolean hasGroup = groupId != null && groupId > 0;
+            boolean hasQualification = qualificationTypeId != null && qualificationTypeId > 0;
+            int targets = (hasPerson ? 1 : 0) + (hasGroup ? 1 : 0) + (hasQualification ? 1 : 0);
+            if (targets != 1) {
                 continue;
             }
             result.add(new AclInput(
-                    personId != null && personId > 0 ? personId : null,
-                    groupId != null && groupId > 0 ? groupId : null,
+                    hasPerson ? personId : null,
+                    hasGroup ? groupId : null,
+                    hasQualification ? qualificationTypeId : null,
                     level));
         }
         return result;
