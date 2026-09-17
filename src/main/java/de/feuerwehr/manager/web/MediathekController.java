@@ -207,7 +207,7 @@ public class MediathekController {
                     inheritAcl,
                     parseAclInputs(personIds, groupIds, qualificationTypeIds, levels));
             redirectAttributes.addFlashAttribute("success", "Rechte gespeichert.");
-            return redirectFolder(unitId, folderId);
+            return "redirect:/mediathek/folders/" + folderId + "/rechte?unit=" + unitId;
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return "redirect:/mediathek/folders/" + folderId + "/rechte?unit=" + unitId;

@@ -1,6 +1,7 @@
 package de.feuerwehr.manager.mediathek;
 
 import de.feuerwehr.manager.unit.Unit;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -66,7 +67,7 @@ public class MediathekFolder {
     @OrderBy("originalName ASC")
     private List<MediathekFile> files = new ArrayList<>();
 
-    @OneToMany(mappedBy = "folder", fetch = FetchType.LAZY, orphanRemoval = true)
+    @OneToMany(mappedBy = "folder", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<MediathekFolderAcl> aclEntries = new ArrayList<>();
 
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
