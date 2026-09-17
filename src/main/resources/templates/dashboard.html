@@ -17,6 +17,24 @@
   <div th:replace="~{fragments/flash-messages :: alerts}"></div>
   <div th:replace="~{fragments/testmode-banner :: banner}"></div>
 
+  <div class="dashboard-uvv-notice" th:if="${uvvAvailable}" role="status">
+    <div class="dashboard-uvv-notice__text">
+      <strong>Offene UVV-Nachholung</strong>
+      <p>
+        Für Sie steht die Online-Nachholung
+        <th:block th:if="${uvvCampaignTitle != null}">
+          „<span th:text="${uvvCampaignTitle}">UVV</span>“
+        </th:block>
+        <th:block th:if="${uvvCampaignEventDate != null}">
+          (Dienstabend
+          <span th:text="${#temporals.format(uvvCampaignEventDate, 'dd.MM.yyyy')}">01.01.2026</span>)
+        </th:block>
+        bereit.
+      </p>
+    </div>
+    <a class="btn btn--primary" th:href="@{/my-area(tab='uvv')}">Jetzt nachholen</a>
+  </div>
+
   <p id="dashboard-edit-hint" class="dashboard-edit-hint" hidden>
     Ziehen zum Verschieben · an den Rändern in Breite/Höhe ziehen · Lücken sind erlaubt — Speichern mit „Fertig“.
   </p>

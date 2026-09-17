@@ -25,6 +25,7 @@ import de.feuerwehr.manager.termine.DashboardTerminWidgetView;
 import de.feuerwehr.manager.termine.TermineService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
+import de.feuerwehr.manager.uvv.UvvService;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -63,6 +64,7 @@ public class DashboardController {
     private final AuswertungService auswertungService;
     private final DashboardLayoutService dashboardLayoutService;
     private final ObjectMapper objectMapper;
+    private final UvvService uvvService;
 
     @GetMapping("/")
     public String dashboard(
@@ -170,7 +172,34 @@ public class DashboardController {
             model.addAttribute("openReportsWidgetDefaultsJson", "{}");
         }
 
+        loadUvvNotice(currentUser, resolvedUnitId, model);
+
         return "dashboard";
+    }
+
+    private void loadUvvNotice(AppUserDetails currentUser, long unitId, Model model) {
+        model.addAttribute("uvvAvailable", false);
+        model.addAttribute("uvvCampaignTitle", null);
+        model.addAttribute("uvvCampaignEventDate", null);
+        try {
+            if (!moduleSettingsService.isEnabled(AppModule.PERSONAL, unitId)) {
+                return;
+            }
+            var linkedPerson = personRepository.findActiveByUserIdAndUnitId(
+                    currentUser.getUserId(), unitId, testModeService.isEnabled());
+            if (linkedPerson.isEmpty()) {
+                return;
+            }
+            UvvService.OnlineCampaignView uvv = uvvService.loadOnlineForPerson(linkedPerson.get().getId());
+            if (!uvv.available() || uvv.campaign() == null) {
+                return;
+            }
+            model.addAttribute("uvvAvailable", true);
+            model.addAttribute("uvvCampaignTitle", uvv.campaign().getTitle());
+            model.addAttribute("uvvCampaignEventDate", uvv.campaign().getEventDate());
+        } catch (Exception e) {
+            log.warn("UVV-Hinweis für Startseite konnte nicht geladen werden: {}", e.getMessage());
+        }
     }
 
     private void loadAtemschutzWidget(

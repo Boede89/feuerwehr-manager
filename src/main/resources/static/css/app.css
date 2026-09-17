@@ -952,6 +952,43 @@ input:focus, select:focus, textarea:focus {
   display: none !important;
 }
 
+.dashboard-uvv-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem 1.25rem;
+  margin: 0 0 16px;
+  padding: 1rem 1.15rem;
+  border: 1px solid color-mix(in srgb, #ca8a04 45%, var(--border, rgba(0, 0, 0, 0.15)));
+  border-radius: var(--radius-lg, 10px);
+  background: color-mix(in srgb, #fef9c3 70%, var(--bg-card, var(--bg, #fff)));
+  color: var(--text);
+}
+
+.dashboard-uvv-notice__text {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.dashboard-uvv-notice__text strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 1rem;
+}
+
+.dashboard-uvv-notice__text p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted, #6b7280);
+}
+
+[data-theme="dark"] .dashboard-uvv-notice,
+body.theme-dark .dashboard-uvv-notice {
+  border-color: color-mix(in srgb, #ca8a04 55%, var(--border, rgba(255, 255, 255, 0.15)));
+  background: color-mix(in srgb, #854d0e 28%, var(--bg-card, var(--bg, #111)));
+}
+
 .dashboard-widgets {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
