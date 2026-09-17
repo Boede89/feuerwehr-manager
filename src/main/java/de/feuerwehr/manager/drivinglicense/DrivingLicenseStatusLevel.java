@@ -4,6 +4,7 @@ public enum DrivingLicenseStatusLevel {
     OK,
     WARN,
     OVERDUE,
+    PENDING,
     MISSING,
     NONE;
 
@@ -12,7 +13,8 @@ public enum DrivingLicenseStatusLevel {
             case OK -> "OK";
             case WARN -> "Bald fällig";
             case OVERDUE -> "Überfällig";
-            case MISSING -> "Kontrolle fehlt";
+            case PENDING -> "Kontrolle ausstehend";
+            case MISSING -> "Angaben fehlen";
             case NONE -> "Nicht relevant";
         };
     }
@@ -20,17 +22,16 @@ public enum DrivingLicenseStatusLevel {
     public String cssClass() {
         return switch (this) {
             case OK -> "fitness-badge--ok";
-            case WARN -> "fitness-badge--warn";
+            case WARN, PENDING -> "fitness-badge--warn";
             case OVERDUE -> "fitness-badge--overdue";
-            case MISSING -> "fitness-badge--missing";
-            case NONE -> "fitness-badge--missing";
+            case MISSING, NONE -> "fitness-badge--missing";
         };
     }
 
     public String validityBadgeClass() {
         return switch (this) {
             case OK -> "badge active";
-            case WARN -> "badge-warning";
+            case WARN, PENDING -> "badge-warning";
             case OVERDUE -> "badge inactive";
             case MISSING, NONE -> "";
         };

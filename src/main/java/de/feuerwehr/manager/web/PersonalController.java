@@ -584,13 +584,21 @@ public class PersonalController {
             @RequestParam(defaultValue = "UNKNOWN") DrivingLicensePresence presence,
             @RequestParam(name = "classes", required = false) String[] classes,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate issuedOn,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate expiresOn,
             @RequestParam(required = false) String numberSuffix,
             @RequestParam(required = false) String restrictions,
             @RequestParam(required = false, defaultValue = "false") boolean selfReportAcknowledged,
             RedirectAttributes redirectAttributes) {
         return memberAction(actor, id, unit, "fuehrerschein", redirectAttributes, () ->
                 drivingLicenseService.saveStammdaten(
-                        id, presence, classes, issuedOn, numberSuffix, restrictions, selfReportAcknowledged));
+                        id,
+                        presence,
+                        classes,
+                        issuedOn,
+                        expiresOn,
+                        numberSuffix,
+                        restrictions,
+                        selfReportAcknowledged));
     }
 
     @PostMapping("/{id}/driving-license/check")

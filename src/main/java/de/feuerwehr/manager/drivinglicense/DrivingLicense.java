@@ -43,6 +43,9 @@ public class DrivingLicense {
     @Column(name = "issued_on")
     private LocalDate issuedOn;
 
+    @Column(name = "expires_on")
+    private LocalDate expiresOn;
+
     @Column(name = "number_suffix", length = 16)
     private String numberSuffix;
 

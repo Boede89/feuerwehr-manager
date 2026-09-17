@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -69,6 +70,7 @@ public class DrivingLicenseService {
             DrivingLicensePresence presence,
             String[] classCodes,
             LocalDate issuedOn,
+            LocalDate expiresOn,
             String numberSuffix,
             String restrictions,
             boolean selfReportAcknowledged) {
@@ -76,22 +78,39 @@ public class DrivingLicenseService {
             presence = DrivingLicensePresence.UNKNOWN;
         }
         DrivingLicense license = ensureLicense(personId);
+        String previousClasses = license.getClassesCsv();
+        LocalDate previousIssued = license.getIssuedOn();
+        LocalDate previousExpires = license.getExpiresOn();
+        String previousSuffix = license.getNumberSuffix();
+        DrivingLicensePresence previousPresence = license.getPresence();
+
         license.setPresence(presence);
         if (presence == DrivingLicensePresence.NO) {
             license.setClassesCsv(null);
             license.setIssuedOn(null);
+            license.setExpiresOn(null);
             license.setNumberSuffix(null);
             license.setRestrictions(null);
             license.setNextDueOn(null);
             license.setSelfReportAcknowledged(false);
         } else {
+            if (expiresOn != null && issuedOn != null && expiresOn.isBefore(issuedOn)) {
+                throw new IllegalArgumentException("Das Ablaufdatum darf nicht vor dem Ausstellungsdatum liegen.");
+            }
             license.setClassesCsv(DrivingLicenseClass.toCsvFromCodes(classCodes));
             license.setIssuedOn(issuedOn);
+            license.setExpiresOn(expiresOn);
             license.setNumberSuffix(normalizeSuffix(numberSuffix));
             license.setRestrictions(trimToNull(restrictions));
             license.setSelfReportAcknowledged(selfReportAcknowledged);
-            if (presence == DrivingLicensePresence.UNKNOWN && license.getNextDueOn() == null) {
-                // keine automatische Fälligkeit ohne bestätigten Führerschein
+            boolean materialChange = previousPresence != presence
+                    || !Objects.equals(previousClasses, license.getClassesCsv())
+                    || !Objects.equals(previousIssued, license.getIssuedOn())
+                    || !Objects.equals(previousExpires, license.getExpiresOn())
+                    || !Objects.equals(previousSuffix, license.getNumberSuffix());
+            if (materialChange) {
+                // Stammdaten-Änderung: erst nach (erneuter) Kontrolle wieder gültig.
+                license.setNextDueOn(null);
             }
         }
         return licenseRepository.save(license);
@@ -115,9 +134,17 @@ public class DrivingLicenseService {
         if (license.getPresence() == DrivingLicensePresence.NO) {
             throw new IllegalArgumentException("Für Personen ohne Führerschein ist keine Kontrolle vorgesehen.");
         }
+        if (license.getPresence() == DrivingLicensePresence.UNKNOWN
+                && (license.getClassesCsv() == null || license.getClassesCsv().isBlank())) {
+            throw new IllegalArgumentException(
+                    "Bitte zuerst die Führerschein-Stammdaten erfassen (oder Klassen bei der Kontrolle angeben).");
+        }
         Person person = license.getPerson();
         UnitDrivingLicenseSettings settings = settingsService.ensureSettings(person.getUnit().getId());
         LocalDate nextDue = checkedOn.plusMonths(settings.getIntervalMonths());
+        if (license.getExpiresOn() != null && license.getExpiresOn().isBefore(nextDue)) {
+            nextDue = license.getExpiresOn();
+        }
         String classesCsv = DrivingLicenseClass.toCsvFromCodes(classCodes);
         if (classesCsv == null || classesCsv.isBlank()) {
             classesCsv = license.getClassesCsv();
@@ -176,7 +203,7 @@ public class DrivingLicenseService {
                 case OVERDUE -> overdue++;
                 case WARN -> warn++;
                 case OK -> ok++;
-                case MISSING -> missing++;
+                case MISSING, PENDING -> missing++;
                 case NONE -> none++;
             }
             if (!matchesFilter(normalized, level)) {
@@ -212,7 +239,11 @@ public class DrivingLicenseService {
         }
         LocalDate due = license.getNextDueOn();
         if (due == null) {
-            return DrivingLicenseStatusLevel.MISSING;
+            // Stammdaten vorhanden, aber noch keine (aktuelle) Kontrolle → nicht gültig.
+            return DrivingLicenseStatusLevel.PENDING;
+        }
+        if (license.getExpiresOn() != null && license.getExpiresOn().isBefore(today)) {
+            return DrivingLicenseStatusLevel.OVERDUE;
         }
         if (due.isBefore(today)) {
             return DrivingLicenseStatusLevel.OVERDUE;
@@ -220,6 +251,12 @@ public class DrivingLicenseService {
         long days = ChronoUnit.DAYS.between(today, due);
         if (days <= warnDays) {
             return DrivingLicenseStatusLevel.WARN;
+        }
+        if (license.getExpiresOn() != null) {
+            long daysToExpire = ChronoUnit.DAYS.between(today, license.getExpiresOn());
+            if (daysToExpire <= warnDays) {
+                return DrivingLicenseStatusLevel.WARN;
+            }
         }
         return DrivingLicenseStatusLevel.OK;
     }
@@ -229,7 +266,8 @@ public class DrivingLicenseService {
             case "overdue" -> level == DrivingLicenseStatusLevel.OVERDUE;
             case "warn" -> level == DrivingLicenseStatusLevel.WARN;
             case "ok" -> level == DrivingLicenseStatusLevel.OK;
-            case "missing" -> level == DrivingLicenseStatusLevel.MISSING;
+            case "missing" -> level == DrivingLicenseStatusLevel.MISSING
+                    || level == DrivingLicenseStatusLevel.PENDING;
             case "none" -> level == DrivingLicenseStatusLevel.NONE;
             default -> true;
         };
@@ -249,9 +287,10 @@ public class DrivingLicenseService {
         return switch (level) {
             case OVERDUE -> 0;
             case WARN -> 1;
-            case MISSING -> 2;
-            case OK -> 3;
-            case NONE -> 4;
+            case PENDING -> 2;
+            case MISSING -> 3;
+            case OK -> 4;
+            case NONE -> 5;
         };
     }
 

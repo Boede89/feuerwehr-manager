@@ -295,7 +295,15 @@
           (Intervall <span th:text="${licenseIntervalMonths}">12</span> Monate,
           Warnung <span th:text="${licenseWarnDays}">30</span> Tage vorher).
         </p>
-        <p class="hint" th:unless="${drivingLicense != null and drivingLicense.nextDueOn != null}">
+        <p class="hint" th:if="${drivingLicense != null and drivingLicense.expiresOn != null}">
+          Führerschein gültig bis:
+          <strong th:text="${#temporals.format(drivingLicense.expiresOn, 'dd.MM.yyyy')}">01.01.2030</strong>
+        </p>
+        <p class="hint" th:if="${licenseLevel != null and licenseLevel.name() == 'PENDING'}">
+          Stammdaten sind hinterlegt, aber noch nicht durch eine Kontrolle bestätigt — der Eintrag gilt erst nach Kontrolle.
+        </p>
+        <p class="hint" th:unless="${drivingLicense != null and drivingLicense.nextDueOn != null}"
+           th:if="${licenseLevel == null or licenseLevel.name() != 'PENDING'}">
           Noch keine dokumentierte Kontrolle. Bitte den Originalführerschein vorzeigen lassen und unten erfassen.
           Es wird keine Kopie gespeichert.
         </p>
@@ -332,6 +340,11 @@
                    th:value="${drivingLicense != null ? drivingLicense.issuedOn : null}"/>
           </div>
           <div class="form-group">
+            <label for="dl-expires">Ablaufdatum</label>
+            <input id="dl-expires" type="date" name="expiresOn"
+                   th:value="${drivingLicense != null ? drivingLicense.expiresOn : null}"/>
+          </div>
+          <div class="form-group">
             <label for="dl-suffix">Führerscheinnummer (optional, z.&nbsp;B. letzte Zeichen)</label>
             <input id="dl-suffix" type="text" name="numberSuffix" maxlength="16"
                    th:value="${drivingLicense != null ? drivingLicense.numberSuffix : null}"
@@ -352,6 +365,9 @@
           <div class="form-group form-group--full form-group--submit">
             <button type="submit" class="btn btn--primary">Stammdaten speichern</button>
           </div>
+          <p class="hint form-group--full" style="margin:0;">
+            Nach Änderungen an den Stammdaten ist erneut eine Kontrolle nötig, bevor der Eintrag als gültig gilt.
+          </p>
         </form>
       </div>
     </div>

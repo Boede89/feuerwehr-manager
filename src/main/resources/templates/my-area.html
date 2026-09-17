@@ -21,6 +21,8 @@
       UVV
       <span th:if="${uvvAvailable}" class="tab-btn__badge" aria-label="offen">!</span>
     </a>
+    <a class="tab-btn" th:classappend="${myAreaTab == 'fuehrerschein'} ? ' tab-btn--active' : ''"
+       th:href="@{/my-area(tab='fuehrerschein')}" th:if="${hasLinkedPerson}">Führerschein</a>
   </div>
 
   <!-- Tab: Profil -->
@@ -357,6 +359,123 @@
         <p class="hint" style="margin:0;">
           Derzeit ist keine offene Online-Nachholung für Sie freigeschaltet.
           Wenn Sie am Dienstabend anwesend waren oder die Unterweisung bereits erledigt haben, erscheint hier nichts.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Führerschein (Selbstpflege) -->
+  <div th:if="${myAreaTab == 'fuehrerschein' and hasLinkedPerson}" class="my-area-tab-panel">
+    <div class="card card--narrow">
+      <div class="card__header card__header--toolbar">
+        <span>Status</span>
+        <span th:if="${licenseLevel != null}" class="fitness-badge" th:classappend="${licenseLevel.cssClass()}"
+              th:text="${licenseLevel.label()}">OK</span>
+      </div>
+      <div class="card__body">
+        <p class="hint">
+          Sie können Ihre Führerschein-Angaben hier selbst hinterlegen.
+          Gültig werden sie erst, wenn die Verwaltung den Originalführerschein kontrolliert hat.
+        </p>
+        <p class="hint" th:if="${drivingLicense != null and drivingLicense.nextDueOn != null}">
+          Nächste Kontrolle:
+          <strong th:text="${#temporals.format(drivingLicense.nextDueOn, 'dd.MM.yyyy')}">01.01.2027</strong>
+        </p>
+        <p class="hint" th:if="${drivingLicense != null and drivingLicense.expiresOn != null}">
+          Führerschein gültig bis:
+          <strong th:text="${#temporals.format(drivingLicense.expiresOn, 'dd.MM.yyyy')}">01.01.2030</strong>
+        </p>
+        <p class="hint" th:if="${licenseLevel != null and licenseLevel.name() == 'PENDING'}">
+          Angaben sind gespeichert — bitte den Führerschein zur Kontrolle vorzeigen.
+        </p>
+      </div>
+    </div>
+
+    <div class="card card--narrow mt-md">
+      <div class="card__header">Meine Führerschein-Angaben</div>
+      <div class="card__body">
+        <form method="post" th:action="@{/my-area/driving-license}" class="form-grid form-grid--2">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <div class="form-group form-group--full">
+            <label for="my-dl-presence">Führerschein</label>
+            <select id="my-dl-presence" name="presence" required>
+              <option th:each="p : ${licensePresences}" th:value="${p.name()}"
+                      th:selected="${drivingLicense == null ? p.name() == 'UNKNOWN' : drivingLicense.presence == p}"
+                      th:text="${p.label()}">Unbekannt</option>
+            </select>
+          </div>
+          <div class="form-group form-group--full">
+            <label>Klassen</label>
+            <div class="checkbox-grid">
+              <label class="checkbox-row" th:each="c : ${licenseClasses}">
+                <input type="checkbox" name="classes" th:value="${c.code()}"
+                       th:checked="${selectedLicenseClasses != null and selectedLicenseClasses.contains(c)}"/>
+                <span th:text="${c.code()}">B</span>
+              </label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="my-dl-issued">Ausstellungsdatum</label>
+            <input id="my-dl-issued" type="date" name="issuedOn"
+                   th:value="${drivingLicense != null ? drivingLicense.issuedOn : null}"/>
+          </div>
+          <div class="form-group">
+            <label for="my-dl-expires">Ablaufdatum</label>
+            <input id="my-dl-expires" type="date" name="expiresOn"
+                   th:value="${drivingLicense != null ? drivingLicense.expiresOn : null}"/>
+          </div>
+          <div class="form-group">
+            <label for="my-dl-suffix">Führerscheinnummer (optional)</label>
+            <input id="my-dl-suffix" type="text" name="numberSuffix" maxlength="16"
+                   th:value="${drivingLicense != null ? drivingLicense.numberSuffix : null}"
+                   placeholder="z. B. letzte Zeichen"/>
+          </div>
+          <div class="form-group form-group--full">
+            <label for="my-dl-restrictions">Beschränkungen / Schlüsselzahlen</label>
+            <textarea id="my-dl-restrictions" name="restrictions" rows="2" maxlength="2000"
+                      th:text="${drivingLicense != null ? drivingLicense.restrictions : null}"></textarea>
+          </div>
+          <div class="form-group form-group--full">
+            <label class="checkbox-row">
+              <input type="checkbox" name="selfReportAcknowledged" value="true"
+                     th:checked="${drivingLicense != null and drivingLicense.selfReportAcknowledged}"/>
+              <span>Ich melde Verlust der Fahrerlaubnis oder ein Fahrverbot unaufgefordert</span>
+            </label>
+          </div>
+          <div class="form-group form-group--full form-group--submit">
+            <button type="submit" class="btn btn--primary">Angaben speichern</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card mt-md">
+      <div class="card__header">Kontrollhistorie</div>
+      <div class="card__body card__body--flush">
+        <div class="table-wrapper" th:if="${licenseChecks != null and !#lists.isEmpty(licenseChecks)}">
+          <table class="table">
+            <thead>
+            <tr>
+              <th>Datum</th>
+              <th>Ergebnis</th>
+              <th>Klassen</th>
+              <th>Nächste Fälligkeit</th>
+              <th>Kontrolliert durch</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="chk : ${licenseChecks}">
+              <td th:text="${#temporals.format(chk.checkedOn, 'dd.MM.yyyy')}">01.01.2026</td>
+              <td th:text="${chk.result.label()}">Gültig</td>
+              <td th:text="${chk.classesCsv != null ? chk.classesCsv : '—'}">B</td>
+              <td th:text="${#temporals.format(chk.nextDueOn, 'dd.MM.yyyy')}">01.01.2027</td>
+              <td th:text="${chk.checkedByDisplayName != null ? chk.checkedByDisplayName : '—'}">Admin</td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-empty" th:unless="${licenseChecks != null and !#lists.isEmpty(licenseChecks)}">
+          Noch keine Kontrolle dokumentiert.
         </p>
       </div>
     </div>

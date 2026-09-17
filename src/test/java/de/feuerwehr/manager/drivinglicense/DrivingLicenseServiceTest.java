@@ -19,6 +19,16 @@ class DrivingLicenseServiceTest {
     }
 
     @Test
+    void pendingWhenYesButNotYetChecked() {
+        DrivingLicense license = new DrivingLicense();
+        license.setPresence(DrivingLicensePresence.YES);
+        license.setClassesCsv("B");
+        license.setNextDueOn(null);
+        assertThat(DrivingLicenseService.computeLevel(license, 30, LocalDate.of(2026, 6, 1)))
+                .isEqualTo(DrivingLicenseStatusLevel.PENDING);
+    }
+
+    @Test
     void noneWhenNoLicenseDeclared() {
         DrivingLicense none = new DrivingLicense();
         none.setPresence(DrivingLicensePresence.NO);
@@ -43,6 +53,17 @@ class DrivingLicenseServiceTest {
         license.setNextDueOn(today.plusDays(60));
         assertThat(DrivingLicenseService.computeLevel(license, 30, today))
                 .isEqualTo(DrivingLicenseStatusLevel.OK);
+    }
+
+    @Test
+    void overdueWhenExpiresBeforeToday() {
+        LocalDate today = LocalDate.of(2026, 6, 1);
+        DrivingLicense license = new DrivingLicense();
+        license.setPresence(DrivingLicensePresence.YES);
+        license.setNextDueOn(today.plusMonths(6));
+        license.setExpiresOn(today.minusDays(1));
+        assertThat(DrivingLicenseService.computeLevel(license, 30, today))
+                .isEqualTo(DrivingLicenseStatusLevel.OVERDUE);
     }
 
     @Test
