@@ -15,6 +15,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
@@ -63,6 +64,18 @@ public class User {
 
     @Column(name = "display_name", nullable = false, length = 255)
     private String displayName;
+
+    @Column(name = "first_name", length = 100)
+    private String firstName;
+
+    @Column(name = "last_name", length = 100)
+    private String lastName;
+
+    private LocalDate birthdate;
+
+    /** true = Selbstregistrierung, Freischaltung durch Admin ausstehend. */
+    @Column(name = "registration_pending", nullable = false)
+    private boolean registrationPending;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)

@@ -18,6 +18,15 @@ public interface UnitRepository extends JpaRepository<Unit, Long> {
 
     @Query("""
             SELECT u FROM Unit u
+            WHERE u.active = TRUE
+              AND u.selfRegistrationEnabled = TRUE
+              AND (u.testData = FALSE OR :includeTestUnits = TRUE)
+            ORDER BY u.name
+            """)
+    List<Unit> findActiveWithSelfRegistration(@Param("includeTestUnits") boolean includeTestUnits);
+
+    @Query("""
+            SELECT u FROM Unit u
             WHERE u.testData = FALSE OR :includeTestUnits = TRUE
             ORDER BY u.name
             """)

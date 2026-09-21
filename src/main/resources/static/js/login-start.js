@@ -38,6 +38,9 @@
   }
 
   function closeLogin() {
+    if (typeof showLoginView === 'function') {
+      showLoginView();
+    }
     overlay.classList.remove('active');
     overlay.setAttribute('aria-hidden', 'true');
     if (!isBugOpen()) {
@@ -190,6 +193,148 @@
       closeLogin();
     }
   });
+
+  var loginForm = document.getElementById('login-form');
+  var registerForm = document.getElementById('register-form');
+  var showRegisterBtn = document.getElementById('login-show-register');
+  var backLoginBtn = document.getElementById('register-back-login');
+  var registerError = document.getElementById('register-error');
+  var registerSubmitBtn = document.getElementById('register-submit');
+  var loginTitle = document.getElementById('login-overlay-title');
+  var loginSubtitle = loginTitle ? loginTitle.parentElement.querySelector('p') : null;
+
+  function setRegisterError(message) {
+    if (!registerError) {
+      return;
+    }
+    if (message) {
+      registerError.textContent = message;
+      registerError.hidden = false;
+    } else {
+      registerError.textContent = '';
+      registerError.hidden = true;
+    }
+  }
+
+  function showRegisterView() {
+    if (!registerForm || !loginForm) {
+      return;
+    }
+    setRegisterError('');
+    loginForm.hidden = true;
+    registerForm.hidden = false;
+    if (loginTitle) {
+      loginTitle.textContent = 'Registrieren';
+    }
+    if (loginSubtitle) {
+      loginSubtitle.textContent = 'Konto anlegen — Freischaltung durch Administrator';
+    }
+    var first = document.getElementById('reg-first-name');
+    if (first) {
+      window.setTimeout(function () {
+        first.focus();
+      }, 30);
+    }
+  }
+
+  function showLoginView() {
+    if (!registerForm || !loginForm) {
+      return;
+    }
+    setRegisterError('');
+    registerForm.hidden = true;
+    loginForm.hidden = false;
+    if (loginTitle) {
+      loginTitle.textContent = 'Anmelden';
+    }
+    if (loginSubtitle) {
+      loginSubtitle.textContent = 'Zugang für berechtigte Einsatzkräfte';
+    }
+    if (userInput) {
+      window.setTimeout(function () {
+        userInput.focus();
+      }, 30);
+    }
+  }
+
+  function csrfFormHeaders() {
+    var headers = {
+      Accept: 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+    };
+    var tokenMeta = document.querySelector('meta[name="csrf-token"]');
+    var headerMeta = document.querySelector('meta[name="csrf-header"]');
+    if (tokenMeta && headerMeta) {
+      headers[headerMeta.getAttribute('content')] = tokenMeta.getAttribute('content');
+    }
+    return headers;
+  }
+
+  if (showRegisterBtn) {
+    showRegisterBtn.addEventListener('click', showRegisterView);
+  }
+  if (backLoginBtn) {
+    backLoginBtn.addEventListener('click', showLoginView);
+  }
+
+  if (registerForm) {
+    registerForm.addEventListener('submit', function (event) {
+      event.preventDefault();
+      setRegisterError('');
+      if (registerForm.dataset.submitting === 'true') {
+        return;
+      }
+      registerForm.dataset.submitting = 'true';
+      var body = new URLSearchParams();
+      body.set('firstName', (document.getElementById('reg-first-name') || {}).value || '');
+      body.set('lastName', (document.getElementById('reg-last-name') || {}).value || '');
+      body.set('email', (document.getElementById('reg-email') || {}).value || '');
+      body.set('birthdate', (document.getElementById('reg-birthdate') || {}).value || '');
+      body.set('unitId', (document.getElementById('reg-unit') || {}).value || '');
+      var request = fetch('/login/register', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: csrfFormHeaders(),
+        body: body.toString()
+      });
+      if (window.FwBusy && registerSubmitBtn) {
+        request = window.FwBusy.wrapPromise(registerSubmitBtn, request, {
+          message: 'Registrierung wird übermittelt …',
+          container: overlay ? overlay.querySelector('.auth-card') : null,
+          buttonLabel: 'Wird gesendet …'
+        });
+      } else if (registerSubmitBtn) {
+        registerSubmitBtn.disabled = true;
+      }
+      request
+        .then(function (res) {
+          return res.json().then(function (data) {
+            return { ok: res.ok, data: data };
+          });
+        })
+        .then(function (result) {
+          var data = result.data || {};
+          if (!result.ok || !data.ok) {
+            throw new Error(data.message || 'Registrierung fehlgeschlagen.');
+          }
+          if (window.toast) {
+            window.toast(data.message, 'success');
+          }
+          registerForm.reset();
+          showLoginView();
+          closeLogin();
+        })
+        .catch(function (err) {
+          setRegisterError(err.message || 'Registrierung fehlgeschlagen.');
+        })
+        .finally(function () {
+          registerForm.dataset.submitting = 'false';
+          if (registerSubmitBtn && !(window.FwBusy)) {
+            registerSubmitBtn.disabled = false;
+          }
+        });
+    });
+  }
 
   if (isOpen()) {
     document.body.classList.add('modal-open');

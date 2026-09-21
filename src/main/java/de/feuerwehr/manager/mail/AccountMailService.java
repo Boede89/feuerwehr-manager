@@ -154,6 +154,45 @@ public class AccountMailService {
         }
     }
 
+    /**
+     * Ablehnung einer Selbstregistrierung über Einheits-SMTP.
+     *
+     * @return leer bei Erfolg, sonst Hinweistext
+     */
+    public Optional<String> sendRegistrationRejected(User user, long unitId) {
+        String to = user.getLoginEmail();
+        if (to == null || to.isBlank()) {
+            return Optional.of("Keine E-Mail-Adresse am Benutzer hinterlegt.");
+        }
+        Optional<UnitSmtpAccount> smtp = resolveDefaultUnitSmtp(unitId);
+        if (smtp.isEmpty()) {
+            return Optional.of("SMTP der Einheit ist nicht konfiguriert (Admin → Einheit → Schnittstellen).");
+        }
+        try {
+            UnitSmtpAccount account = smtp.get();
+            JavaMailSenderImpl sender = SmtpMailService.buildSender(
+                    account.getSmtpHost(),
+                    account.getSmtpPort(),
+                    account.getSmtpUsername(),
+                    account.getSmtpPassword(),
+                    account.getSmtpEncryption());
+            String ffName = resolveUnitDisplayName(user);
+            var message = sender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, false, StandardCharsets.UTF_8.name());
+            String senderName = account.getSmtpFromName() != null && !account.getSmtpFromName().isBlank()
+                    ? account.getSmtpFromName()
+                    : ffName;
+            helper.setFrom(account.getSmtpFromEmail(), senderName);
+            helper.setTo(to.trim());
+            helper.setSubject(ffName + " – Registrierung abgelehnt");
+            helper.setText(buildRejectionBody(user, ffName), false);
+            sender.send(message);
+            return Optional.empty();
+        } catch (Exception e) {
+            return Optional.of("E-Mail konnte nicht gesendet werden: " + e.getMessage());
+        }
+    }
+
     private static boolean isUnitSmtpReady(UnitSmtpAccount account) {
         return account.getSmtpHost() != null
                 && !account.getSmtpHost().isBlank()
@@ -218,6 +257,15 @@ public class AccountMailService {
         if (!url.isBlank()) {
             body.append("Anmeldung: ").append(url).append("\n");
         }
+        return body.toString();
+    }
+
+    private static String buildRejectionBody(User user, String ffName) {
+        StringBuilder body = new StringBuilder();
+        body.append("Guten Tag ").append(user.getDisplayName()).append(",\n\n");
+        body.append("Ihre Registrierungsanfrage bei ").append(ffName).append(" wurde abgelehnt.\n\n");
+        body.append("Es wurde kein Benutzerkonto freigeschaltet. ");
+        body.append("Bei Fragen wenden Sie sich bitte an die Verwaltung Ihrer Einheit.\n");
         return body.toString();
     }
 }

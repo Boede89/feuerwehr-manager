@@ -126,6 +126,26 @@ public interface UserRepository extends JpaRepository<User, Long> {
             """)
     List<User> findUnitAdminsByUnitId(@Param("unitId") long unitId);
 
+    @Query("""
+            SELECT COUNT(u) FROM User u
+            WHERE u.anonymizedAt IS NULL
+              AND u.registrationPending = TRUE
+              AND u.active = FALSE
+              AND u.unit.id = :unitId
+            """)
+    long countPendingRegistrationsByUnitId(@Param("unitId") long unitId);
+
+    @Query("""
+            SELECT u FROM User u
+            LEFT JOIN FETCH u.unit
+            WHERE u.anonymizedAt IS NULL
+              AND u.registrationPending = TRUE
+              AND u.active = FALSE
+              AND u.unit.id = :unitId
+            ORDER BY u.createdAt ASC
+            """)
+    List<User> findPendingRegistrationsByUnitId(@Param("unitId") long unitId);
+
     @Modifying
     @Query("UPDATE User u SET u.organizationalRole = null WHERE u.organizationalRole IS NOT NULL AND u.organizationalRole.unit.id = :unitId")
     void clearOrganizationalRolesByUnitId(@Param("unitId") long unitId);

@@ -13,6 +13,9 @@ import de.feuerwehr.manager.mail.AccountMailService;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserManagementService;
 import de.feuerwehr.manager.user.UserRfidCard;
+import de.feuerwehr.manager.user.UserRegistrationService;
+import de.feuerwehr.manager.user.UserRegistrationService.ApprovalPreview;
+import de.feuerwehr.manager.user.UserRegistrationService.FieldChoice;
 import de.feuerwehr.manager.user.UserRole;
 import de.feuerwehr.manager.user.UserRoleLabels;
 import de.feuerwehr.manager.user.UserService;
@@ -21,6 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -39,6 +43,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
@@ -59,6 +64,7 @@ public class AdminPanelController {
     private final UserService userService;
     private final UnitRoleService unitRoleService;
     private final AccessControlService accessControlService;
+    private final UserRegistrationService userRegistrationService;
 
     @GetMapping
     public String index(
@@ -124,6 +130,7 @@ public class AdminPanelController {
         model.addAttribute("unitId", resolvedId);
         model.addAttribute("currentUnitName", active.getName());
         model.addAttribute("unit", active);
+        model.addAttribute("pendingRegistrationCount", userRegistrationService.countPendingForUnit(resolvedId));
         populateUserFormModel(actor, model, resolvedId);
 
         switch (tab) {
@@ -570,6 +577,10 @@ public class AdminPanelController {
         model.addAttribute("unitDienstgrade", unitRoleService.listDienstgrade(unitId));
         model.addAttribute("unitFunktionen", unitRoleService.listFunktionen(unitId));
         model.addAttribute("showUnitUserRoles", true);
+        model.addAttribute("selfRegistrationEnabled", unitService.findById(unitId)
+                .map(Unit::isSelfRegistrationEnabled)
+                .orElse(false));
+        model.addAttribute("pendingRegistrationCount", userRegistrationService.countPendingForUnit(unitId));
         Map<Long, List<de.feuerwehr.manager.unit.UnitRole>> functionsByUserId = new LinkedHashMap<>();
         for (User user : users) {
             if (user.getRole() == UserRole.USER) {
@@ -582,6 +593,119 @@ public class AdminPanelController {
             functionPermissionLabels.put(fn.getId(), unitRoleService.formatPermissionsLabel(fn));
         }
         model.addAttribute("functionPermissionLabels", functionPermissionLabels);
+    }
+
+    @PostMapping("/unit/self-registration")
+    public String saveSelfRegistration(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @RequestParam(name = "enabled", defaultValue = "false") boolean enabled,
+            RedirectAttributes redirectAttributes) {
+        try {
+            long resolved = unitService
+                    .resolveActiveUnit(unitId, actor)
+                    .map(Unit::getId)
+                    .orElseThrow(() -> new IllegalArgumentException("Keine gültige Einheit."));
+            unitService.setSelfRegistrationEnabled(resolved, enabled);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute(
+                    "message",
+                    enabled
+                            ? "Selbstregistrierung ist aktiviert."
+                            : "Selbstregistrierung ist deaktiviert.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return buildAdminRedirect("einheit", "benutzer", unitId);
+    }
+
+    @GetMapping("/users/{id}/registration-preview")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> registrationPreview(
+            @AuthenticationPrincipal AppUserDetails actor, @PathVariable long id) {
+        try {
+            ApprovalPreview preview = userRegistrationService.previewApproval(id, actor);
+            User user = preview.user();
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("userId", user.getId());
+            body.put("username", user.getUsername());
+            body.put("firstName", user.getFirstName());
+            body.put("lastName", user.getLastName());
+            body.put("email", user.getLoginEmail());
+            body.put("birthdate", user.getBirthdate() != null ? user.getBirthdate().toString() : null);
+            body.put("displayName", user.getDisplayName());
+            body.put("warning", preview.warning());
+            body.put("personAlreadyLinked", preview.personAlreadyLinked());
+            if (preview.matchedPerson() != null) {
+                var person = preview.matchedPerson();
+                Map<String, Object> personMap = new LinkedHashMap<>();
+                personMap.put("id", person.getId());
+                personMap.put("firstName", person.getFirstName());
+                personMap.put("lastName", person.getLastName());
+                personMap.put("email", person.getEmail());
+                personMap.put(
+                        "birthdate", person.getBirthdate() != null ? person.getBirthdate().toString() : null);
+                personMap.put("displayName", person.displayName());
+                body.put("person", personMap);
+            } else {
+                body.put("person", null);
+            }
+            List<Map<String, String>> diffs = new ArrayList<>();
+            for (var diff : preview.differences()) {
+                Map<String, String> row = new LinkedHashMap<>();
+                row.put("field", diff.field());
+                row.put("label", diff.label());
+                row.put("registrationValue", diff.registrationValue());
+                row.put("personValue", diff.personValue());
+                diffs.add(row);
+            }
+            body.put("differences", diffs);
+            return ResponseEntity.ok(body);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/users/{id}/registration-approve")
+    public String approveRegistration(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "personId", required = false) Long personId,
+            @RequestParam Map<String, String> params,
+            HttpServletRequest request,
+            RedirectAttributes redirectAttributes) {
+        try {
+            List<FieldChoice> choices = new ArrayList<>();
+            for (Map.Entry<String, String> entry : params.entrySet()) {
+                if (entry.getKey() != null && entry.getKey().startsWith("choice_")) {
+                    choices.add(new FieldChoice(entry.getKey().substring("choice_".length()), entry.getValue()));
+                }
+            }
+            String message = userRegistrationService.approve(id, personId, choices, actor, request);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", message);
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return buildAdminRedirect("einheit", "benutzer", unitId);
+    }
+
+    @PostMapping("/users/{id}/registration-reject")
+    public String rejectRegistration(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long id,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            HttpServletRequest request,
+            RedirectAttributes redirectAttributes) {
+        try {
+            String message = userRegistrationService.reject(id, actor, request);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", message);
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return buildAdminRedirect("einheit", "benutzer", unitId);
     }
 
     private void populateAdminUsersTab(Model model, List<User> users, AppUserDetails actor, Long unitId) {

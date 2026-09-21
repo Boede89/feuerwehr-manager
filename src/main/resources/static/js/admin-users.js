@@ -335,4 +335,195 @@
       savePermissions();
     });
   }
+
+  function initSelfRegistrationToggle() {
+    var form = document.getElementById('self-reg-toggle-form');
+    var checkbox = document.getElementById('self-reg-toggle-checkbox');
+    var hidden = document.getElementById('self-reg-enabled-param');
+    if (!form || !checkbox || !hidden) return;
+    checkbox.addEventListener('change', function () {
+      hidden.value = checkbox.checked ? 'true' : 'false';
+      if (typeof form.requestSubmit === 'function') {
+        form.requestSubmit();
+      } else {
+        form.submit();
+      }
+    });
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function openRegistrationApprove(userId, unitId) {
+    var overlay = document.getElementById('modal-registration-approve');
+    var loading = document.getElementById('reg-approve-loading');
+    var errorEl = document.getElementById('reg-approve-error');
+    var content = document.getElementById('reg-approve-content');
+    var footer = document.getElementById('reg-approve-footer');
+    var approveForm = document.getElementById('form-registration-approve');
+    var rejectForm = document.getElementById('form-registration-reject');
+    if (!overlay || !approveForm) return;
+
+    if (loading) loading.hidden = false;
+    if (errorEl) {
+      errorEl.hidden = true;
+      errorEl.textContent = '';
+    }
+    if (content) content.hidden = true;
+    if (footer) footer.hidden = true;
+
+    approveForm.action = '/admin/users/' + encodeURIComponent(userId) + '/registration-approve';
+    if (rejectForm) {
+      rejectForm.action = '/admin/users/' + encodeURIComponent(userId) + '/registration-reject';
+    }
+
+    overlay.classList.add('active');
+    document.body.classList.add('modal-open');
+
+    fetch('/admin/users/' + encodeURIComponent(userId) + '/registration-preview', {
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    })
+      .then(function (res) {
+        if (!res.ok) {
+          return res.json().then(function (data) {
+            throw new Error((data && data.message) || 'Vorschau konnte nicht geladen werden.');
+          }).catch(function () {
+            throw new Error('Vorschau konnte nicht geladen werden.');
+          });
+        }
+        return res.json();
+      })
+      .then(function (data) {
+        if (loading) loading.hidden = true;
+        if (content) content.hidden = false;
+        if (footer) footer.hidden = false;
+
+        var nameEl = document.getElementById('reg-approve-name');
+        var userEl = document.getElementById('reg-approve-username');
+        var emailEl = document.getElementById('reg-approve-email');
+        var birthEl = document.getElementById('reg-approve-birthdate');
+        var warnEl = document.getElementById('reg-approve-warning');
+        var personBox = document.getElementById('reg-approve-person-box');
+        var personLabel = document.getElementById('reg-approve-person-label');
+        var personIdInput = document.getElementById('reg-approve-person-id');
+        var diffsBox = document.getElementById('reg-approve-diffs');
+        var diffRows = document.getElementById('reg-approve-diff-rows');
+
+        if (nameEl) {
+          nameEl.textContent = [data.firstName, data.lastName].filter(Boolean).join(' ') || data.displayName || '—';
+        }
+        if (userEl) userEl.textContent = data.username || '—';
+        if (emailEl) emailEl.textContent = data.email || '—';
+        if (birthEl) birthEl.textContent = data.birthdate || '—';
+
+        if (warnEl) {
+          if (data.warning) {
+            warnEl.textContent = data.warning;
+            warnEl.hidden = false;
+          } else {
+            warnEl.textContent = '';
+            warnEl.hidden = true;
+          }
+        }
+
+        var submitBtn = document.getElementById('reg-approve-submit');
+        if (submitBtn) {
+          submitBtn.disabled = !!data.personAlreadyLinked;
+        }
+
+        if (personIdInput) {
+          personIdInput.value = data.person && data.person.id ? String(data.person.id) : '';
+        }
+        if (personBox && personLabel) {
+          if (data.person) {
+            personBox.hidden = false;
+            personLabel.textContent =
+              (data.person.displayName || [data.person.firstName, data.person.lastName].filter(Boolean).join(' ')) +
+              (data.person.email ? ' · ' + data.person.email : '') +
+              (data.person.birthdate ? ' · ' + data.person.birthdate : '');
+          } else {
+            personBox.hidden = true;
+            personLabel.textContent = '—';
+          }
+        }
+
+        if (diffsBox && diffRows) {
+          var diffs = data.differences || [];
+          if (diffs.length && data.person) {
+            diffsBox.hidden = false;
+            diffRows.innerHTML = diffs
+              .map(function (diff) {
+                var field = escapeHtml(diff.field);
+                return (
+                  '<div class="reg-approve-diff">' +
+                  '<div class="reg-approve-diff__label">' +
+                  escapeHtml(diff.label) +
+                  '</div>' +
+                  '<label class="radio-row">' +
+                  '<input type="radio" name="choice_' +
+                  field +
+                  '" value="registration" checked/>' +
+                  '<span>Registrierung: <strong>' +
+                  escapeHtml(diff.registrationValue) +
+                  '</strong></span>' +
+                  '</label>' +
+                  '<label class="radio-row">' +
+                  '<input type="radio" name="choice_' +
+                  field +
+                  '" value="person"/>' +
+                  '<span>Personal: <strong>' +
+                  escapeHtml(diff.personValue) +
+                  '</strong></span>' +
+                  '</label>' +
+                  '</div>'
+                );
+              })
+              .join('');
+          } else {
+            diffsBox.hidden = true;
+            diffRows.innerHTML = '';
+          }
+        }
+      })
+      .catch(function (err) {
+        if (loading) loading.hidden = true;
+        if (errorEl) {
+          errorEl.textContent = err.message || 'Fehler beim Laden.';
+          errorEl.hidden = false;
+        }
+      });
+  }
+
+  document.querySelectorAll('[data-open-registration-approve]').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      openRegistrationApprove(btn.getAttribute('data-user-id'), btn.getAttribute('data-unit-id'));
+    });
+  });
+
+  var rejectBtn = document.getElementById('reg-approve-reject');
+  if (rejectBtn) {
+    rejectBtn.addEventListener('click', function () {
+      var rejectForm = document.getElementById('form-registration-reject');
+      if (!rejectForm || !rejectForm.action || rejectForm.action.indexOf('registration-reject') < 0) {
+        return;
+      }
+      if (
+        !window.confirm(
+          'Registrierung wirklich ablehnen? Das Konto wird gelöscht und der Antragsteller per E-Mail informiert.'
+        )
+      ) {
+        return;
+      }
+      rejectForm.submit();
+    });
+  }
+
+  initSelfRegistrationToggle();
 })();

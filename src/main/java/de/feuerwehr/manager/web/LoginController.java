@@ -3,6 +3,7 @@ package de.feuerwehr.manager.web;
 import de.feuerwehr.manager.berichte.AttendanceCheckInService;
 import de.feuerwehr.manager.reservierungen.ReservierungenSettingsService;
 import de.feuerwehr.manager.security.SecurityProperties;
+import de.feuerwehr.manager.unit.UnitService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +20,7 @@ public class LoginController {
     private final SecurityProperties securityProperties;
     private final ReservierungenSettingsService reservierungenSettingsService;
     private final AttendanceCheckInService attendanceCheckInService;
+    private final UnitService unitService;
 
     @GetMapping("/login")
     public String login(
@@ -43,6 +45,15 @@ public class LoginController {
             log.warn("Öffentliche Check-In-Termine konnten nicht geladen werden: {}", e.getMessage(), e);
             model.addAttribute("publicCheckInOptions", List.of());
             model.addAttribute("showCheckInUnitNames", false);
+        }
+        try {
+            var registrationUnits = unitService.findActiveWithSelfRegistration();
+            model.addAttribute("registrationUnits", registrationUnits);
+            model.addAttribute("selfRegistrationAvailable", !registrationUnits.isEmpty());
+        } catch (Exception e) {
+            log.warn("Einheiten für Registrierung konnten nicht geladen werden: {}", e.getMessage());
+            model.addAttribute("registrationUnits", List.of());
+            model.addAttribute("selfRegistrationAvailable", false);
         }
         if (error != null) {
             model.addAttribute("errorMessage", "Anmeldung fehlgeschlagen. Bitte Zugangsdaten prüfen.");

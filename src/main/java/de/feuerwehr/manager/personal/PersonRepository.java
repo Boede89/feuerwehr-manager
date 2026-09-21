@@ -1,5 +1,6 @@
 package de.feuerwehr.manager.personal;
 
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -79,15 +80,35 @@ public interface PersonRepository extends JpaRepository<Person, Long> {
 
     @Query("""
             SELECT p FROM Person p
+            LEFT JOIN FETCH p.unit
+            LEFT JOIN FETCH p.user
+            LEFT JOIN FETCH p.qualificationType
+            WHERE p.unit.id = :unitId
+              AND p.anonymizedAt IS NULL
+              AND p.testData = :testData
+              AND LOWER(TRIM(p.firstName)) = LOWER(:firstName)
+              AND LOWER(TRIM(p.lastName)) = LOWER(:lastName)
+              AND (:birthdate IS NULL OR p.birthdate = :birthdate)
+            ORDER BY p.id
+            """)
+    List<Person> findRegistrationMatchCandidates(
+            @Param("unitId") long unitId,
+            @Param("firstName") String firstName,
+            @Param("lastName") String lastName,
+            @Param("birthdate") LocalDate birthdate,
+            @Param("testData") boolean testData);
+
+    @Query("""
+            SELECT p FROM Person p
             JOIN FETCH p.user u
             WHERE u.id IN :userIds
             ORDER BY p.id
             """)
     List<Person> findAllByUserIdIn(@Param("userIds") Collection<Long> userIds);
 
-    @Query(
-            """
+    @Query("""
             SELECT p FROM Person p
+            LEFT JOIN FETCH p.qualificationType
             LEFT JOIN FETCH p.user
             WHERE p.qualificationType.id = :qualificationTypeId AND p.anonymizedAt IS NULL
             """)

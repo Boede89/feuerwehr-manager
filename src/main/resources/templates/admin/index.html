@@ -103,7 +103,11 @@
         <a class="tab-btn" th:classappend="${adminTab == 'konfiguration'} ? ' tab-btn--active' : ''"
            th:href="@{/admin(scope='einheit', tab='konfiguration', unit=${unitId})}">Konfiguration</a>
         <a class="tab-btn" th:classappend="${adminTab == 'benutzer'} ? ' tab-btn--active' : ''"
-           th:href="@{/admin(scope='einheit', tab='benutzer', unit=${unitId})}">Benutzer</a>
+           th:href="@{/admin(scope='einheit', tab='benutzer', unit=${unitId})}">
+          Benutzer
+          <span th:if="${pendingRegistrationCount != null and pendingRegistrationCount > 0}"
+                class="tab-btn__badge" th:text="${pendingRegistrationCount}">1</span>
+        </a>
         <a class="tab-btn" th:classappend="${adminTab == 'rollen'} ? ' tab-btn--active' : ''"
            th:href="@{/admin(scope='einheit', tab='rollen', unit=${unitId})}">Rollen</a>
         <a class="tab-btn" th:classappend="${adminTab == 'schnittstellen'} ? ' tab-btn--active' : ''"
@@ -155,7 +159,7 @@
   <script th:src="@{/js/admin-unit.js}" defer></script>
   <script th:src="@{/js/admin-technik.js}" defer></script>
   <script th:src="@{/js/admin-ausbildung.js(v='20260829u')}" defer></script>
-  <script th:src="@{/js/admin-users.js}" defer></script>
+  <script th:src="@{/js/admin-users.js(v='20260921a')}" defer></script>
   <script th:src="@{/js/rfid-input-capture.js}" defer></script>
   <script th:src="@{/js/admin-schnittstellen.js(v='20260828')}" defer></script>
 </main>

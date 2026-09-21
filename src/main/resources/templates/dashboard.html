@@ -35,6 +35,21 @@
     <a class="btn btn--primary" th:href="@{/my-area(tab='uvv', start=1)}">Jetzt durchführen</a>
   </div>
 
+  <div class="dashboard-uvv-notice" th:if="${pendingRegistrationCount != null and pendingRegistrationCount > 0}"
+       role="status">
+    <div class="dashboard-uvv-notice__text">
+      <strong>Selbstregistrierung</strong>
+      <p>
+        <span th:text="${pendingRegistrationCount}">1</span>
+        <th:block th:if="${pendingRegistrationCount == 1}">Benutzer wartet</th:block>
+        <th:block th:unless="${pendingRegistrationCount == 1}">Benutzer warten</th:block>
+        auf Freigabe.
+      </p>
+    </div>
+    <a class="btn btn--primary"
+       th:href="@{/admin(scope='einheit', tab='benutzer', unit=${unitId})}">Zur Benutzerverwaltung</a>
+  </div>
+
   <p id="dashboard-edit-hint" class="dashboard-edit-hint" hidden>
     Ziehen zum Verschieben · an den Rändern in Breite/Höhe ziehen · Lücken sind erlaubt — Speichern mit „Fertig“.
   </p>

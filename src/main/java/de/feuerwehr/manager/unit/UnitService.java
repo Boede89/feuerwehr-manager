@@ -39,6 +39,20 @@ public class UnitService {
     }
 
     @Transactional(readOnly = true)
+    public List<Unit> findActiveWithSelfRegistration() {
+        return unitRepository.findActiveWithSelfRegistration(testModeService.isEnabled());
+    }
+
+    @Transactional
+    public void setSelfRegistrationEnabled(long unitId, boolean enabled) {
+        Unit unit = unitRepository
+                .findVisibleById(unitId, testModeService.isEnabled())
+                .orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden."));
+        unit.setSelfRegistrationEnabled(enabled);
+        unitRepository.save(unit);
+    }
+
+    @Transactional(readOnly = true)
     public List<Unit> findActiveOrdered(AppUserDetails actor) {
         if (actor != null && actor.getRole().isSuperAdmin()) {
             return findActiveOrdered();

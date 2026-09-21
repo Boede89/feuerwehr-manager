@@ -49,4 +49,8 @@ public class Unit {
      */
     @Column(name = "idle_logout_minutes")
     private Integer idleLogoutMinutes;
+
+    /** Öffentliche Selbstregistrierung auf der Anmeldeseite. */
+    @Column(name = "self_registration_enabled", nullable = false)
+    private boolean selfRegistrationEnabled;
 }

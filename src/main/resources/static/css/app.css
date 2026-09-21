@@ -2030,6 +2030,40 @@ body.dashboard-editing .dashboard-widget {
 .badge.warn { background: var(--orange-hell, rgba(251, 191, 36, 0.2)); color: var(--gelb, #b45309); }
 .badge.warn-uebung { background: var(--orange-hell, rgba(251, 191, 36, 0.2)); color: var(--gelb, #d97706); }
 .badge.inactive { background: rgba(239, 68, 68, 0.12); color: var(--error); }
+.badge--warn { background: rgba(202, 138, 4, 0.15); color: #a16207; }
+[data-theme="dark"] .badge--warn,
+body.theme-dark .badge--warn { background: rgba(202, 138, 4, 0.25); color: #fde68a; }
+
+.reg-approve-summary {
+  display: grid;
+  gap: 0.35rem 1rem;
+  margin: 0 0 1rem;
+}
+.reg-approve-summary > div { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+.reg-approve-summary dt {
+  margin: 0;
+  min-width: 7rem;
+  color: var(--text-muted, #6b7280);
+  font-weight: 500;
+}
+.reg-approve-summary dd { margin: 0; }
+.reg-approve-diffs { display: grid; gap: 0.85rem; }
+.reg-approve-diff {
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--border, rgba(0,0,0,0.12));
+  border-radius: var(--radius, 8px);
+  background: var(--bg-muted, rgba(0,0,0,0.02));
+}
+.reg-approve-diff__label {
+  margin-bottom: 0.45rem;
+  font-weight: 600;
+}
+.self-reg-toggle {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  gap: 0;
+}
 
 .hint, .text-muted {
   font-size: 12px;

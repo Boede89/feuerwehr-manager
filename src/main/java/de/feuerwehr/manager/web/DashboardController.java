@@ -26,6 +26,7 @@ import de.feuerwehr.manager.termine.TermineService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
 import de.feuerwehr.manager.uvv.UvvService;
+import de.feuerwehr.manager.user.UserRegistrationService;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -65,6 +66,7 @@ public class DashboardController {
     private final DashboardLayoutService dashboardLayoutService;
     private final ObjectMapper objectMapper;
     private final UvvService uvvService;
+    private final UserRegistrationService userRegistrationService;
 
     @GetMapping("/")
     public String dashboard(
@@ -173,8 +175,21 @@ public class DashboardController {
         }
 
         loadUvvNotice(currentUser, resolvedUnitId, model);
+        loadPendingRegistrationNotice(currentUser, resolvedUnitId, model);
 
         return "dashboard";
+    }
+
+    private void loadPendingRegistrationNotice(AppUserDetails currentUser, long unitId, Model model) {
+        model.addAttribute("pendingRegistrationCount", 0L);
+        try {
+            if (currentUser != null && currentUser.getRole() != null && currentUser.getRole().isAdminLevel()) {
+                model.addAttribute(
+                        "pendingRegistrationCount", userRegistrationService.countPendingForUnit(unitId));
+            }
+        } catch (Exception e) {
+            log.warn("Ausstehende Registrierungen konnten nicht geladen werden: {}", e.getMessage());
+        }
     }
 
     private void loadUvvNotice(AppUserDetails currentUser, long unitId, Model model) {
