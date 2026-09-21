@@ -166,6 +166,9 @@ public class WebUiAdvice {
                     state = module == AppModule.PERSONAL && module.implemented() ? "link" : "hidden";
                 } else if (!enabled) {
                     state = "hidden";
+                } else if (module == AppModule.RESERVIERUNGEN) {
+                    // Übersicht + Meine Anträge für alle angemeldeten Nutzer der Einheit
+                    state = module.implemented() ? "link" : "soon";
                 } else if (!adminLevel
                         && user != null
                         && !userPermissionService.hasModuleAccess(user, activeUnitId, module.key())) {

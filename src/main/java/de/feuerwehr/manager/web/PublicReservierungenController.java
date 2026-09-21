@@ -73,6 +73,7 @@ public class PublicReservierungenController {
         model.addAttribute("reservierungenBasePath", "/reservieren");
         model.addAttribute("canWrite", false);
         model.addAttribute("canManage", false);
+        model.addAttribute("canBrowseResources", false);
         model.addAttribute("vehicles", vehicles);
         model.addAttribute("rooms", rooms);
         model.addAttribute(

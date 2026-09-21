@@ -28,6 +28,7 @@ import de.feuerwehr.manager.web.dto.ReservationActionResultDto;
 import de.feuerwehr.manager.web.dto.ReservationBulkImportResultDto;
 import de.feuerwehr.manager.web.dto.ResourceOptionDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -73,13 +74,21 @@ public class ReservierungenController {
         try {
             Unit unit = resolveUnit(unitId, actor, model);
             requireModuleEnabled(unit.getId());
-            requireRead(actor, unit.getId());
-            ReservierungenTab activeTab = ReservierungenTab.fromKey(tab);
+            accessControlService.requireUnitAccess(actor, unit.getId());
+            boolean canBrowseResources = canBrowseResources(actor, unit.getId());
             boolean canWrite = canWrite(actor, unit.getId());
+            ReservierungenTab activeTab = ReservierungenTab.fromKey(tab);
+            if (!isTabAllowed(activeTab, canBrowseResources, canWrite)) {
+                redirectAttributes.addFlashAttribute(
+                        "error", "Keine Berechtigung für diesen Reservierungen-Bereich.");
+                return "redirect:/reservierungen?unit=" + unit.getId() + "&tab=uebersicht";
+            }
             model.addAttribute("reservierungenTab", activeTab.key());
-            model.addAttribute("reservierungenTabs", ReservierungenTab.values());
+            model.addAttribute(
+                    "reservierungenTabs", visibleTabs(canBrowseResources, canWrite));
             model.addAttribute("canWrite", canWrite);
             model.addAttribute("canManage", canWrite);
+            model.addAttribute("canBrowseResources", canBrowseResources);
             model.addAttribute("publicReservation", false);
             model.addAttribute("reservierungenBasePath", "/reservierungen");
             var vehicles = conflictService.listBookableVehicles(unit.getId());
@@ -96,7 +105,11 @@ public class ReservierungenController {
                     rooms.stream()
                             .map(r -> new ResourceOptionDto(r.getId(), r.getName() != null ? r.getName() : ""))
                             .toList());
-            model.addAttribute("unitPersons", personalService.listSelectablePersons(unit.getId()));
+            model.addAttribute(
+                    "unitPersons",
+                    canBrowseResources
+                            ? personalService.listSelectablePersons(unit.getId())
+                            : List.of());
             model.addAttribute("requesterName", requesterDisplayName(actor, unit.getId()));
             model.addAttribute(
                     "requesterEmail",
@@ -131,7 +144,6 @@ public class ReservierungenController {
             @RequestBody CreateReservationRequest body) {
         try {
             requireModuleEnabled(unitId);
-            requireRead(actor, unitId);
             accessControlService.requireUnitAccess(actor, unitId);
             List<VehicleReservation> created =
                     reservierungenService.createVehicleReservation(unitId, actor.getUserId(), body);
@@ -157,7 +169,6 @@ public class ReservierungenController {
             @RequestBody CreateReservationRequest body) {
         try {
             requireModuleEnabled(unitId);
-            requireRead(actor, unitId);
             accessControlService.requireUnitAccess(actor, unitId);
             List<RoomReservation> created =
                     reservierungenService.createRoomReservation(unitId, actor.getUserId(), body);
@@ -381,16 +392,31 @@ public class ReservierungenController {
         }
     }
 
-    private void requireRead(AppUserDetails actor, long unitId) {
-        userPermissionService.requirePermission(actor, unitId, "reservierungen.read");
-    }
-
     private void requireWrite(AppUserDetails actor, long unitId) {
         userPermissionService.requirePermission(actor, unitId, "reservierungen.write");
     }
 
     private boolean canWrite(AppUserDetails actor, long unitId) {
         return userPermissionService.hasPermission(actor, unitId, "reservierungen.write");
+    }
+
+    /** Fahrzeuge/Räume/Verwaltung: Modulrecht Lesen (Schreiben impliziert Lesen). */
+    private boolean canBrowseResources(AppUserDetails actor, long unitId) {
+        return userPermissionService.hasModuleAccess(actor, unitId, AppModule.RESERVIERUNGEN.key());
+    }
+
+    private static boolean isTabAllowed(ReservierungenTab tab, boolean canBrowseResources, boolean canWrite) {
+        return switch (tab) {
+            case UEBERSICHT, MEINE -> true;
+            case FAHRZEUGE, RAEUME -> canBrowseResources;
+            case VERWALTUNG -> canWrite;
+        };
+    }
+
+    private static List<ReservierungenTab> visibleTabs(boolean canBrowseResources, boolean canWrite) {
+        return Arrays.stream(ReservierungenTab.values())
+                .filter(tab -> isTabAllowed(tab, canBrowseResources, canWrite))
+                .toList();
     }
 
     private String requesterDisplayName(AppUserDetails actor, long unitId) {
