@@ -288,6 +288,9 @@
     if (type === 'PLANNED_ALARMS') return { x: 0, y: row, w: 8, h: 7 };
     if (type === 'ATEMSCHUTZ') return { x: 0, y: row, w: 6, h: 10 };
     if (type === 'OPEN_REPORTS') return { x: 0, y: row, w: 6, h: 8 };
+    if (type === 'QUICK_RESERVE' || type === 'QUICK_BUG_REPORT' || type === 'QUICK_ATEMSCHUTZ' || type === 'QUICK_FORMS') {
+      return { x: 0, y: row, w: 3, h: 5 };
+    }
     return { x: 0, y: row, w: 8, h: 8 };
   }
 
@@ -533,8 +536,12 @@
         TERMINE: 'Meine Termine',
         PLANNED_ALARMS: 'Geplante Einsätze',
         UNIT_OVERVIEW: 'Einheiten-Kennzahlen',
-        ATEMSCHUTZ: 'Atemschutz',
+        ATEMSCHUTZ: 'Atemschutz-Kennzahlen',
         OPEN_REPORTS: 'Offene Berichte',
+        QUICK_RESERVE: 'Fahrzeug oder Raum reservieren',
+        QUICK_BUG_REPORT: 'Fehler melden',
+        QUICK_ATEMSCHUTZ: 'Atemschutz',
+        QUICK_FORMS: 'Formulare',
       };
       var article = document.createElement('article');
       article.className = 'dashboard-widget widget-card dashboard-widget--placeholder dashboard-widget--editing';
@@ -544,6 +551,9 @@
       if (type === 'UNIT_OVERVIEW') article.classList.add('widget-card--unit-overview');
       if (type === 'ATEMSCHUTZ') article.classList.add('widget-card--atemschutz');
       if (type === 'OPEN_REPORTS') article.classList.add('widget-card--open-reports');
+      if (type === 'QUICK_RESERVE' || type === 'QUICK_BUG_REPORT' || type === 'QUICK_ATEMSCHUTZ' || type === 'QUICK_FORMS') {
+        article.classList.add('widget-card--quick-tile');
+      }
       article.setAttribute('data-widget-type', type);
       if (type === 'ATEMSCHUTZ') {
         article.setAttribute('data-config', JSON.stringify(atemschutzDefaults()));
@@ -733,6 +743,12 @@
       e.preventDefault();
       e.stopPropagation();
       removeWidget(removeBtn.closest('.dashboard-widget'));
+      return;
+    }
+    var quickTile = e.target.closest('.dashboard-quick-tile');
+    if (quickTile) {
+      e.preventDefault();
+      e.stopPropagation();
     }
   });
 

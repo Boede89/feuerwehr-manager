@@ -55,6 +55,8 @@ public record DashboardWidgetPlacement(
             case UNIT_OVERVIEW -> new DashboardWidgetPlacement(type, 0, rowHint, 12, 5);
             case ATEMSCHUTZ -> new DashboardWidgetPlacement(type, 0, rowHint, 6, 10);
             case OPEN_REPORTS -> new DashboardWidgetPlacement(type, 0, rowHint, 6, 8);
+            case QUICK_RESERVE, QUICK_BUG_REPORT, QUICK_ATEMSCHUTZ, QUICK_FORMS ->
+                    new DashboardWidgetPlacement(type, 0, rowHint, 3, 5);
         };
     }
 
@@ -83,6 +85,7 @@ public record DashboardWidgetPlacement(
             case UNIT_OVERVIEW -> "widget-card--unit-overview";
             case ATEMSCHUTZ -> "widget-card--atemschutz";
             case OPEN_REPORTS -> "widget-card--open-reports";
+            case QUICK_RESERVE, QUICK_BUG_REPORT, QUICK_ATEMSCHUTZ, QUICK_FORMS -> "widget-card--quick-tile";
         };
     }
 

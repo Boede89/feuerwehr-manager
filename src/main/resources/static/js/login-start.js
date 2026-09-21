@@ -6,14 +6,6 @@
   var closeBtn = document.getElementById('start-login-close');
   var userInput = document.getElementById('username');
 
-  var bugOverlay = document.getElementById('bug-report-overlay');
-  var bugOpenBtn = document.getElementById('start-bug-report-open');
-  var bugCancelBtn = document.getElementById('start-bug-report-cancel');
-  var bugForm = document.getElementById('start-bug-report-form');
-  var bugError = document.getElementById('bug-report-error');
-  var bugSubmitBtn = document.getElementById('start-bug-report-submit');
-  var bugNameInput = document.getElementById('bug-report-name');
-
   if (!overlay) {
     return;
   }
@@ -23,6 +15,7 @@
   }
 
   function isBugOpen() {
+    var bugOverlay = document.getElementById('bug-report-overlay');
     return bugOverlay && bugOverlay.classList.contains('active');
   }
 
@@ -51,58 +44,6 @@
     }
   }
 
-  function setBugError(message) {
-    if (!bugError) {
-      return;
-    }
-    if (message) {
-      bugError.textContent = message;
-      bugError.hidden = false;
-    } else {
-      bugError.textContent = '';
-      bugError.hidden = true;
-    }
-  }
-
-  function openBugReport() {
-    if (!bugOverlay) {
-      return;
-    }
-    setBugError('');
-    bugOverlay.classList.add('active');
-    bugOverlay.setAttribute('aria-hidden', 'false');
-    document.body.classList.add('modal-open');
-    if (bugNameInput) {
-      window.setTimeout(function () {
-        bugNameInput.focus();
-      }, 30);
-    }
-  }
-
-  function closeBugReport() {
-    if (!bugOverlay) {
-      return;
-    }
-    bugOverlay.classList.remove('active');
-    bugOverlay.setAttribute('aria-hidden', 'true');
-    if (!isOpen()) {
-      document.body.classList.remove('modal-open');
-    }
-    if (bugOpenBtn) {
-      bugOpenBtn.focus();
-    }
-  }
-
-  function csrfHeaders() {
-    var headers = { Accept: 'application/json', 'Content-Type': 'application/json' };
-    var tokenMeta = document.querySelector('meta[name="csrf-token"]');
-    var headerMeta = document.querySelector('meta[name="csrf-header"]');
-    if (tokenMeta && headerMeta) {
-      headers[headerMeta.getAttribute('content')] = tokenMeta.getAttribute('content');
-    }
-    return headers;
-  }
-
   if (openBtn) {
     openBtn.addEventListener('click', openLogin);
   }
@@ -110,70 +51,9 @@
     closeBtn.addEventListener('click', closeLogin);
   }
 
-  if (bugOpenBtn) {
-    bugOpenBtn.addEventListener('click', openBugReport);
-  }
-  if (bugCancelBtn) {
-    bugCancelBtn.addEventListener('click', closeBugReport);
-  }
-
-  if (bugForm) {
-    bugForm.addEventListener('submit', function (event) {
-      event.preventDefault();
-      setBugError('');
-      if (bugForm.dataset.submitting === 'true') {
-        return;
-      }
-      bugForm.dataset.submitting = 'true';
-      var payload = {
-        reporterName: (document.getElementById('bug-report-name') || {}).value || '',
-        reporterEmail: (document.getElementById('bug-report-email') || {}).value || '',
-        area: (document.getElementById('bug-report-area') || {}).value || '',
-        description: (document.getElementById('bug-report-description') || {}).value || '',
-        pageUrl: window.location.href
-      };
-      var request = fetch('/login/bug-report', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: csrfHeaders(),
-        body: JSON.stringify(payload)
-      });
-      if (window.FwBusy && bugSubmitBtn) {
-        request = window.FwBusy.wrapPromise(bugSubmitBtn, request, {
-          message: 'Fehlermeldung wird gesendet …',
-          container: bugOverlay ? bugOverlay.querySelector('.modal') : null,
-          buttonLabel: 'Wird gesendet …'
-        });
-      } else if (bugSubmitBtn) {
-        bugSubmitBtn.disabled = true;
-      }
-      request
-        .then(function (res) {
-          return res.json().then(function (data) {
-            return { ok: res.ok, data: data };
-          });
-        })
-        .then(function (result) {
-          var data = result.data || {};
-          if (!result.ok || !data.success) {
-            throw new Error(data.message || 'Die Fehlermeldung konnte nicht gesendet werden.');
-          }
-          if (window.toast) {
-            window.toast(data.message, 'success');
-          }
-          bugForm.reset();
-          closeBugReport();
-        })
-        .catch(function (err) {
-          setBugError(err.message || 'Die Fehlermeldung konnte nicht gesendet werden.');
-          bugForm.dataset.submitting = 'false';
-        });
-    });
-  }
-
   document.addEventListener('keydown', function (event) {
     // Modale schließen sich nur über Buttons, nicht per Escape / Klick daneben.
-    if (event.key === 'Escape' && (isOpen() || isBugOpen())) {
+    if (event.key === 'Escape' && isOpen()) {
       event.preventDefault();
     }
   });

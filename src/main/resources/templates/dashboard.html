@@ -297,6 +297,45 @@
           </div>
         </th:block>
 
+        <th:block th:if="${w.type().quickTile()}">
+          <a th:if="${w.type().name() == 'QUICK_RESERVE'}"
+             class="dashboard-quick-tile"
+             th:href="@{/reservierungen(unit=${unitId})}">
+            <span class="dashboard-quick-tile__icon" aria-hidden="true">🚒</span>
+            <strong class="dashboard-quick-tile__title">Fahrzeug oder Raum reservieren</strong>
+            <span class="dashboard-quick-tile__text">Fahrzeuge und Räume für einen Zeitraum anfragen.</span>
+            <span class="dashboard-quick-tile__cta">Weiter</span>
+          </a>
+          <button th:if="${w.type().name() == 'QUICK_BUG_REPORT'}"
+                  type="button"
+                  class="dashboard-quick-tile dashboard-quick-tile--button bug-report-open"
+                  aria-haspopup="dialog"
+                  aria-controls="bug-report-overlay">
+            <span class="dashboard-quick-tile__icon" aria-hidden="true">🐞</span>
+            <strong class="dashboard-quick-tile__title">Fehler melden</strong>
+            <span class="dashboard-quick-tile__text">Problem oder Fehler in der Anwendung melden.</span>
+            <span class="dashboard-quick-tile__cta">Melden</span>
+          </button>
+          <div th:if="${w.type().name() == 'QUICK_ATEMSCHUTZ'}"
+               class="dashboard-quick-tile dashboard-quick-tile--soon"
+               role="note"
+               aria-disabled="true">
+            <span class="dashboard-quick-tile__icon" aria-hidden="true">🫁</span>
+            <strong class="dashboard-quick-tile__title">Atemschutz</strong>
+            <span class="dashboard-quick-tile__text">Schnellzugriff zum Atemschutzbereich.</span>
+            <span class="dashboard-quick-tile__cta">Funktion folgt</span>
+          </div>
+          <div th:if="${w.type().name() == 'QUICK_FORMS'}"
+               class="dashboard-quick-tile dashboard-quick-tile--soon"
+               role="note"
+               aria-disabled="true">
+            <span class="dashboard-quick-tile__icon" aria-hidden="true">📄</span>
+            <strong class="dashboard-quick-tile__title">Formulare</strong>
+            <span class="dashboard-quick-tile__text">Formulare der Einheit öffnen und ausfüllen.</span>
+            <span class="dashboard-quick-tile__cta">Funktion folgt</span>
+          </div>
+        </th:block>
+
         <th:block th:if="${w.type().name() == 'OPEN_REPORTS'}">
           <div class="widget-card__header">
             <h3>Offene Berichte</h3>
@@ -536,11 +575,14 @@
   <script id="atemschutz-widget-defaults" type="application/json" th:utext="${atemschutzWidgetDefaultsJson}">{}</script>
   <script id="open-reports-widget-defaults" type="application/json" th:utext="${openReportsWidgetDefaultsJson}">{}</script>
 
+  <div th:replace="~{fragments/bug-report-modal :: modal(${bugReporterName}, ${bugReporterEmail})}"></div>
+
   <div id="dashboard-meta" hidden
        th:attr="data-unit-id=${unitId}, data-csrf-token=${_csrf.token}"></div>
 
   <script th:src="@{/js/combo-suggest.js}" defer></script>
   <script th:src="@{/js/dashboard-manual-alarms.js}" defer></script>
-  <script th:src="@{/js/dashboard-layout.js(v='20260808j')}" defer></script>
+  <script th:src="@{/js/bug-report.js(v='20260921a')}" defer></script>
+  <script th:src="@{/js/dashboard-layout.js(v='20260921a')}" defer></script>
 </main>
 </html>

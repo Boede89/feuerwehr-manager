@@ -37,14 +37,38 @@ public enum DashboardWidgetType {
             "auswertung.read",
             false),
     ATEMSCHUTZ(
-            "Atemschutz",
-            "Tauglichkeiten der Geräteträger - Zahlen und optional Namen",
+            "Atemschutz-Kennzahlen",
+            "Tauglichkeiten der Geräteträger – Zahlen und optional Namen",
             null,
             null,
             false),
     OPEN_REPORTS(
             "Offene Berichte",
             "Noch nicht freigegebene Einsatzberichte und Anwesenheitslisten",
+            null,
+            null,
+            false),
+    QUICK_RESERVE(
+            "Fahrzeug oder Raum reservieren",
+            "Kachel: Reservierung anfragen",
+            null,
+            null,
+            false),
+    QUICK_BUG_REPORT(
+            "Fehler melden",
+            "Kachel: Problem oder Fehler in der Anwendung melden",
+            null,
+            null,
+            false),
+    QUICK_ATEMSCHUTZ(
+            "Atemschutz",
+            "Kachel: Schnellzugriff zum Atemschutzbereich (Funktion folgt)",
+            null,
+            null,
+            false),
+    QUICK_FORMS(
+            "Formulare",
+            "Kachel: Formulare öffnen (Funktion folgt)",
             null,
             null,
             false);
@@ -86,6 +110,14 @@ public enum DashboardWidgetType {
 
     public boolean adminOnly() {
         return adminOnly;
+    }
+
+    /** Kompakte Aktions-Kachel (wie auf der Login-Startseite). */
+    public boolean quickTile() {
+        return this == QUICK_RESERVE
+                || this == QUICK_BUG_REPORT
+                || this == QUICK_ATEMSCHUTZ
+                || this == QUICK_FORMS;
     }
 
     public static DashboardWidgetType fromId(String raw) {

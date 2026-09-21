@@ -49,7 +49,7 @@
         <span class="start-tile__text">Fahrzeuge und Räume für einen Zeitraum anfragen.</span>
         <span class="start-tile__cta">Weiter</span>
       </a>
-      <button type="button" class="start-tile start-tile--button" id="start-bug-report-open"
+      <button type="button" class="start-tile start-tile--button bug-report-open" id="start-bug-report-open"
               aria-haspopup="dialog" aria-controls="bug-report-overlay">
         <span class="start-tile__icon" aria-hidden="true">🐞</span>
         <strong class="start-tile__title">Fehler melden</strong>
@@ -70,48 +70,7 @@
     <a th:href="@{/datenschutz}">Datenschutzerklärung</a>
   </footer>
 
-  <div id="bug-report-overlay" class="modal-overlay" role="dialog" aria-modal="true"
-       aria-labelledby="bug-report-overlay-title" aria-hidden="true">
-    <div class="modal start-bug-report-modal">
-      <div class="modal__header">
-        <h3 id="bug-report-overlay-title">Fehler melden</h3>
-      </div>
-      <form id="start-bug-report-form">
-        <div class="modal__body">
-          <p class="hint">Beschreiben Sie den Fehler möglichst genau. Der Superadmin erhält eine E-Mail mit Ihrer Meldung.</p>
-          <div class="form-group">
-            <label for="bug-report-name">Ihr Name <span class="req">*</span></label>
-            <input id="bug-report-name" name="reporterName" type="text" maxlength="120" required autocomplete="name"/>
-          </div>
-          <div class="form-group">
-            <label for="bug-report-email">E-Mail <span class="req">*</span></label>
-            <input id="bug-report-email" name="reporterEmail" type="email" maxlength="255" required autocomplete="email"/>
-          </div>
-          <div class="form-group">
-            <label for="bug-report-area">Bereich <span class="req">*</span></label>
-            <select id="bug-report-area" name="area" required>
-              <option value="" disabled selected>Bitte wählen</option>
-              <option value="Reservierung">Reservierung</option>
-              <option value="Berichte">Berichte</option>
-              <option value="Personal / Admin">Personal / Admin</option>
-              <option value="Anmeldung">Anmeldung</option>
-              <option value="Sonstiges">Sonstiges</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="bug-report-description">Fehlerbeschreibung <span class="req">*</span></label>
-            <textarea id="bug-report-description" name="description" rows="5" maxlength="4000" required
-                      placeholder="Was ist passiert? Was haben Sie erwartet? Welche Schritte führen zum Fehler?"></textarea>
-          </div>
-          <p id="bug-report-error" class="hint text-sm err" hidden></p>
-        </div>
-        <div class="modal__footer">
-          <button type="submit" class="btn btn--primary" id="start-bug-report-submit">Absenden</button>
-          <button type="button" class="btn btn--outline" id="start-bug-report-cancel">Abbrechen</button>
-        </div>
-      </form>
-    </div>
-  </div>
+  <div th:replace="~{fragments/bug-report-modal :: modal('', '')}"></div>
 
   <div id="login-overlay" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="login-overlay-title"
        th:classappend="${openLoginForm} ? ' active' : ''"
@@ -235,7 +194,8 @@
   <script th:src="@{/js/flash-toast.js}" defer></script>
   <script th:src="@{/js/theme.js}" defer></script>
   <script th:src="@{/js/confirm-dialog.js}" defer></script>
-  <script th:src="@{/js/login-start.js(v='20260921f')}" defer></script>
+  <script th:src="@{/js/bug-report.js(v='20260921a')}" defer></script>
+  <script th:src="@{/js/login-start.js(v='20260921g')}" defer></script>
   <script th:if="${rfidLoginEnabled}" th:src="@{/js/login-rfid.js}" defer></script>
 </body>
 </html>

@@ -1,0 +1,46 @@
+<th:block th:fragment="modal(prefillName, prefillEmail)">
+  <div id="bug-report-overlay" class="modal-overlay" role="dialog" aria-modal="true"
+       aria-labelledby="bug-report-overlay-title" aria-hidden="true">
+    <div class="modal start-bug-report-modal">
+      <div class="modal__header">
+        <h3 id="bug-report-overlay-title">Fehler melden</h3>
+      </div>
+      <form id="start-bug-report-form">
+        <div class="modal__body">
+          <p class="hint">Beschreiben Sie den Fehler möglichst genau. Der Superadmin erhält eine E-Mail mit Ihrer Meldung.</p>
+          <div class="form-group">
+            <label for="bug-report-name">Ihr Name <span class="req">*</span></label>
+            <input id="bug-report-name" name="reporterName" type="text" maxlength="120" required autocomplete="name"
+                   th:value="${prefillName != null ? prefillName : ''}"/>
+          </div>
+          <div class="form-group">
+            <label for="bug-report-email">E-Mail <span class="req">*</span></label>
+            <input id="bug-report-email" name="reporterEmail" type="email" maxlength="255" required autocomplete="email"
+                   th:value="${prefillEmail != null ? prefillEmail : ''}"/>
+          </div>
+          <div class="form-group">
+            <label for="bug-report-area">Bereich <span class="req">*</span></label>
+            <select id="bug-report-area" name="area" required>
+              <option value="" disabled selected>Bitte wählen</option>
+              <option value="Reservierung">Reservierung</option>
+              <option value="Berichte">Berichte</option>
+              <option value="Personal / Admin">Personal / Admin</option>
+              <option value="Anmeldung">Anmeldung</option>
+              <option value="Sonstiges">Sonstiges</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="bug-report-description">Fehlerbeschreibung <span class="req">*</span></label>
+            <textarea id="bug-report-description" name="description" rows="5" maxlength="4000" required
+                      placeholder="Was ist passiert? Was haben Sie erwartet? Welche Schritte führen zum Fehler?"></textarea>
+          </div>
+          <p id="bug-report-error" class="hint text-sm err" hidden></p>
+        </div>
+        <div class="modal__footer">
+          <button type="submit" class="btn btn--primary" id="start-bug-report-submit">Absenden</button>
+          <button type="button" class="btn btn--outline" id="start-bug-report-cancel">Abbrechen</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</th:block>

@@ -27,6 +27,7 @@ import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
 import de.feuerwehr.manager.uvv.UvvService;
 import de.feuerwehr.manager.user.UserRegistrationService;
+import de.feuerwehr.manager.user.UserRepository;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -67,6 +68,7 @@ public class DashboardController {
     private final ObjectMapper objectMapper;
     private final UvvService uvvService;
     private final UserRegistrationService userRegistrationService;
+    private final UserRepository userRepository;
 
     @GetMapping("/")
     public String dashboard(
@@ -98,6 +100,15 @@ public class DashboardController {
                     DashboardWidgetPlacement.defaultFor(DashboardWidgetType.TERMINE, 5));
         }
         model.addAttribute("dashboardWidgets", placements);
+        model.addAttribute(
+                "bugReporterName",
+                currentUser.getDisplayName() != null ? currentUser.getDisplayName() : "");
+        model.addAttribute(
+                "bugReporterEmail",
+                userRepository
+                        .findById(currentUser.getUserId())
+                        .map(u -> u.getLoginEmail() != null ? u.getLoginEmail() : "")
+                        .orElse(""));
         try {
             model.addAttribute("dashboardCatalog", dashboardLayoutService.catalog(currentUser, resolvedUnitId));
             model.addAttribute(

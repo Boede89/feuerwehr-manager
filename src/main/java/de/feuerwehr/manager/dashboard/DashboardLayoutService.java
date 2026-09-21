@@ -11,6 +11,7 @@ import de.feuerwehr.manager.berichte.IncidentReportRepository;
 import de.feuerwehr.manager.berichte.IncidentReportStatus;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.UserPermissionService;
+import de.feuerwehr.manager.settings.AppModule;
 import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.user.User;
@@ -279,6 +280,16 @@ public class DashboardLayoutService {
         }
         if (type.adminOnly() && !actor.getRole().isAdminLevel()) {
             return false;
+        }
+        // Schnellzugriff-Kacheln: für alle Nutzer der Einheit (ggf. nur wenn Modul aktiv)
+        if (type == DashboardWidgetType.QUICK_BUG_REPORT || type == DashboardWidgetType.QUICK_FORMS) {
+            return true;
+        }
+        if (type == DashboardWidgetType.QUICK_RESERVE) {
+            return moduleSettingsService.isEnabled(AppModule.RESERVIERUNGEN, unitId);
+        }
+        if (type == DashboardWidgetType.QUICK_ATEMSCHUTZ) {
+            return moduleSettingsService.isEnabled(AppModule.ATEMSCHUTZ, unitId);
         }
         if (type.requiredModule() != null) {
             if (!moduleSettingsService.isEnabled(type.requiredModule(), unitId)) {
