@@ -158,16 +158,6 @@
   if (cancelFooterBtn) {
     cancelFooterBtn.addEventListener('click', closeModal);
   }
-  overlay.addEventListener('click', function (event) {
-    if (event.target === overlay) {
-      closeModal();
-    }
-  });
-  document.addEventListener('keydown', function (event) {
-    if (event.key === 'Escape' && overlay.classList.contains('active')) {
-      closeModal();
-    }
-  });
   if (typeSelect) {
     typeSelect.addEventListener('change', renderCarriers);
   }
