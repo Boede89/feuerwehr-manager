@@ -3,6 +3,7 @@ package de.feuerwehr.manager.atemschutz;
 import de.feuerwehr.manager.mail.UnitMailService;
 import de.feuerwehr.manager.notification.UserNotificationPreferenceService;
 import de.feuerwehr.manager.notification.UserNotificationTopic;
+import de.feuerwehr.manager.settings.GlobalSettingsService;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitRepository;
@@ -41,6 +42,7 @@ public class AtemschutzEntryRequestService {
     private final UnitMailService unitMailService;
     private final UserNotificationPreferenceService userNotificationPreferenceService;
     private final TestModeService testModeService;
+    private final GlobalSettingsService globalSettingsService;
 
     @Transactional(readOnly = true)
     public List<CarrierOption> listActiveCarrierOptions(long unitId) {
@@ -263,6 +265,18 @@ public class AtemschutzEntryRequestService {
                 .map(c -> c.getPerson().displayName())
                 .sorted(String.CASE_INSENSITIVE_ORDER)
                 .collect(Collectors.joining(", "));
+        String reviewUrl = buildReviewUrl(unitId, request.getId());
+        String cta = reviewUrl == null
+                ? "<p>Bitte prüfen und freigeben Sie den Antrag in der Anwendung (Startseite → Hinweis bzw. Atemschutz → Anträge).</p>"
+                : """
+                  <p style="margin:18px 0 8px;">
+                    <a href="%s" style="background:#e63022;color:#fff;padding:10px 16px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:600;">
+                      Antrag jetzt prüfen
+                    </a>
+                  </p>
+                  <p style="color:#64748b;font-size:13px;">Oder in der Anwendung: Startseite → Hinweis bzw. Atemschutz → Anträge</p>
+                  """
+                        .formatted(escapeHtml(reviewUrl));
         String subject = "Neuer Atemschutz-Antrag zur Freigabe";
         String body =
                 """
@@ -273,13 +287,14 @@ public class AtemschutzEntryRequestService {
                   <li><strong>Datum:</strong> %s</li>
                   <li><strong>Geräteträger:</strong> %s</li>
                 </ul>
-                <p>Bitte prüfen und freigeben Sie den Antrag in der Anwendung (Startseite → Hinweis bzw. Atemschutz → Anträge).</p>
+                %s
                 """
                         .formatted(
                                 escapeHtml(requesterName),
                                 escapeHtml(request.getEntryType().label()),
                                 DATE_FMT.format(request.getEventDate()),
-                                escapeHtml(carrierNames));
+                                escapeHtml(carrierNames),
+                                cta);
 
         int sent = 0;
         for (Long userId : instructorIds) {
@@ -307,6 +322,18 @@ public class AtemschutzEntryRequestService {
             }
         }
         log.info("Atemschutz-Antrag #{}: {} Ausbilder-Mail(s) versendet.", request.getId(), sent);
+    }
+
+    private String buildReviewUrl(long unitId, long requestId) {
+        String base = globalSettingsService.get().getAppUrl();
+        if (base == null || base.isBlank()) {
+            return null;
+        }
+        String normalized = base.trim();
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized + "/atemschutz/antraege/" + requestId + "?unit=" + unitId;
     }
 
     private User requireUser(long userId) {
