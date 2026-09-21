@@ -63,8 +63,8 @@ public enum DashboardWidgetType {
     QUICK_ATEMSCHUTZ(
             "Atemschutz",
             "Kachel: Schnellzugriff zum Atemschutzbereich (Funktion folgt)",
-            AppModule.ATEMSCHUTZ,
-            "atemschutz.read",
+            null,
+            null,
             false),
     QUICK_FORMS(
             "Formulare",

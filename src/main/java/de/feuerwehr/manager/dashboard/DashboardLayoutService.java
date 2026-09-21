@@ -374,9 +374,12 @@ public class DashboardLayoutService {
         if (type == DashboardWidgetType.QUICK_BUG_REPORT || type == DashboardWidgetType.QUICK_FORMS) {
             return true;
         }
-        // Reservieren: wie Nav – Modul aktiv genügt (ohne reservierungen.read)
+        // Reservieren / Atemschutz-Kachel: Modul aktiv genügt (ohne Modulrecht)
         if (type == DashboardWidgetType.QUICK_RESERVE) {
             return moduleSettingsService.isEnabled(AppModule.RESERVIERUNGEN, unitId);
+        }
+        if (type == DashboardWidgetType.QUICK_ATEMSCHUTZ) {
+            return moduleSettingsService.isEnabled(AppModule.ATEMSCHUTZ, unitId);
         }
         if (type.requiredModule() != null) {
             if (!moduleSettingsService.isEnabled(type.requiredModule(), unitId)) {
