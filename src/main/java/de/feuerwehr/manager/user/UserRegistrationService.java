@@ -298,36 +298,64 @@ public class UserRegistrationService {
         if (user.getUnit() == null) {
             return Optional.empty();
         }
-        long unitId = user.getUnit().getId();
-        boolean testData = testModeService.isEnabled();
-        LinkedHashMap<Long, Person> byId = new LinkedHashMap<>();
+        String first = normalizeName(user.getFirstName());
+        String last = normalizeName(user.getLastName());
+        String email = user.getLoginEmail() != null ? user.getLoginEmail().trim() : null;
+        LocalDate birth = user.getBirthdate();
 
-        if (user.getLoginEmail() != null && !user.getLoginEmail().isBlank()) {
-            for (Person p : personRepository.findByUnitIdAndAnyEmailIgnoreCase(unitId, user.getLoginEmail())) {
-                if (p.isTestData() == testData) {
-                    byId.putIfAbsent(p.getId(), p);
-                }
+        Person best = null;
+        int bestScore = 0;
+        for (Person person : personalService.listPersons(user.getUnit().getId())) {
+            int score = scorePersonMatch(person, first, last, email, birth);
+            if (score > bestScore) {
+                bestScore = score;
+                best = person;
             }
         }
-        if (user.getFirstName() != null && user.getLastName() != null) {
-            for (Person p : personRepository.findRegistrationMatchCandidates(
-                    unitId, user.getFirstName().trim(), user.getLastName().trim(), user.getBirthdate(), testData)) {
-                byId.putIfAbsent(p.getId(), p);
-            }
-        }
-        if (byId.isEmpty()) {
+        // Mindestens Name (auch vertauscht) oder E-Mail muss passen.
+        if (best == null || bestScore < 40) {
             return Optional.empty();
         }
-        // Prefer email match, then name+birthdate
-        if (user.getLoginEmail() != null) {
-            for (Person p : byId.values()) {
-                if (emailEquals(p.getEmail(), user.getLoginEmail())
-                        || emailEquals(p.getEmailPrivate(), user.getLoginEmail())) {
-                    return Optional.of(p);
-                }
-            }
+        return Optional.of(best);
+    }
+
+    private static int scorePersonMatch(
+            Person person, String first, String last, String email, LocalDate birth) {
+        int score = 0;
+        String personFirst = normalizeName(person.getFirstName());
+        String personLast = normalizeName(person.getLastName());
+
+        boolean nameExact = !first.isEmpty()
+                && !last.isEmpty()
+                && first.equals(personFirst)
+                && last.equals(personLast);
+        boolean nameSwapped = !first.isEmpty()
+                && !last.isEmpty()
+                && first.equals(personLast)
+                && last.equals(personFirst);
+        if (nameExact) {
+            score += 50;
+        } else if (nameSwapped) {
+            score += 40;
         }
-        return byId.values().stream().findFirst();
+
+        if (email != null
+                && !email.isBlank()
+                && (emailEquals(person.getEmail(), email) || emailEquals(person.getEmailPrivate(), email))) {
+            score += 100;
+        }
+
+        if (birth != null && birth.equals(person.getBirthdate())) {
+            score += 20;
+        }
+        return score;
+    }
+
+    private static String normalizeName(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.trim().replaceAll("\\s+", " ").toLowerCase(Locale.GERMAN);
     }
 
     private List<FieldDiff> computeDifferences(User user, Person person) {
