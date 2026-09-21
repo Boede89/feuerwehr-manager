@@ -224,6 +224,32 @@
   }
 
   initReviewCarrierToggle();
+  initReviewEditToggle();
+
+  function initReviewEditToggle() {
+    var view = document.getElementById('entry-request-view');
+    var edit = document.getElementById('entry-request-edit');
+    var editBtn = document.getElementById('entry-request-edit-btn');
+    var cancelBtn = document.getElementById('entry-request-cancel-edit');
+    if (!view || !edit || !editBtn) {
+      return;
+    }
+    editBtn.addEventListener('click', function () {
+      view.hidden = true;
+      edit.hidden = false;
+      var typeSelect = document.getElementById('entryType');
+      if (typeSelect) {
+        typeSelect.focus();
+      }
+    });
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', function () {
+        edit.hidden = true;
+        view.hidden = false;
+        editBtn.focus();
+      });
+    }
+  }
 
   function initReviewCarrierToggle() {
     var list = document.getElementById('review-carrier-list');

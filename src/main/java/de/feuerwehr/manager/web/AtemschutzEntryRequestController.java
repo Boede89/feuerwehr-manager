@@ -148,7 +148,6 @@ public class AtemschutzEntryRequestController {
             @RequestParam(name = "entryType") String entryTypeRaw,
             @RequestParam(name = "eventDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate eventDate,
             @RequestParam(name = "carrierIds", required = false) Long[] carrierIds,
-            @RequestParam(name = "reviewNote", required = false) String reviewNote,
             RedirectAttributes redirectAttributes) {
         Long redirectUnit = unitId;
         try {
@@ -163,7 +162,7 @@ public class AtemschutzEntryRequestController {
                     eventDate,
                     ids,
                     actor.getUserId(),
-                    reviewNote);
+                    null);
             redirectAttributes.addFlashAttribute(
                     "success", "Antrag genehmigt — Nachweise wurden eingetragen.");
         } catch (IllegalArgumentException e) {
@@ -180,7 +179,6 @@ public class AtemschutzEntryRequestController {
             @AuthenticationPrincipal AppUserDetails actor,
             @PathVariable("id") long id,
             @RequestParam(name = "unit", required = false) Long unitId,
-            @RequestParam(name = "reviewNote", required = false) String reviewNote,
             RedirectAttributes redirectAttributes) {
         Long redirectUnit = unitId;
         try {
@@ -188,7 +186,7 @@ public class AtemschutzEntryRequestController {
             redirectUnit = existing.getUnit().getId();
             requireModuleAndAccess(actor, redirectUnit);
             requireReviewer(actor, redirectUnit);
-            entryRequestService.reject(id, actor.getUserId(), reviewNote);
+            entryRequestService.reject(id, actor.getUserId(), null);
             redirectAttributes.addFlashAttribute("success", "Antrag wurde abgelehnt.");
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());

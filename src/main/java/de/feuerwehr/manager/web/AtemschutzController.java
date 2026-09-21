@@ -76,10 +76,12 @@ public class AtemschutzController {
             CarrierListResult result = atemschutzService.listCarrierOverviews(unit.getId(), filter);
             populateListModel(model, result, filter);
             boolean write = canWrite(actor, unit.getId());
+            boolean canReview = entryRequestService.isReviewer(unit.getId(), actor.getUserId(), write);
             model.addAttribute("canWrite", write);
+            model.addAttribute("canReviewEntryRequests", canReview);
             model.addAttribute(
-                    "canReviewEntryRequests",
-                    entryRequestService.isReviewer(unit.getId(), actor.getUserId(), write));
+                    "pendingEntryRequestCount",
+                    canReview ? entryRequestService.countPending(unit.getId()) : 0L);
             model.addAttribute("warnDays", atemschutzService.warnDays(unit.getId()));
             return "atemschutz/index";
         } catch (IllegalArgumentException e) {

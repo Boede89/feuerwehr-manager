@@ -13,8 +13,15 @@
          th:href="@{/atemschutz/drucken(unit=${unitId}, filter=${activeFilter}, paused=false)}">PDF herunterladen</a>
       <a class="btn btn--outline" th:href="@{/atemschutz/strecke-planung(unit=${unitId})}">Strecke – Terminplanung</a>
       <a class="btn btn--outline" th:href="@{/atemschutz/uebung-planen(unit=${unitId})}">Übung planen</a>
-      <a class="btn btn--outline" th:if="${canReviewEntryRequests}"
-         th:href="@{/atemschutz/antraege(unit=${unitId})}">Anträge</a>
+      <a class="btn btn--antraege"
+         th:if="${canReviewEntryRequests}"
+         th:classappend="${pendingEntryRequestCount != null and pendingEntryRequestCount > 0} ? '' : ' btn--antraege--empty'"
+         th:href="@{/atemschutz/antraege(unit=${unitId})}">
+        Anträge
+        <span th:if="${pendingEntryRequestCount != null and pendingEntryRequestCount > 0}"
+              class="btn__badge"
+              th:text="${pendingEntryRequestCount}">1</span>
+      </a>
     </div>
   </div>
 
