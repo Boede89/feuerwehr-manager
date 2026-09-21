@@ -14,6 +14,8 @@ import de.feuerwehr.manager.security.UserPermissionService;
 import de.feuerwehr.manager.settings.AppModule;
 import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.settings.TestModeService;
+import de.feuerwehr.manager.unit.Unit;
+import de.feuerwehr.manager.unit.UnitRepository;
 import de.feuerwehr.manager.user.User;
 import de.feuerwehr.manager.user.UserRepository;
 import java.time.LocalDate;
@@ -40,6 +42,7 @@ public class DashboardLayoutService {
             DashboardWidgetPlacement.defaultFor(DashboardWidgetType.TERMINE, 5));
 
     private final UserRepository userRepository;
+    private final UnitRepository unitRepository;
     private final ObjectMapper objectMapper;
     private final ModuleSettingsService moduleSettingsService;
     private final UserPermissionService userPermissionService;
@@ -53,20 +56,49 @@ public class DashboardLayoutService {
         User user = userRepository.findById(actor.getUserId()).orElseThrow();
         boolean hasStoredLayout =
                 user.getDashboardLayoutJson() != null && !user.getDashboardLayoutJson().isBlank();
-        List<DashboardWidgetPlacement> stored = parseLayout(user.getDashboardLayoutJson());
-        List<DashboardWidgetPlacement> source = hasStoredLayout ? stored : DEFAULT_LAYOUT;
+        List<DashboardWidgetPlacement> source;
+        if (hasStoredLayout) {
+            source = parseLayout(user.getDashboardLayoutJson());
+        } else {
+            source = resolveUnitDefaultLayout(unitId);
+        }
         return filterAllowedUnique(actor, unitId, source, !hasStoredLayout);
+    }
+
+    /** Einheits-Vorlage ohne Rechtefilter (für Admin-Bearbeitung). */
+    @Transactional(readOnly = true)
+    public List<DashboardWidgetPlacement> resolveUnitDefaultLayout(long unitId) {
+        Unit unit = unitRepository.findById(unitId).orElse(null);
+        if (unit != null
+                && unit.getDefaultDashboardLayoutJson() != null
+                && !unit.getDefaultDashboardLayoutJson().isBlank()) {
+            List<DashboardWidgetPlacement> stored = parseLayout(unit.getDefaultDashboardLayoutJson());
+            if (!stored.isEmpty()) {
+                return stored;
+            }
+        }
+        return DEFAULT_LAYOUT;
     }
 
     @Transactional(readOnly = true)
     public List<DashboardWidgetCatalogItem> catalog(AppUserDetails actor, long unitId) {
+        return catalog(actor, unitId, false);
+    }
+
+    /** Katalog; {@code forUnitDefaultEdit} = alle Widget-Typen für die Admin-Vorlage. */
+    @Transactional(readOnly = true)
+    public List<DashboardWidgetCatalogItem> catalog(
+            AppUserDetails actor, long unitId, boolean forUnitDefaultEdit) {
         Set<DashboardWidgetType> active = new LinkedHashSet<>();
-        for (DashboardWidgetPlacement p : resolveActivePlacements(actor, unitId)) {
+        List<DashboardWidgetPlacement> current = forUnitDefaultEdit
+                ? resolveUnitDefaultLayout(unitId)
+                : resolveActivePlacements(actor, unitId);
+        for (DashboardWidgetPlacement p : current) {
             active.add(p.type());
         }
         List<DashboardWidgetCatalogItem> items = new ArrayList<>();
         for (DashboardWidgetType type : DashboardWidgetType.values()) {
-            if (!isAllowed(actor, unitId, type)) {
+            if (!forUnitDefaultEdit && !isAllowed(actor, unitId, type)) {
                 continue;
             }
             items.add(new DashboardWidgetCatalogItem(
@@ -79,6 +111,44 @@ public class DashboardLayoutService {
     public List<DashboardWidgetPlacement> saveLayout(
             AppUserDetails actor, long unitId, List<Map<String, Object>> widgets) {
         User user = userRepository.findById(actor.getUserId()).orElseThrow();
+        List<DashboardWidgetPlacement> layout = cleanPersonalLayout(actor, unitId, widgets);
+        user.setDashboardLayoutJson(serializeLayout(layout));
+        userRepository.save(user);
+        return layout;
+    }
+
+    /**
+     * Speichert die Einheits-Startseitenvorlage.
+     *
+     * @param applyMode {@link UnitDashboardApplyMode#NEW_USERS_ONLY} oder {@link UnitDashboardApplyMode#ALL_USERS}
+     */
+    @Transactional
+    public List<DashboardWidgetPlacement> saveUnitDefaultLayout(
+            AppUserDetails actor,
+            long unitId,
+            List<Map<String, Object>> widgets,
+            UnitDashboardApplyMode applyMode) {
+        if (actor == null || !actor.getRole().isAdminLevel()) {
+            throw new IllegalArgumentException("Nur Administratoren dürfen die Benutzer-Startseite anpassen.");
+        }
+        Unit unit = unitRepository
+                .findById(unitId)
+                .orElseThrow(() -> new IllegalArgumentException("Einheit nicht gefunden."));
+        List<DashboardWidgetPlacement> layout = cleanUnitDefaultLayout(widgets);
+        String json = serializeLayout(layout);
+        unit.setDefaultDashboardLayoutJson(json);
+        unitRepository.save(unit);
+        if (applyMode == UnitDashboardApplyMode.ALL_USERS) {
+            for (User user : userRepository.findAllByAnonymizedAtIsNullAndUnitIdOrderByUsernameAsc(unitId)) {
+                user.setDashboardLayoutJson(json);
+                userRepository.save(user);
+            }
+        }
+        return layout;
+    }
+
+    private List<DashboardWidgetPlacement> cleanPersonalLayout(
+            AppUserDetails actor, long unitId, List<Map<String, Object>> widgets) {
         LinkedHashMap<DashboardWidgetType, DashboardWidgetPlacement> cleaned = new LinkedHashMap<>();
         if (widgets != null) {
             for (Map<String, Object> raw : widgets) {
@@ -91,7 +161,24 @@ public class DashboardLayoutService {
                 cleaned.put(placement.type(), placement);
             }
         }
-        List<DashboardWidgetPlacement> layout = List.copyOf(cleaned.values());
+        return List.copyOf(cleaned.values());
+    }
+
+    private List<DashboardWidgetPlacement> cleanUnitDefaultLayout(List<Map<String, Object>> widgets) {
+        LinkedHashMap<DashboardWidgetType, DashboardWidgetPlacement> cleaned = new LinkedHashMap<>();
+        if (widgets != null) {
+            for (Map<String, Object> raw : widgets) {
+                DashboardWidgetPlacement placement = fromRawMap(raw);
+                if (placement == null || cleaned.containsKey(placement.type())) {
+                    continue;
+                }
+                cleaned.put(placement.type(), placement);
+            }
+        }
+        return List.copyOf(cleaned.values());
+    }
+
+    private String serializeLayout(List<DashboardWidgetPlacement> layout) {
         try {
             List<Map<String, Object>> payload = new ArrayList<>();
             for (DashboardWidgetPlacement p : layout) {
@@ -106,12 +193,10 @@ public class DashboardLayoutService {
                 }
                 payload.add(row);
             }
-            user.setDashboardLayoutJson(objectMapper.writeValueAsString(payload));
+            return objectMapper.writeValueAsString(payload);
         } catch (Exception e) {
             throw new IllegalStateException("Dashboard-Layout konnte nicht gespeichert werden", e);
         }
-        userRepository.save(user);
-        return layout;
     }
 
     @Transactional
@@ -333,13 +418,13 @@ public class DashboardLayoutService {
             visible.add(placement);
         }
         if (visible.isEmpty() && fallbackToDefaultIfEmpty) {
-            for (DashboardWidgetPlacement placement : DEFAULT_LAYOUT) {
+            for (DashboardWidgetPlacement placement : resolveUnitDefaultLayout(unitId)) {
                 if (isAllowed(actor, unitId, placement.type()) && seen.add(placement.type())) {
                     visible.add(placement);
                 }
             }
         }
-        return List.copyOf(visible);
+        return DashboardLayoutPacker.packTight(visible);
     }
 
     private List<DashboardWidgetPlacement> parseLayout(String json) {

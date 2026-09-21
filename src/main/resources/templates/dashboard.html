@@ -8,7 +8,14 @@
       <p>Feuerwehr-Manager · Einheit: <strong th:text="${currentUnitName}">—</strong></p>
     </div>
     <div class="page-header__actions">
-      <button type="button" class="btn btn--outline btn--sm" id="dashboard-edit-btn">Startseite anpassen</button>
+      <a class="btn btn--outline btn--sm"
+         th:if="${isAdmin and !editUnitDefault}"
+         th:href="@{/(unit=${unitId}, unitDefault=1)}">Startseite der Benutzer anpassen</a>
+      <a class="btn btn--outline btn--sm"
+         th:if="${editUnitDefault}"
+         th:href="@{/(unit=${unitId})}">Zur eigenen Startseite</a>
+      <button type="button" class="btn btn--outline btn--sm" id="dashboard-edit-btn"
+              th:text="${editUnitDefault} ? 'Vorlage bearbeiten' : 'Startseite anpassen'">Startseite anpassen</button>
       <button type="button" class="btn btn--outline btn--sm" id="dashboard-add-btn" hidden>+ Widget hinzufügen</button>
       <button type="button" class="btn btn--primary btn--sm" id="dashboard-done-btn" hidden>Fertig</button>
     </div>
@@ -16,6 +23,16 @@
 
   <div th:replace="~{fragments/flash-messages :: alerts}"></div>
   <div th:replace="~{fragments/testmode-banner :: banner}"></div>
+
+  <div class="dashboard-uvv-notice" th:if="${editUnitDefault}" role="status">
+    <div class="dashboard-uvv-notice__text">
+      <strong>Startseite der Benutzer</strong>
+      <p>
+        Sie bearbeiten die vordefinierte Startseite. Neue Benutzer erhalten dieses Layout.
+        Widgets ohne passende Berechtigung werden bei den jeweiligen Nutzern ausgeblendet und die Lücken aufgefüllt.
+      </p>
+    </div>
+  </div>
 
   <div class="dashboard-uvv-notice" th:if="${uvvAvailable}" role="status">
     <div class="dashboard-uvv-notice__text">
@@ -50,13 +67,16 @@
        th:href="@{/admin(scope='einheit', tab='benutzer', unit=${unitId})}">Zur Benutzerverwaltung</a>
   </div>
 
-  <p id="dashboard-edit-hint" class="dashboard-edit-hint" hidden>
-    Ziehen zum Verschieben · an den Rändern in Breite/Höhe ziehen · Lücken sind erlaubt — Speichern mit „Fertig“.
+  <p id="dashboard-edit-hint" class="dashboard-edit-hint" hidden
+     th:text="${editUnitDefault}
+       ? 'Vorlage der Benutzer-Startseite: Ziehen zum Verschieben · an den Rändern in Breite/Höhe ziehen — Speichern mit „Fertig“.'
+       : 'Ziehen zum Verschieben · an den Rändern in Breite/Höhe ziehen · Lücken sind erlaubt — Speichern mit „Fertig“.'">
+    Ziehen zum Verschieben · Speichern mit „Fertig“.
   </p>
 
   <div id="dashboard-widgets"
        class="dashboard-widgets"
-       th:attr="data-unit-id=${unitId}, data-cols=${dashboardCols}">
+       th:attr="data-unit-id=${unitId}, data-cols=${dashboardCols}, data-unit-default=${editUnitDefault}">
     <th:block th:each="w : ${dashboardWidgets}">
       <article class="dashboard-widget widget-card"
                th:classappend="${' ' + w.cardModifierClass()}"
@@ -378,7 +398,8 @@
         <button type="button" class="modal__close" data-close-modal aria-label="Schließen">✕</button>
       </div>
       <div class="modal__body">
-        <p class="hint">Nur Widgets, für die Sie berechtigt sind.</p>
+        <p class="hint" th:if="${editUnitDefault}">Alle Widgets können in die Vorlage aufgenommen werden. Nutzer sehen nur, wofür sie berechtigt sind.</p>
+        <p class="hint" th:unless="${editUnitDefault}">Nur Widgets, für die Sie berechtigt sind.</p>
         <div id="dashboard-catalog-list" class="dashboard-catalog-list">
           <button type="button" class="dashboard-catalog-item"
                   th:each="item : ${dashboardCatalog}"
@@ -571,6 +592,36 @@
     </div>
   </div>
 
+  <div id="modal-dashboard-unit-default-save" class="modal-overlay" aria-hidden="true" th:if="${editUnitDefault}">
+    <div class="modal" role="dialog" aria-labelledby="modal-dashboard-unit-default-save-title">
+      <div class="modal__header">
+        <h3 id="modal-dashboard-unit-default-save-title">Benutzer-Startseite speichern</h3>
+        <button type="button" class="modal__close" data-close-unit-default-save aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal__body">
+        <p class="hint" style="margin-top:0;">Für wen soll diese Startseite gelten?</p>
+        <label class="checkbox-row" style="display:flex;align-items:flex-start;gap:0.6rem;margin-bottom:0.75rem;">
+          <input type="radio" name="unit-default-apply" value="NEW_USERS_ONLY" checked/>
+          <span>
+            <strong>Nur für neue Benutzer</strong><br/>
+            <span class="text-muted text-sm">Benutzer mit eigener Anpassung behalten ihre Startseite.</span>
+          </span>
+        </label>
+        <label class="checkbox-row" style="display:flex;align-items:flex-start;gap:0.6rem;">
+          <input type="radio" name="unit-default-apply" value="ALL_USERS"/>
+          <span>
+            <strong>Für alle Benutzer</strong><br/>
+            <span class="text-muted text-sm">Überschreibt auch bereits angepasste Startseiten in dieser Einheit.</span>
+          </span>
+        </label>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--primary" id="dashboard-unit-default-save-confirm">Speichern</button>
+        <button type="button" class="btn btn--outline" data-close-unit-default-save>Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
   <script id="dashboard-catalog-json" type="application/json" th:utext="${dashboardCatalogJson}">[]</script>
   <script id="atemschutz-widget-defaults" type="application/json" th:utext="${atemschutzWidgetDefaultsJson}">{}</script>
   <script id="open-reports-widget-defaults" type="application/json" th:utext="${openReportsWidgetDefaultsJson}">{}</script>
@@ -578,11 +629,11 @@
   <div th:replace="~{fragments/bug-report-modal :: modal(${bugReporterName}, ${bugReporterEmail})}"></div>
 
   <div id="dashboard-meta" hidden
-       th:attr="data-unit-id=${unitId}, data-csrf-token=${_csrf.token}"></div>
+       th:attr="data-unit-id=${unitId}, data-csrf-token=${_csrf.token}, data-unit-default=${editUnitDefault}"></div>
 
   <script th:src="@{/js/combo-suggest.js}" defer></script>
   <script th:src="@{/js/dashboard-manual-alarms.js}" defer></script>
   <script th:src="@{/js/bug-report.js(v='20260921a')}" defer></script>
-  <script th:src="@{/js/dashboard-layout.js(v='20260921a')}" defer></script>
+  <script th:src="@{/js/dashboard-layout.js(v='20260921b')}" defer></script>
 </main>
 </html>

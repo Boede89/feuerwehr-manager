@@ -12,6 +12,7 @@ import de.feuerwehr.manager.dashboard.DashboardWidgetCatalogItem;
 import de.feuerwehr.manager.dashboard.DashboardWidgetPlacement;
 import de.feuerwehr.manager.dashboard.DashboardWidgetType;
 import de.feuerwehr.manager.dashboard.OpenReportsWidgetConfig;
+import de.feuerwehr.manager.dashboard.UnitDashboardApplyMode;
 import de.feuerwehr.manager.divera.DiveraAlarmsResponse;
 import de.feuerwehr.manager.divera.DiveraService;
 import de.feuerwehr.manager.divera.ManualAlarmService;
@@ -74,6 +75,7 @@ public class DashboardController {
     public String dashboard(
             @AuthenticationPrincipal AppUserDetails currentUser,
             @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "unitDefault", required = false) Boolean unitDefaultParam,
             Model model) {
         model.addAttribute("currentUser", currentUser);
         if (unitService.findActiveOrdered(currentUser).isEmpty()) {
@@ -89,9 +91,17 @@ public class DashboardController {
         model.addAttribute("currentUnitName", resolved.getName());
         model.addAttribute("dashboardCols", DashboardWidgetPlacement.COLS);
 
+        boolean editUnitDefault = Boolean.TRUE.equals(unitDefaultParam) && currentUser.getRole().isAdminLevel();
+        if (Boolean.TRUE.equals(unitDefaultParam) && !currentUser.getRole().isAdminLevel()) {
+            return "redirect:/?unit=" + resolvedUnitId;
+        }
+        model.addAttribute("editUnitDefault", editUnitDefault);
+
         List<DashboardWidgetPlacement> placements;
         try {
-            placements = dashboardLayoutService.resolveActivePlacements(currentUser, resolvedUnitId);
+            placements = editUnitDefault
+                    ? dashboardLayoutService.resolveUnitDefaultLayout(resolvedUnitId)
+                    : dashboardLayoutService.resolveActivePlacements(currentUser, resolvedUnitId);
         } catch (Exception e) {
             log.warn("Dashboard-Layout konnte nicht geladen werden: {}", e.getMessage(), e);
             placements = List.of(
@@ -110,11 +120,13 @@ public class DashboardController {
                         .map(u -> u.getLoginEmail() != null ? u.getLoginEmail() : "")
                         .orElse(""));
         try {
-            model.addAttribute("dashboardCatalog", dashboardLayoutService.catalog(currentUser, resolvedUnitId));
+            model.addAttribute(
+                    "dashboardCatalog",
+                    dashboardLayoutService.catalog(currentUser, resolvedUnitId, editUnitDefault));
             model.addAttribute(
                     "dashboardCatalogJson",
                     objectMapper.writeValueAsString(
-                            dashboardLayoutService.catalog(currentUser, resolvedUnitId)));
+                            dashboardLayoutService.catalog(currentUser, resolvedUnitId, editUnitDefault)));
         } catch (Exception e) {
             log.warn("Dashboard-Katalog konnte nicht geladen werden: {}", e.getMessage());
             model.addAttribute("dashboardCatalog", List.of());
@@ -305,6 +317,49 @@ public class DashboardController {
                 "message", "Startseite gespeichert",
                 "widgets", responseWidgets,
                 "catalog", catalog));
+    }
+
+    @PostMapping("/dashboard/unit-default-layout")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> saveUnitDefaultLayout(
+            @AuthenticationPrincipal AppUserDetails currentUser,
+            @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestBody Map<String, Object> body) {
+        if (currentUser == null || !currentUser.getRole().isAdminLevel()) {
+            return ResponseEntity.status(403).body(Map.of("message", "Keine Berechtigung"));
+        }
+        Optional<Unit> unit = unitService.resolveActiveUnit(unitId, currentUser);
+        if (unit.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Keine Einheit ausgewählt"));
+        }
+        List<Map<String, Object>> widgets = parseWidgetPayload(body.get("widgets"));
+        UnitDashboardApplyMode applyMode = UnitDashboardApplyMode.fromRaw(body.get("applyMode"));
+        try {
+            List<DashboardWidgetPlacement> saved = dashboardLayoutService.saveUnitDefaultLayout(
+                    currentUser, unit.get().getId(), widgets, applyMode);
+            List<Map<String, Object>> responseWidgets = new ArrayList<>();
+            for (DashboardWidgetPlacement p : saved) {
+                Map<String, Object> entry = new java.util.LinkedHashMap<>();
+                entry.put("type", p.type().name());
+                entry.put("x", p.x());
+                entry.put("y", p.y());
+                entry.put("w", p.w());
+                entry.put("h", p.h());
+                if (p.config() != null && !p.config().isEmpty()) {
+                    entry.put("config", p.config());
+                }
+                responseWidgets.add(entry);
+            }
+            String message = applyMode == UnitDashboardApplyMode.ALL_USERS
+                    ? "Benutzer-Startseite gespeichert und für alle Benutzer übernommen."
+                    : "Benutzer-Startseite gespeichert (gilt für neue Benutzer).";
+            return ResponseEntity.ok(Map.of(
+                    "message", message,
+                    "widgets", responseWidgets,
+                    "applyMode", applyMode.name()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
     }
 
     private static List<Map<String, Object>> parseWidgetPayload(Object raw) {

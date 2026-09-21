@@ -15,10 +15,16 @@
   var addModal = document.getElementById('modal-dashboard-add');
   var atemschutzModal = document.getElementById('modal-dashboard-atemschutz-config');
   var openReportsModal = document.getElementById('modal-dashboard-open-reports-config');
+  var unitDefaultSaveModal = document.getElementById('modal-dashboard-unit-default-save');
   var emptyHint = document.getElementById('dashboard-widgets-empty');
   var editing = false;
   var interaction = null;
   var configTarget = null;
+
+  function isUnitDefaultMode() {
+    return meta.getAttribute('data-unit-default') === 'true'
+      || board.getAttribute('data-unit-default') === 'true';
+  }
 
   function csrfToken() {
     var fromMeta = meta.getAttribute('data-csrf-token');
@@ -594,6 +600,47 @@
   }
 
   function saveAndReload() {
+    if (isUnitDefaultMode()) {
+      openUnitDefaultSaveModal();
+      return;
+    }
+    persistLayout('/dashboard/layout', { widgets: currentLayout() });
+  }
+
+  function selectedApplyMode() {
+    var checked = document.querySelector('input[name="unit-default-apply"]:checked');
+    return checked && checked.value ? checked.value : 'NEW_USERS_ONLY';
+  }
+
+  function openUnitDefaultSaveModal() {
+    if (!unitDefaultSaveModal) {
+      persistLayout('/dashboard/unit-default-layout', {
+        widgets: currentLayout(),
+        applyMode: 'NEW_USERS_ONLY',
+      });
+      return;
+    }
+    unitDefaultSaveModal.classList.add('active');
+    unitDefaultSaveModal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+  }
+
+  function closeUnitDefaultSaveModal() {
+    if (!unitDefaultSaveModal) return;
+    unitDefaultSaveModal.classList.remove('active');
+    unitDefaultSaveModal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('modal-open');
+  }
+
+  function confirmUnitDefaultSave() {
+    closeUnitDefaultSaveModal();
+    persistLayout('/dashboard/unit-default-layout', {
+      widgets: currentLayout(),
+      applyMode: selectedApplyMode(),
+    });
+  }
+
+  function persistLayout(url, body) {
     var headers = {
       'Content-Type': 'application/json',
       'X-Requested-With': 'XMLHttpRequest',
@@ -601,11 +648,11 @@
     var csrf = csrfToken();
     if (csrf) headers['X-XSRF-TOKEN'] = csrf;
     if (doneBtn) doneBtn.disabled = true;
-    fetch('/dashboard/layout?unit=' + encodeURIComponent(unitId()), {
+    fetch(url + '?unit=' + encodeURIComponent(unitId()), {
       method: 'POST',
       headers: headers,
       credentials: 'same-origin',
-      body: JSON.stringify({ widgets: currentLayout() }),
+      body: JSON.stringify(body),
     })
       .then(function (res) {
         if (!res.ok) {
@@ -615,9 +662,15 @@
         }
         return res.json();
       })
-      .then(function () {
-        if (typeof window.toast === 'function') window.toast('Startseite gespeichert');
-        window.location.reload();
+      .then(function (data) {
+        if (typeof window.toast === 'function') {
+          window.toast((data && data.message) || 'Startseite gespeichert');
+        }
+        if (isUnitDefaultMode()) {
+          window.location.href = '/?unit=' + encodeURIComponent(unitId()) + '&unitDefault=1';
+        } else {
+          window.location.reload();
+        }
       })
       .catch(function (err) {
         if (typeof window.toast === 'function') window.toast(err.message || 'Fehler', 'error');
@@ -800,11 +853,21 @@
     if (saveOpenReports) saveOpenReports.addEventListener('click', saveOpenReportsConfig);
   }
 
+  if (unitDefaultSaveModal) {
+    unitDefaultSaveModal.querySelectorAll('[data-close-unit-default-save]').forEach(function (btn) {
+      btn.addEventListener('click', closeUnitDefaultSaveModal);
+    });
+    var confirmBtn = document.getElementById('dashboard-unit-default-save-confirm');
+    if (confirmBtn) confirmBtn.addEventListener('click', confirmUnitDefaultSave);
+  }
+
   widgetNodes().forEach(ensureHandles);
   updateBoardRows();
   updateEmptyHint();
-  setEditing(false);
+  setEditing(isUnitDefaultMode());
   window.addEventListener('pageshow', function () {
-    setEditing(false);
+    if (!isUnitDefaultMode()) {
+      setEditing(false);
+    }
   });
 })();

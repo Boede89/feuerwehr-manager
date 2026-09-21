@@ -53,4 +53,8 @@ public class Unit {
     /** Öffentliche Selbstregistrierung auf der Anmeldeseite. */
     @Column(name = "self_registration_enabled", nullable = false)
     private boolean selfRegistrationEnabled;
+
+    /** Vordefiniertes Startseiten-Layout für neue Benutzer (JSON-Array). */
+    @Column(name = "default_dashboard_layout_json", columnDefinition = "TEXT")
+    private String defaultDashboardLayoutJson;
 }
