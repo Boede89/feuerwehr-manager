@@ -52,7 +52,7 @@ public class User {
 
     /** UI-Farbschema: {@code light} oder {@code dark}. */
     @Column(nullable = false, length = 8)
-    private String theme = "light";
+    private String theme = "dark";
 
     /** Persönliches Startseiten-Layout (JSON-Array von Widget-IDs). */
     @Column(name = "dashboard_layout_json", columnDefinition = "TEXT")

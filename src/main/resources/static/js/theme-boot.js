@@ -7,11 +7,17 @@
       try { localStorage.setItem('ff_theme', 'dark'); } catch (e) { /* ignore */ }
     } else {
       document.documentElement.removeAttribute('data-theme');
-      try { localStorage.removeItem('ff_theme'); } catch (e) { /* ignore */ }
+      try { localStorage.setItem('ff_theme', 'light'); } catch (e) { /* ignore */ }
     }
     return;
   }
-  if (localStorage.getItem('ff_theme') === 'dark') {
-    document.documentElement.setAttribute('data-theme', 'dark');
+  var stored = null;
+  try { stored = localStorage.getItem('ff_theme'); } catch (e) { /* ignore */ }
+  if (stored === 'light') {
+    document.documentElement.removeAttribute('data-theme');
+    return;
   }
+  // Standard ohne gespeicherte Präferenz: dunkel
+  document.documentElement.setAttribute('data-theme', 'dark');
+  try { localStorage.setItem('ff_theme', 'dark'); } catch (e) { /* ignore */ }
 })();
