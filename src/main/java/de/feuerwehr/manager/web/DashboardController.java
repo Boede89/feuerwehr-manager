@@ -351,7 +351,7 @@ public class DashboardController {
                 responseWidgets.add(entry);
             }
             String message = applyMode == UnitDashboardApplyMode.ALL_USERS
-                    ? "Benutzer-Startseite gespeichert und für alle Benutzer übernommen."
+                    ? "Benutzer-Startseite gespeichert und für alle Benutzer übernommen (Admins ausgenommen)."
                     : "Benutzer-Startseite gespeichert (gilt für neue Benutzer).";
             return ResponseEntity.ok(Map.of(
                     "message", message,

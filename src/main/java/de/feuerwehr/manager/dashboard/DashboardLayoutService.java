@@ -140,6 +140,10 @@ public class DashboardLayoutService {
         unitRepository.save(unit);
         if (applyMode == UnitDashboardApplyMode.ALL_USERS) {
             for (User user : userRepository.findAllByAnonymizedAtIsNullAndUnitIdOrderByUsernameAsc(unitId)) {
+                // Admins behalten ihre eigene Startseite und werden nicht überschrieben.
+                if (user.getRole() != null && user.getRole().isAdminLevel()) {
+                    continue;
+                }
                 user.setDashboardLayoutJson(json);
                 userRepository.save(user);
             }
