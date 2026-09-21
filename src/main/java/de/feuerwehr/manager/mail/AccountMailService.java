@@ -257,6 +257,7 @@ public class AccountMailService {
         if (!url.isBlank()) {
             body.append("Anmeldung: ").append(url).append("\n");
         }
+        body.append("\nBitte ändern Sie das Passwort nach der nächsten Anmeldung.\n");
         return body.toString();
     }
 

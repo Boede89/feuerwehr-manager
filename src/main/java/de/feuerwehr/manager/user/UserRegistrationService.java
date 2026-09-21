@@ -215,6 +215,7 @@ public class UserRegistrationService {
         user.setPasswordHash(passwordEncoder.encode(password));
         user.setActive(true);
         user.setRegistrationPending(false);
+        user.setMustChangePassword(true);
         user.setDisplayName(Person.formatDisplayName(user.getFirstName(), user.getLastName()));
         User saved = userRepository.save(user);
 

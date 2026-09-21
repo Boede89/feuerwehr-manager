@@ -228,6 +228,9 @@ public class AdminPanelController {
                     organizationalRoleId,
                     actor,
                     request);
+            if (sendPasswordEmail) {
+                userManagementService.markMustChangePassword(created.getId(), true);
+            }
             String message = "Benutzer „" + created.getUsername() + "“ wurde angelegt.";
             message = appendMailNotice(message, created, password, sendPasswordEmail, false, effectiveUnitId);
             redirectAttributes.addFlashAttribute("saved", true);
@@ -396,7 +399,7 @@ public class AdminPanelController {
                 userManagementService.validatePlainPassword(newPassword);
                 password = newPassword;
             }
-            userManagementService.setPasswordByAdmin(id, password, actor, request);
+            userManagementService.setPasswordByAdmin(id, password, sendByEmail, actor, request);
             String message = "Passwort wurde zurückgesetzt.";
             if (sendByEmail) {
                 Optional<String> mailError =

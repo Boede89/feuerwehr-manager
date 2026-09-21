@@ -7,6 +7,7 @@ import de.feuerwehr.manager.security.ApiAuthenticationEntryPoint;
 import de.feuerwehr.manager.security.AppUserDetailsService;
 import de.feuerwehr.manager.security.AuditLogoutSuccessHandler;
 import de.feuerwehr.manager.security.IdleLogoutFilter;
+import de.feuerwehr.manager.security.MustChangePasswordFilter;
 import de.feuerwehr.manager.security.RfidAuthenticationProvider;
 import de.feuerwehr.manager.security.SecurityProperties;
 import de.feuerwehr.manager.security.TestModeLogoutHandler;
@@ -70,7 +71,8 @@ public class SecurityConfig {
             TestModeLogoutHandler testModeLogoutHandler,
             TotpAuthenticationSuccessHandler totpAuthenticationSuccessHandler,
             ApiAuthenticationEntryPoint apiAuthenticationEntryPoint,
-            AuditService auditService)
+            AuditService auditService,
+            MustChangePasswordFilter mustChangePasswordFilter)
             throws Exception {
         http.authenticationManager(authenticationManager);
         http
@@ -153,6 +155,7 @@ public class SecurityConfig {
                 .addFilterAfter(
                         new IdleLogoutFilter(testModeLogoutHandler, auditService),
                         BasicAuthenticationFilter.class)
+                .addFilterAfter(mustChangePasswordFilter, IdleLogoutFilter.class)
                 .addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class);
 
         return http.build();

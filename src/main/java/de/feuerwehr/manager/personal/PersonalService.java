@@ -317,6 +317,7 @@ public class PersonalService {
                     plan.password(),
                     unitId,
                     email,
+                    plan.sendByEmail(),
                     actorUserId,
                     request);
             linkedUserId = user.getId();
@@ -389,6 +390,7 @@ public class PersonalService {
                         plan.password(),
                         unitId,
                         loginEmail,
+                        plan.sendByEmail(),
                         actor.getUserId(),
                         request);
                 person.setUser(user);
@@ -446,6 +448,7 @@ public class PersonalService {
                         password,
                         person.getUnit().getId(),
                         email,
+                        true,
                         actorUserId,
                         request);
                 person.setUser(user);

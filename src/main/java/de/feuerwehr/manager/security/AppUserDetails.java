@@ -19,6 +19,7 @@ public class AppUserDetails implements UserDetails {
     private final UserRole role;
     private final Long unitId;
     private final boolean active;
+    private final boolean mustChangePassword;
 
     public AppUserDetails(User user) {
         this.userId = user.getId();
@@ -28,6 +29,7 @@ public class AppUserDetails implements UserDetails {
         this.role = user.getRole();
         this.unitId = user.getUnit() != null ? user.getUnit().getId() : null;
         this.active = user.isActive();
+        this.mustChangePassword = user.isMustChangePassword();
     }
 
     public static AppUserDetails from(User user) {

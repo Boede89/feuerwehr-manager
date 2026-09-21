@@ -1,5 +1,10 @@
 package de.feuerwehr.manager.user;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+
 /** Regeln für Benutzernamen (Login). */
 public final class UsernameHelper {
 
@@ -9,13 +14,32 @@ public final class UsernameHelper {
      * Vorschlag aus Person: erster Buchstabe des Vornamens + Punkt + Nachname (z. B. m.mustermann).
      */
     public static String suggestFromPersonName(String firstName, String lastName) {
+        List<String> candidates = suggestUsernameCandidates(firstName, lastName);
+        if (candidates.isEmpty()) {
+            throw new IllegalArgumentException("Vor- und Nachname sind für den Benutzernamen erforderlich");
+        }
+        return candidates.get(0);
+    }
+
+    /**
+     * Kandidaten bei Namenskollision, vom kurzen zum eindeutigeren:
+     * {@code m.mustermann} → {@code ma.mustermann} → {@code max.mustermann}.
+     */
+    public static List<String> suggestUsernameCandidates(String firstName, String lastName) {
         String first = normalizeNamePart(firstName);
         String last = normalizeNamePart(lastName);
         if (first.isEmpty() || last.isEmpty()) {
             throw new IllegalArgumentException("Vor- und Nachname sind für den Benutzernamen erforderlich");
         }
-        String base = first.charAt(0) + "." + last;
-        return sanitizeUsername(base);
+        Set<String> ordered = new LinkedHashSet<>();
+        ordered.add(sanitizeUsername(first.charAt(0) + "." + last));
+        if (first.length() >= 2) {
+            ordered.add(sanitizeUsername(first.substring(0, 2) + "." + last));
+        }
+        if (first.length() >= 3) {
+            ordered.add(sanitizeUsername(first + "." + last));
+        }
+        return new ArrayList<>(ordered);
     }
 
     public static void validate(String username) {

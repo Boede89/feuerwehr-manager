@@ -93,6 +93,10 @@ public class User {
     @Column(nullable = false)
     private boolean active = true;
 
+    /** true = nach Login muss das Passwort geändert werden (z. B. zugesandtes Initialpasswort). */
+    @Column(name = "must_change_password", nullable = false)
+    private boolean mustChangePassword;
+
     @Column(name = "privacy_notice_version", length = 32)
     private String privacyNoticeVersion;
 

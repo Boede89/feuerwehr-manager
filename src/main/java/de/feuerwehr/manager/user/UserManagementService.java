@@ -106,6 +106,7 @@ public class UserManagementService {
         user.setRole(role != null ? role : UserRole.USER);
         user.setActive(true);
         user.setPasswordHash(passwordEncoder.encode(plainPassword));
+        user.setMustChangePassword(false);
         applyUnit(user, unitId, actor);
         applyDienstgrad(user, organizationalRoleId);
         User saved = userRepository.findByIdWithUnit(userRepository.save(user).getId()).orElseThrow();
@@ -131,6 +132,7 @@ public class UserManagementService {
             String plainPassword,
             long unitId,
             String loginEmail,
+            boolean mustChangePassword,
             long actorUserId,
             HttpServletRequest request) {
         UsernameHelper.validate(username);
@@ -152,20 +154,24 @@ public class UserManagementService {
         user.setUnit(unit);
         user.setActive(true);
         user.setPasswordHash(passwordEncoder.encode(plainPassword));
+        user.setMustChangePassword(mustChangePassword);
         User saved = userRepository.save(user);
         auditService.record(AuditEventType.USER_CREATED, actorUserId, saved.getId(), request, "Benutzer über Personal angelegt");
         return saved;
     }
 
     public String allocateUniqueUsername(String firstName, String lastName) {
-        String base = UsernameHelper.suggestFromPersonName(firstName, lastName);
-        if (!userRepository.existsByUsernameIgnoreCase(base)) {
-            return base;
-        }
-        for (int i = 2; i < 1000; i++) {
-            String candidate = UsernameHelper.truncate(base + i);
+        List<String> candidates = UsernameHelper.suggestUsernameCandidates(firstName, lastName);
+        for (String candidate : candidates) {
             if (!userRepository.existsByUsernameIgnoreCase(candidate)) {
                 return candidate;
+            }
+        }
+        String base = candidates.get(candidates.size() - 1);
+        for (int i = 2; i < 1000; i++) {
+            String numbered = UsernameHelper.truncate(base + i);
+            if (!userRepository.existsByUsernameIgnoreCase(numbered)) {
+                return numbered;
             }
         }
         throw new IllegalArgumentException("Kein freier Benutzername ermittelbar");
@@ -233,7 +239,11 @@ public class UserManagementService {
     }
 
     public void setPasswordByAdmin(
-            long userId, String plainPassword, AppUserDetails actor, HttpServletRequest request) {
+            long userId,
+            String plainPassword,
+            boolean requireChangeOnNextLogin,
+            AppUserDetails actor,
+            HttpServletRequest request) {
         validatePassword(plainPassword);
         User user = userRepository.findByIdWithUnit(userId).orElseThrow();
         if (user.getAnonymizedAt() != null) {
@@ -241,13 +251,29 @@ public class UserManagementService {
         }
         accessControlService.requireCanManageUser(actor, user);
         user.setPasswordHash(passwordEncoder.encode(plainPassword));
+        user.setMustChangePassword(requireChangeOnNextLogin);
         userRepository.save(user);
         auditService.record(
                 AuditEventType.PASSWORD_CHANGED,
                 actor.getUserId(),
                 userId,
                 request,
-                "Passwort durch Administrator gesetzt");
+                requireChangeOnNextLogin
+                        ? "Passwort durch Administrator gesetzt (Wechsel bei nächster Anmeldung)"
+                        : "Passwort durch Administrator gesetzt");
+    }
+
+    /** @deprecated use {@link #setPasswordByAdmin(long, String, boolean, AppUserDetails, HttpServletRequest)} */
+    public void setPasswordByAdmin(
+            long userId, String plainPassword, AppUserDetails actor, HttpServletRequest request) {
+        setPasswordByAdmin(userId, plainPassword, false, actor, request);
+    }
+
+    @Transactional
+    public void markMustChangePassword(long userId, boolean required) {
+        User user = userRepository.findById(userId).orElseThrow();
+        user.setMustChangePassword(required);
+        userRepository.save(user);
     }
 
     @Transactional
@@ -259,6 +285,7 @@ public class UserManagementService {
             throw new IllegalArgumentException("Aktuelles Passwort ist falsch");
         }
         user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setMustChangePassword(false);
         userRepository.save(user);
     }
 
