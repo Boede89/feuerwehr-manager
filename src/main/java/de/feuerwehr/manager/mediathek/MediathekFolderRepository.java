@@ -53,6 +53,7 @@ public interface MediathekFolderRepository extends JpaRepository<MediathekFolder
             LEFT JOIN FETCH a.group
             LEFT JOIN FETCH a.qualificationType qt
             LEFT JOIN FETCH qt.unit
+            LEFT JOIN FETCH qt.dienstgradRole
             WHERE f.id = :id
             """)
     Optional<MediathekFolder> findByIdWithAcl(@Param("id") long id);

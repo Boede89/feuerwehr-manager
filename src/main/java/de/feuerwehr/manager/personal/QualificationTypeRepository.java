@@ -33,9 +33,26 @@ public interface QualificationTypeRepository extends JpaRepository<Qualification
             """
             SELECT q FROM QualificationType q
             LEFT JOIN FETCH q.dienstgradRole
+            LEFT JOIN FETCH q.unit
             WHERE q.id = :id
             """)
     Optional<QualificationType> findByIdWithDienstgradRole(@Param("id") long id);
+
+    @Query(
+            """
+            SELECT q FROM QualificationType q
+            LEFT JOIN FETCH q.dienstgradRole
+            LEFT JOIN FETCH q.unit
+            WHERE q.unit.id = :unitId
+              AND q.dienstgradRole.id = :roleId
+              AND q.active = TRUE
+              AND q.testData = :testData
+            ORDER BY q.sortOrder ASC, q.name ASC
+            """)
+    List<QualificationType> findActiveByUnitIdAndDienstgradRoleId(
+            @Param("unitId") long unitId,
+            @Param("roleId") long roleId,
+            @Param("testData") boolean testData);
 
     @Query("SELECT q FROM QualificationType q WHERE q.productionSourceId = :sourceId")
     Optional<QualificationType> findShadowByProductionSourceId(@Param("sourceId") long sourceId);

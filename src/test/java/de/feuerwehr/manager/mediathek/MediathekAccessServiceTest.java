@@ -1,6 +1,8 @@
 package de.feuerwehr.manager.mediathek;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import de.feuerwehr.manager.personal.Person;
@@ -8,10 +10,14 @@ import de.feuerwehr.manager.personal.PersonGroup;
 import de.feuerwehr.manager.personal.PersonGroupRepository;
 import de.feuerwehr.manager.personal.PersonRepository;
 import de.feuerwehr.manager.personal.QualificationType;
+import de.feuerwehr.manager.personal.QualificationTypeRepository;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
+import de.feuerwehr.manager.unit.UnitRole;
+import de.feuerwehr.manager.unit.UnitRoleType;
 import de.feuerwehr.manager.user.User;
+import de.feuerwehr.manager.user.UserRepository;
 import de.feuerwehr.manager.user.UserRole;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -37,6 +43,12 @@ class MediathekAccessServiceTest {
     private PersonGroupRepository personGroupRepository;
 
     @Mock
+    private QualificationTypeRepository qualificationTypeRepository;
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
     private TestModeService testModeService;
 
     @InjectMocks
@@ -47,21 +59,22 @@ class MediathekAccessServiceTest {
     private AppUserDetails userActor;
     private AppUserDetails adminActor;
     private Person person;
+    private User memberUser;
 
     @BeforeEach
     void setUp() {
         unitA = unit(1L, "Löschzug A");
         unitB = unit(2L, "Löschzug B");
 
-        User user = new User();
-        user.setId(10L);
-        user.setUsername("mitglied");
-        user.setDisplayName("Max Mitglied");
-        user.setPasswordHash("x");
-        user.setRole(UserRole.USER);
-        user.setActive(true);
-        user.setUnit(unitA);
-        userActor = AppUserDetails.from(user);
+        memberUser = new User();
+        memberUser.setId(10L);
+        memberUser.setUsername("mitglied");
+        memberUser.setDisplayName("Max Mitglied");
+        memberUser.setPasswordHash("x");
+        memberUser.setRole(UserRole.USER);
+        memberUser.setActive(true);
+        memberUser.setUnit(unitA);
+        userActor = AppUserDetails.from(memberUser);
 
         User admin = new User();
         admin.setId(11L);
@@ -121,6 +134,7 @@ class MediathekAccessServiceTest {
         when(testModeService.isEnabled()).thenReturn(false);
         when(personRepository.findActiveByUserIdAndUnitId(10L, 1L, false)).thenReturn(Optional.of(person));
         when(personGroupRepository.findGroupIdsByMemberId(100L)).thenReturn(Set.of());
+        when(userRepository.findByIdWithUnit(10L)).thenReturn(Optional.of(memberUser));
 
         Person other = new Person();
         other.setId(999L);
@@ -149,6 +163,7 @@ class MediathekAccessServiceTest {
         when(testModeService.isEnabled()).thenReturn(false);
         when(personRepository.findActiveByUserIdAndUnitId(10L, 1L, false)).thenReturn(Optional.of(person));
         when(personGroupRepository.findGroupIdsByMemberId(100L)).thenReturn(Set.of());
+        when(userRepository.findByIdWithUnit(10L)).thenReturn(Optional.of(memberUser));
 
         MediathekFolder parent = rootFolder(60L, unitA, Set.of(unitA));
         parent.setInheritAcl(false);
@@ -179,6 +194,7 @@ class MediathekAccessServiceTest {
         when(testModeService.isEnabled()).thenReturn(false);
         when(personRepository.findActiveByUserIdAndUnitId(10L, 1L, false)).thenReturn(Optional.of(person));
         when(personGroupRepository.findGroupIdsByMemberId(100L)).thenReturn(Set.of());
+        when(userRepository.findByIdWithUnit(10L)).thenReturn(Optional.of(memberUser));
 
         MediathekFolder parent = rootFolder(70L, unitA, Set.of(unitA));
         parent.setInheritAcl(false);
@@ -208,6 +224,7 @@ class MediathekAccessServiceTest {
         when(testModeService.isEnabled()).thenReturn(false);
         when(personRepository.findActiveByUserIdAndUnitId(10L, 1L, false)).thenReturn(Optional.of(person));
         when(personGroupRepository.findGroupIdsByMemberId(100L)).thenReturn(Set.of(5L));
+        when(userRepository.findByIdWithUnit(10L)).thenReturn(Optional.of(memberUser));
 
         PersonGroup group = new PersonGroup();
         group.setId(5L);
@@ -233,6 +250,7 @@ class MediathekAccessServiceTest {
         when(testModeService.isEnabled()).thenReturn(false);
         when(personRepository.findActiveByUserIdAndUnitId(10L, 1L, false)).thenReturn(Optional.of(person));
         when(personGroupRepository.findGroupIdsByMemberId(100L)).thenReturn(Set.of());
+        when(userRepository.findByIdWithUnit(10L)).thenReturn(Optional.of(memberUser));
 
         QualificationType zugfuehrer = qualification(1L, "Zugführer", unitA, 1);
         QualificationType gruppenfuehrer = qualification(2L, "Gruppenführer", unitA, 2);
@@ -257,6 +275,7 @@ class MediathekAccessServiceTest {
         when(testModeService.isEnabled()).thenReturn(false);
         when(personRepository.findActiveByUserIdAndUnitId(10L, 1L, false)).thenReturn(Optional.of(person));
         when(personGroupRepository.findGroupIdsByMemberId(100L)).thenReturn(Set.of());
+        when(userRepository.findByIdWithUnit(10L)).thenReturn(Optional.of(memberUser));
 
         QualificationType truppmann = qualification(3L, "Truppmann", unitA, 4);
         QualificationType gruppenfuehrer = qualification(2L, "Gruppenführer", unitA, 2);
@@ -277,14 +296,55 @@ class MediathekAccessServiceTest {
     }
 
     @Test
+    void userDienstgradWithoutPersonQualificationGrantsAccess() {
+        when(testModeService.isEnabled()).thenReturn(false);
+        when(personRepository.findActiveByUserIdAndUnitId(10L, 1L, false)).thenReturn(Optional.of(person));
+        when(personGroupRepository.findGroupIdsByMemberId(100L)).thenReturn(Set.of());
+
+        UnitRole truppmannRole = dienstgradRole(20L, "Truppmann", unitA, 4);
+        memberUser.setOrganizationalRole(truppmannRole);
+        when(userRepository.findByIdWithUnit(10L)).thenReturn(Optional.of(memberUser));
+
+        QualificationType truppmannQual = qualification(3L, "Truppmann", unitA, 4);
+        truppmannQual.setDienstgradRole(truppmannRole);
+        person.setQualificationType(null);
+
+        when(qualificationTypeRepository.findActiveByUnitIdAndDienstgradRoleId(eq(1L), eq(20L), anyBoolean()))
+                .thenReturn(List.of(truppmannQual));
+
+        MediathekFolder folder = rootFolder(92L, unitA, Set.of(unitA));
+        folder.setInheritAcl(false);
+        MediathekFolderAcl acl = new MediathekFolderAcl();
+        acl.setFolder(folder);
+        acl.setQualificationType(truppmannQual);
+        acl.setAccessLevel(MediathekAccessLevel.READ);
+        folder.setAclEntries(List.of(acl));
+
+        when(folderRepository.findByIdWithUnits(92L)).thenReturn(Optional.of(folder));
+        when(folderRepository.findByIdWithAcl(92L)).thenReturn(Optional.of(folder));
+
+        assertThat(accessService.canRead(userActor, unitA.getId(), folder)).isTrue();
+    }
+
+    @Test
+    void userDienstgradRoleFallbackMatchesWithoutLinkedQualificationRow() {
+        UnitRole truppmannRole = dienstgradRole(20L, "Truppmann", unitA, 4);
+        QualificationType truppmannQual = qualification(3L, "Truppmann", unitA, 4);
+        truppmannQual.setDienstgradRole(truppmannRole);
+
+        assertThat(MediathekAccessService.matchesDienstgradRole(truppmannQual, truppmannRole)).isTrue();
+
+        UnitRole anwaerterRole = dienstgradRole(21L, "Anwärter", unitA, 5);
+        assertThat(MediathekAccessService.matchesDienstgradRole(truppmannQual, anwaerterRole)).isFalse();
+    }
+
+    @Test
     void qualificationFromOtherUnitDoesNotMatch() {
         QualificationType gfUnitA = qualification(2L, "Gruppenführer", unitA, 2);
         QualificationType gfUnitB = qualification(12L, "Gruppenführer", unitB, 2);
-        person.setUnit(unitB);
-        person.setQualificationType(gfUnitB);
 
-        assertThat(MediathekAccessService.matchesQualification(gfUnitA, person)).isFalse();
-        assertThat(MediathekAccessService.matchesQualification(gfUnitB, person)).isTrue();
+        assertThat(MediathekAccessService.matchesQualification(gfUnitA, gfUnitB)).isFalse();
+        assertThat(MediathekAccessService.matchesQualification(gfUnitB, gfUnitB)).isTrue();
     }
 
     private static Unit unit(long id, String name) {
@@ -292,6 +352,16 @@ class MediathekAccessServiceTest {
         unit.setId(id);
         unit.setName(name);
         return unit;
+    }
+
+    private static UnitRole dienstgradRole(long id, String name, Unit unit, int sortOrder) {
+        UnitRole role = new UnitRole();
+        role.setId(id);
+        role.setName(name);
+        role.setUnit(unit);
+        role.setRoleType(UnitRoleType.DIENSTGRAD);
+        role.setSortOrder(sortOrder);
+        return role;
     }
 
     private static QualificationType qualification(long id, String name, Unit unit, int sortOrder) {

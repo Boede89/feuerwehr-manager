@@ -54,7 +54,10 @@ public interface PersonRepository extends JpaRepository<Person, Long> {
 
     @Query("""
             SELECT p FROM Person p
-            LEFT JOIN FETCH p.qualificationType
+            LEFT JOIN FETCH p.unit
+            LEFT JOIN FETCH p.qualificationType qt
+            LEFT JOIN FETCH qt.unit
+            LEFT JOIN FETCH qt.dienstgradRole
             LEFT JOIN FETCH p.user
             WHERE p.user.id = :userId AND p.unit.id = :unitId
               AND p.anonymizedAt IS NULL AND p.testData = :testData

@@ -4,8 +4,12 @@ import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.personal.PersonGroupRepository;
 import de.feuerwehr.manager.personal.PersonRepository;
 import de.feuerwehr.manager.personal.QualificationType;
+import de.feuerwehr.manager.personal.QualificationTypeRepository;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.settings.TestModeService;
+import de.feuerwehr.manager.unit.UnitRole;
+import de.feuerwehr.manager.user.User;
+import de.feuerwehr.manager.user.UserRepository;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -22,6 +26,8 @@ public class MediathekAccessService {
     private final MediathekFolderRepository folderRepository;
     private final PersonRepository personRepository;
     private final PersonGroupRepository personGroupRepository;
+    private final QualificationTypeRepository qualificationTypeRepository;
+    private final UserRepository userRepository;
     private final TestModeService testModeService;
 
     @Transactional(readOnly = true)
@@ -61,9 +67,11 @@ public class MediathekAccessService {
         Person person = personOpt.get();
         long personId = person.getId();
         Set<Long> groupIds = new HashSet<>(personGroupRepository.findGroupIdsByMemberId(personId));
+        UnitRole userDienstgrad = loadUserDienstgrad(actor);
+        QualificationType effectiveQual = resolveEffectiveQualification(person, userDienstgrad, unitId);
         MediathekAccessLevel best = null;
         for (MediathekFolderAcl entry : entries) {
-            if (!matchesEntry(entry, person, personId, groupIds)) {
+            if (!matchesEntry(entry, person, personId, groupIds, effectiveQual, userDienstgrad)) {
                 continue;
             }
             if (best == null || entry.getAccessLevel() == MediathekAccessLevel.WRITE) {
@@ -79,33 +87,109 @@ public class MediathekAccessService {
     /**
      * Dienstgrad-ACL: Person muss denselben Einheits-Kontext haben und eine Qualifikation
      * mit gleicher oder höherer Stufe (niedrigere {@code sort_order}) besitzen.
+     * Fallback: Dienstgrad-Rolle am Benutzerkonto (wenn an Qualifikation gekoppelt).
      */
-    static boolean matchesQualification(QualificationType required, Person person) {
-        if (required == null || person == null) {
-            return false;
-        }
-        QualificationType personQual = person.getQualificationType();
-        if (personQual == null || !personQual.isActive()) {
+    static boolean matchesQualification(QualificationType required, QualificationType personQual) {
+        if (required == null || personQual == null || !personQual.isActive()) {
             return false;
         }
         Long requiredUnitId = required.getUnit() != null ? required.getUnit().getId() : null;
-        Long personUnitId = person.getUnit() != null ? person.getUnit().getId() : null;
+        Long personUnitId = personQual.getUnit() != null ? personQual.getUnit().getId() : null;
         if (requiredUnitId == null || !Objects.equals(requiredUnitId, personUnitId)) {
             return false;
         }
         return personQual.getSortOrder() <= required.getSortOrder();
     }
 
-    private static boolean matchesEntry(
-            MediathekFolderAcl entry, Person person, long personId, Set<Long> groupIds) {
+    /**
+     * Fallback, wenn keine Personen-Qualifikation auflösbar ist: Vergleich über die
+     * Dienstgrad-Rollen (niedrigere {@code sort_order} = höherer Dienstgrad).
+     */
+    static boolean matchesDienstgradRole(QualificationType required, UnitRole userDienstgrad) {
+        if (required == null || userDienstgrad == null || required.getDienstgradRole() == null) {
+            return false;
+        }
+        UnitRole requiredRole = required.getDienstgradRole();
+        Long requiredUnitId = requiredRole.getUnit() != null
+                ? requiredRole.getUnit().getId()
+                : (required.getUnit() != null ? required.getUnit().getId() : null);
+        Long userUnitId = userDienstgrad.getUnit() != null ? userDienstgrad.getUnit().getId() : null;
+        if (requiredUnitId == null || !Objects.equals(requiredUnitId, userUnitId)) {
+            return false;
+        }
+        return userDienstgrad.getSortOrder() <= requiredRole.getSortOrder();
+    }
+
+    private boolean matchesEntry(
+            MediathekFolderAcl entry,
+            Person person,
+            long personId,
+            Set<Long> groupIds,
+            QualificationType effectiveQual,
+            UnitRole userDienstgrad) {
         if (entry.getPerson() != null && entry.getPerson().getId().equals(personId)) {
             return true;
         }
         if (entry.getGroup() != null && groupIds.contains(entry.getGroup().getId())) {
             return true;
         }
-        return entry.getQualificationType() != null
-                && matchesQualification(entry.getQualificationType(), person);
+        if (entry.getQualificationType() == null) {
+            return false;
+        }
+        if (matchesQualification(entry.getQualificationType(), effectiveQual)) {
+            return true;
+        }
+        return matchesDienstgradRole(entry.getQualificationType(), userDienstgrad);
+    }
+
+    /**
+     * Qualifikation aus Personal, sonst Qualifikation die mit dem Benutzer-Dienstgrad verknüpft ist
+     * (über Rolle oder Namensgleichheit in der Einheit).
+     */
+    QualificationType resolveEffectiveQualification(Person person, UnitRole userDienstgrad, long unitId) {
+        if (person != null) {
+            QualificationType fromPerson = person.getQualificationType();
+            if (fromPerson != null && fromPerson.isActive()) {
+                return fromPerson;
+            }
+        }
+        if (userDienstgrad == null || userDienstgrad.getId() == null) {
+            return null;
+        }
+        boolean testData = testModeService.isEnabled();
+        List<QualificationType> linked = qualificationTypeRepository.findActiveByUnitIdAndDienstgradRoleId(
+                unitId, userDienstgrad.getId(), testData);
+        if (linked.isEmpty() && testData) {
+            linked = qualificationTypeRepository.findActiveByUnitIdAndDienstgradRoleId(
+                    unitId, userDienstgrad.getId(), false);
+        }
+        if (!linked.isEmpty()) {
+            return linked.get(0);
+        }
+        String roleName = userDienstgrad.getName() != null ? userDienstgrad.getName().trim() : "";
+        if (roleName.isEmpty()) {
+            return null;
+        }
+        List<QualificationType> byUnit = qualificationTypeRepository
+                .findByUnitIdAndTestDataAndActiveTrueOrderBySortOrderAscNameAsc(unitId, testData);
+        if (byUnit.isEmpty() && testData) {
+            byUnit = qualificationTypeRepository.findByUnitIdAndTestDataAndActiveTrueOrderBySortOrderAscNameAsc(
+                    unitId, false);
+        }
+        return byUnit.stream()
+                .filter(q -> q.getName() != null && q.getName().trim().equalsIgnoreCase(roleName))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private UnitRole loadUserDienstgrad(AppUserDetails actor) {
+        if (actor == null) {
+            return null;
+        }
+        return userRepository
+                .findByIdWithUnit(actor.getUserId())
+                .map(User::getOrganizationalRole)
+                .orElse(null);
     }
 
     @Transactional(readOnly = true)
