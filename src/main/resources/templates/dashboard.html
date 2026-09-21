@@ -67,6 +67,21 @@
        th:href="@{/admin(scope='einheit', tab='benutzer', unit=${unitId})}">Zur Benutzerverwaltung</a>
   </div>
 
+  <div class="dashboard-uvv-notice" th:if="${pendingAtemschutzEntryCount != null and pendingAtemschutzEntryCount > 0}"
+       role="status">
+    <div class="dashboard-uvv-notice__text">
+      <strong>Atemschutz-Anträge</strong>
+      <p>
+        <span th:text="${pendingAtemschutzEntryCount}">1</span>
+        <th:block th:if="${pendingAtemschutzEntryCount == 1}">Antrag wartet</th:block>
+        <th:block th:unless="${pendingAtemschutzEntryCount == 1}">Anträge warten</th:block>
+        auf Freigabe durch Ausbilder.
+      </p>
+    </div>
+    <a class="btn btn--primary"
+       th:href="@{/atemschutz/antraege(unit=${unitId})}">Anträge prüfen</a>
+  </div>
+
   <p id="dashboard-edit-hint" class="dashboard-edit-hint" hidden
      th:text="${editUnitDefault}
        ? 'Vorlage der Benutzer-Startseite: Ziehen zum Verschieben · an den Rändern in Breite/Höhe ziehen — Speichern mit „Fertig“.'
@@ -336,15 +351,16 @@
             <span class="dashboard-quick-tile__text">Problem oder Fehler in der Anwendung melden.</span>
             <span class="dashboard-quick-tile__cta">Melden</span>
           </button>
-          <div th:if="${w.type().name() == 'QUICK_ATEMSCHUTZ'}"
-               class="dashboard-quick-tile dashboard-quick-tile--soon"
-               role="note"
-               aria-disabled="true">
+          <button th:if="${w.type().name() == 'QUICK_ATEMSCHUTZ'}"
+                  type="button"
+                  class="dashboard-quick-tile dashboard-quick-tile--button atemschutz-entry-open"
+                  aria-haspopup="dialog"
+                  aria-controls="atemschutz-entry-overlay">
             <span class="dashboard-quick-tile__icon" aria-hidden="true">🫁</span>
             <strong class="dashboard-quick-tile__title">Atemschutz</strong>
-            <span class="dashboard-quick-tile__text">Schnellzugriff zum Atemschutzbereich.</span>
-            <span class="dashboard-quick-tile__cta">Funktion folgt</span>
-          </div>
+            <span class="dashboard-quick-tile__text">Nachweis beantragen (Übung, Strecke, G26.3, CSA …).</span>
+            <span class="dashboard-quick-tile__cta">Antrag stellen</span>
+          </button>
           <div th:if="${w.type().name() == 'QUICK_FORMS'}"
                class="dashboard-quick-tile dashboard-quick-tile--soon"
                role="note"
@@ -628,12 +644,56 @@
 
   <div th:replace="~{fragments/bug-report-modal :: modal(${bugReporterName}, ${bugReporterEmail})}"></div>
 
+  <div id="atemschutz-entry-overlay" class="modal-overlay" role="dialog" aria-modal="true"
+       aria-labelledby="atemschutz-entry-title" aria-hidden="true">
+    <div class="modal entry-request-modal">
+      <div class="modal__header">
+        <h3 id="atemschutz-entry-title">Atemschutz-Nachweis beantragen</h3>
+        <button type="button" class="modal__close" id="atemschutz-entry-cancel" aria-label="Schließen">✕</button>
+      </div>
+      <form id="atemschutz-entry-form">
+        <div class="modal__body">
+          <p class="hint" style="margin-top:0;">
+            Stellen Sie einen Antrag auf Eintragung (z.&nbsp;B. nach Untersuchung oder Atemschutzstrecke).
+            Ausbilder erhalten eine Benachrichtigung und prüfen den Antrag.
+          </p>
+          <div class="form-group">
+            <label for="atemschutz-entry-type">Eintragstyp <span class="req">*</span></label>
+            <select id="atemschutz-entry-type" name="entryType" required>
+              <option value="" disabled selected>Bitte wählen</option>
+              <option value="EINSATZ">Einsatz</option>
+              <option value="UEBUNG">Übung</option>
+              <option value="STRECKE">Atemschutzstrecke</option>
+              <option value="G26">G26.3</option>
+              <option value="CSA">CSA</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="atemschutz-entry-date">Datum <span class="req">*</span></label>
+            <input id="atemschutz-entry-date" name="eventDate" type="date" required/>
+          </div>
+          <div class="form-group">
+            <label>Geräteträger <span class="req">*</span></label>
+            <p class="hint text-sm" style="margin:0.25rem 0 0.5rem;">Per Klick auswählen — Mehrfachauswahl möglich.</p>
+            <div id="atemschutz-entry-carriers" class="entry-request-carrier-list"></div>
+          </div>
+          <p id="atemschutz-entry-error" class="hint text-sm err" hidden></p>
+        </div>
+        <div class="modal__footer">
+          <button type="button" class="btn btn--outline" id="atemschutz-entry-cancel-footer">Abbrechen</button>
+          <button type="submit" class="btn btn--primary" id="atemschutz-entry-submit">Senden</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div id="dashboard-meta" hidden
        th:attr="data-unit-id=${unitId}, data-csrf-token=${_csrf.token}, data-unit-default=${editUnitDefault}"></div>
 
   <script th:src="@{/js/combo-suggest.js}" defer></script>
   <script th:src="@{/js/dashboard-manual-alarms.js}" defer></script>
   <script th:src="@{/js/bug-report.js(v='20260921a')}" defer></script>
+  <script th:src="@{/js/atemschutz-entry-request.js(v='20260921a')}" defer></script>
   <script th:src="@{/js/dashboard-layout.js(v='20260921b')}" defer></script>
 </main>
 </html>

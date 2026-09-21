@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('Atemschutz-Anträge', ~{::main})}">
+<main>
+  <div class="page-header page-header--toolbar">
+    <div>
+      <h2>Atemschutz-Anträge</h2>
+      <p>Offene Anträge auf Nachweis-Eintragung · <strong th:text="${currentUnitName}">—</strong></p>
+    </div>
+    <div class="toolbar-actions">
+      <a class="btn btn--outline" th:href="@{/atemschutz(unit=${unitId})}">Zur Übersicht</a>
+      <a class="btn btn--outline" th:href="@{/(unit=${unitId})}">Zur Startseite</a>
+    </div>
+  </div>
+
+  <div th:replace="~{fragments/testmode-banner :: banner}"></div>
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
+
+  <p class="text-muted" th:if="${#lists.isEmpty(pendingRequests)}">
+    Keine offenen Anträge.
+  </p>
+
+  <div class="entry-request-list" th:if="${!#lists.isEmpty(pendingRequests)}">
+    <a class="entry-request-card"
+       th:each="r : ${pendingRequests}"
+       th:href="@{/atemschutz/antraege/{id}(id=${r.id}, unit=${unitId})}">
+      <div class="entry-request-card__main">
+        <strong th:text="${r.entryType.label()}">Übung</strong>
+        <span class="entry-request-card__meta">
+          <span th:text="${#temporals.format(r.eventDate, 'dd.MM.yyyy')}">01.01.2026</span>
+          ·
+          <span th:text="${r.carriers.size()}">1</span>
+          Geräteträger
+        </span>
+        <span class="entry-request-card__people">
+          <th:block th:each="c, iter : ${r.carriers}">
+            <span th:text="${c.person.displayName}">Name</span><th:block th:if="${!iter.last}">, </th:block>
+          </th:block>
+        </span>
+      </div>
+      <div class="entry-request-card__side">
+        <span class="badge badge--warn">Offen</span>
+        <span class="text-muted text-sm"
+              th:text="${'von ' + (r.requestedBy != null ? r.requestedBy.displayName : '—')}">von …</span>
+      </div>
+    </a>
+  </div>
+</main>
+</html>

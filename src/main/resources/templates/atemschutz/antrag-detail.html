@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('Antrag prüfen', ~{::main})}">
+<main>
+  <div class="page-header page-header--toolbar">
+    <div>
+      <h2>Antrag prüfen</h2>
+      <p>
+        Antrag #<span th:text="${request.id}">1</span>
+        · <strong th:text="${currentUnitName}">—</strong>
+        · Status: <strong th:text="${request.status.label()}">Offen</strong>
+      </p>
+    </div>
+    <div class="toolbar-actions">
+      <a class="btn btn--outline" th:href="@{/atemschutz/antraege(unit=${unitId})}">Zur Liste</a>
+    </div>
+  </div>
+
+  <div th:replace="~{fragments/testmode-banner :: banner}"></div>
+  <div th:replace="~{fragments/flash-messages :: alerts}"></div>
+
+  <form th:if="${isPending}" method="post" class="card-form entry-request-review"
+        th:action="@{/atemschutz/antraege/{id}/approve(id=${request.id})}">
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+    <input type="hidden" name="unit" th:value="${unitId}"/>
+
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="entryType">Eintragstyp</label>
+        <select id="entryType" name="entryType" required>
+          <option th:each="t : ${entryTypes}"
+                  th:value="${t.name()}"
+                  th:text="${t.label()}"
+                  th:selected="${t == request.entryType}">Übung</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="eventDate">Datum</label>
+        <input id="eventDate" name="eventDate" type="date" required
+               th:value="${request.eventDate}"/>
+      </div>
+      <div class="form-group form-group--full">
+        <label>Geräteträger</label>
+        <p class="hint" style="margin-top:0;">Per Klick auswählen oder abwählen. Mehrfachauswahl möglich.</p>
+        <div class="entry-request-carrier-list" id="review-carrier-list"
+             th:attr="data-entry-type=${request.entryType.name()}">
+          <label class="entry-request-carrier"
+                 th:each="c : ${allCarriers}"
+                 th:classappend="${selectedCarrierIds.contains(c.id())} ? ' is-selected' : ''"
+                 th:attr="data-csa=${c.csaEligible()}">
+            <input type="checkbox" name="carrierIds" th:value="${c.id()}"
+                   th:checked="${selectedCarrierIds.contains(c.id())}"/>
+            <span th:text="${c.name()}">Name</span>
+            <span class="entry-request-carrier__tag" th:if="${c.csaEligible()}">CSA</span>
+          </label>
+        </div>
+      </div>
+      <div class="form-group form-group--full">
+        <label for="reviewNote">Notiz (optional)</label>
+        <textarea id="reviewNote" name="reviewNote" rows="2" maxlength="1000"
+                  th:text="${request.reviewNote}"></textarea>
+      </div>
+      <p class="form-group form-group--full text-muted text-sm">
+        Eingereicht von
+        <span th:text="${request.requestedBy != null ? request.requestedBy.displayName : '—'}">—</span>
+        <th:block th:if="${request.createdAt != null}">
+          am <span th:text="${#temporals.format(request.createdAt, 'dd.MM.yyyy HH:mm')}">—</span>
+        </th:block>
+      </p>
+    </div>
+
+    <div class="form-actions entry-request-review__actions">
+      <button type="submit" class="btn btn--primary"
+              formaction="#"
+              th:formaction="@{/atemschutz/antraege/{id}/approve(id=${request.id})}">
+        Genehmigen
+      </button>
+      <button type="submit" class="btn btn--outline"
+              formaction="#"
+              th:formaction="@{/atemschutz/antraege/{id}/save(id=${request.id})}">
+        Speichern
+      </button>
+      <button type="submit" class="btn btn--danger"
+              formaction="#"
+              th:formaction="@{/atemschutz/antraege/{id}/reject(id=${request.id})}"
+              onclick="return confirm('Antrag wirklich ablehnen?');">
+        Ablehnen
+      </button>
+      <a class="btn btn--outline" th:href="@{/atemschutz/antraege(unit=${unitId})}">Abbrechen</a>
+    </div>
+  </form>
+
+  <div th:unless="${isPending}" class="card-form">
+    <p>
+      Dieser Antrag ist bereits
+      <strong th:text="${request.status.label()}">—</strong>.
+    </p>
+    <p th:if="${request.reviewedBy != null}" class="text-muted text-sm">
+      Bearbeitet von <span th:text="${request.reviewedBy.displayName}">—</span>
+      <th:block th:if="${request.reviewedAt != null}">
+        am <span th:text="${#temporals.format(request.reviewedAt, 'dd.MM.yyyy HH:mm')}">—</span>
+      </th:block>
+    </p>
+    <p th:if="${request.reviewNote != null and !#strings.isEmpty(request.reviewNote)}">
+      Notiz: <span th:text="${request.reviewNote}">—</span>
+    </p>
+  </div>
+
+  <script th:src="@{/js/atemschutz-entry-request.js(v='20260921a')}" defer></script>
+</main>
+</html>

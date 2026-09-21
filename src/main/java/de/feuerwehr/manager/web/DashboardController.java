@@ -1,6 +1,7 @@
 package de.feuerwehr.manager.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import de.feuerwehr.manager.atemschutz.AtemschutzEntryRequestService;
 import de.feuerwehr.manager.auswertung.AuswertungOverviewStats;
 import de.feuerwehr.manager.auswertung.AuswertungService;
 import de.feuerwehr.manager.auswertung.DashboardParticipationStats;
@@ -70,6 +71,7 @@ public class DashboardController {
     private final UvvService uvvService;
     private final UserRegistrationService userRegistrationService;
     private final UserRepository userRepository;
+    private final AtemschutzEntryRequestService atemschutzEntryRequestService;
 
     @GetMapping("/")
     public String dashboard(
@@ -199,8 +201,28 @@ public class DashboardController {
 
         loadUvvNotice(currentUser, resolvedUnitId, model);
         loadPendingRegistrationNotice(currentUser, resolvedUnitId, model);
+        loadPendingAtemschutzEntryNotice(currentUser, resolvedUnitId, model);
 
         return "dashboard";
+    }
+
+    private void loadPendingAtemschutzEntryNotice(AppUserDetails currentUser, long unitId, Model model) {
+        model.addAttribute("pendingAtemschutzEntryCount", 0L);
+        try {
+            if (currentUser == null) {
+                return;
+            }
+            if (!moduleSettingsService.isEnabled(AppModule.ATEMSCHUTZ, unitId)) {
+                return;
+            }
+            boolean write = userPermissionService.hasPermission(currentUser, unitId, "atemschutz.write");
+            if (!atemschutzEntryRequestService.isReviewer(unitId, currentUser.getUserId(), write)) {
+                return;
+            }
+            model.addAttribute("pendingAtemschutzEntryCount", atemschutzEntryRequestService.countPending(unitId));
+        } catch (Exception e) {
+            log.warn("Offene Atemschutz-Anträge konnten nicht geladen werden: {}", e.getMessage());
+        }
     }
 
     private void loadPendingRegistrationNotice(AppUserDetails currentUser, long unitId, Model model) {

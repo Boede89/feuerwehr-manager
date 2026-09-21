@@ -1461,6 +1461,115 @@ body.dashboard-editing .dashboard-quick-tile:focus-visible {
   content: '';
 }
 
+.entry-request-modal .modal__body {
+  max-height: min(70vh, 36rem);
+  overflow: auto;
+}
+
+.entry-request-carrier-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 16rem;
+  overflow: auto;
+  padding: 0.35rem;
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.12));
+  border-radius: 8px;
+  background: var(--surface-2, rgba(0, 0, 0, 0.03));
+}
+
+.entry-request-carrier {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: var(--surface, #fff);
+  user-select: none;
+}
+
+.entry-request-carrier:hover {
+  border-color: var(--border, rgba(0, 0, 0, 0.18));
+}
+
+.entry-request-carrier.is-selected {
+  border-color: var(--primary, #b91c1c);
+  background: color-mix(in srgb, var(--primary, #b91c1c) 10%, transparent);
+}
+
+.entry-request-carrier input {
+  margin: 0;
+}
+
+.entry-request-carrier__tag {
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+}
+
+.entry-request-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.entry-request-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1.1rem;
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.12));
+  border-radius: 10px;
+  text-decoration: none;
+  color: inherit;
+  background: var(--surface, #fff);
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.entry-request-card:hover {
+  border-color: var(--primary, #b91c1c);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.entry-request-card__main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.entry-request-card__meta,
+.entry-request-card__people {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.entry-request-card__side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.entry-request-review__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.card-form {
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.12));
+  border-radius: 10px;
+  background: var(--surface, #fff);
+}
+
 .dash-open-reports-list {
   display: flex;
   flex-direction: column;

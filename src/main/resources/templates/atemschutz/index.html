@@ -13,6 +13,8 @@
          th:href="@{/atemschutz/drucken(unit=${unitId}, filter=${activeFilter}, paused=false)}">PDF herunterladen</a>
       <a class="btn btn--outline" th:href="@{/atemschutz/strecke-planung(unit=${unitId})}">Strecke – Terminplanung</a>
       <a class="btn btn--outline" th:href="@{/atemschutz/uebung-planen(unit=${unitId})}">Übung planen</a>
+      <a class="btn btn--outline" th:if="${canReviewEntryRequests}"
+         th:href="@{/atemschutz/antraege(unit=${unitId})}">Anträge</a>
     </div>
   </div>
 

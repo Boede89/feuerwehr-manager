@@ -456,6 +456,18 @@ public class AtemschutzService {
     @Transactional
     public AtemschutzFitnessRecord addFitnessRecord(
             long carrierId, AtemschutzFitnessType type, LocalDate validFrom, long createdByUserId) {
+        return addFitnessRecord(carrierId, type, validFrom, createdByUserId, null, null, null);
+    }
+
+    @Transactional
+    public AtemschutzFitnessRecord addFitnessRecord(
+            long carrierId,
+            AtemschutzFitnessType type,
+            LocalDate validFrom,
+            long createdByUserId,
+            String sourceRefType,
+            Long sourceRefId,
+            String sourceLabel) {
         AtemschutzCarrier carrier = requireCarrier(carrierId);
         if (validFrom == null) {
             throw new IllegalArgumentException("Datum ist erforderlich.");
@@ -474,6 +486,9 @@ public class AtemschutzService {
         record.setValidUntil(validUntil);
         record.setCreatedBy(createdBy);
         record.setTestData(testModeService.isEnabled());
+        record.setSourceRefType(blankToNull(sourceRefType));
+        record.setSourceRefId(sourceRefId);
+        record.setSourceLabel(blankToNull(sourceLabel));
         return fitnessRecordRepository.save(record);
     }
 
@@ -484,6 +499,19 @@ public class AtemschutzService {
             AtemschutzFitnessType type,
             LocalDate validFrom,
             long createdByUserId) {
+        return bulkAddFitnessRecords(unitId, carrierIds, type, validFrom, createdByUserId, null, null, null);
+    }
+
+    @Transactional
+    public int bulkAddFitnessRecords(
+            long unitId,
+            List<Long> carrierIds,
+            AtemschutzFitnessType type,
+            LocalDate validFrom,
+            long createdByUserId,
+            String sourceRefType,
+            Long sourceRefId,
+            String sourceLabel) {
         if (carrierIds == null || carrierIds.isEmpty()) {
             throw new IllegalArgumentException("Bitte mindestens einen Geräteträger auswählen.");
         }
@@ -502,7 +530,8 @@ public class AtemschutzService {
             if (carrier.getUnit().getId() != unitId) {
                 throw new IllegalArgumentException("Geräteträger gehört nicht zu dieser Einheit.");
             }
-            addFitnessRecord(carrierId, type, validFrom, createdByUserId);
+            addFitnessRecord(
+                    carrierId, type, validFrom, createdByUserId, sourceRefType, sourceRefId, sourceLabel);
             saved++;
         }
         if (saved == 0) {

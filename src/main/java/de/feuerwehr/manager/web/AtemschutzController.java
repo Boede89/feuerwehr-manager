@@ -2,6 +2,7 @@ package de.feuerwehr.manager.web;
 
 import de.feuerwehr.manager.atemschutz.AtemschutzCarrier;
 import de.feuerwehr.manager.atemschutz.AtemschutzCarrierStatus;
+import de.feuerwehr.manager.atemschutz.AtemschutzEntryRequestService;
 import de.feuerwehr.manager.atemschutz.AtemschutzFitnessType;
 import de.feuerwehr.manager.atemschutz.AtemschutzPlanStatus;
 import de.feuerwehr.manager.atemschutz.AtemschutzReminderNotificationService;
@@ -57,6 +58,7 @@ public class AtemschutzController {
     private final AccessControlService accessControlService;
     private final UserPermissionService userPermissionService;
     private final AtemschutzService atemschutzService;
+    private final AtemschutzEntryRequestService entryRequestService;
     private final AtemschutzReminderNotificationService reminderNotificationService;
     private final HtmlPdfService htmlPdfService;
 
@@ -73,7 +75,11 @@ public class AtemschutzController {
             requireAtemschutzRead(actor, unit.getId());
             CarrierListResult result = atemschutzService.listCarrierOverviews(unit.getId(), filter);
             populateListModel(model, result, filter);
-            model.addAttribute("canWrite", canWrite(actor, unit.getId()));
+            boolean write = canWrite(actor, unit.getId());
+            model.addAttribute("canWrite", write);
+            model.addAttribute(
+                    "canReviewEntryRequests",
+                    entryRequestService.isReviewer(unit.getId(), actor.getUserId(), write));
             model.addAttribute("warnDays", atemschutzService.warnDays(unit.getId()));
             return "atemschutz/index";
         } catch (IllegalArgumentException e) {
