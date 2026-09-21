@@ -9736,10 +9736,6 @@ a.auswertung-stat-card {
   font-weight: 600;
 }
 
-.uvv-complete-locked #uvv-after-presentation {
-  display: none;
-}
-
 .uvv-admin-preview {
   max-width: none;
 }
@@ -9820,9 +9816,43 @@ body.uvv-runner-open {
 }
 
 .uvv-runner #uvv-complete-form {
+  margin: 0;
+}
+
+.uvv-runner__finish-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 1rem auto 0;
   max-width: 960px;
   width: 100%;
-  margin: 0.75rem auto 0;
+}
+
+.uvv-finish-modal {
+  z-index: 360;
+}
+
+.uvv-finish-modal .modal__box,
+.uvv-finish-modal__box {
+  max-width: 560px;
+}
+
+.uvv-finish-step .btn-group {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.uvv-quiz-progress {
+  margin: 0 0 0.75rem;
+  font-weight: 600;
+}
+
+.uvv-quiz-error {
+  color: var(--danger, #b42318);
+  margin: 0.5rem 0 0;
+}
+
+.uvv-quiz-question[hidden] {
+  display: none !important;
 }
 
 .uvv-runner__presentation {

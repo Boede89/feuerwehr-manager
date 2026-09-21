@@ -249,6 +249,7 @@
             <th:block th:if="${!#lists.isEmpty(uvvOnline.questions())}">(Inhalt lesen und Kurzquiz)</th:block>
             <th:block th:if="${#lists.isEmpty(uvvOnline.questions())}">(Inhalt lesen und bestätigen)</th:block>
           </th:block>.
+          Mit „Fertig“ öffnet sich der Abschlussdialog.
           Bitte starten Sie erst, wenn Sie ungestört Zeit dafür haben.
         </p>
         <div class="btn-group mt-md">
@@ -292,7 +293,7 @@
                       data-require-complete='true',
                       data-slide-url-prefix=@{/my-area/uvv/campaigns/{id}/slides(id=${uvvOnline.campaign().id})}">
           <h3 class="uvv-runner__presentation-title">Präsentation</h3>
-          <p class="hint uvv-runner__presentation-hint">Bitte alle Folien durchklicken. Danach können Sie die Unterweisung abschließen.</p>
+          <p class="hint uvv-runner__presentation-hint">Bitte alle Folien durchklicken. Mit „Fertig“ schließen Sie die Unterweisung ab.</p>
           <div class="uvv-slide-frame">
             <img class="uvv-slide-image" alt="Präsentationsfolie" src=""/>
           </div>
@@ -301,52 +302,104 @@
             <span class="uvv-slide-status hint">Folie 1 / 1</span>
             <button type="button" class="btn btn--primary uvv-slide-next">Weiter</button>
           </div>
-          <p class="hint uvv-slide-done" hidden>Präsentation vollständig angesehen.</p>
+        </div>
+
+        <div class="uvv-runner__finish-wrap"
+             th:unless="${uvvOnline.campaign().hasPresentation()}">
+          <button type="button" class="btn btn--primary" id="uvv-no-presentation-finish">Fertig</button>
         </div>
 
         <form method="post" th:action="@{/my-area/uvv/complete}" id="uvv-complete-form"
-              th:classappend="${uvvOnline.campaign().hasPresentation() ? ' uvv-complete-locked' : ''}">
+              th:attr="data-has-questions=${!#lists.isEmpty(uvvOnline.questions())}">
           <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
           <input type="hidden" name="campaignId" th:value="${uvvOnline.campaign().id}"/>
           <input type="hidden" name="presentationCompleted" id="uvv-presentation-completed"
                  th:value="${uvvOnline.campaign().hasPresentation() ? 'false' : 'true'}"/>
 
-          <div id="uvv-after-presentation"
-               th:hidden="${uvvOnline.campaign().hasPresentation()}">
-            <div th:if="${!#lists.isEmpty(uvvOnline.questions())}" class="mt-md">
-              <h3 class="text-sm" style="margin:0 0 0.75rem;font-weight:600;">Kurzquiz</h3>
-              <p class="hint">Alle Antworten müssen korrekt sein.</p>
-              <div th:each="q, iter : ${uvvOnline.questions()}" class="form-group form-group--full mt-md">
-                <label th:text="${(iter.index + 1) + '. ' + q.questionText}">Frage</label>
-                <div class="checkbox-grid" style="margin-top:0.5rem;">
-                  <label class="checkbox-row">
-                    <input type="radio" th:name="${'answer_' + q.id}" value="A" required/>
-                    <span th:text="${'A) ' + q.optionA}">A</span>
-                  </label>
-                  <label class="checkbox-row">
-                    <input type="radio" th:name="${'answer_' + q.id}" value="B" required/>
-                    <span th:text="${'B) ' + q.optionB}">B</span>
-                  </label>
-                  <label class="checkbox-row" th:if="${q.optionC != null and !#strings.isEmpty(q.optionC)}">
-                    <input type="radio" th:name="${'answer_' + q.id}" value="C"/>
-                    <span th:text="${'C) ' + q.optionC}">C</span>
-                  </label>
-                  <label class="checkbox-row" th:if="${q.optionD != null and !#strings.isEmpty(q.optionD)}">
-                    <input type="radio" th:name="${'answer_' + q.id}" value="D"/>
-                    <span th:text="${'D) ' + q.optionD}">D</span>
-                  </label>
+          <div id="uvv-finish-modal" class="incident-modal uvv-finish-modal" hidden>
+            <div class="modal__backdrop" data-uvv-modal-close></div>
+            <div class="modal__box uvv-finish-modal__box" role="dialog" aria-modal="true"
+                 aria-labelledby="uvv-finish-modal-title">
+              <div class="modal__header">
+                <h3 id="uvv-finish-modal-title">Unterweisung abschließen</h3>
+                <button type="button" class="modal__close" data-uvv-modal-close aria-label="Schließen">×</button>
+              </div>
+              <div class="modal__body">
+                <div class="uvv-finish-step" data-uvv-step="start" th:if="${!#lists.isEmpty(uvvOnline.questions())}">
+                  <p class="hint" style="margin-top:0;">
+                    Präsentation bzw. Inhalt vollständig angesehen.
+                  </p>
+                  <p class="hint">
+                    Bitte starten Sie das Kurzquiz. Alle Antworten müssen korrekt sein.
+                  </p>
+                  <div class="btn-group mt-md">
+                    <button type="button" class="btn btn--primary" id="uvv-quiz-start">Quiz starten</button>
+                  </div>
+                </div>
+
+                <div class="uvv-finish-step" data-uvv-step="question" hidden>
+                  <p class="hint uvv-quiz-progress" id="uvv-quiz-progress">Frage 1 / 1</p>
+                  <div th:each="q, iter : ${uvvOnline.questions()}"
+                       class="uvv-quiz-question"
+                       th:hidden="${!iter.first}"
+                       th:attr="data-question-index=${iter.index},
+                                data-correct=${q.correctOption}">
+                    <div class="form-group form-group--full">
+                      <label th:text="${q.questionText}">Frage</label>
+                      <div class="checkbox-grid" style="margin-top:0.5rem;">
+                        <label class="checkbox-row">
+                          <input type="radio" th:name="${'answer_' + q.id}" value="A"/>
+                          <span th:text="${'A) ' + q.optionA}">A</span>
+                        </label>
+                        <label class="checkbox-row">
+                          <input type="radio" th:name="${'answer_' + q.id}" value="B"/>
+                          <span th:text="${'B) ' + q.optionB}">B</span>
+                        </label>
+                        <label class="checkbox-row" th:if="${q.optionC != null and !#strings.isEmpty(q.optionC)}">
+                          <input type="radio" th:name="${'answer_' + q.id}" value="C"/>
+                          <span th:text="${'C) ' + q.optionC}">C</span>
+                        </label>
+                        <label class="checkbox-row" th:if="${q.optionD != null and !#strings.isEmpty(q.optionD)}">
+                          <input type="radio" th:name="${'answer_' + q.id}" value="D"/>
+                          <span th:text="${'D) ' + q.optionD}">D</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  <p class="hint uvv-quiz-error" id="uvv-quiz-error" hidden>Bitte eine Antwort auswählen.</p>
+                  <div class="btn-group mt-md">
+                    <button type="button" class="btn btn--outline" id="uvv-quiz-prev" hidden>Zurück</button>
+                    <button type="button" class="btn btn--primary" id="uvv-quiz-next">Weiter</button>
+                  </div>
+                </div>
+
+                <div class="uvv-finish-step" data-uvv-step="failed" hidden>
+                  <p class="hint" style="margin-top:0;color:var(--danger, #b42318);font-weight:600;">
+                    Nicht alle Antworten waren korrekt.
+                  </p>
+                  <p class="hint">Bitte den Inhalt nochmals durchgehen und das Quiz erneut starten.</p>
+                  <div class="btn-group mt-md">
+                    <button type="button" class="btn btn--primary" id="uvv-quiz-retry">Quiz wiederholen</button>
+                  </div>
+                </div>
+
+                <div class="uvv-finish-step" data-uvv-step="confirm" hidden>
+                  <p class="hint uvv-quiz-success" id="uvv-quiz-success" hidden
+                     style="margin-top:0;color:var(--ok, inherit);font-weight:600;">
+                    Alle Antworten waren korrekt.
+                  </p>
+                  <div class="form-group form-group--full">
+                    <label class="checkbox-row">
+                      <input type="checkbox" name="confirmed" id="uvv-confirmed" value="true"/>
+                      <span>Ich habe den Inhalt gelesen und die Unterweisung durchgeführt.</span>
+                    </label>
+                  </div>
+                  <p class="hint uvv-quiz-error" id="uvv-confirm-error" hidden>Bitte die Durchführung bestätigen.</p>
+                  <div class="btn-group mt-md">
+                    <button type="submit" class="btn btn--primary" id="uvv-complete-submit">Als erledigt speichern</button>
+                  </div>
                 </div>
               </div>
-            </div>
-
-            <div class="form-group form-group--full mt-md">
-              <label class="checkbox-row">
-                <input type="checkbox" name="confirmed" value="true" required/>
-                <span>Ich habe den Inhalt gelesen und die Unterweisung durchgeführt.</span>
-              </label>
-            </div>
-            <div class="btn-group mt-md">
-              <button type="submit" class="btn btn--primary">Als erledigt speichern</button>
             </div>
           </div>
         </form>
@@ -486,7 +539,7 @@
   </div>
 
   <script th:src="@{/js/my-area.js}"></script>
-  <script th:src="@{/js/uvv-presentation.js(v='20260917b')}"></script>
+  <script th:src="@{/js/uvv-presentation.js(v='20260921c')}"></script>
   <script th:src="@{/js/toast.js}"></script>
   <script th:src="@{/js/flash-toast.js}"></script>
 </main>
