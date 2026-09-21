@@ -92,6 +92,13 @@ public class AtemschutzReminderNotificationService {
             List<ReminderItem> staffItems = new ArrayList<>();
             for (ReminderItem item : collectEligibleItems(overview.summaries())) {
                 boolean notifyCarrier = settingsService.isNotifyCarriers(settings, item.category());
+                boolean notifyInstructors = settingsService.isNotifyInstructors(settings, item.category());
+                // Beide Kanäle aus = keine automatische Mail für diesen Nachweistyp
+                // (auch nicht an CC-Empfänger; CC ist nur Zusatz, kein eigener Kanal).
+                if (!notifyCarrier && !notifyInstructors) {
+                    skipped++;
+                    continue;
+                }
                 List<String> staffEmails = collectStaffEmails(unitId, settings, item.category());
                 Optional<AtemschutzReminderLog> existing = reminderLogRepository
                         .findByCarrierIdAndFitnessTypeAndMailKindAndValidUntil(
