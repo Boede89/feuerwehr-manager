@@ -102,10 +102,10 @@ public class WebUiAdvice {
             return userRepository.findById(user.getUserId())
                     .map(User::getTheme)
                     .filter(t -> "light".equals(t) || "dark".equals(t))
-                    .orElse("light");
+                    .orElse("dark");
         } catch (Exception e) {
             log.warn("Benutzer-Theme konnte nicht geladen werden: {}", e.getMessage());
-            return "light";
+            return "dark";
         }
     }
 
