@@ -6,6 +6,7 @@ import de.feuerwehr.manager.mail.AccountMailService;
 import de.feuerwehr.manager.personal.Person;
 import de.feuerwehr.manager.personal.PersonRepository;
 import de.feuerwehr.manager.personal.PersonStatus;
+import de.feuerwehr.manager.personal.PersonalService;
 import de.feuerwehr.manager.security.AccessControlService;
 import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.settings.TestModeService;
@@ -40,9 +41,22 @@ public class UserRegistrationService {
 
     public record FieldChoice(String field, String source) {}
 
+    public record RegistrationEdits(
+            String firstName, String lastName, String email, LocalDate birthdate) {}
+
+    public record PersonOption(
+            long id,
+            String firstName,
+            String lastName,
+            String email,
+            String birthdate,
+            String displayName,
+            boolean alreadyLinked) {}
+
     private final UserRepository userRepository;
     private final UnitRepository unitRepository;
     private final PersonRepository personRepository;
+    private final PersonalService personalService;
     private final UserManagementService userManagementService;
     private final AccountMailService accountMailService;
     private final PasswordEncoder passwordEncoder;
@@ -121,17 +135,44 @@ public class UserRegistrationService {
                 && !matched.getUser().getId().equals(user.getId());
         String warning = null;
         if (matched == null) {
-            warning = "Im Personal wurde keine passende Person gefunden. Beim Freischalten wird ein neuer Personendatensatz angelegt.";
+            warning =
+                    "Im Personal wurde keine passende Person gefunden. Sie können eine bestehende Person wählen oder eine neue anlegen.";
         } else if (alreadyLinked) {
-            warning = "Die gefundene Person ist bereits mit einem anderen Benutzerkonto verknüpft.";
+            warning =
+                    "Die vorgeschlagene Person ist bereits mit einem anderen Benutzerkonto verknüpft. Bitte wählen Sie eine andere Person oder legen Sie eine neue an.";
         }
         return new ApprovalPreview(user, matched, diffs, alreadyLinked, warning);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PersonOption> listPersonOptions(long userId, AppUserDetails actor) {
+        User user = requirePendingUser(userId, actor);
+        if (user.getUnit() == null) {
+            return List.of();
+        }
+        long unitId = user.getUnit().getId();
+        List<PersonOption> options = new ArrayList<>();
+        for (Person person : personalService.listPersons(unitId)) {
+            boolean linked = person.getUser() != null
+                    && person.getUser().getId() != null
+                    && !person.getUser().getId().equals(user.getId());
+            options.add(new PersonOption(
+                    person.getId(),
+                    person.getFirstName(),
+                    person.getLastName(),
+                    person.getEmail(),
+                    formatDate(person.getBirthdate()),
+                    person.displayName(),
+                    linked));
+        }
+        return options;
     }
 
     @Transactional
     public String approve(
             long userId,
             Long personId,
+            RegistrationEdits edits,
             List<FieldChoice> choices,
             AppUserDetails actor,
             HttpServletRequest request) {
@@ -145,11 +186,11 @@ public class UserRegistrationService {
                     "SMTP der Einheit ist nicht konfiguriert. Freischaltung ohne E-Mail-Versand nicht möglich.");
         }
 
+        applyRegistrationEdits(user, edits);
+
         Person person;
         if (personId != null && personId > 0) {
-            person = personRepository
-                    .findActiveById(personId, testModeService.isEnabled())
-                    .orElseThrow(() -> new IllegalArgumentException("Person nicht gefunden."));
+            person = personalService.requirePerson(personId);
             if (person.getUnit() == null || person.getUnit().getId() != unitId) {
                 throw new IllegalArgumentException("Person gehört nicht zur Einheit des Benutzers.");
             }
@@ -189,6 +230,32 @@ public class UserRegistrationService {
             return "Benutzer freigeschaltet, aber E-Mail fehlgeschlagen: " + mailError.get();
         }
         return "Benutzer freigeschaltet. Zugangsdaten wurden per E-Mail versendet.";
+    }
+
+    private void applyRegistrationEdits(User user, RegistrationEdits edits) {
+        if (edits == null) {
+            return;
+        }
+        String first = requireName(edits.firstName(), "Vorname");
+        String last = requireName(edits.lastName(), "Nachname");
+        String email = normalizeEmail(edits.email());
+        if (email == null) {
+            throw new IllegalArgumentException("Bitte eine gültige E-Mail-Adresse angeben.");
+        }
+        if (edits.birthdate() == null) {
+            throw new IllegalArgumentException("Bitte das Geburtsdatum angeben.");
+        }
+        if (edits.birthdate().isAfter(LocalDate.now().minusYears(10))) {
+            throw new IllegalArgumentException("Bitte ein plausibles Geburtsdatum angeben.");
+        }
+        if (userRepository.findByLoginEmailIgnoreCaseExcludingId(email, user.getId()).isPresent()) {
+            throw new IllegalArgumentException("Für diese E-Mail-Adresse existiert bereits ein Benutzerkonto.");
+        }
+        user.setFirstName(first);
+        user.setLastName(last);
+        user.setLoginEmail(email);
+        user.setBirthdate(edits.birthdate());
+        user.setDisplayName(Person.formatDisplayName(first, last));
     }
 
     @Transactional

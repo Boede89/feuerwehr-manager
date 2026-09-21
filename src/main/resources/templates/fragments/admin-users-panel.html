@@ -496,24 +496,49 @@
       <form id="form-registration-approve" method="post" action="#">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="unit" th:value="${unitId}"/>
-        <input type="hidden" name="personId" id="reg-approve-person-id" value=""/>
         <div class="modal__body">
           <p id="reg-approve-loading" class="hint">Daten werden geladen …</p>
           <p id="reg-approve-error" class="error-msg" hidden></p>
           <div id="reg-approve-content" hidden>
             <p class="hint" style="margin-top:0;">
-              Registrierung von <strong id="reg-approve-name">—</strong>
-              <span class="text-muted text-sm">(<span id="reg-approve-username">—</span>)</span>
+              Benutzername: <strong id="reg-approve-username">—</strong>
             </p>
-            <dl class="reg-approve-summary">
-              <div><dt>E-Mail</dt><dd id="reg-approve-email">—</dd></div>
-              <div><dt>Geburtsdatum</dt><dd id="reg-approve-birthdate">—</dd></div>
-            </dl>
             <p id="reg-approve-warning" class="hint" hidden></p>
-            <div id="reg-approve-person-box" hidden>
-              <h4 class="modal-subheading">Gefundene Person im Personal</h4>
-              <p class="text-sm" id="reg-approve-person-label">—</p>
+
+            <h4 class="modal-subheading">Angaben der Registrierung</h4>
+            <p class="hint text-sm">Können hier korrigiert werden (z.&nbsp;B. vertauschte Namen).</p>
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="reg-approve-first-name">Vorname <span class="req">*</span></label>
+                <input id="reg-approve-first-name" name="firstName" type="text" maxlength="100" required/>
+              </div>
+              <div class="form-group">
+                <label for="reg-approve-last-name">Nachname <span class="req">*</span></label>
+                <input id="reg-approve-last-name" name="lastName" type="text" maxlength="100" required/>
+              </div>
+              <div class="form-group form-group--full">
+                <label for="reg-approve-email-input">E-Mail <span class="req">*</span></label>
+                <input id="reg-approve-email-input" name="email" type="email" maxlength="255" required/>
+              </div>
+              <div class="form-group">
+                <label for="reg-approve-birthdate-input">Geburtsdatum <span class="req">*</span></label>
+                <input id="reg-approve-birthdate-input" name="birthdate" type="date" required/>
+              </div>
             </div>
+
+            <h4 class="modal-subheading">Personal-Zuordnung</h4>
+            <div class="form-group form-group--full">
+              <label for="reg-approve-person-select">Person im Personal</label>
+              <input type="search" id="reg-approve-person-filter" class="field" placeholder="Person suchen …"
+                     autocomplete="off" style="margin-bottom:0.5rem;"/>
+              <select id="reg-approve-person-select" name="personId" size="8" class="field reg-approve-person-select">
+                <option value="">— Neue Person anlegen —</option>
+              </select>
+              <p class="hint text-sm" id="reg-approve-person-hint">
+                Keine passende Person? Lassen Sie „Neue Person anlegen“ gewählt oder suchen Sie manuell.
+              </p>
+            </div>
+
             <div id="reg-approve-diffs" hidden>
               <h4 class="modal-subheading">Abweichungen</h4>
               <p class="hint text-sm">Bitte wählen Sie je Feld, welcher Wert übernommen werden soll.</p>

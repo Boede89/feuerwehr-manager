@@ -359,7 +359,149 @@
       .replace(/"/g, '&quot;');
   }
 
-  function openRegistrationApprove(userId, unitId) {
+  var regApproveState = {
+    persons: [],
+    matchedPersonId: null,
+  };
+
+  function regApproveFormValues() {
+    return {
+      firstName: (document.getElementById('reg-approve-first-name') || {}).value || '',
+      lastName: (document.getElementById('reg-approve-last-name') || {}).value || '',
+      email: (document.getElementById('reg-approve-email-input') || {}).value || '',
+      birthdate: (document.getElementById('reg-approve-birthdate-input') || {}).value || '',
+    };
+  }
+
+  function selectedRegPerson() {
+    var select = document.getElementById('reg-approve-person-select');
+    if (!select || !select.value) return null;
+    var id = String(select.value);
+    for (var i = 0; i < regApproveState.persons.length; i++) {
+      if (String(regApproveState.persons[i].id) === id) {
+        return regApproveState.persons[i];
+      }
+    }
+    return null;
+  }
+
+  function normalizeCompare(value) {
+    return String(value == null ? '' : value)
+      .trim()
+      .toLowerCase();
+  }
+
+  function buildRegDiffs(person) {
+    if (!person) return [];
+    var form = regApproveFormValues();
+    var fields = [
+      { field: 'firstName', label: 'Vorname', reg: form.firstName, per: person.firstName },
+      { field: 'lastName', label: 'Nachname', reg: form.lastName, per: person.lastName },
+      { field: 'email', label: 'E-Mail', reg: form.email, per: person.email },
+      { field: 'birthdate', label: 'Geburtsdatum', reg: form.birthdate, per: person.birthdate },
+    ];
+    return fields.filter(function (f) {
+      return normalizeCompare(f.reg) !== normalizeCompare(f.per);
+    });
+  }
+
+  function renderRegDiffs() {
+    var diffsBox = document.getElementById('reg-approve-diffs');
+    var diffRows = document.getElementById('reg-approve-diff-rows');
+    var person = selectedRegPerson();
+    var submitBtn = document.getElementById('reg-approve-submit');
+    if (submitBtn) {
+      submitBtn.disabled = !!(person && person.alreadyLinked);
+    }
+    if (!diffsBox || !diffRows) return;
+    if (!person || person.alreadyLinked) {
+      diffsBox.hidden = true;
+      diffRows.innerHTML = '';
+      return;
+    }
+    var diffs = buildRegDiffs(person);
+    if (!diffs.length) {
+      diffsBox.hidden = true;
+      diffRows.innerHTML = '';
+      return;
+    }
+    diffsBox.hidden = false;
+    diffRows.innerHTML = diffs
+      .map(function (diff) {
+        var field = escapeHtml(diff.field);
+        var regVal = diff.reg ? escapeHtml(diff.reg) : '—';
+        var perVal = diff.per ? escapeHtml(diff.per) : '—';
+        return (
+          '<div class="reg-approve-diff">' +
+          '<div class="reg-approve-diff__label">' +
+          escapeHtml(diff.label) +
+          '</div>' +
+          '<label class="radio-row">' +
+          '<input type="radio" name="choice_' +
+          field +
+          '" value="registration" checked/>' +
+          '<span>Registrierung: <strong>' +
+          regVal +
+          '</strong></span>' +
+          '</label>' +
+          '<label class="radio-row">' +
+          '<input type="radio" name="choice_' +
+          field +
+          '" value="person"/>' +
+          '<span>Personal: <strong>' +
+          perVal +
+          '</strong></span>' +
+          '</label>' +
+          '</div>'
+        );
+      })
+      .join('');
+  }
+
+  function personOptionLabel(person) {
+    var parts = [person.displayName || [person.lastName, person.firstName].filter(Boolean).join(', ')];
+    if (person.email) parts.push(person.email);
+    if (person.birthdate) parts.push(person.birthdate);
+    if (person.alreadyLinked) parts.push('(bereits verknüpft)');
+    return parts.join(' · ');
+  }
+
+  function fillPersonSelect(preferredId) {
+    var select = document.getElementById('reg-approve-person-select');
+    var filter = document.getElementById('reg-approve-person-filter');
+    if (!select) return;
+    var q = ((filter && filter.value) || '').trim().toLowerCase();
+    var current = preferredId != null ? String(preferredId) : select.value || '';
+    select.innerHTML = '';
+    var empty = document.createElement('option');
+    empty.value = '';
+    empty.textContent = '— Neue Person anlegen —';
+    select.appendChild(empty);
+
+    regApproveState.persons.forEach(function (person) {
+      var label = personOptionLabel(person);
+      if (q && label.toLowerCase().indexOf(q) < 0) {
+        return;
+      }
+      var opt = document.createElement('option');
+      opt.value = String(person.id);
+      opt.textContent = label;
+      opt.disabled = !!person.alreadyLinked;
+      select.appendChild(opt);
+    });
+
+    if (current) {
+      select.value = current;
+      if (select.value !== current) {
+        select.value = '';
+      }
+    } else {
+      select.value = '';
+    }
+    renderRegDiffs();
+  }
+
+  function openRegistrationApprove(userId) {
     var overlay = document.getElementById('modal-registration-approve');
     var loading = document.getElementById('reg-approve-loading');
     var errorEl = document.getElementById('reg-approve-error');
@@ -391,11 +533,15 @@
     })
       .then(function (res) {
         if (!res.ok) {
-          return res.json().then(function (data) {
-            throw new Error((data && data.message) || 'Vorschau konnte nicht geladen werden.');
-          }).catch(function () {
-            throw new Error('Vorschau konnte nicht geladen werden.');
-          });
+          return res
+            .json()
+            .then(function (data) {
+              throw new Error((data && data.message) || 'Vorschau konnte nicht geladen werden.');
+            })
+            .catch(function (err) {
+              if (err && err.message) throw err;
+              throw new Error('Vorschau konnte nicht geladen werden.');
+            });
         }
         return res.json();
       })
@@ -404,23 +550,20 @@
         if (content) content.hidden = false;
         if (footer) footer.hidden = false;
 
-        var nameEl = document.getElementById('reg-approve-name');
         var userEl = document.getElementById('reg-approve-username');
-        var emailEl = document.getElementById('reg-approve-email');
-        var birthEl = document.getElementById('reg-approve-birthdate');
         var warnEl = document.getElementById('reg-approve-warning');
-        var personBox = document.getElementById('reg-approve-person-box');
-        var personLabel = document.getElementById('reg-approve-person-label');
-        var personIdInput = document.getElementById('reg-approve-person-id');
-        var diffsBox = document.getElementById('reg-approve-diffs');
-        var diffRows = document.getElementById('reg-approve-diff-rows');
+        var firstInput = document.getElementById('reg-approve-first-name');
+        var lastInput = document.getElementById('reg-approve-last-name');
+        var emailInput = document.getElementById('reg-approve-email-input');
+        var birthInput = document.getElementById('reg-approve-birthdate-input');
+        var filterInput = document.getElementById('reg-approve-person-filter');
 
-        if (nameEl) {
-          nameEl.textContent = [data.firstName, data.lastName].filter(Boolean).join(' ') || data.displayName || '—';
-        }
         if (userEl) userEl.textContent = data.username || '—';
-        if (emailEl) emailEl.textContent = data.email || '—';
-        if (birthEl) birthEl.textContent = data.birthdate || '—';
+        if (firstInput) firstInput.value = data.firstName || '';
+        if (lastInput) lastInput.value = data.lastName || '';
+        if (emailInput) emailInput.value = data.email || '';
+        if (birthInput) birthInput.value = data.birthdate || '';
+        if (filterInput) filterInput.value = '';
 
         if (warnEl) {
           if (data.warning) {
@@ -432,64 +575,15 @@
           }
         }
 
-        var submitBtn = document.getElementById('reg-approve-submit');
-        if (submitBtn) {
-          submitBtn.disabled = !!data.personAlreadyLinked;
+        regApproveState.persons = data.persons || [];
+        var preferred = null;
+        if (data.person && data.person.id && !data.personAlreadyLinked) {
+          preferred = String(data.person.id);
+          regApproveState.matchedPersonId = preferred;
+        } else {
+          regApproveState.matchedPersonId = null;
         }
-
-        if (personIdInput) {
-          personIdInput.value = data.person && data.person.id ? String(data.person.id) : '';
-        }
-        if (personBox && personLabel) {
-          if (data.person) {
-            personBox.hidden = false;
-            personLabel.textContent =
-              (data.person.displayName || [data.person.firstName, data.person.lastName].filter(Boolean).join(' ')) +
-              (data.person.email ? ' · ' + data.person.email : '') +
-              (data.person.birthdate ? ' · ' + data.person.birthdate : '');
-          } else {
-            personBox.hidden = true;
-            personLabel.textContent = '—';
-          }
-        }
-
-        if (diffsBox && diffRows) {
-          var diffs = data.differences || [];
-          if (diffs.length && data.person) {
-            diffsBox.hidden = false;
-            diffRows.innerHTML = diffs
-              .map(function (diff) {
-                var field = escapeHtml(diff.field);
-                return (
-                  '<div class="reg-approve-diff">' +
-                  '<div class="reg-approve-diff__label">' +
-                  escapeHtml(diff.label) +
-                  '</div>' +
-                  '<label class="radio-row">' +
-                  '<input type="radio" name="choice_' +
-                  field +
-                  '" value="registration" checked/>' +
-                  '<span>Registrierung: <strong>' +
-                  escapeHtml(diff.registrationValue) +
-                  '</strong></span>' +
-                  '</label>' +
-                  '<label class="radio-row">' +
-                  '<input type="radio" name="choice_' +
-                  field +
-                  '" value="person"/>' +
-                  '<span>Personal: <strong>' +
-                  escapeHtml(diff.personValue) +
-                  '</strong></span>' +
-                  '</label>' +
-                  '</div>'
-                );
-              })
-              .join('');
-          } else {
-            diffsBox.hidden = true;
-            diffRows.innerHTML = '';
-          }
-        }
+        fillPersonSelect(preferred);
       })
       .catch(function (err) {
         if (loading) loading.hidden = true;
@@ -503,9 +597,29 @@
   document.querySelectorAll('[data-open-registration-approve]').forEach(function (btn) {
     btn.addEventListener('click', function (e) {
       e.preventDefault();
-      openRegistrationApprove(btn.getAttribute('data-user-id'), btn.getAttribute('data-unit-id'));
+      openRegistrationApprove(btn.getAttribute('data-user-id'));
     });
   });
+
+  var personSelect = document.getElementById('reg-approve-person-select');
+  if (personSelect) {
+    personSelect.addEventListener('change', renderRegDiffs);
+  }
+  var personFilter = document.getElementById('reg-approve-person-filter');
+  if (personFilter) {
+    personFilter.addEventListener('input', function () {
+      fillPersonSelect(personSelect ? personSelect.value : '');
+    });
+  }
+  ['reg-approve-first-name', 'reg-approve-last-name', 'reg-approve-email-input', 'reg-approve-birthdate-input'].forEach(
+    function (id) {
+      var el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('input', renderRegDiffs);
+        el.addEventListener('change', renderRegDiffs);
+      }
+    }
+  );
 
   var rejectBtn = document.getElementById('reg-approve-reject');
   if (rejectBtn) {

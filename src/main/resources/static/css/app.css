@@ -2064,6 +2064,11 @@ body.theme-dark .badge--warn { background: rgba(202, 138, 4, 0.25); color: #fde6
   margin: 0;
   gap: 0;
 }
+.reg-approve-person-select {
+  width: 100%;
+  min-height: 11rem;
+  font-size: 0.9rem;
+}
 
 .hint, .text-muted {
   font-size: 12px;

@@ -16,6 +16,7 @@ import de.feuerwehr.manager.user.UserRfidCard;
 import de.feuerwehr.manager.user.UserRegistrationService;
 import de.feuerwehr.manager.user.UserRegistrationService.ApprovalPreview;
 import de.feuerwehr.manager.user.UserRegistrationService.FieldChoice;
+import de.feuerwehr.manager.user.UserRegistrationService.RegistrationEdits;
 import de.feuerwehr.manager.user.UserRole;
 import de.feuerwehr.manager.user.UserRoleLabels;
 import de.feuerwehr.manager.user.UserService;
@@ -38,6 +39,7 @@ import org.springframework.ui.Model;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -660,6 +662,19 @@ public class AdminPanelController {
                 diffs.add(row);
             }
             body.put("differences", diffs);
+            List<Map<String, Object>> persons = new ArrayList<>();
+            for (var option : userRegistrationService.listPersonOptions(id, actor)) {
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("id", option.id());
+                row.put("firstName", option.firstName());
+                row.put("lastName", option.lastName());
+                row.put("email", option.email());
+                row.put("birthdate", option.birthdate());
+                row.put("displayName", option.displayName());
+                row.put("alreadyLinked", option.alreadyLinked());
+                persons.add(row);
+            }
+            body.put("persons", persons);
             return ResponseEntity.ok(body);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
@@ -671,18 +686,28 @@ public class AdminPanelController {
             @AuthenticationPrincipal AppUserDetails actor,
             @PathVariable long id,
             @RequestParam(name = "unit", required = false) Long unitId,
-            @RequestParam(name = "personId", required = false) Long personId,
+            @RequestParam(name = "personId", required = false, defaultValue = "") String personIdRaw,
+            @RequestParam(name = "firstName", required = false) String firstName,
+            @RequestParam(name = "lastName", required = false) String lastName,
+            @RequestParam(name = "email", required = false) String email,
+            @RequestParam(name = "birthdate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                    LocalDate birthdate,
             @RequestParam Map<String, String> params,
             HttpServletRequest request,
             RedirectAttributes redirectAttributes) {
         try {
+            Long personId = null;
+            if (personIdRaw != null && !personIdRaw.isBlank()) {
+                personId = Long.valueOf(personIdRaw.trim());
+            }
             List<FieldChoice> choices = new ArrayList<>();
             for (Map.Entry<String, String> entry : params.entrySet()) {
                 if (entry.getKey() != null && entry.getKey().startsWith("choice_")) {
                     choices.add(new FieldChoice(entry.getKey().substring("choice_".length()), entry.getValue()));
                 }
             }
-            String message = userRegistrationService.approve(id, personId, choices, actor, request);
+            RegistrationEdits edits = new RegistrationEdits(firstName, lastName, email, birthdate);
+            String message = userRegistrationService.approve(id, personId, edits, choices, actor, request);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", message);
         } catch (IllegalArgumentException e) {
