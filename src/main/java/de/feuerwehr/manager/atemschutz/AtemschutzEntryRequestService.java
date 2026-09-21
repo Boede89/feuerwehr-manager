@@ -54,7 +54,7 @@ public class AtemschutzEntryRequestService {
                         .thenComparing(c -> c.getPerson().getFirstName(), String.CASE_INSENSITIVE_ORDER))
                 .map(c -> new CarrierOption(
                         c.getId(),
-                        c.getPerson().getDisplayName(),
+                        c.getPerson().displayName(),
                         csaEligible.contains(c.getPerson().getId())))
                 .toList();
     }
@@ -231,12 +231,12 @@ public class AtemschutzEntryRequestService {
             if (carrier.getStatus() != AtemschutzCarrierStatus.ACTIVE) {
                 throw new IllegalArgumentException(
                         "Nur aktive Geräteträger können ausgewählt werden: "
-                                + carrier.getPerson().getDisplayName());
+                                + carrier.getPerson().displayName());
             }
             if (entryType == AtemschutzEntryRequestType.CSA
                     && !csaEligible.contains(carrier.getPerson().getId())) {
                 throw new IllegalArgumentException(
-                        "Keine CSA-Berechtigung: " + carrier.getPerson().getDisplayName());
+                        "Keine CSA-Berechtigung: " + carrier.getPerson().displayName());
             }
             carriers.add(carrier);
         }
@@ -260,7 +260,7 @@ public class AtemschutzEntryRequestService {
                 ? request.getRequestedBy().getDisplayName()
                 : "Unbekannt";
         String carrierNames = request.getCarriers().stream()
-                .map(c -> c.getPerson().getDisplayName())
+                .map(c -> c.getPerson().displayName())
                 .sorted(String.CASE_INSENSITIVE_ORDER)
                 .collect(Collectors.joining(", "));
         String subject = "Neuer Atemschutz-Antrag zur Freigabe";
