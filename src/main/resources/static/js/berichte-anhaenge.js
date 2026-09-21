@@ -175,6 +175,20 @@
     }
   }
 
+  function applyReporterFromLeitstellen(result) {
+    if (!result) {
+      return;
+    }
+    var nameInput = document.getElementById('reporterName');
+    var phoneInput = document.getElementById('reporterPhone');
+    if (nameInput && !nameInput.readOnly && result.reporterName && !String(nameInput.value || '').trim()) {
+      nameInput.value = result.reporterName;
+    }
+    if (phoneInput && !phoneInput.readOnly && result.reporterPhone && !String(phoneInput.value || '').trim()) {
+      phoneInput.value = result.reporterPhone;
+    }
+  }
+
   function leitstellenAbrufUrl(wrap) {
     var prefix = wrap.dataset.apiBase
       || (window.BerichteApiBase ? window.BerichteApiBase.path() : '/berichte/einsatzberichte');
@@ -222,6 +236,7 @@
         if (resultEl) {
           resultEl.textContent = result.message || 'Abruf abgeschlossen.';
         }
+        applyReporterFromLeitstellen(result);
         return load(wrap, true);
       })
       .catch(function (err) {

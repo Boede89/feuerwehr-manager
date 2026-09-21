@@ -2,17 +2,24 @@ package de.feuerwehr.manager.berichte;
 
 import de.feuerwehr.manager.config.StorageProperties;
 import de.feuerwehr.manager.leitstellen.LeitstellenAttachmentCleanup;
+import de.feuerwehr.manager.leitstellen.LeitstellenMailKind;
+import de.feuerwehr.manager.leitstellen.LeitstellenPdfReporterExtractor;
+import de.feuerwehr.manager.leitstellen.LeitstellenPdfReporterSupport;
+import de.feuerwehr.manager.leitstellen.LeitstellenPdfReporterSupport.ReporterContact;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.user.UserRepository;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
@@ -22,6 +29,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class EinsatzberichtAttachmentService {
 
     private static final long MAX_ATTACHMENT_SIZE = 20L * 1024L * 1024L;
@@ -42,6 +50,7 @@ public class EinsatzberichtAttachmentService {
     private final TestModeService testModeService;
     private final StorageProperties storageProperties;
     private final LeitstellenAttachmentCleanup leitstellenImportCleanup;
+    private final LeitstellenPdfReporterExtractor pdfReporterExtractor;
 
     @Transactional(readOnly = true)
     public List<IncidentAttachmentDto> list(long unitId, long reportId) {
@@ -147,7 +156,49 @@ public class EinsatzberichtAttachmentService {
         if (userId != null) {
             userRepository.findById(userId).ifPresent(attachment::setUploadedByUser);
         }
-        return IncidentAttachmentDto.from(attachmentRepository.save(attachment));
+        IncidentReportAttachment saved = attachmentRepository.save(attachment);
+        applyReporterFromLeitstellenPdf(report, filename, mimeType, content);
+        return IncidentAttachmentDto.from(saved);
+    }
+
+    /**
+     * Füllt leere Felder Meldender / Telefon Melder aus bereits gespeicherten Depeche-
+     * bzw. Abschlussbericht-PDFs. Bereits gesetzte Werte bleiben unverändert.
+     */
+    @Transactional
+    public Optional<ReporterContact> fillReporterFromLeitstellenPdfs(long unitId, long reportId) {
+        IncidentReport report = requireReport(unitId, reportId);
+        if (report.getStatus() == IncidentReportStatus.ARCHIVIERT) {
+            return currentReporter(report);
+        }
+        if (testModeService.isEnabled() && !report.isTestData()) {
+            return currentReporter(report);
+        }
+        boolean changed = LeitstellenPdfReporterSupport.splitCombinedReporterNameIfNeeded(report);
+        if (!hasBothReporterFields(report)) {
+            List<IncidentReportAttachment> attachments = new ArrayList<>(
+                    attachmentRepository.findByIncidentReportIdOrderByCreatedAtAsc(reportId));
+            attachments.sort(Comparator.comparingInt(this::leitstellenKindSort));
+            for (IncidentReportAttachment attachment : attachments) {
+                if (LeitstellenMailKind.fromFilename(attachment.getFilename()).isEmpty()) {
+                    continue;
+                }
+                byte[] content = readStoredBytes(reportId, attachment.getStoredName());
+                if (content.length == 0) {
+                    continue;
+                }
+                if (applyReporterFromPdfBytes(report, attachment.getFilename(), content)) {
+                    changed = true;
+                }
+                if (hasBothReporterFields(report)) {
+                    break;
+                }
+            }
+        }
+        if (changed) {
+            incidentReportRepository.save(report);
+        }
+        return currentReporter(report);
     }
 
     @Transactional(readOnly = true)
@@ -239,6 +290,89 @@ public class EinsatzberichtAttachmentService {
             throw new IllegalArgumentException("Anhänge archivierter Berichte können nicht geändert werden.");
         }
         return report;
+    }
+
+    private void applyReporterFromLeitstellenPdf(
+            IncidentReport report, String filename, String mimeType, byte[] content) {
+        if (report.getStatus() == IncidentReportStatus.ARCHIVIERT) {
+            return;
+        }
+        if (testModeService.isEnabled() && !report.isTestData()) {
+            return;
+        }
+        if (!MediaType.APPLICATION_PDF_VALUE.equalsIgnoreCase(mimeType)
+                && (filename == null || !filename.toLowerCase(Locale.ROOT).endsWith(".pdf"))) {
+            return;
+        }
+        if (LeitstellenMailKind.fromFilename(filename).isEmpty()) {
+            return;
+        }
+        boolean changed = LeitstellenPdfReporterSupport.splitCombinedReporterNameIfNeeded(report);
+        if (applyReporterFromPdfBytes(report, filename, content)) {
+            changed = true;
+        }
+        if (changed) {
+            incidentReportRepository.save(report);
+        }
+    }
+
+    private boolean applyReporterFromPdfBytes(IncidentReport report, String filename, byte[] content) {
+        if (hasBothReporterFields(report) || content == null || content.length == 0) {
+            return false;
+        }
+        Optional<ReporterContact> extracted = pdfReporterExtractor.extract(content);
+        if (extracted.isEmpty()) {
+            return false;
+        }
+        boolean changed = LeitstellenPdfReporterSupport.applyIfMissing(report, extracted.get());
+        if (changed) {
+            log.info(
+                    "[Leitstellen-PDF] Meldender aus {} übernommen: '{}' / '{}'",
+                    filename,
+                    report.getReporterName(),
+                    report.getReporterPhone());
+        }
+        return changed;
+    }
+
+    private byte[] readStoredBytes(long reportId, String storedName) {
+        if (storedName == null || storedName.isBlank()) {
+            return new byte[0];
+        }
+        try {
+            Path path = attachmentPath(reportId).resolve(storedName);
+            if (!Files.isRegularFile(path)) {
+                return new byte[0];
+            }
+            return Files.readAllBytes(path);
+        } catch (IOException e) {
+            log.debug("Leitstellen-PDF {} konnte nicht gelesen werden: {}", storedName, e.getMessage());
+            return new byte[0];
+        }
+    }
+
+    private int leitstellenKindSort(IncidentReportAttachment attachment) {
+        return LeitstellenMailKind.fromFilename(attachment.getFilename())
+                .map(kind -> kind == LeitstellenMailKind.DEPESCHE ? 0 : 1)
+                .orElse(2);
+    }
+
+    private static boolean hasBothReporterFields(IncidentReport report) {
+        return report.getReporterName() != null
+                && !report.getReporterName().isBlank()
+                && report.getReporterPhone() != null
+                && !report.getReporterPhone().isBlank();
+    }
+
+    private static Optional<ReporterContact> currentReporter(IncidentReport report) {
+        String name = report.getReporterName();
+        String phone = report.getReporterPhone();
+        if ((name == null || name.isBlank()) && (phone == null || phone.isBlank())) {
+            return Optional.empty();
+        }
+        return Optional.of(new ReporterContact(
+                name == null || name.isBlank() ? null : name.trim(),
+                phone == null || phone.isBlank() ? null : phone.trim()));
     }
 
     private Path attachmentPath(long reportId) {

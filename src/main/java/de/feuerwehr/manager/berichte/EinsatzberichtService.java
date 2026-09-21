@@ -782,6 +782,15 @@ public class EinsatzberichtService {
                 .orElseThrow(() -> new IllegalArgumentException("Einsatzbericht nicht gefunden."));
     }
 
+    @Transactional
+    public IncidentReport fillReporterFromLeitstellenPdfs(long unitId, IncidentReport report) {
+        if (report == null || report.getId() == null) {
+            return report;
+        }
+        einsatzberichtAttachmentService.fillReporterFromLeitstellenPdfs(unitId, report.getId());
+        return requireReport(unitId, report.getId());
+    }
+
     @Transactional(readOnly = true)
     public boolean hasMaterialDamageEntries(IncidentReport report) {
         if (report == null) {

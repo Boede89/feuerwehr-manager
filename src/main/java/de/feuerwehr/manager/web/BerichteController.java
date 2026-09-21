@@ -1749,6 +1749,18 @@ public class BerichteController {
                             e);
                 }
             }
+            if (report != null && report.getId() != null) {
+                try {
+                    report = einsatzberichtService.fillReporterFromLeitstellenPdfs(unitId, report);
+                    form.setReporterName(report.getReporterName());
+                    form.setReporterPhone(report.getReporterPhone());
+                } catch (Exception e) {
+                    log.warn(
+                            "Meldender aus Leitstellen-PDF für Einsatzbericht {} fehlgeschlagen: {}",
+                            report.getId(),
+                            e.getMessage());
+                }
+            }
             KraefteFahrzeugeState kraefteState = einsatzberichtService.buildKraefteFahrzeugeState(unitId, reportId);
             model.addAttribute("report", report);
             model.addAttribute("form", form);

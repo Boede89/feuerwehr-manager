@@ -5,6 +5,7 @@ import de.feuerwehr.manager.berichte.IncidentReport;
 import de.feuerwehr.manager.berichte.IncidentReportAttachmentRepository;
 import de.feuerwehr.manager.berichte.IncidentReportRepository;
 import de.feuerwehr.manager.berichte.IncidentReportStatus;
+import de.feuerwehr.manager.leitstellen.LeitstellenPdfReporterSupport.ReporterContact;
 import de.feuerwehr.manager.settings.TestModeService;
 import de.feuerwehr.manager.unit.Unit;
 import java.nio.charset.StandardCharsets;
@@ -17,6 +18,7 @@ import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -60,7 +62,9 @@ public class LeitstellenMailImportService {
             int skipped,
             int unmatched,
             String message,
-            List<ImportedAttachment> imports) {
+            List<ImportedAttachment> imports,
+            String reporterName,
+            String reporterPhone) {
 
         public PollResult(
                 int fetchedMails,
@@ -76,7 +80,50 @@ public class LeitstellenMailImportService {
                     skipped,
                     unmatched,
                     message,
-                    List.of());
+                    List.of(),
+                    null,
+                    null);
+        }
+
+        public PollResult(
+                int fetchedMails,
+                int pdfAttachmentsFound,
+                int importedAttachments,
+                int skipped,
+                int unmatched,
+                String message,
+                List<ImportedAttachment> imports) {
+            this(
+                    fetchedMails,
+                    pdfAttachmentsFound,
+                    importedAttachments,
+                    skipped,
+                    unmatched,
+                    message,
+                    imports,
+                    null,
+                    null);
+        }
+
+        public PollResult withReporter(String reporterName, String reporterPhone) {
+            return new PollResult(
+                    fetchedMails,
+                    pdfAttachmentsFound,
+                    importedAttachments,
+                    skipped,
+                    unmatched,
+                    message,
+                    imports,
+                    reporterName,
+                    reporterPhone);
+        }
+
+        public PollResult withReporterFrom(Optional<ReporterContact> contact) {
+            if (contact == null || contact.isEmpty()) {
+                return this;
+            }
+            ReporterContact value = contact.get();
+            return withReporter(value.name(), value.phone());
         }
     }
 
@@ -129,7 +176,8 @@ public class LeitstellenMailImportService {
                     0,
                     0,
                     0,
-                    "Depeche und Abschlussbericht sind bereits hinterlegt — kein Abruf nötig.");
+                    "Depeche und Abschlussbericht sind bereits hinterlegt — kein Abruf nötig.")
+                    .withReporterFrom(attachmentService.fillReporterFromLeitstellenPdfs(unitId, reportId));
         }
         // IMAP ab Einsatzdatum (max. 1 Jahr), nicht nur ab dem konfigurierten Kurz-Lookback
         int lookbackHours = lookbackHoursForReport(report, settings);
@@ -140,7 +188,9 @@ public class LeitstellenMailImportService {
             neighbors = new java.util.ArrayList<>(neighbors);
             neighbors.add(report);
         }
-        return pollInternal(settings, neighbors, reportId, lookbackHours, matchWindowHours, neighbors.size(), true);
+        PollResult result =
+                pollInternal(settings, neighbors, reportId, lookbackHours, matchWindowHours, neighbors.size(), true);
+        return result.withReporterFrom(attachmentService.fillReporterFromLeitstellenPdfs(unitId, reportId));
     }
 
     public void testConnection(long unitId) {
