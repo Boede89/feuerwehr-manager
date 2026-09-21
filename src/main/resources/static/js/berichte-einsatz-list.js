@@ -586,7 +586,6 @@
   }
 
   document.getElementById('btn-close-modal')?.addEventListener('click', closeModal);
-  document.querySelector('#modal-incident .modal__backdrop')?.addEventListener('click', closeModal);
 
   initFilters();
   loadList();

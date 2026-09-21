@@ -252,19 +252,6 @@
     });
   }
 
-  document.addEventListener('keydown', function (ev) {
-    if (ev.key !== 'Escape') {
-      return;
-    }
-    if (missedModal && missedModal.style.display === 'flex') {
-      closeMissedModal(true);
-      return;
-    }
-    if (modal.style.display === 'flex') {
-      closeModal();
-    }
-  });
-
   updateSortButtons();
   renderTable();
 })();

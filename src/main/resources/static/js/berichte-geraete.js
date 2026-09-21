@@ -390,11 +390,6 @@
     overlay.querySelectorAll('[data-close-category-modal]').forEach(function (btn) {
       btn.addEventListener('click', closeCategoryModal);
     });
-    overlay.addEventListener('click', function (e) {
-      if (e.target === overlay) {
-        closeCategoryModal();
-      }
-    });
     var bulkSelect = overlay.querySelector('#deployed-equipment-category-bulk');
     var bulkCustomWrap = overlay.querySelector('#deployed-equipment-category-bulk-custom-wrap');
     var bulkCustomInput = overlay.querySelector('#deployed-equipment-category-bulk-custom');

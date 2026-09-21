@@ -386,9 +386,7 @@
       if (!modal || modal.hidden) {
         return;
       }
-      if (e.target.closest('#foreign-person-modal-close')
-          || (e.target.classList && e.target.classList.contains('modal__backdrop')
-              && e.target.closest('#foreign-person-modal'))) {
+      if (e.target.closest('#foreign-person-modal-close')) {
         closeModal();
         return;
       }

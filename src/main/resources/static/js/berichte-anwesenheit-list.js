@@ -597,7 +597,6 @@
   }
 
   document.getElementById('btn-close-attendance-modal')?.addEventListener('click', closeModal);
-  document.querySelector('#modal-attendance .modal__backdrop')?.addEventListener('click', closeModal);
 
   initFilters();
   loadList();

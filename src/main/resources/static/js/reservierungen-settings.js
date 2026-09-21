@@ -107,12 +107,6 @@
     });
   });
 
-  if (modal) {
-    modal.addEventListener('click', function (ev) {
-      if (ev.target === modal) closeModal();
-    });
-  }
-
   syncOpenButton();
   syncMoveButtons();
 
@@ -155,17 +149,6 @@
     btn.addEventListener('click', function (ev) {
       ev.preventDefault();
       closeNamedModal(btn.getAttribute('data-close-modal'));
-    });
-  });
-
-  document.querySelectorAll('.modal-overlay').forEach(function (overlay) {
-    overlay.addEventListener('click', function (ev) {
-      if (ev.target === overlay) {
-        overlay.classList.remove('active');
-        if (!document.querySelector('.modal-overlay.active')) {
-          document.body.classList.remove('modal-open');
-        }
-      }
     });
   });
 
@@ -217,15 +200,6 @@
     if (btn.id === 'btn-loesch-apply') return;
     btn.addEventListener('click', restoreLoesch);
   });
-
-  var loeschModal = document.getElementById('modal-loesch-vehicles');
-  if (loeschModal) {
-    loeschModal.addEventListener('click', function (ev) {
-      if (ev.target === loeschModal) {
-        restoreLoesch();
-      }
-    });
-  }
 
   updateLoeschSummary();
 })();

@@ -1387,46 +1387,7 @@
     });
   });
 
-  // reservierung-modal: kein Schließen per Klick auf den Overlay-Hintergrund
-
-  pickModal?.addEventListener('click', function (ev) {
-    if (ev.target === pickModal) closeOverlay(pickModal);
-  });
-  conflictModal?.addEventListener('click', function (ev) {
-    if (ev.target === conflictModal) closeOverlay(conflictModal);
-  });
-  approveConflictModal?.addEventListener('click', function (ev) {
-    if (ev.target === approveConflictModal) {
-      pendingApproveRetry = null;
-      closeOverlay(approveConflictModal);
-    }
-  });
-  loeschModal?.addEventListener('click', function (ev) {
-    if (ev.target === loeschModal) {
-      if (pendingApproveRetry && pendingApproveRetry.mode === 'loesch') {
-        pendingApproveRetry = null;
-      }
-      closeOverlay(loeschModal);
-    }
-  });
-  importModal?.addEventListener('click', function (ev) {
-    if (ev.target === importModal) {
-      resetImportEditMode();
-      closeOverlay(importModal);
-    }
-  });
-  importOptionsModal?.addEventListener('click', function (ev) {
-    if (ev.target === importOptionsModal) {
-      closeOverlay(importOptionsModal);
-      pendingImportPayload = null;
-    }
-  });
-  document.querySelectorAll('[id^="reservierung-details-"]').forEach(function (overlay) {
-    overlay.addEventListener('click', function (ev) {
-      if (ev.target === overlay) closeOverlay(overlay);
-    });
-  });
-
+  // Modale schließen sich nur über Buttons, nicht per Klick auf den Overlay-Hintergrund.
   document.getElementById('reservierung-add-resource')?.addEventListener('click', function () {
     openPickModal('create');
   });

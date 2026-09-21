@@ -59,11 +59,6 @@
     });
   });
 
-  document.querySelectorAll('.modal-overlay').forEach(function (overlay) {
-    overlay.addEventListener('click', function (e) {
-      if (e.target === overlay) closeModal(overlay);
-    });
-  });
 
   document.querySelectorAll('[data-edit-quali]').forEach(function (btn) {
     btn.addEventListener('click', function () {

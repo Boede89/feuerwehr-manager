@@ -302,7 +302,6 @@
   }
 
   document.getElementById('btn-close-geraetewart-modal')?.addEventListener('click', closeModal);
-  document.getElementById('modal-geraetewart')?.querySelector('.modal__backdrop')?.addEventListener('click', closeModal);
 
   initYearFilter();
   loadList();

@@ -88,15 +88,6 @@
     });
   });
 
-  document.querySelectorAll('.atemschutz-cc-modal').forEach(function (overlay) {
-    overlay.addEventListener('click', function (e) {
-      if (e.target === overlay) {
-        updateCcCount(overlay);
-        closeOverlay(overlay);
-      }
-    });
-  });
-
   document.querySelectorAll('.atemschutz-toggle-template').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var targetId = btn.getAttribute('data-target');
@@ -115,9 +106,4 @@
     });
   });
 
-  if (instructorsModal) {
-    instructorsModal.addEventListener('click', function (e) {
-      if (e.target === instructorsModal) closeOverlay(instructorsModal);
-    });
-  }
 })();

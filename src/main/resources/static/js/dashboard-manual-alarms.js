@@ -22,9 +22,6 @@
     modal.querySelectorAll('[data-close-modal]').forEach(function (btn) {
       btn.addEventListener('click', function () { closeModal(modal); });
     });
-    modal.addEventListener('click', function (e) {
-      if (e.target === modal) closeModal(modal);
-    });
   }
 
   function submitDepeschePrint(id, unitId, computeRoute, csrfName, csrfToken) {

@@ -268,18 +268,10 @@
     });
   });
 
-  document.getElementById('modal-group-form')?.addEventListener('click', function (e) {
-    if (e.target === e.currentTarget) closeModal(e.currentTarget);
-  });
-
   document.getElementById('btn-group-add-foreign')?.addEventListener('click', openForeignModal);
   document.querySelectorAll('[data-close-group-foreign]').forEach(function (btn) {
     btn.addEventListener('click', closeForeignModal);
   });
-  document.getElementById('modal-group-foreign-person')?.addEventListener('click', function (e) {
-    if (e.target === e.currentTarget) closeForeignModal();
-  });
-
   document.getElementById('group-foreign-unit-select')?.addEventListener('change', function () {
     var search = document.getElementById('group-foreign-person-search');
     if (search) {

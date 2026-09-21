@@ -73,11 +73,6 @@
       closeModal(closeBtn.closest('.modal-overlay'));
       return;
     }
-    var overlay = ev.target;
-    if (overlay.classList && overlay.classList.contains('modal-overlay') && overlay.classList.contains('active')) {
-      closeModal(overlay);
-      return;
-    }
     var addBtn = ev.target.closest('#mediathek-acl-add');
     if (addBtn) {
       ev.preventDefault();
@@ -100,15 +95,7 @@
     }
   });
 
-  document.addEventListener('keydown', function (ev) {
-    if (ev.key !== 'Escape') {
-      return;
-    }
-    var active = document.querySelector('.modal-overlay.active');
-    if (active) {
-      closeModal(active);
-    }
-  });
+
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', syncAclInherit);

@@ -117,12 +117,6 @@
     bugCancelBtn.addEventListener('click', closeBugReport);
   }
 
-  overlay.addEventListener('click', function (event) {
-    if (event.target === overlay) {
-      closeLogin();
-    }
-  });
-
   if (bugForm) {
     bugForm.addEventListener('submit', function (event) {
       event.preventDefault();
@@ -178,19 +172,9 @@
   }
 
   document.addEventListener('keydown', function (event) {
-    if (event.key !== 'Escape') {
-      return;
-    }
-    var unknownModal = document.getElementById('modal-rfid-register-unknown');
-    if (unknownModal && unknownModal.classList.contains('active')) {
-      return;
-    }
-    // Fehler-melden-Dialog bleibt bei Escape offen (nur Abbrechen / Absenden).
-    if (isBugOpen()) {
-      return;
-    }
-    if (isOpen()) {
-      closeLogin();
+    // Modale schließen sich nur über Buttons, nicht per Escape / Klick daneben.
+    if (event.key === 'Escape' && (isOpen() || isBugOpen())) {
+      event.preventDefault();
     }
   });
 

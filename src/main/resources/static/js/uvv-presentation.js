@@ -416,16 +416,6 @@
       noPresentationFinish.addEventListener('click', openFinish);
     }
 
-    document.addEventListener('keydown', function (event) {
-      if (event.key !== 'Escape' || runner.hidden) {
-        return;
-      }
-      var modal = document.getElementById('uvv-finish-modal');
-      if (modal && !modal.hidden && finishFlow) {
-        finishFlow.close();
-      }
-    });
-
     try {
       var params = new URLSearchParams(window.location.search);
       if (params.get('start') === '1') {

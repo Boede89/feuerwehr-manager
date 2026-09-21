@@ -109,13 +109,5 @@
       });
     });
 
-    document.querySelectorAll('.berichte-email-modal').forEach(function (modal) {
-      modal.addEventListener('click', function (e) {
-        if (e.target === modal) {
-          updateRecipientCount(modal);
-          closeOverlay(modal);
-        }
-      });
-    });
   });
 })();

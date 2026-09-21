@@ -151,9 +151,4 @@
     el.addEventListener('click', closeModal);
   });
 
-  document.addEventListener('keydown', function (ev) {
-    if (ev.key === 'Escape' && modal.style.display === 'flex') {
-      closeModal();
-    }
-  });
 })();

@@ -614,19 +614,7 @@
     });
   });
 
-  document.querySelectorAll('.modal-overlay').forEach(function (overlay) {
-    overlay.addEventListener('click', function (e) {
-      if (e.target === overlay) {
-        closeModal(overlay);
-      }
-    });
-  });
 
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') {
-      closeTopmostModal();
-    }
-  });
 
   var audienceAllCheckbox = document.getElementById('sonderdienst-audience-all');
   if (audienceAllCheckbox) {

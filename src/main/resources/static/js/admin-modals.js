@@ -193,17 +193,6 @@
     btn.addEventListener('click', () => closeModal(btn.closest('.modal-overlay')));
   });
 
-  document.querySelectorAll('.modal-overlay').forEach((overlay) => {
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) closeModal(overlay);
-    });
-  });
-
-  document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape') return;
-    document.querySelectorAll('.modal-overlay.active').forEach(closeModal);
-  });
-
   initUnitRoleHandlers();
   initResetPasswordHandlers();
 

@@ -766,17 +766,11 @@
     addModal.querySelectorAll('[data-close-modal]').forEach(function (btn) {
       btn.addEventListener('click', closeAddModal);
     });
-    addModal.addEventListener('click', function (e) {
-      if (e.target === addModal) closeAddModal();
-    });
   }
 
   if (atemschutzModal) {
     atemschutzModal.querySelectorAll('[data-close-atemschutz-config]').forEach(function (btn) {
       btn.addEventListener('click', closeAtemschutzConfig);
-    });
-    atemschutzModal.addEventListener('click', function (e) {
-      if (e.target === atemschutzModal) closeAtemschutzConfig();
     });
     var saveCfg = document.getElementById('atemschutz-config-save');
     if (saveCfg) saveCfg.addEventListener('click', saveAtemschutzConfig);
@@ -785,9 +779,6 @@
   if (openReportsModal) {
     openReportsModal.querySelectorAll('[data-close-open-reports-config]').forEach(function (btn) {
       btn.addEventListener('click', closeOpenReportsConfig);
-    });
-    openReportsModal.addEventListener('click', function (e) {
-      if (e.target === openReportsModal) closeOpenReportsConfig();
     });
     var saveOpenReports = document.getElementById('open-reports-config-save');
     if (saveOpenReports) saveOpenReports.addEventListener('click', saveOpenReportsConfig);

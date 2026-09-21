@@ -28,9 +28,4 @@
     });
   });
 
-  document.querySelectorAll('.modal-overlay').forEach(function (overlay) {
-    overlay.addEventListener('click', function (e) {
-      if (e.target === overlay) closeModal(overlay);
-    });
-  });
 })();

@@ -298,7 +298,6 @@
   }
 
   document.getElementById('btn-close-maengel-modal')?.addEventListener('click', closeModal);
-  document.getElementById('modal-maengel')?.querySelector('.modal__backdrop')?.addEventListener('click', closeModal);
 
   initYearFilter();
   loadList();

@@ -107,17 +107,6 @@
     confirmBtn.addEventListener('click', function () {
       close(true);
     });
-    modalEl.addEventListener('click', function (e) {
-      if (e.target === modalEl) {
-        close(false);
-      }
-    });
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && modalEl && !modalEl.hidden) {
-        close(false);
-      }
-    });
-
     return modalEl;
   }
 
