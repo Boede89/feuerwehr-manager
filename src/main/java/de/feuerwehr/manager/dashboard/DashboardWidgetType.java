@@ -39,14 +39,14 @@ public enum DashboardWidgetType {
     ATEMSCHUTZ(
             "Atemschutz-Kennzahlen",
             "Tauglichkeiten der Geräteträger – Zahlen und optional Namen",
-            null,
-            null,
+            AppModule.ATEMSCHUTZ,
+            "atemschutz.read",
             false),
     OPEN_REPORTS(
             "Offene Berichte",
             "Noch nicht freigegebene Einsatzberichte und Anwesenheitslisten",
-            null,
-            null,
+            AppModule.BERICHTE,
+            "berichte.read",
             false),
     QUICK_RESERVE(
             "Fahrzeug oder Raum reservieren",
@@ -63,8 +63,8 @@ public enum DashboardWidgetType {
     QUICK_ATEMSCHUTZ(
             "Atemschutz",
             "Kachel: Schnellzugriff zum Atemschutzbereich (Funktion folgt)",
-            null,
-            null,
+            AppModule.ATEMSCHUTZ,
+            "atemschutz.read",
             false),
     QUICK_FORMS(
             "Formulare",
