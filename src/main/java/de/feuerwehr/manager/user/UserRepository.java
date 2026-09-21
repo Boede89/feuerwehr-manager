@@ -127,6 +127,18 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findUnitAdminsByUnitId(@Param("unitId") long unitId);
 
     @Query("""
+            SELECT u FROM User u
+            WHERE u.anonymizedAt IS NULL
+              AND u.active = TRUE
+              AND u.role = 'UNIT_ADMIN'
+              AND u.unit.id = :unitId
+              AND u.loginEmail IS NOT NULL
+              AND TRIM(u.loginEmail) <> ''
+            ORDER BY u.username
+            """)
+    List<User> findActiveUnitAdminsWithEmailByUnitId(@Param("unitId") long unitId);
+
+    @Query("""
             SELECT COUNT(u) FROM User u
             WHERE u.anonymizedAt IS NULL
               AND u.registrationPending = TRUE

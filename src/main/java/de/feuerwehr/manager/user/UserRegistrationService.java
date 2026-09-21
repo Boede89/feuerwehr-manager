@@ -116,6 +116,11 @@ public class UserRegistrationService {
                 saved.getId(),
                 request,
                 "Selbstregistrierung (Freigabe ausstehend)");
+        try {
+            accountMailService.notifyAdminsRegistrationPending(saved, unit.getId());
+        } catch (Exception ignored) {
+            // Registrierung bleibt gültig auch ohne Admin-Mail
+        }
         return saved;
     }
 

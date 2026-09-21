@@ -5,20 +5,31 @@ import de.feuerwehr.manager.settings.GlobalSettingsService;
 import de.feuerwehr.manager.unit.UnitAdminService;
 import de.feuerwehr.manager.unit.UnitSmtpAccount;
 import de.feuerwehr.manager.user.User;
+import de.feuerwehr.manager.user.UserRepository;
 import java.nio.charset.StandardCharsets;
+import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AccountMailService {
+
+    private static final DateTimeFormatter BIRTHDATE_FORMAT =
+            DateTimeFormatter.ofPattern("dd.MM.yyyy", Locale.GERMANY);
 
     private final GlobalSettingsService globalSettingsService;
     private final UnitAdminService unitAdminService;
+    private final UserRepository userRepository;
 
     /** Einheits-SMTP (Standard für Kontakt-Mails). */
     public boolean canSendMailForUnit(long unitId) {
@@ -191,6 +202,99 @@ public class AccountMailService {
         } catch (Exception e) {
             return Optional.of("E-Mail konnte nicht gesendet werden: " + e.getMessage());
         }
+    }
+
+    /**
+     * Benachrichtigt Einheitsadmins über eine ausstehende Selbstregistrierung.
+     * Fehler beim Versand verhindern die Registrierung nicht.
+     */
+    public void notifyAdminsRegistrationPending(User pendingUser, long unitId) {
+        Optional<UnitSmtpAccount> smtp = resolveDefaultUnitSmtp(unitId);
+        if (smtp.isEmpty()) {
+            log.info(
+                    "Selbstregistrierung: Admin-Benachrichtigung übersprungen — SMTP der Einheit {} nicht konfiguriert.",
+                    unitId);
+            return;
+        }
+        List<User> admins = userRepository.findActiveUnitAdminsWithEmailByUnitId(unitId);
+        Set<String> recipients = new LinkedHashSet<>();
+        for (User admin : admins) {
+            if (admin.getLoginEmail() != null && !admin.getLoginEmail().isBlank()) {
+                recipients.add(admin.getLoginEmail().trim());
+            }
+        }
+        if (recipients.isEmpty()) {
+            log.info(
+                    "Selbstregistrierung: Admin-Benachrichtigung übersprungen — kein Einheitsadmin mit E-Mail (Einheit {}).",
+                    unitId);
+            return;
+        }
+        String ffName = resolveUnitDisplayName(pendingUser);
+        String appUrl = globalSettingsService.get().getAppUrl();
+        String subject = ffName + " – Neue Registrierung zur Freigabe";
+        String body = buildRegistrationPendingAdminBody(pendingUser, ffName, unitId, appUrl);
+        UnitSmtpAccount account = smtp.get();
+        JavaMailSenderImpl sender = SmtpMailService.buildSender(
+                account.getSmtpHost(),
+                account.getSmtpPort(),
+                account.getSmtpUsername(),
+                account.getSmtpPassword(),
+                account.getSmtpEncryption());
+        String senderName = account.getSmtpFromName() != null && !account.getSmtpFromName().isBlank()
+                ? account.getSmtpFromName()
+                : ffName;
+        int sent = 0;
+        for (String to : recipients) {
+            try {
+                var message = sender.createMimeMessage();
+                MimeMessageHelper helper = new MimeMessageHelper(message, false, StandardCharsets.UTF_8.name());
+                helper.setFrom(account.getSmtpFromEmail(), senderName);
+                helper.setTo(to);
+                helper.setSubject(subject);
+                helper.setText(body, false);
+                sender.send(message);
+                sent++;
+            } catch (Exception e) {
+                log.warn(
+                        "Selbstregistrierung: Admin-E-Mail an {} fehlgeschlagen (Einheit {}): {}",
+                        to,
+                        unitId,
+                        e.getMessage());
+            }
+        }
+        if (sent > 0) {
+            log.info(
+                    "Selbstregistrierung: {} Admin-Benachrichtigung(en) gesendet (Einheit {}).",
+                    sent,
+                    unitId);
+        }
+    }
+
+    private static String buildRegistrationPendingAdminBody(
+            User user, String ffName, long unitId, String appUrl) {
+        StringBuilder body = new StringBuilder();
+        body.append("Guten Tag,\n\n");
+        body.append("bei ").append(ffName).append(" wurde eine neue Selbstregistrierung eingereicht.\n\n");
+        body.append("Name: ").append(nullToDash(user.getDisplayName())).append("\n");
+        body.append("Vorname: ").append(nullToDash(user.getFirstName())).append("\n");
+        body.append("Nachname: ").append(nullToDash(user.getLastName())).append("\n");
+        body.append("E-Mail: ").append(nullToDash(user.getLoginEmail())).append("\n");
+        if (user.getBirthdate() != null) {
+            body.append("Geburtsdatum: ").append(BIRTHDATE_FORMAT.format(user.getBirthdate())).append("\n");
+        }
+        body.append("Benutzername (vorgeschlagen): ").append(nullToDash(user.getUsername())).append("\n\n");
+        body.append("Bitte prüfen und freischalten oder ablehnen unter:\n");
+        body.append("Adminpanel → Benutzer");
+        String base = appUrl != null ? appUrl.trim().replaceAll("/+$", "") : "";
+        if (!base.isBlank()) {
+            body.append("\n").append(base).append("/admin?scope=einheit&tab=benutzer&unit=").append(unitId);
+        }
+        body.append("\n");
+        return body.toString();
+    }
+
+    private static String nullToDash(String value) {
+        return value == null || value.isBlank() ? "—" : value.trim();
     }
 
     private static boolean isUnitSmtpReady(UnitSmtpAccount account) {
