@@ -277,6 +277,53 @@
     backLoginBtn.addEventListener('click', showLoginView);
   }
 
+  var successOverlay = document.getElementById('modal-register-success');
+  var successMessageEl = document.getElementById('modal-register-success-message');
+  var successOkBtn = document.getElementById('modal-register-success-ok');
+
+  function showRegisterSuccess(message) {
+    return new Promise(function (resolve) {
+      if (!successOverlay) {
+        window.alert(message || 'Ihre Registrierung wurde übermittelt.');
+        resolve();
+        return;
+      }
+      if (successMessageEl) {
+        successMessageEl.textContent =
+          message ||
+          'Ihre Registrierung wurde erfolgreich übermittelt. Ein Administrator muss Ihr Konto noch freischalten.';
+      }
+      successOverlay.hidden = false;
+      successOverlay.classList.add('active');
+      successOverlay.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('modal-open');
+
+      function finish() {
+        successOverlay.classList.remove('active');
+        successOverlay.setAttribute('aria-hidden', 'true');
+        successOverlay.hidden = true;
+        if (successOkBtn) {
+          successOkBtn.removeEventListener('click', onOk);
+        }
+        resolve();
+      }
+
+      function onOk(event) {
+        event.preventDefault();
+        finish();
+      }
+
+      if (successOkBtn) {
+        successOkBtn.addEventListener('click', onOk);
+      }
+      window.setTimeout(function () {
+        if (successOkBtn) {
+          successOkBtn.focus();
+        }
+      }, 30);
+    });
+  }
+
   if (registerForm) {
     registerForm.addEventListener('submit', function (event) {
       event.preventDefault();
@@ -317,12 +364,20 @@
           if (!result.ok || !data.ok) {
             throw new Error(data.message || 'Registrierung fehlgeschlagen.');
           }
-          if (window.toast) {
-            window.toast(data.message, 'success');
-          }
           registerForm.reset();
           showLoginView();
-          closeLogin();
+          if (overlay) {
+            overlay.classList.remove('active');
+            overlay.setAttribute('aria-hidden', 'true');
+          }
+          return showRegisterSuccess(data.message).then(function () {
+            if (!isBugOpen()) {
+              document.body.classList.remove('modal-open');
+            }
+            if (openBtn) {
+              openBtn.focus();
+            }
+          });
         })
         .catch(function (err) {
           setRegisterError(err.message || 'Registrierung fehlgeschlagen.');

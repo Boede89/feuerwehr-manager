@@ -35,8 +35,10 @@ public class RegistrationController {
             body.put("ok", true);
             body.put(
                     "message",
-                    "Ihre Registrierung wurde übermittelt. Ein Administrator muss das Konto noch freischalten. "
-                            + "Die Zugangsdaten erhalten Sie anschließend per E-Mail.");
+                    "Ihre Registrierung wurde erfolgreich übermittelt.\n\n"
+                            + "Ein Administrator muss Ihr Konto noch freischalten. "
+                            + "Die Zugangsdaten (Benutzername und Passwort) erhalten Sie anschließend per E-Mail.\n\n"
+                            + "Sie können sich erst anmelden, nachdem Ihr Konto freigeschaltet wurde.");
             return ResponseEntity.ok(body);
         } catch (IllegalArgumentException e) {
             body.put("ok", false);

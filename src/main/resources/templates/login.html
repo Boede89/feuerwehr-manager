@@ -184,6 +184,24 @@
     </div>
   </div>
 
+  <div id="modal-register-success" class="modal-overlay" role="dialog" aria-modal="true"
+       aria-labelledby="modal-register-success-title" aria-hidden="true" hidden>
+    <div class="modal start-login-card" style="max-width:28rem;">
+      <div class="modal__header">
+        <h3 id="modal-register-success-title">Registrierung übermittelt</h3>
+      </div>
+      <div class="modal__body">
+        <p id="modal-register-success-message" class="hint"
+           style="margin:0;font-size:1rem;line-height:1.55;white-space:pre-line;">
+          Ihre Registrierung wurde übermittelt.
+        </p>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--primary" id="modal-register-success-ok" style="min-width:6rem;">OK</button>
+      </div>
+    </div>
+  </div>
+
   <div id="modal-rfid-register-unknown" class="modal-overlay">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-rfid-register-title">
       <div class="modal__header">
@@ -217,7 +235,7 @@
   <script th:src="@{/js/flash-toast.js}" defer></script>
   <script th:src="@{/js/theme.js}" defer></script>
   <script th:src="@{/js/confirm-dialog.js}" defer></script>
-  <script th:src="@{/js/login-start.js(v='20260921d')}" defer></script>
+  <script th:src="@{/js/login-start.js(v='20260921e')}" defer></script>
   <script th:if="${rfidLoginEnabled}" th:src="@{/js/login-rfid.js}" defer></script>
 </body>
 </html>
