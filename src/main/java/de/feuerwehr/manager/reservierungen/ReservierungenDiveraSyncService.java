@@ -108,21 +108,53 @@ public class ReservierungenDiveraSyncService {
     }
 
     public void deleteEvent(long unitId, Long diveraEventId, Long actorUserId) {
+        deleteEvent(unitId, diveraEventId, actorUserId == null ? List.of() : List.of(actorUserId));
+    }
+
+    /**
+     * Löscht einen DIVERA-Termin. Versucht nacheinander die Access Keys der angegebenen Nutzer
+     * und danach den Einheits-Key. HTTP 404 gilt als Erfolg (Termin bereits weg).
+     *
+     * @return true wenn gelöscht oder bereits nicht mehr vorhanden
+     */
+    public boolean deleteEvent(long unitId, Long diveraEventId, List<Long> actorUserIds) {
         if (diveraEventId == null || diveraEventId <= 0) {
-            return;
+            return true;
         }
-        for (DiveraCredentials cred : resolveCredentialCandidates(unitId, actorUserId)) {
+        List<DiveraCredentials> candidates = resolveCredentialCandidates(unitId, actorUserIds);
+        if (candidates.isEmpty()) {
+            log.error(
+                    "DIVERA-Event {} konnte nicht gelöscht werden: kein Access Key (Einheit oder Benutzer).",
+                    diveraEventId);
+            return false;
+        }
+        DiveraApiClient.DiveraMutationResult lastFailure = null;
+        for (DiveraCredentials cred : candidates) {
             DiveraApiClient.DiveraMutationResult result =
                     diveraApiClient.deleteEvent(cred.apiBaseUrl(), cred.accessKey(), diveraEventId);
-            if (result.success()) {
-                return;
+            if (result.success() || result.httpStatus() == 404) {
+                if (result.httpStatus() == 404) {
+                    log.info(
+                            "DIVERA-Event {} war bereits gelöscht oder nicht gefunden ({}).",
+                            diveraEventId,
+                            cred.source());
+                } else {
+                    log.info("DIVERA-Event {} gelöscht ({}).", diveraEventId, cred.source());
+                }
+                return true;
             }
+            lastFailure = result;
             log.warn(
                     "Divera-Event {} konnte nicht gelöscht werden ({}): {}",
                     diveraEventId,
                     cred.source(),
                     result.message());
         }
+        log.error(
+                "DIVERA-Event {} konnte mit keinem Access Key gelöscht werden{}.",
+                diveraEventId,
+                lastFailure != null ? ": " + lastFailure.message() : "");
+        return false;
     }
 
     private Optional<Long> syncReservation(
@@ -172,6 +204,8 @@ public class ReservierungenDiveraSyncService {
                         "Divera-Update Reservierung {} konnte nicht durchgeführt werden, lege neuen Termin an: {}",
                         reservationId,
                         lastFailure.message());
+                // Alten Termin entfernen, sonst bleibt er verwaisst in DIVERA.
+                deleteEvent(unitId, existingEventId, actorUserId);
             }
         }
 
@@ -279,10 +313,14 @@ public class ReservierungenDiveraSyncService {
     }
 
     /**
-     * Persönlicher Access Key des Genehmigers zuerst (Termin erscheint unter dessen DIVERA-Konto),
+     * Persönlicher Access Key der angegebenen Nutzer zuerst (Termin erscheint unter deren DIVERA-Konto),
      * danach Einheits-Access-Key als Fallback.
      */
     private List<DiveraCredentials> resolveCredentialCandidates(long unitId, Long actorUserId) {
+        return resolveCredentialCandidates(unitId, actorUserId == null ? List.of() : List.of(actorUserId));
+    }
+
+    private List<DiveraCredentials> resolveCredentialCandidates(long unitId, List<Long> actorUserIds) {
         UnitDiveraSettings unitSettings =
                 diveraSettingsRepository.findByUnitId(unitId).orElse(null);
         String apiBase = unitSettings != null && unitSettings.getApiBaseUrl() != null
@@ -292,15 +330,20 @@ public class ReservierungenDiveraSyncService {
         List<DiveraCredentials> result = new ArrayList<>();
         LinkedHashSet<String> seen = new LinkedHashSet<>();
 
-        if (actorUserId != null) {
-            userRepository.findById(actorUserId).map(User::getDiveraApiKey).ifPresent(raw -> {
-                if (raw != null && !raw.isBlank()) {
-                    String key = raw.trim();
-                    if (seen.add(key)) {
-                        result.add(new DiveraCredentials(apiBase, key, "user-api-key"));
-                    }
+        if (actorUserIds != null) {
+            for (Long actorUserId : actorUserIds) {
+                if (actorUserId == null) {
+                    continue;
                 }
-            });
+                userRepository.findById(actorUserId).map(User::getDiveraApiKey).ifPresent(raw -> {
+                    if (raw != null && !raw.isBlank()) {
+                        String key = raw.trim();
+                        if (seen.add(key)) {
+                            result.add(new DiveraCredentials(apiBase, key, "user-api-key:" + actorUserId));
+                        }
+                    }
+                });
+            }
         }
         if (unitSettings != null && unitSettings.getAccessKey() != null && !unitSettings.getAccessKey().isBlank()) {
             String key = unitSettings.getAccessKey().trim();

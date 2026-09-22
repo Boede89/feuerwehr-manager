@@ -352,7 +352,7 @@ public class ReservierungenController {
             requireModuleEnabled(unitId);
             requireWrite(actor, unitId);
             accessControlService.requireUnitAccess(actor, unitId);
-            reservierungenService.deleteVehicleReservation(unitId, id, deletionReason);
+            reservierungenService.deleteVehicleReservation(unitId, id, actor.getUserId(), deletionReason);
             return ActionResultDto.success("Reservierung gelöscht.");
         } catch (IllegalArgumentException e) {
             return ActionResultDto.failure(e.getMessage());
@@ -370,7 +370,7 @@ public class ReservierungenController {
             requireModuleEnabled(unitId);
             requireWrite(actor, unitId);
             accessControlService.requireUnitAccess(actor, unitId);
-            reservierungenService.deleteRoomReservation(unitId, id, deletionReason);
+            reservierungenService.deleteRoomReservation(unitId, id, actor.getUserId(), deletionReason);
             return ActionResultDto.success("Reservierung gelöscht.");
         } catch (IllegalArgumentException e) {
             return ActionResultDto.failure(e.getMessage());

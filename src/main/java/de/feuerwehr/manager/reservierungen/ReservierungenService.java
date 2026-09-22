@@ -672,7 +672,7 @@ public class ReservierungenService {
     }
 
     @Transactional
-    public void deleteVehicleReservation(long unitId, long reservationId, String deletionReason) {
+    public void deleteVehicleReservation(long unitId, long reservationId, Long actorUserId, String deletionReason) {
         VehicleReservation reservation = vehicleReservationRepository
                 .findById(reservationId)
                 .filter(r -> r.getUnit().getId().equals(unitId))
@@ -684,7 +684,7 @@ public class ReservierungenService {
         String location = reservation.getLocation();
         Instant startAt = reservation.getStartAt();
         Instant endAt = reservation.getEndAt();
-        cleanupVehicleReservation(reservation);
+        cleanupVehicleReservation(reservation, actorUserId);
         vehicleReservationRepository.delete(reservation);
         if (status == ReservationStatus.APPROVED || status == ReservationStatus.PENDING) {
             notificationService.notifyRequesterCancelled(
@@ -704,7 +704,7 @@ public class ReservierungenService {
     }
 
     @Transactional
-    public void deleteRoomReservation(long unitId, long reservationId, String deletionReason) {
+    public void deleteRoomReservation(long unitId, long reservationId, Long actorUserId, String deletionReason) {
         RoomReservation reservation = roomReservationRepository
                 .findById(reservationId)
                 .filter(r -> r.getUnit().getId().equals(unitId))
@@ -716,7 +716,7 @@ public class ReservierungenService {
         String location = reservation.getLocation();
         Instant startAt = reservation.getStartAt();
         Instant endAt = reservation.getEndAt();
-        cleanupRoomReservation(reservation);
+        cleanupRoomReservation(reservation, actorUserId);
         roomReservationRepository.delete(reservation);
         if (status == ReservationStatus.APPROVED || status == ReservationStatus.PENDING) {
             notificationService.notifyRequesterCancelled(
@@ -739,11 +739,11 @@ public class ReservierungenService {
     @Transactional
     public void purgeAllTestData() {
         for (VehicleReservation reservation : vehicleReservationRepository.findByTestDataTrue()) {
-            cleanupVehicleReservation(reservation);
+            cleanupVehicleReservation(reservation, null);
             vehicleReservationRepository.delete(reservation);
         }
         for (RoomReservation reservation : roomReservationRepository.findByTestDataTrue()) {
-            cleanupRoomReservation(reservation);
+            cleanupRoomReservation(reservation, null);
             roomReservationRepository.delete(reservation);
         }
     }
@@ -930,7 +930,7 @@ public class ReservierungenService {
             boolean wasApproved = existing.getStatus() == ReservationStatus.APPROVED;
             existing.setStatus(ReservationStatus.CANCELLED);
             vehicleReservationRepository.save(existing);
-            cleanupVehicleReservation(existing);
+            cleanupVehicleReservation(existing, null);
             notificationService.notifyRequesterCancelled(
                     unitId,
                     existing.getRequesterEmail(),
@@ -961,7 +961,7 @@ public class ReservierungenService {
             boolean wasApproved = existing.getStatus() == ReservationStatus.APPROVED;
             existing.setStatus(ReservationStatus.CANCELLED);
             roomReservationRepository.save(existing);
-            cleanupRoomReservation(existing);
+            cleanupRoomReservation(existing, null);
             notificationService.notifyRequesterCancelled(
                     unitId,
                     existing.getRequesterEmail(),
@@ -1020,8 +1020,10 @@ public class ReservierungenService {
             var synced = diveraSyncService.syncVehicleReservation(
                     reservation, groups, actorUserId, combinedNames, existingDiveraEventId);
             if (synced.isPresent()) {
-                reservation.setDiveraEventId(synced.get());
+                Long eventId = synced.get();
+                reservation.setDiveraEventId(eventId);
                 vehicleReservationRepository.save(reservation);
+                propagateDiveraEventIdToSiblings(siblings, eventId);
                 notes.add(
                         hadOwnDivera
                                 ? "DIVERA: Termin aktualisiert."
@@ -1109,22 +1111,50 @@ public class ReservierungenService {
         return notes;
     }
 
-    private void cleanupVehicleReservation(VehicleReservation reservation) {
+    private void cleanupVehicleReservation(VehicleReservation reservation, Long actingUserId) {
         long unitId = reservation.getUnit().getId();
-        Long actorUserId = reservation.getApprovedByUser() != null
-                ? reservation.getApprovedByUser().getId()
-                : (reservation.getRequesterUser() != null ? reservation.getRequesterUser().getId() : null);
-        List<VehicleReservation> remaining = remainingApprovedVehicleCalendarSiblings(reservation);
-        String combinedNames = combinedVehicleNames(remaining);
+        List<Long> credentialUserIds = resolveCleanupCredentialUserIds(reservation, actingUserId);
         Long diveraEventId = reservation.getDiveraEventId();
+        List<VehicleReservation> diveraRemaining = remainingReservationsSharingDiveraEvent(reservation);
+        List<VehicleReservation> calendarRemaining = remainingApprovedVehicleCalendarSiblings(reservation);
 
         if (diveraEventId != null && diveraEventId > 0) {
-            if (remaining.isEmpty()) {
-                diveraSyncService.deleteEvent(unitId, diveraEventId, actorUserId);
+            if (diveraRemaining.isEmpty()) {
+                // Kein anderer Eintrag mit dieser Event-ID: Termin in DIVERA entfernen.
+                // Slot-Geschwister mit eigener Event-ID dürfen den Löschvorgang nicht blockieren.
+                List<VehicleReservation> transferTargets = slotSiblingsEligibleForDiveraTransfer(reservation);
+                if (transferTargets.isEmpty()) {
+                    diveraSyncService.deleteEvent(unitId, diveraEventId, credentialUserIds);
+                } else {
+                    String combinedNames = combinedVehicleNames(transferTargets);
+                    UnitReservierungenSettings settings = settingsService.ensureSettings(unitId);
+                    List<Integer> groups = settingsService.defaultDiveraGroupIds(settings, false);
+                    VehicleReservation primary = transferTargets.get(0);
+                    Long preferredActor = credentialUserIds.isEmpty() ? null : credentialUserIds.get(0);
+                    boolean updated = diveraSyncService.updateVehicleEvent(
+                            unitId,
+                            diveraEventId,
+                            primary.getId(),
+                            combinedNames,
+                            primary.getReason(),
+                            primary.getLocation(),
+                            primary.getStartAt(),
+                            primary.getEndAt(),
+                            groups,
+                            preferredActor);
+                    if (updated) {
+                        propagateDiveraEventIdToSiblings(transferTargets, diveraEventId);
+                    } else {
+                        // Update fehlgeschlagen → Termin trotzdem löschen, damit nichts Verwaistes bleibt.
+                        diveraSyncService.deleteEvent(unitId, diveraEventId, credentialUserIds);
+                    }
+                }
             } else {
+                String combinedNames = combinedVehicleNames(diveraRemaining);
                 UnitReservierungenSettings settings = settingsService.ensureSettings(unitId);
                 List<Integer> groups = settingsService.defaultDiveraGroupIds(settings, false);
-                VehicleReservation primary = remaining.get(0);
+                VehicleReservation primary = diveraRemaining.get(0);
+                Long preferredActor = credentialUserIds.isEmpty() ? null : credentialUserIds.get(0);
                 diveraSyncService.updateVehicleEvent(
                         unitId,
                         diveraEventId,
@@ -1135,23 +1165,25 @@ public class ReservierungenService {
                         primary.getStartAt(),
                         primary.getEndAt(),
                         groups,
-                        actorUserId);
+                        preferredActor);
+                propagateDiveraEventIdToSiblings(diveraRemaining, diveraEventId);
             }
             reservation.setDiveraEventId(null);
         }
 
-        if (remaining.isEmpty()) {
+        if (calendarRemaining.isEmpty()) {
             googleCalendarService.deleteReservationCalendarEvent(ReservationKind.VEHICLE, reservation.getId(), true);
         } else {
             UnitReservierungenSettings settings = settingsService.ensureSettings(unitId);
             Map<Long, String> googleIds = new LinkedHashMap<>();
             googleIds.putAll(
                     googleCalendarService.googleEventIdsByAccount(ReservationKind.VEHICLE, reservation.getId()));
-            for (VehicleReservation sibling : remaining) {
+            for (VehicleReservation sibling : calendarRemaining) {
                 googleIds.putAll(
                         googleCalendarService.googleEventIdsByAccount(ReservationKind.VEHICLE, sibling.getId()));
             }
-            VehicleReservation primary = remaining.get(0);
+            VehicleReservation primary = calendarRemaining.get(0);
+            String combinedNames = combinedVehicleNames(calendarRemaining);
             if (!googleIds.isEmpty()) {
                 googleCalendarService.syncVehicleReservation(
                         unitId,
@@ -1164,13 +1196,40 @@ public class ReservierungenService {
         }
     }
 
-    private void cleanupRoomReservation(RoomReservation reservation) {
+    private void cleanupRoomReservation(RoomReservation reservation, Long actingUserId) {
         long unitId = reservation.getUnit().getId();
-        Long actorUserId = reservation.getApprovedByUser() != null
-                ? reservation.getApprovedByUser().getId()
-                : (reservation.getRequesterUser() != null ? reservation.getRequesterUser().getId() : null);
-        diveraSyncService.deleteEvent(unitId, reservation.getDiveraEventId(), actorUserId);
+        List<Long> credentialUserIds = resolveCleanupCredentialUserIds(reservation, actingUserId);
+        diveraSyncService.deleteEvent(unitId, reservation.getDiveraEventId(), credentialUserIds);
         googleCalendarService.deleteReservationCalendarEvent(ReservationKind.ROOM, reservation.getId());
+    }
+
+    private static List<Long> resolveCleanupCredentialUserIds(
+            VehicleReservation reservation, Long actingUserId) {
+        LinkedHashSet<Long> ids = new LinkedHashSet<>();
+        if (actingUserId != null) {
+            ids.add(actingUserId);
+        }
+        if (reservation.getApprovedByUser() != null) {
+            ids.add(reservation.getApprovedByUser().getId());
+        }
+        if (reservation.getRequesterUser() != null) {
+            ids.add(reservation.getRequesterUser().getId());
+        }
+        return List.copyOf(ids);
+    }
+
+    private static List<Long> resolveCleanupCredentialUserIds(RoomReservation reservation, Long actingUserId) {
+        LinkedHashSet<Long> ids = new LinkedHashSet<>();
+        if (actingUserId != null) {
+            ids.add(actingUserId);
+        }
+        if (reservation.getApprovedByUser() != null) {
+            ids.add(reservation.getApprovedByUser().getId());
+        }
+        if (reservation.getRequesterUser() != null) {
+            ids.add(reservation.getRequesterUser().getId());
+        }
+        return List.copyOf(ids);
     }
 
     /** Andere genehmigte Fahrzeugreservierungen mit gleichem Grund und Zeitraum. */
@@ -1185,9 +1244,37 @@ public class ReservierungenService {
                 reservation.getId());
     }
 
+    /** Verbleibende genehmigte Reservierungen mit derselben DIVERA-Event-ID. */
+    private List<VehicleReservation> remainingReservationsSharingDiveraEvent(VehicleReservation reservation) {
+        Long diveraEventId = reservation.getDiveraEventId();
+        if (diveraEventId == null || diveraEventId <= 0) {
+            return List.of();
+        }
+        List<VehicleReservation> result = new ArrayList<>(vehicleReservationRepository.findByDiveraEventIdAndStatusAndIdNot(
+                diveraEventId, ReservationStatus.APPROVED, reservation.getId()));
+        result.sort(Comparator.comparing(VehicleReservation::getId));
+        return result;
+    }
+
+    /**
+     * Slot-Geschwister ohne eigene (andere) DIVERA-Event-ID – Termin kann auf sie übertragen werden.
+     */
+    private List<VehicleReservation> slotSiblingsEligibleForDiveraTransfer(VehicleReservation reservation) {
+        Long ownEventId = reservation.getDiveraEventId();
+        List<VehicleReservation> result = new ArrayList<>();
+        for (VehicleReservation sibling : findApprovedVehicleSlotSiblings(reservation)) {
+            Long siblingEventId = sibling.getDiveraEventId();
+            if (siblingEventId == null || siblingEventId <= 0 || Objects.equals(siblingEventId, ownEventId)) {
+                result.add(sibling);
+            }
+        }
+        result.sort(Comparator.comparing(VehicleReservation::getId));
+        return result;
+    }
+
     /**
      * Verbleibende genehmigte Reservierungen, die denselben Kalendertermin teilen
-     * (gleiche DIVERA-Event-ID oder gleicher Slot).
+     * (gleiche DIVERA-Event-ID oder gleicher Slot) – für Google-Kalender-Cleanup.
      */
     private List<VehicleReservation> remainingApprovedVehicleCalendarSiblings(VehicleReservation reservation) {
         LinkedHashSet<Long> seen = new LinkedHashSet<>();
@@ -1208,6 +1295,18 @@ public class ReservierungenService {
         }
         result.sort(Comparator.comparing(VehicleReservation::getId));
         return result;
+    }
+
+    private void propagateDiveraEventIdToSiblings(List<VehicleReservation> siblings, Long eventId) {
+        if (siblings == null || siblings.isEmpty() || eventId == null || eventId <= 0) {
+            return;
+        }
+        for (VehicleReservation sibling : siblings) {
+            if (!Objects.equals(sibling.getDiveraEventId(), eventId)) {
+                sibling.setDiveraEventId(eventId);
+                vehicleReservationRepository.save(sibling);
+            }
+        }
     }
 
     private static String combinedVehicleNames(List<VehicleReservation> reservations) {
