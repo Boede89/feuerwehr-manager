@@ -33,6 +33,7 @@ public final class IncidentReportSnapshot {
             Map.entry("eigentuemer", "Eigentümer"),
             Map.entry("chargeable", "Kostenpflichtig"),
             Map.entry("fireWatch", "Brandwache"),
+            Map.entry("stressfulIncident", "Belastender Einsatz"),
             Map.entry("extinguishedBeforeArrival", "Vor Ankunft gelöscht"),
             Map.entry("maliciousAlarm", "Böswilliger Alarm"),
             Map.entry("falseAlarm", "Fehlalarm"),
@@ -83,6 +84,7 @@ public final class IncidentReportSnapshot {
         map.put("eigentuemer", norm(report.getEigentuemer()));
         map.put("chargeable", formatBool(report.getChargeable()));
         map.put("fireWatch", formatBool(report.getFireWatch()));
+        map.put("stressfulIncident", formatBool(report.getStressfulIncident()));
         map.put("extinguishedBeforeArrival", formatBool(report.isExtinguishedBeforeArrival()));
         map.put("maliciousAlarm", formatBool(report.isMaliciousAlarm()));
         map.put("falseAlarm", formatBool(report.isFalseAlarm()));

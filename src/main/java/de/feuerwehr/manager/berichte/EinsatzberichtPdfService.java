@@ -110,6 +110,7 @@ public class EinsatzberichtPdfService {
         model.put("eigentuemer", nullToDash(report.getEigentuemer()));
         model.put("chargeable", formatJaNein(report.getChargeable()));
         model.put("fireWatch", formatJaNein(report.getFireWatch()));
+        model.put("stressfulIncident", formatJaNein(report.getStressfulIncident()));
         model.put("personDamages", formatPersonDamages(report));
         model.put("personDamageDetails", buildPersonDamageDetails(report));
         model.put("damagePerpetrator", buildDamagePerpetrator(report));

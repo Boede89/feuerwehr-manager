@@ -96,6 +96,9 @@ public class IncidentReport {
     @Column(name = "fire_watch")
     private Boolean fireWatch;
 
+    @Column(name = "stressful_incident")
+    private Boolean stressfulIncident;
+
     @Column(name = "extinguished_before_arrival", nullable = false)
     private boolean extinguishedBeforeArrival;
 

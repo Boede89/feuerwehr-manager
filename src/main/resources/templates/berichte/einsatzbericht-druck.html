@@ -104,6 +104,10 @@
         <td class="label-cell">Personenschäden</td>
         <td th:text="${personDamages}">—</td>
       </tr>
+      <tr>
+        <td class="label-cell" colspan="2">Belastender Einsatz</td>
+        <td colspan="4" th:text="${stressfulIncident}">—</td>
+      </tr>
       <tr th:if="${!#lists.isEmpty(personDamageDetails)}">
         <td class="label-cell">Geschädigte</td>
         <td colspan="5" style="padding:0;">

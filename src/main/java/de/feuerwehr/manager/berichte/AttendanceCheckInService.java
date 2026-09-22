@@ -66,6 +66,9 @@ public class AttendanceCheckInService {
                 if (!isPublicCheckInTileVisible(termin, now)) {
                     continue;
                 }
+                if (!isCheckInOpen(unit.getId(), termin.getId())) {
+                    continue;
+                }
                 String theme = termin.getTitle() != null && !termin.getTitle().isBlank()
                         ? termin.getTitle().trim()
                         : termin.getCategory().displayLabel();
@@ -96,7 +99,7 @@ public class AttendanceCheckInService {
         }
         List<DashboardTerminWidgetView> result = new ArrayList<>();
         for (DashboardTerminWidgetView termin : termine) {
-            if (!termin.today() || !termin.checkInAvailable()) {
+            if (!termin.today() || !termin.checkInAvailable() || !isCheckInOpen(unitId, termin.terminId())) {
                 result.add(termin.withCheckIn(false, null));
                 continue;
             }
@@ -111,6 +114,10 @@ public class AttendanceCheckInService {
         UnitTermin termin = requireTermin(unitId, terminId);
         if (termin.getCategory() == null || !termin.getCategory().supportsAttendanceReports()) {
             throw new IllegalArgumentException("Für diesen Termin ist kein Check-In möglich.");
+        }
+        if (!isCheckInOpen(unitId, terminId)) {
+            throw new IllegalArgumentException(
+                    "Check-In ist nicht mehr möglich. Die Anwesenheitsliste wurde bereits freigegeben oder archiviert.");
         }
         terminSyncService.syncSingleTermin(unitId, termin);
         AttendanceReport report = findDraftForTermin(unitId, terminId)
@@ -295,6 +302,14 @@ public class AttendanceCheckInService {
         return attendanceReportRepository
                 .findByUnitIdAndUnitTerminId(unitId, terminId, includeTestReports())
                 .filter(report -> report.getStatus() == IncidentReportStatus.ENTWURF);
+    }
+
+    /** Check-In bleibt offen, solange keine freigegebene oder archivierte Liste zum Termin existiert. */
+    private boolean isCheckInOpen(long unitId, long terminId) {
+        return attendanceReportRepository
+                .findByUnitIdAndUnitTerminId(unitId, terminId, includeTestReports())
+                .map(report -> report.getStatus() == IncidentReportStatus.ENTWURF)
+                .orElse(true);
     }
 
     private AttendanceReport requireEditableReport(long unitId, long reportId) {

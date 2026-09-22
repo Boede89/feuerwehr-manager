@@ -1173,6 +1173,7 @@ public class EinsatzberichtService {
         report.setEigentuemer(trimToNull(form.eigentuemer()));
         report.setChargeable(form.chargeable());
         report.setFireWatch(form.fireWatch());
+        report.setStressfulIncident(form.stressfulIncident());
         report.setExtinguishedBeforeArrival(form.extinguishedBeforeArrival());
         report.setMaliciousAlarm(form.maliciousAlarm());
         report.setFalseAlarm(form.falseAlarm());
@@ -2510,6 +2511,7 @@ public class EinsatzberichtService {
         copy.setEigentuemer(source.getEigentuemer());
         copy.setChargeable(source.getChargeable());
         copy.setFireWatch(source.getFireWatch());
+        copy.setStressfulIncident(source.getStressfulIncident());
         copy.setExtinguishedBeforeArrival(source.isExtinguishedBeforeArrival());
         copy.setMaliciousAlarm(source.isMaliciousAlarm());
         copy.setFalseAlarm(source.isFalseAlarm());

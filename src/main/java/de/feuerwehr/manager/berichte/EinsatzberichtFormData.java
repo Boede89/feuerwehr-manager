@@ -24,6 +24,7 @@ public record EinsatzberichtFormData(
         String eigentuemer,
         Boolean chargeable,
         Boolean fireWatch,
+        Boolean stressfulIncident,
         boolean extinguishedBeforeArrival,
         boolean maliciousAlarm,
         boolean falseAlarm,
