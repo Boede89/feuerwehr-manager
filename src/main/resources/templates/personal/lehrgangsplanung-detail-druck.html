@@ -61,14 +61,14 @@
       </thead>
       <tbody>
       <tr th:each="row : ${item.entries()}"
-          th:class="${row.withinSeats()} ? 'seat-row' : 'waitlist-row'">
+          th:class="${row.withinSeats() ? 'seat-row' : 'waitlist-row'}">
         <td th:text="${row.rank()}">1</td>
         <td th:text="${row.person().displayName()}">Name</td>
         <td th:if="${planView.plan != null and planView.plan.useParticipation}"
             th:text="${row.dienstbeteiligung()}">—</td>
-        <td th:text="${row.prerequisitesMet()} ? 'erfüllt' : row.missingPrerequisitesLabel()">—</td>
-        <td th:text="${row.withinSeats()} ? 'Platz' : 'Nachrücker'">Platz</td>
-        <td th:text="${row.confirmed()} ? 'ja' : 'nein'">nein</td>
+        <td th:text="${row.prerequisitesMet() ? 'erfüllt' : row.missingPrerequisitesLabel()}">—</td>
+        <td th:text="${row.withinSeats() ? 'Platz' : 'Nachrücker'}">Platz</td>
+        <td th:text="${row.confirmed() ? 'ja' : 'nein'}">nein</td>
       </tr>
       </tbody>
     </table>
