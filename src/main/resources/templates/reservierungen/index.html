@@ -142,14 +142,15 @@
     <div class="card" th:if="${!#lists.isEmpty(myReservations)}">
       <div class="card__body card__body--flush">
         <div class="table-wrapper">
-          <table class="table">
+          <table class="table" id="my-reservations-table">
             <thead>
             <tr>
-              <th>Art</th><th>Ressource</th><th>Zeitraum</th><th>Status</th><th>Grund</th>
+              <th>Art</th><th>Ressource</th><th>Zeitraum</th><th>Status</th><th>Grund</th><th></th>
             </tr>
             </thead>
             <tbody>
-            <tr th:each="r : ${myReservations}">
+            <tr th:each="r : ${myReservations}"
+                th:attr="data-kind=${r.kind().name()},data-id=${r.id()},data-status=${r.status().name()}">
               <td th:text="${r.kind() == T(de.feuerwehr.manager.reservierungen.ReservationKind).VEHICLE ? 'Fahrzeug' : 'Raum'}">Fahrzeug</td>
               <td th:text="${r.resourceName()}">TLF</td>
               <td class="reservierungen-time">
@@ -159,10 +160,16 @@
               </td>
               <td>
                 <span class="badge"
-                      th:classappend="${r.status().name() == 'APPROVED'} ? ' badge-success' : (${r.status().name() == 'PENDING'} ? ' badge-warning' : ' badge--danger')"
-                      th:text="${r.status().name() == 'APPROVED'} ? 'Genehmigt' : (${r.status().name() == 'PENDING'} ? 'Offen' : (${r.status().name() == 'REJECTED'} ? 'Abgelehnt' : ${r.status()}))">Offen</span>
+                      th:classappend="${r.status().name() == 'APPROVED'} ? ' badge-success' : (${r.status().name() == 'PENDING'} ? ' badge-warning' : (${r.status().name() == 'CANCELLED'} ? ' badge-warning' : ' badge--danger'))"
+                      th:text="${r.status().name() == 'APPROVED'} ? 'Genehmigt' : (${r.status().name() == 'PENDING'} ? 'Offen' : (${r.status().name() == 'REJECTED'} ? 'Abgelehnt' : (${r.status().name() == 'CANCELLED'} ? 'Storniert' : ${r.status()})))">Offen</span>
               </td>
               <td th:text="${r.reason()}">Übung</td>
+              <td class="table-actions">
+                <button type="button" class="btn btn--outline btn--sm" data-action="cancel-own"
+                        th:if="${r.status().name() == 'PENDING'}">Zurückziehen</button>
+                <button type="button" class="btn btn--danger btn--sm" data-action="cancel-own"
+                        th:if="${r.status().name() == 'APPROVED'}">Stornieren</button>
+              </td>
             </tr>
             </tbody>
           </table>
@@ -262,7 +269,7 @@
                   <button type="button" class="btn btn--outline btn--sm"
                           th:attr="data-open-details=${'reservierung-details-' + r.kind().name() + '-' + r.id()}">Details</button>
                   <button type="button" class="btn btn--outline btn--sm" data-action="edit"
-                          th:if="${r.status().name() == 'APPROVED'}">Bearbeiten</button>
+                          th:if="${r.status().name() == 'APPROVED' or r.status().name() == 'CANCELLED'}">Bearbeiten</button>
                   <button type="button" class="btn btn--danger btn--sm" data-action="delete">Löschen</button>
                 </div>
               </td>
@@ -378,7 +385,7 @@
                 th:text="${r.status().name() == 'APPROVED'} ? 'Genehmigt' : (${r.status().name() == 'PENDING'} ? 'Ausstehend' : (${r.status().name() == 'REJECTED'} ? 'Abgelehnt' : (${r.status().name() == 'CANCELLED'} ? 'Storniert' : ${r.status()})))">Ausstehend</span>
           <div class="btn-group">
             <button type="button" class="btn btn--outline" data-close-details-modal>Schließen</button>
-            <th:block th:if="${r.status().name() == 'APPROVED'}">
+            <th:block th:if="${r.status().name() == 'APPROVED' or r.status().name() == 'CANCELLED'}">
               <button type="button" class="btn btn--primary" data-action="edit"
                       th:attr="data-kind=${r.kind().name()},data-id=${r.id()}">Bearbeiten</button>
             </th:block>

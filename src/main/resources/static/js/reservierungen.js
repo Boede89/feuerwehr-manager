@@ -1150,8 +1150,8 @@
       return;
     }
     var status = (sourceEl.dataset.status || '').toUpperCase();
-    if (status && status !== 'APPROVED') {
-      notify('Nur genehmigte Reservierungen können bearbeitet werden.', 'error');
+    if (status && status !== 'APPROVED' && status !== 'CANCELLED') {
+      notify('Nur genehmigte oder stornierte Reservierungen können bearbeitet werden.', 'error');
       return;
     }
     var kind = (sourceEl.dataset.kind || '').toLowerCase() === 'room' ? 'room' : 'vehicle';
@@ -2050,6 +2050,71 @@
       var source = btn.closest('tr[data-id]') || btn.closest('.modal-overlay[data-id]');
       if (!source) return;
       openEditFromSource(source);
+    });
+  });
+
+  document.querySelectorAll('[data-action="cancel-own"]').forEach(function (btn) {
+    btn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      var row = btn.closest('tr[data-id]');
+      if (!row) return;
+      var status = (row.dataset.status || '').toUpperCase();
+      var isPending = status === 'PENDING';
+      var title = isPending ? 'Antrag zurückziehen?' : 'Reservierung stornieren?';
+      var message = isPending
+        ? 'Möchten Sie diesen offenen Antrag wirklich zurückziehen?'
+        : 'Möchten Sie diese genehmigte Reservierung wirklich stornieren?\n\nFalls vorhanden, wird der Termin auch aus DIVERA und dem Google-Kalender entfernt.';
+      var confirmOpts = {
+        title: title,
+        message: message,
+        confirmLabel: isPending ? 'Zurückziehen' : 'Stornieren',
+        cancelLabel: 'Abbrechen',
+        variant: isPending ? 'warning' : 'danger'
+      };
+      if (!isPending) {
+        confirmOpts.textInputLabel = 'Grund (optional)';
+        confirmOpts.textInputPlaceholder = 'Optionaler Stornierungsgrund';
+      }
+      var ask =
+        window.FwConfirm && typeof window.FwConfirm.show === 'function'
+          ? window.FwConfirm.show(confirmOpts)
+          : Promise.resolve(window.confirm(message));
+      ask.then(function (result) {
+        var ok = result === true || (result && result.ok);
+        if (!ok) return;
+        var reason = result && result.textValue ? result.textValue : '';
+        btn.disabled = true;
+        showBusy(root, isPending ? 'Antrag wird zurückgezogen …' : 'Reservierung wird storniert …');
+        var url =
+          apiBase +
+          (row.dataset.kind === 'ROOM' ? '/api/raeume/' : '/api/fahrzeuge/') +
+          encodeURIComponent(row.dataset.id) +
+          '/cancel-own?unit=' +
+          encodeURIComponent(unitId);
+        fetch(url, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: Object.assign({ 'Content-Type': 'application/json', Accept: 'application/json' }, csrfHeaders()),
+          body: JSON.stringify({ reason: reason })
+        })
+          .then(parseJsonResponse)
+          .then(function (data) {
+            if (data.ok) {
+              notify(data.message || (isPending ? 'Antrag zurückgezogen.' : 'Reservierung storniert.'), 'success');
+              window.location.reload();
+            } else {
+              hideBusy(root);
+              notify(data.message || 'Aktion fehlgeschlagen.', 'error');
+              btn.disabled = false;
+            }
+          })
+          .catch(function () {
+            hideBusy(root);
+            notify('Aktion fehlgeschlagen.', 'error');
+            btn.disabled = false;
+          });
+      });
     });
   });
 

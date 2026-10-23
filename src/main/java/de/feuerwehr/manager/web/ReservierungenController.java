@@ -377,6 +377,43 @@ public class ReservierungenController {
         }
     }
 
+    /** Eigene offene Anträge zurückziehen oder genehmigte Reservierungen stornieren. */
+    @PostMapping("/api/fahrzeuge/{id}/cancel-own")
+    @ResponseBody
+    public ActionResultDto cancelOwnVehicle(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @PathVariable long id,
+            @RequestBody(required = false) Map<String, String> body) {
+        try {
+            requireModuleEnabled(unitId);
+            accessControlService.requireUnitAccess(actor, unitId);
+            String reason = body != null ? body.get("reason") : null;
+            reservierungenService.cancelOwnVehicleReservation(unitId, id, actor.getUserId(), reason);
+            return ActionResultDto.success("Reservierung wurde storniert.");
+        } catch (IllegalArgumentException e) {
+            return ActionResultDto.failure(e.getMessage());
+        }
+    }
+
+    @PostMapping("/api/raeume/{id}/cancel-own")
+    @ResponseBody
+    public ActionResultDto cancelOwnRoom(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @PathVariable long id,
+            @RequestBody(required = false) Map<String, String> body) {
+        try {
+            requireModuleEnabled(unitId);
+            accessControlService.requireUnitAccess(actor, unitId);
+            String reason = body != null ? body.get("reason") : null;
+            reservierungenService.cancelOwnRoomReservation(unitId, id, actor.getUserId(), reason);
+            return ActionResultDto.success("Reservierung wurde storniert.");
+        } catch (IllegalArgumentException e) {
+            return ActionResultDto.failure(e.getMessage());
+        }
+    }
+
     private Unit resolveUnit(Long unitId, AppUserDetails actor, Model model) {
         Unit unit = unitService
                 .resolveActiveUnit(unitId, actor)

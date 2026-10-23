@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -384,7 +385,8 @@ public class ReservierungenService {
     @Transactional
     public List<String> updateVehicleReservation(
             long unitId, long reservationId, long actorUserId, UpdateReservationRequest request) {
-        VehicleReservation reservation = requireApprovedVehicle(unitId, reservationId);
+        VehicleReservation reservation = requireEditableVehicle(unitId, reservationId);
+        boolean reactivatingCancelled = reservation.getStatus() == ReservationStatus.CANCELLED;
         List<Long> vehicleIds = resolveResourceIds(request.resourceIds(), request.resourceId());
         if (vehicleIds.isEmpty()) {
             throw new IllegalArgumentException("Bitte mindestens ein Fahrzeug wählen.");
@@ -430,8 +432,17 @@ public class ReservierungenService {
         reservation.setLocation(requireText(request.location(), "Ort / Standort"));
         reservation.setStartAt(request.startAt());
         reservation.setEndAt(request.endAt());
+        if (reactivatingCancelled) {
+            reservation.setStatus(ReservationStatus.APPROVED);
+            reservation.setApprovedByUser(actor);
+            reservation.setApprovedAt(Instant.now());
+            reservation.setRejectionReason(null);
+        }
         VehicleReservation saved = vehicleReservationRepository.save(reservation);
         List<String> notes = new ArrayList<>(applyVehicleIntegrations(unitId, saved, actorUserId, null));
+        if (reactivatingCancelled) {
+            notes.add("Stornierte Reservierung wurde erneut genehmigt.");
+        }
         if (request.sendRequesterEmail()) {
             notificationService.notifyRequesterUpdated(unitId, saved);
             notes.add("Antragsteller per E-Mail über die Änderungen informiert.");
@@ -443,6 +454,7 @@ public class ReservierungenService {
     public List<String> updateRoomReservation(
             long unitId, long reservationId, long actorUserId, UpdateReservationRequest request) {
         RoomReservation reservation = requireApprovedRoom(unitId, reservationId);
+        boolean reactivatingCancelled = reservation.getStatus() == ReservationStatus.CANCELLED;
         List<Long> roomIds = resolveResourceIds(request.resourceIds(), request.resourceId());
         if (roomIds.size() != 1) {
             throw new IllegalArgumentException("Bitte genau einen Raum wählen.");
@@ -475,8 +487,17 @@ public class ReservierungenService {
         reservation.setLocation(requireText(request.location(), "Ort / Standort"));
         reservation.setStartAt(request.startAt());
         reservation.setEndAt(request.endAt());
+        if (reactivatingCancelled) {
+            reservation.setStatus(ReservationStatus.APPROVED);
+            reservation.setApprovedByUser(actor);
+            reservation.setApprovedAt(Instant.now());
+            reservation.setRejectionReason(null);
+        }
         RoomReservation saved = roomReservationRepository.save(reservation);
         List<String> notes = new ArrayList<>(applyRoomIntegrations(unitId, saved, actorUserId));
+        if (reactivatingCancelled) {
+            notes.add("Stornierte Reservierung wurde erneut genehmigt.");
+        }
         if (request.sendRequesterEmail()) {
             notificationService.notifyRequesterUpdated(unitId, saved);
             notes.add("Antragsteller per E-Mail über die Änderungen informiert.");
@@ -815,7 +836,7 @@ public class ReservierungenService {
         if (resolveConflicts) {
             conflicts = conflictService.vehicleConflictsForVehicles(
                     vehicleIds, reservation.getStartAt(), reservation.getEndAt(), reservation.getId());
-            cancelVehicleConflicts(unitId, conflicts, request.conflictIds());
+            cancelVehicleConflicts(unitId, conflicts, request.conflictIds(), vehicleIds, actorUserId);
         }
 
         if (!rejectedIds.isEmpty()) {
@@ -916,7 +937,17 @@ public class ReservierungenService {
                 reservation.getUnit().getId(), reservation, false, reason);
     }
 
-    private void cancelVehicleConflicts(long unitId, List<ReservationConflictView> conflicts, List<Long> conflictIds) {
+    /**
+     * Bei Konflikt-Auflösung nur die kollidierenden Fahrzeuge aus Multi-Fahrzeug-Reservierungen
+     * entfernen. Bleiben Fahrzeuge übrig, bleibt der Termin bestehen (DIVERA/Kalender aktualisieren).
+     */
+    private void cancelVehicleConflicts(
+            long unitId,
+            List<ReservationConflictView> conflicts,
+            List<Long> conflictIds,
+            List<Long> incomingVehicleIds,
+            long actorUserId) {
+        Set<Long> incomingRelatedIds = relatedVehicleIdSet(incomingVehicleIds);
         for (ReservationConflictView conflict : conflicts) {
             if (conflictIds != null && !conflictIds.isEmpty() && !conflictIds.contains(conflict.id())) {
                 continue;
@@ -928,23 +959,89 @@ public class ReservierungenService {
                 continue;
             }
             boolean wasApproved = existing.getStatus() == ReservationStatus.APPROVED;
-            existing.setStatus(ReservationStatus.CANCELLED);
+            List<Vehicle> existingVehicles = existing.resolvedVehicles();
+            List<Vehicle> keep = new ArrayList<>();
+            List<Vehicle> removed = new ArrayList<>();
+            for (Vehicle vehicle : existingVehicles) {
+                boolean collides = conflictService.relatedVehicleIds(vehicle).stream()
+                        .anyMatch(incomingRelatedIds::contains);
+                if (collides) {
+                    removed.add(vehicle);
+                } else {
+                    keep.add(vehicle);
+                }
+            }
+            if (removed.isEmpty()) {
+                continue;
+            }
+            String removedNames =
+                    removed.stream().map(Vehicle::getName).collect(Collectors.joining(", "));
+            if (keep.isEmpty()) {
+                existing.setStatus(ReservationStatus.CANCELLED);
+                vehicleReservationRepository.save(existing);
+                cleanupVehicleReservation(existing, actorUserId);
+                notificationService.notifyRequesterCancelled(
+                        unitId,
+                        existing.getRequesterEmail(),
+                        "Fahrzeug",
+                        removedNames,
+                        existing.getReason(),
+                        existing.getLocation(),
+                        existing.getStartAt(),
+                        existing.getEndAt(),
+                        wasApproved
+                                ? "Ihre genehmigte Fahrzeugreservierung wurde wegen eines Konflikts storniert."
+                                : "Ihr Antrag auf eine Fahrzeugreservierung wurde wegen eines Konflikts storniert.",
+                        null);
+                continue;
+            }
+            existing.setVehiclesOrdered(new ArrayList<>(keep));
             vehicleReservationRepository.save(existing);
-            cleanupVehicleReservation(existing, null);
+            if (wasApproved) {
+                applyVehicleIntegrations(unitId, existing, actorUserId, null);
+            }
+            String keepNames = existing.vehicleNamesJoined();
             notificationService.notifyRequesterCancelled(
                     unitId,
                     existing.getRequesterEmail(),
                     "Fahrzeug",
-                    existing.vehicleNamesJoined(),
+                    removedNames,
                     existing.getReason(),
                     existing.getLocation(),
                     existing.getStartAt(),
                     existing.getEndAt(),
                     wasApproved
-                            ? "Ihre genehmigte Fahrzeugreservierung wurde wegen eines Konflikts storniert."
-                            : "Ihr Antrag auf eine Fahrzeugreservierung wurde wegen eines Konflikts storniert.",
+                            ? "Wegen eines Konflikts wurde aus Ihrer genehmigten Reservierung entfernt: "
+                                    + removedNames
+                                    + ". Verbleibend: "
+                                    + keepNames
+                                    + "."
+                            : "Wegen eines Konflikts wurde aus Ihrem Antrag entfernt: "
+                                    + removedNames
+                                    + ". Verbleibend: "
+                                    + keepNames
+                                    + ".",
                     null);
         }
+    }
+
+    private Set<Long> relatedVehicleIdSet(List<Long> vehicleIds) {
+        LinkedHashSet<Long> ids = new LinkedHashSet<>();
+        if (vehicleIds == null) {
+            return ids;
+        }
+        for (Long vehicleId : vehicleIds) {
+            if (vehicleId == null) {
+                continue;
+            }
+            Vehicle vehicle = vehicleRepository.findById(vehicleId).orElse(null);
+            if (vehicle == null) {
+                ids.add(vehicleId);
+                continue;
+            }
+            ids.addAll(conflictService.relatedVehicleIds(vehicle));
+        }
+        return ids;
     }
 
     private void cancelRoomConflicts(long unitId, List<ReservationConflictView> conflicts, List<Long> conflictIds) {
@@ -1343,13 +1440,15 @@ public class ReservierungenService {
         return reservation;
     }
 
-    private VehicleReservation requireApprovedVehicle(long unitId, long reservationId) {
+    private VehicleReservation requireEditableVehicle(long unitId, long reservationId) {
         VehicleReservation reservation = vehicleReservationRepository
                 .findById(reservationId)
                 .filter(r -> r.getUnit().getId().equals(unitId))
                 .orElseThrow(() -> new IllegalArgumentException("Reservierung nicht gefunden."));
-        if (reservation.getStatus() != ReservationStatus.APPROVED) {
-            throw new IllegalArgumentException("Nur genehmigte Reservierungen können bearbeitet werden.");
+        if (reservation.getStatus() != ReservationStatus.APPROVED
+                && reservation.getStatus() != ReservationStatus.CANCELLED) {
+            throw new IllegalArgumentException(
+                    "Nur genehmigte oder stornierte Reservierungen können bearbeitet werden.");
         }
         return reservation;
     }
@@ -1359,10 +1458,67 @@ public class ReservierungenService {
                 .findById(reservationId)
                 .filter(r -> r.getUnit().getId().equals(unitId))
                 .orElseThrow(() -> new IllegalArgumentException("Reservierung nicht gefunden."));
-        if (reservation.getStatus() != ReservationStatus.APPROVED) {
-            throw new IllegalArgumentException("Nur genehmigte Reservierungen können bearbeitet werden.");
+        if (reservation.getStatus() != ReservationStatus.APPROVED
+                && reservation.getStatus() != ReservationStatus.CANCELLED) {
+            throw new IllegalArgumentException(
+                    "Nur genehmigte oder stornierte Reservierungen können bearbeitet werden.");
         }
         return reservation;
+    }
+
+    /** Antragsteller: offenen Antrag zurückziehen oder genehmigte Reservierung stornieren. */
+    @Transactional
+    public void cancelOwnVehicleReservation(long unitId, long reservationId, long userId, String reason) {
+        VehicleReservation reservation = vehicleReservationRepository
+                .findById(reservationId)
+                .filter(r -> r.getUnit().getId().equals(unitId))
+                .orElseThrow(() -> new IllegalArgumentException("Reservierung nicht gefunden."));
+        requireOwnedByUser(reservation.getRequesterUser(), userId);
+        cancelOwnVehicle(reservation, userId, reason);
+    }
+
+    @Transactional
+    public void cancelOwnRoomReservation(long unitId, long reservationId, long userId, String reason) {
+        RoomReservation reservation = roomReservationRepository
+                .findById(reservationId)
+                .filter(r -> r.getUnit().getId().equals(unitId))
+                .orElseThrow(() -> new IllegalArgumentException("Reservierung nicht gefunden."));
+        requireOwnedByUser(reservation.getRequesterUser(), userId);
+        cancelOwnRoom(reservation, userId, reason);
+    }
+
+    private void cancelOwnVehicle(VehicleReservation reservation, long userId, String reason) {
+        ReservationStatus status = reservation.getStatus();
+        if (status != ReservationStatus.PENDING && status != ReservationStatus.APPROVED) {
+            throw new IllegalArgumentException("Diese Reservierung kann nicht mehr storniert werden.");
+        }
+        boolean wasApproved = status == ReservationStatus.APPROVED;
+        if (wasApproved) {
+            cleanupVehicleReservation(reservation, userId);
+        }
+        reservation.setStatus(ReservationStatus.CANCELLED);
+        reservation.setRejectionReason(trimToNull(reason));
+        vehicleReservationRepository.save(reservation);
+    }
+
+    private void cancelOwnRoom(RoomReservation reservation, long userId, String reason) {
+        ReservationStatus status = reservation.getStatus();
+        if (status != ReservationStatus.PENDING && status != ReservationStatus.APPROVED) {
+            throw new IllegalArgumentException("Diese Reservierung kann nicht mehr storniert werden.");
+        }
+        boolean wasApproved = status == ReservationStatus.APPROVED;
+        if (wasApproved) {
+            cleanupRoomReservation(reservation, userId);
+        }
+        reservation.setStatus(ReservationStatus.CANCELLED);
+        reservation.setRejectionReason(trimToNull(reason));
+        roomReservationRepository.save(reservation);
+    }
+
+    private static void requireOwnedByUser(User requesterUser, long userId) {
+        if (requesterUser == null || requesterUser.getId() == null || !requesterUser.getId().equals(userId)) {
+            throw new IllegalArgumentException("Sie können nur eigene Reservierungen stornieren.");
+        }
     }
 
     private ReservationListItemView toView(
