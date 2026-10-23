@@ -375,14 +375,138 @@
     <script th:if="${!#lists.isEmpty(personRows)}" th:src="@{/js/auswertung-personen.js(v='20260915c')}" defer></script>
   </section>
 
+  <!-- Einsätze / Dienste -->
+  <section th:if="${bereich.key() == 'einsaetze'}" class="auswertung-dienste">
+    <form method="get" class="filter-bar auswertung-filter-bar auswertung-dienste-filter" th:action="@{/auswertung}"
+          id="auswertung-dienste-filter-form">
+      <input type="hidden" name="unit" th:value="${unitId}"/>
+      <input type="hidden" name="bereich" value="einsaetze"/>
+      <input type="hidden" name="configured" value="true"/>
+      <label class="sr-only" for="auswertung-dienste-year">Jahr</label>
+      <select id="auswertung-dienste-year" name="jahr" class="berichte-filter-select" aria-label="Jahr filtern"
+              data-year-filter-submit>
+        <option th:each="y : ${yearOptions}" th:value="${y}" th:text="${y}"
+                th:selected="${y == filterYear}"></option>
+      </select>
+      <div class="auswertung-dienste-chips" role="group" aria-label="Ereignisarten">
+        <label class="auswertung-dienste-chip"
+               th:classappend="${diensteFilter.einsaetze()} ? ' is-active' : ''">
+          <input type="checkbox" name="einsaetze" value="true"
+                 th:checked="${diensteFilter.einsaetze()}" data-dienste-filter/>
+          <span>Einsätze</span>
+        </label>
+        <label class="auswertung-dienste-chip"
+               th:classappend="${diensteFilter.uebungen()} ? ' is-active' : ''">
+          <input type="checkbox" name="uebungen" value="true"
+                 th:checked="${diensteFilter.uebungen()}" data-dienste-filter/>
+          <span>Übungen</span>
+        </label>
+        <label class="auswertung-dienste-chip"
+               th:classappend="${diensteFilter.sonderdienste()} ? ' is-active' : ''">
+          <input type="checkbox" name="sonderdienste" value="true"
+                 th:checked="${diensteFilter.sonderdienste()}" data-dienste-filter/>
+          <span>Sonderdienste</span>
+        </label>
+        <label class="auswertung-dienste-chip"
+               th:classappend="${diensteFilter.sonstiges()} ? ' is-active' : ''">
+          <input type="checkbox" name="sonstiges" value="true"
+                 th:checked="${diensteFilter.sonstiges()}" data-dienste-filter/>
+          <span>Sonstiges</span>
+        </label>
+      </div>
+    </form>
+
+    <div class="auswertung-dienste-compose" th:if="${diensteStats.anzahl() > 0}" aria-label="Zusammensetzung">
+      <div class="auswertung-dienste-compose__bar" th:if="${diensteStats.anzahl() > 0}">
+        <span class="auswertung-dienste-compose__seg auswertung-dienste-compose__seg--einsatz"
+              th:if="${diensteStats.einsaetzeCount() > 0}"
+              th:style="|width: ${(diensteStats.einsaetzeCount() * 100.0) / diensteStats.anzahl()}%|"
+              th:title="|Einsätze: ${diensteStats.einsaetzeCount()}|"></span>
+        <span class="auswertung-dienste-compose__seg auswertung-dienste-compose__seg--uebung"
+              th:if="${diensteStats.uebungenCount() > 0}"
+              th:style="|width: ${(diensteStats.uebungenCount() * 100.0) / diensteStats.anzahl()}%|"
+              th:title="|Übungen: ${diensteStats.uebungenCount()}|"></span>
+        <span class="auswertung-dienste-compose__seg auswertung-dienste-compose__seg--sonder"
+              th:if="${diensteStats.sonderdienstCount() > 0}"
+              th:style="|width: ${(diensteStats.sonderdienstCount() * 100.0) / diensteStats.anzahl()}%|"
+              th:title="|Sonderdienste: ${diensteStats.sonderdienstCount()}|"></span>
+        <span class="auswertung-dienste-compose__seg auswertung-dienste-compose__seg--sonst"
+              th:if="${diensteStats.sonstigesCount() > 0}"
+              th:style="|width: ${(diensteStats.sonstigesCount() * 100.0) / diensteStats.anzahl()}%|"
+              th:title="|Sonstiges: ${diensteStats.sonstigesCount()}|"></span>
+      </div>
+      <div class="auswertung-dienste-compose__legend">
+        <span th:if="${diensteFilter.einsaetze()}">
+          <i class="auswertung-dienste-dot auswertung-dienste-dot--einsatz"></i>
+          Einsätze <strong th:text="${diensteStats.einsaetzeCount()}">0</strong>
+        </span>
+        <span th:if="${diensteFilter.uebungen()}">
+          <i class="auswertung-dienste-dot auswertung-dienste-dot--uebung"></i>
+          Übungen <strong th:text="${diensteStats.uebungenCount()}">0</strong>
+        </span>
+        <span th:if="${diensteFilter.sonderdienste()}">
+          <i class="auswertung-dienste-dot auswertung-dienste-dot--sonder"></i>
+          Sonderdienste <strong th:text="${diensteStats.sonderdienstCount()}">0</strong>
+        </span>
+        <span th:if="${diensteFilter.sonstiges()}">
+          <i class="auswertung-dienste-dot auswertung-dienste-dot--sonst"></i>
+          Sonstiges <strong th:text="${diensteStats.sonstigesCount()}">0</strong>
+        </span>
+      </div>
+    </div>
+
+    <div class="auswertung-dienste-grid" role="list">
+      <article class="auswertung-dienste-metric" role="listitem">
+        <strong class="auswertung-dienste-metric__value" th:text="${diensteStats.anzahl()}">0</strong>
+        <span class="auswertung-dienste-metric__label">Anzahl</span>
+        <span class="auswertung-dienste-metric__hint">Ereignisse im Filter</span>
+      </article>
+      <article class="auswertung-dienste-metric auswertung-dienste-metric--hours" role="listitem">
+        <strong class="auswertung-dienste-metric__value" th:text="${diensteStats.gesamtStunden()}">0 Std.</strong>
+        <span class="auswertung-dienste-metric__label">Gesamtstunden</span>
+        <span class="auswertung-dienste-metric__hint">Summe aller Dauern</span>
+      </article>
+      <article class="auswertung-dienste-metric" role="listitem">
+        <strong class="auswertung-dienste-metric__value" th:text="${diensteStats.avgPersonal()}">—</strong>
+        <span class="auswertung-dienste-metric__label">Ø Personal</span>
+        <span class="auswertung-dienste-metric__hint">pro Ereignis</span>
+      </article>
+      <article class="auswertung-dienste-metric" role="listitem">
+        <strong class="auswertung-dienste-metric__value" th:text="${diensteStats.avgGruppenfuehrer()}">—</strong>
+        <span class="auswertung-dienste-metric__label">Ø Gruppenführer</span>
+        <span class="auswertung-dienste-metric__hint">pro Ereignis</span>
+      </article>
+      <article class="auswertung-dienste-metric" role="listitem">
+        <strong class="auswertung-dienste-metric__value" th:text="${diensteStats.avgZugfuehrer()}">—</strong>
+        <span class="auswertung-dienste-metric__label">Ø Zugführer</span>
+        <span class="auswertung-dienste-metric__hint">pro Ereignis</span>
+      </article>
+      <article class="auswertung-dienste-metric auswertung-dienste-metric--duration" role="listitem">
+        <strong class="auswertung-dienste-metric__value" th:text="${diensteStats.avgDauerStunden()}">—</strong>
+        <span class="auswertung-dienste-metric__label">Ø Dauer</span>
+        <span class="auswertung-dienste-metric__hint">pro Ereignis</span>
+      </article>
+    </div>
+
+    <p class="hint" th:if="${!diensteFilter.anySelected()}" style="margin-top:1rem;">
+      Bitte mindestens eine Ereignisart auswählen.
+    </p>
+    <p class="hint" th:if="${diensteFilter.anySelected() and diensteStats.anzahl() == 0}" style="margin-top:1rem;">
+      Keine freigegebenen Ereignisse für die gewählte Auswahl im Jahr
+      <strong th:text="${filterYear}">2026</strong>.
+    </p>
+  </section>
+
   <!-- Andere Bereiche: Platzhalter -->
   <div class="card" style="margin-top:16px;"
-       th:if="${bereich.key() != '' and bereich.key() != 'personen'}">
+       th:if="${bereich.key() != '' and bereich.key() != 'personen' and bereich.key() != 'einsaetze'}">
     <div class="card__body">
       <p class="hint" style="margin:0;">
-        Bereich <strong th:text="${bereich.label()}">Einsätze</strong> — Inhalt folgt.
+        Bereich <strong th:text="${bereich.label()}">Fahrzeuge</strong> — Inhalt folgt.
       </p>
     </div>
   </div>
+
+  <script th:if="${bereich.key() == 'einsaetze'}" th:src="@{/js/auswertung-dienste.js(v='20261023a')}" defer></script>
 </main>
 </html>

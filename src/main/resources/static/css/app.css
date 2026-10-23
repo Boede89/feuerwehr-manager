@@ -10635,3 +10635,155 @@ body.uvv-runner-open {
   }
 }
 
+
+/* ===== Auswertung: Einsätze / Dienste ===== */
+.auswertung-dienste {
+  margin-top: 16px;
+}
+.auswertung-dienste-filter {
+  gap: 12px 16px;
+}
+.auswertung-dienste-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.auswertung-dienste-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+  user-select: none;
+  overflow: hidden;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.auswertung-dienste-chip input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  pointer-events: none;
+}
+.auswertung-dienste-chip span {
+  display: block;
+  padding: 0.45rem 0.9rem;
+  line-height: 1.2;
+}
+.auswertung-dienste-chip:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--rot, #c1121f) 35%, var(--border));
+}
+.auswertung-dienste-chip.is-active {
+  color: #fff;
+  background: var(--rot, #c1121f);
+  border-color: var(--rot, #c1121f);
+}
+.auswertung-dienste-compose {
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+}
+.auswertung-dienste-compose__bar {
+  display: flex;
+  height: 0.55rem;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--border) 55%, transparent);
+  margin-bottom: 0.7rem;
+}
+.auswertung-dienste-compose__seg {
+  display: block;
+  min-width: 0;
+  height: 100%;
+}
+.auswertung-dienste-compose__seg--einsatz { background: var(--rot, #c1121f); }
+.auswertung-dienste-compose__seg--uebung { background: #2563eb; }
+.auswertung-dienste-compose__seg--sonder { background: #ca8a04; }
+.auswertung-dienste-compose__seg--sonst { background: #64748b; }
+.auswertung-dienste-compose__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 1.1rem;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+.auswertung-dienste-compose__legend strong {
+  color: var(--text);
+  font-weight: 700;
+}
+.auswertung-dienste-dot {
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  margin-right: 0.3rem;
+  vertical-align: middle;
+}
+.auswertung-dienste-dot--einsatz { background: var(--rot, #c1121f); }
+.auswertung-dienste-dot--uebung { background: #2563eb; }
+.auswertung-dienste-dot--sonder { background: #ca8a04; }
+.auswertung-dienste-dot--sonst { background: #64748b; }
+.auswertung-dienste-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 1100px) {
+  .auswertung-dienste-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .auswertung-dienste-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.auswertung-dienste-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 1rem 1rem 0.95rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--rot, #c1121f) 7%, var(--bg-card)), var(--bg-card) 42%);
+  min-height: 7.25rem;
+}
+.auswertung-dienste-metric--hours {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #2563eb 10%, var(--bg-card)), var(--bg-card) 42%);
+}
+.auswertung-dienste-metric--duration {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #ca8a04 12%, var(--bg-card)), var(--bg-card) 42%);
+}
+.auswertung-dienste-metric__value {
+  font-size: clamp(1.35rem, 2.2vw, 1.85rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--text);
+}
+.auswertung-dienste-metric__label {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.auswertung-dienste-metric__hint {
+  margin-top: auto;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}

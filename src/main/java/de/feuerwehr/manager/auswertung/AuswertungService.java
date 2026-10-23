@@ -151,6 +151,180 @@ public class AuswertungService {
     }
 
     /**
+     * Dashboard „Einsätze / Dienste“: Anzahl, Stunden und Durchschnitte über gefilterte Ereignisse.
+     */
+    @Transactional(readOnly = true)
+    public AuswertungDiensteStats diensteStats(long unitId, int year, AuswertungDiensteFilter filter) {
+        AuswertungDiensteFilter resolved = filter != null ? filter : AuswertungDiensteFilter.defaults();
+        if (!resolved.anySelected()) {
+            return AuswertungDiensteStats.empty(resolved);
+        }
+
+        LocalDate yearStart = LocalDate.of(year, 1, 1);
+        LocalDate yearEndExclusive = LocalDate.of(year + 1, 1, 1);
+        LocalDate today = LocalDate.now();
+        boolean includeTest = testModeService.isEnabled();
+
+        int anzahl = 0;
+        long totalMinutes = 0;
+        long sumPersonal = 0;
+        long sumGf = 0;
+        long sumZf = 0;
+        int einsaetzeCount = 0;
+        int uebungenCount = 0;
+        int sonderdienstCount = 0;
+        int sonstigesCount = 0;
+
+        if (resolved.einsaetze()) {
+            List<IncidentReport> reports =
+                    listFreigegebeneEinsaetze(unitId, yearStart, yearEndExclusive, includeTest);
+            if (!reports.isEmpty()) {
+                List<Long> reportIds = reports.stream().map(IncidentReport::getId).toList();
+                Map<Long, List<IncidentReportPersonnel>> personnelByReport = new HashMap<>();
+                for (IncidentReportPersonnel row :
+                        incidentReportPersonnelRepository.findByIncidentReportIdIn(reportIds)) {
+                    personnelByReport
+                            .computeIfAbsent(row.getIncidentReport().getId(), id -> new ArrayList<>())
+                            .add(row);
+                }
+                for (IncidentReport report : reports) {
+                    List<IncidentReportPersonnel> crew =
+                            personnelByReport.getOrDefault(report.getId(), List.of());
+                    int personal = crew.size();
+                    int zf = 0;
+                    int gf = 0;
+                    for (IncidentReportPersonnel member : crew) {
+                        switch (Besatzungsstaerke.qualTier(member.getPerson())) {
+                            case ZF -> zf++;
+                            case GF -> gf++;
+                            default -> {
+                                // Mannschaft
+                            }
+                        }
+                    }
+                    long minutes = IncidentReportTimeSupport.durationMinutes(report);
+                    anzahl++;
+                    einsaetzeCount++;
+                    totalMinutes += minutes;
+                    sumPersonal += personal;
+                    sumZf += zf;
+                    sumGf += gf;
+                }
+            }
+        }
+
+        LocalDateRange attendanceRange = uebungDateRange(yearStart, yearEndExclusive, today);
+        if (attendanceRange != null) {
+            if (resolved.uebungen()) {
+                AccAttendance acc = accumulateAttendance(
+                        unitId,
+                        attendanceRange.from(),
+                        attendanceRange.to(),
+                        includeTest,
+                        TermineCategory.DIENSTPLAN);
+                anzahl += acc.count;
+                uebungenCount += acc.count;
+                totalMinutes += acc.minutes;
+                sumPersonal += acc.personal;
+                sumZf += acc.zf;
+                sumGf += acc.gf;
+            }
+            if (resolved.sonderdienste()) {
+                AccAttendance acc = accumulateAttendance(
+                        unitId,
+                        attendanceRange.from(),
+                        attendanceRange.to(),
+                        includeTest,
+                        TermineCategory.SONDERDIENST);
+                anzahl += acc.count;
+                sonderdienstCount += acc.count;
+                totalMinutes += acc.minutes;
+                sumPersonal += acc.personal;
+                sumZf += acc.zf;
+                sumGf += acc.gf;
+            }
+            if (resolved.sonstiges()) {
+                AccAttendance acc = accumulateAttendance(
+                        unitId,
+                        attendanceRange.from(),
+                        attendanceRange.to(),
+                        includeTest,
+                        TermineCategory.SONSTIGES);
+                anzahl += acc.count;
+                sonstigesCount += acc.count;
+                totalMinutes += acc.minutes;
+                sumPersonal += acc.personal;
+                sumZf += acc.zf;
+                sumGf += acc.gf;
+            }
+        }
+
+        if (anzahl == 0) {
+            return new AuswertungDiensteStats(
+                    0,
+                    "0 Std.",
+                    "—",
+                    "—",
+                    "—",
+                    "—",
+                    einsaetzeCount,
+                    uebungenCount,
+                    sonderdienstCount,
+                    sonstigesCount,
+                    resolved);
+        }
+
+        return new AuswertungDiensteStats(
+                anzahl,
+                formatStundenTotal(totalMinutes),
+                formatAverage(sumPersonal, anzahl),
+                formatAverage(sumGf, anzahl),
+                formatAverage(sumZf, anzahl),
+                formatStundenTotal(Math.round((double) totalMinutes / anzahl)),
+                einsaetzeCount,
+                uebungenCount,
+                sonderdienstCount,
+                sonstigesCount,
+                resolved);
+    }
+
+    private AccAttendance accumulateAttendance(
+            long unitId,
+            LocalDate from,
+            LocalDate to,
+            boolean includeTest,
+            TermineCategory category) {
+        List<AttendanceReport> reports =
+                listFreigegebeneAttendance(unitId, from, to, includeTest, category);
+        long minutes = 0;
+        long personal = 0;
+        long zf = 0;
+        long gf = 0;
+        for (AttendanceReport report : reports) {
+            minutes += durationMinutes(report.getStartTime(), report.getEndTime());
+            AnwesenheitslisteService.AnwesenheitPresenceSummary presence =
+                    anwesenheitslisteService.presenceSummary(unitId, report.getId());
+            personal += presence.personal();
+            zf += presence.zf();
+            gf += presence.gf();
+        }
+        return new AccAttendance(reports.size(), minutes, personal, zf, gf);
+    }
+
+    private record AccAttendance(int count, long minutes, long personal, long zf, long gf) {}
+
+    private static String formatAverage(long sum, int count) {
+        if (count <= 0) {
+            return "—";
+        }
+        double avg = (double) sum / count;
+        if (Math.abs(avg - Math.rint(avg)) < 0.05) {
+            return String.format(Locale.GERMAN, "%.0f", avg);
+        }
+        return String.format(Locale.GERMAN, "%.1f", avg);
+    }
+
+    /**
      * Jahre mit freigegebenen/archivierten Einsätzen oder Übungsdiensten (absteigend).
      */
     @Transactional(readOnly = true)
@@ -769,8 +943,13 @@ public class AuswertungService {
     /** Freigegebene Übungsdienst-Anwesenheitslisten (Kategorie DIENSTPLAN, keine Entwürfe). */
     private List<AttendanceReport> listFreigegebeneUebungsdienste(
             long unitId, LocalDate from, LocalDate to, boolean includeTest) {
+        return listFreigegebeneAttendance(unitId, from, to, includeTest, TermineCategory.DIENSTPLAN);
+    }
+
+    private List<AttendanceReport> listFreigegebeneAttendance(
+            long unitId, LocalDate from, LocalDate to, boolean includeTest, TermineCategory category) {
         return attendanceReportRepository.findByUnitIdAndDateRange(unitId, from, to, includeTest).stream()
-                .filter(r -> r.getTerminCategory() == TermineCategory.DIENSTPLAN)
+                .filter(r -> r.getTerminCategory() == category)
                 .filter(r -> isFreigegeben(r.getStatus()))
                 .toList();
     }

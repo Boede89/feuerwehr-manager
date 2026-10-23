@@ -3,6 +3,8 @@ package de.feuerwehr.manager.web;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.feuerwehr.manager.auswertung.AuswertungBereich;
+import de.feuerwehr.manager.auswertung.AuswertungDiensteFilter;
+import de.feuerwehr.manager.auswertung.AuswertungDiensteStats;
 import de.feuerwehr.manager.auswertung.AuswertungEinsatzRow;
 import de.feuerwehr.manager.auswertung.AuswertungOverviewDetail;
 import de.feuerwehr.manager.auswertung.AuswertungPersonRow;
@@ -45,6 +47,11 @@ public class AuswertungController {
             @RequestParam(name = "jahr", required = false) Integer jahr,
             @RequestParam(name = "detail", required = false) String detailKey,
             @RequestParam(name = "view", required = false) String membersViewParam,
+            @RequestParam(name = "configured", required = false) Boolean filterConfigured,
+            @RequestParam(name = "einsaetze", required = false) Boolean filterEinsaetze,
+            @RequestParam(name = "uebungen", required = false) Boolean filterUebungen,
+            @RequestParam(name = "sonderdienste", required = false) Boolean filterSonderdienste,
+            @RequestParam(name = "sonstiges", required = false) Boolean filterSonstiges,
             Model model,
             RedirectAttributes redirectAttributes) {
         try {
@@ -93,6 +100,15 @@ public class AuswertungController {
                 model.addAttribute("archivedPersonCount", archivedCount);
                 model.addAttribute("personRows", personRows);
                 model.addAttribute("personRowsJson", toJson(personRows));
+            } else if (bereich == AuswertungBereich.EINSAETZE) {
+                AuswertungDiensteFilter diensteFilter = Boolean.TRUE.equals(filterConfigured)
+                        ? AuswertungDiensteFilter.fromParams(
+                                filterEinsaetze, filterUebungen, filterSonderdienste, filterSonstiges)
+                        : AuswertungDiensteFilter.defaults();
+                AuswertungDiensteStats diensteStats =
+                        auswertungService.diensteStats(unit.getId(), filterYear, diensteFilter);
+                model.addAttribute("diensteFilter", diensteFilter);
+                model.addAttribute("diensteStats", diensteStats);
             }
 
             return "auswertung/index";
