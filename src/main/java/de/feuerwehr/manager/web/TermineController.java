@@ -12,11 +12,19 @@ import de.feuerwehr.manager.security.AppUserDetails;
 import de.feuerwehr.manager.security.UserPermissionService;
 import de.feuerwehr.manager.settings.AppModule;
 import de.feuerwehr.manager.settings.ModuleSettingsService;
+import de.feuerwehr.manager.reservierungen.ReservierungenService;
+import de.feuerwehr.manager.reservierungen.VehicleOccupancyView;
 import de.feuerwehr.manager.termine.CreateDienstplanTerminRequest;
 import de.feuerwehr.manager.termine.MeineTerminView;
 import de.feuerwehr.manager.termine.TermineService;
 import de.feuerwehr.manager.termine.TermineTab;
+import java.time.DayOfWeek;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.temporal.TemporalAdjusters;
 import java.util.List;
+import java.util.Map;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
 import de.feuerwehr.manager.web.dto.ActionResultDto;
@@ -40,11 +48,14 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @RequiredArgsConstructor
 public class TermineController {
 
+    private static final ZoneId BERLIN = ZoneId.of("Europe/Berlin");
+
     private final UnitService unitService;
     private final ModuleSettingsService moduleSettingsService;
     private final AccessControlService accessControlService;
     private final UserPermissionService userPermissionService;
     private final TermineService termineService;
+    private final ReservierungenService reservierungenService;
     private final PersonalService personalService;
     private final PersonalGroupService personalGroupService;
     private final PersonalInstructorGroupService personalInstructorGroupService;
@@ -90,10 +101,40 @@ public class TermineController {
                         "knownSonderdienstBeschreibungen",
                         termineService.listKnownSonderdienstBeschreibungen(unit.getId()));
             }
+            if (termineTab == TermineTab.FAHRZEUGE) {
+                LocalDate weekStart = LocalDate.now(BERLIN).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+                Instant rangeStart = weekStart.atStartOfDay(BERLIN).toInstant();
+                Instant rangeEnd = weekStart.plusDays(7).atStartOfDay(BERLIN).toInstant();
+                VehicleOccupancyView occupancy =
+                        reservierungenService.listVehicleOccupancy(unit.getId(), rangeStart, rangeEnd);
+                model.addAttribute("vehicleOccupancy", occupancy);
+                model.addAttribute("vehicleOccupancyJson", serializeOccupancyJson(occupancy));
+            }
             return "termine/index";
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return redirectHome(unitId);
+        }
+    }
+
+    @GetMapping("/api/fahrzeuge/belegung")
+    @ResponseBody
+    public Object vehicleOccupancy(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @RequestParam(name = "from") String fromIso,
+            @RequestParam(name = "to") String toIso) {
+        try {
+            requireModuleEnabled(unitId);
+            requireTermineRead(actor, unitId);
+            accessControlService.requireUnitAccess(actor, unitId);
+            Instant rangeStart = Instant.parse(fromIso);
+            Instant rangeEnd = Instant.parse(toIso);
+            return reservierungenService.listVehicleOccupancy(unitId, rangeStart, rangeEnd);
+        } catch (IllegalArgumentException e) {
+            return Map.of("ok", false, "message", e.getMessage());
+        } catch (Exception e) {
+            return Map.of("ok", false, "message", "Belegung konnte nicht geladen werden.");
         }
     }
 
@@ -315,6 +356,14 @@ public class TermineController {
             return objectMapper.writeValueAsString(termine);
         } catch (JsonProcessingException e) {
             return "[]";
+        }
+    }
+
+    private String serializeOccupancyJson(VehicleOccupancyView occupancy) {
+        try {
+            return objectMapper.writeValueAsString(occupancy);
+        } catch (JsonProcessingException e) {
+            return "{\"vehicles\":[],\"bookings\":[]}";
         }
     }
 

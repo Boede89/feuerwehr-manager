@@ -6479,6 +6479,288 @@ span.course-plan-chip {
   margin-bottom: 0.35rem;
   font-size: var(--fs-sm);
 }
+
+/* Fahrzeugbelegung (Termine → Fahrzeuge) */
+.termine-fahrzeuge-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem 1.25rem;
+}
+.termine-fahrzeuge-header__nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+.termine-fahrzeuge-range {
+  min-width: 11.5rem;
+  text-align: center;
+  font-size: 0.95rem;
+}
+.fahrzeug-belegung-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem 1.25rem;
+  margin: 0 0 0.85rem;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+.fahrzeug-belegung-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.fahrzeug-belegung-swatch {
+  width: 1rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  display: inline-block;
+}
+.fahrzeug-belegung-swatch--approved {
+  background: color-mix(in srgb, var(--rot, #c1121f) 85%, #000);
+}
+.fahrzeug-belegung-swatch--pending {
+  background: transparent;
+  border: 1.5px dashed color-mix(in srgb, #ca8a04 80%, var(--text));
+}
+.fahrzeug-belegung-swatch--free {
+  background: color-mix(in srgb, #16a34a 35%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, #16a34a 45%, transparent);
+}
+.fahrzeug-belegung-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.25rem;
+  margin: 0 0 0.85rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--rot, #c1121f) 6%, var(--bg-card));
+  font-size: var(--fs-sm);
+}
+.fahrzeug-belegung-card {
+  overflow: hidden;
+}
+.fahrzeug-belegung-empty,
+.fahrzeug-belegung-loading {
+  padding: 1.25rem 1rem;
+  margin: 0;
+}
+.fahrzeug-belegung {
+  --fb-label-w: 9.5rem;
+  min-width: 0;
+  overflow-x: auto;
+}
+.fahrzeug-belegung.is-loading {
+  opacity: 0.55;
+  pointer-events: none;
+}
+.fahrzeug-belegung__head,
+.fahrzeug-belegung__row {
+  display: grid;
+  grid-template-columns: var(--fb-label-w) minmax(28rem, 1fr);
+  min-width: 40rem;
+}
+.fahrzeug-belegung__head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+}
+.fahrzeug-belegung__corner {
+  display: flex;
+  align-items: flex-end;
+  padding: 0.55rem 0.75rem;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.fahrzeug-belegung__days,
+.fahrzeug-belegung__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+.fahrzeug-belegung__day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.45rem 0.2rem;
+  font-size: var(--fs-sm);
+  border-left: 1px solid var(--border);
+}
+.fahrzeug-belegung__day-wd {
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 0.72rem;
+}
+.fahrzeug-belegung__day-num {
+  font-weight: 700;
+}
+.fahrzeug-belegung__day--today .fahrzeug-belegung__day-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.1rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  background: var(--rot, #c1121f);
+  color: #fff;
+}
+.fahrzeug-belegung__row {
+  border-bottom: 1px solid var(--border);
+}
+.fahrzeug-belegung__row:last-child {
+  border-bottom: 0;
+}
+.fahrzeug-belegung__vehicle {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.65rem 0.75rem;
+  min-height: 3.4rem;
+  border-right: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 55%, var(--bg-card));
+}
+.fahrzeug-belegung__name {
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+.fahrzeug-belegung__status {
+  display: inline-flex;
+  width: fit-content;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.fahrzeug-belegung__status--free {
+  color: #166534;
+  background: color-mix(in srgb, #22c55e 18%, transparent);
+}
+.fahrzeug-belegung__status--busy {
+  color: #991b1b;
+  background: color-mix(in srgb, #ef4444 18%, transparent);
+}
+.fahrzeug-belegung__status--partial {
+  color: #9a3412;
+  background: color-mix(in srgb, #f97316 18%, transparent);
+}
+.fahrzeug-belegung__status--pending {
+  color: #854d0e;
+  background: color-mix(in srgb, #eab308 18%, transparent);
+}
+[data-theme="dark"] .fahrzeug-belegung__status--free { color: #86efac; }
+[data-theme="dark"] .fahrzeug-belegung__status--busy { color: #fca5a5; }
+[data-theme="dark"] .fahrzeug-belegung__status--partial { color: #fdba74; }
+[data-theme="dark"] .fahrzeug-belegung__status--pending { color: #fde68a; }
+.fahrzeug-belegung__track {
+  position: relative;
+  min-height: 3.4rem;
+}
+.fahrzeug-belegung__grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.fahrzeug-belegung__grid-cell {
+  border-left: 1px solid var(--border);
+}
+.fahrzeug-belegung__grid-cell--today {
+  background: color-mix(in srgb, var(--rot, #c1121f) 7%, transparent);
+}
+.fahrzeug-belegung__now {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--rot, #c1121f);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--rot, #c1121f) 25%, transparent);
+  z-index: 3;
+  pointer-events: none;
+}
+.fahrzeug-belegung__bar {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 1.55rem;
+  margin: 0;
+  padding: 0 0.45rem;
+  border: 0;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  z-index: 2;
+  text-align: left;
+  box-shadow: 0 1px 2px color-mix(in srgb, #000 18%, transparent);
+}
+.fahrzeug-belegung__bar:hover,
+.fahrzeug-belegung__bar:focus-visible {
+  filter: brightness(1.08);
+  outline: 2px solid color-mix(in srgb, var(--rot, #c1121f) 55%, transparent);
+  outline-offset: 1px;
+  z-index: 4;
+}
+.fahrzeug-belegung__bar--approved {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--rot, #c1121f) 92%, #000),
+    color-mix(in srgb, var(--rot, #c1121f) 75%, #7f1d1d)
+  );
+  color: #fff;
+}
+.fahrzeug-belegung__bar--pending {
+  background: color-mix(in srgb, #eab308 16%, var(--bg-card));
+  color: var(--text);
+  border: 1.5px dashed color-mix(in srgb, #ca8a04 70%, var(--border));
+  box-shadow: none;
+}
+.fahrzeug-belegung__bar-text {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 650;
+  line-height: 1.55rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fahrzeug-belegung-detail {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+}
+.fahrzeug-belegung-detail > div {
+  display: grid;
+  gap: 0.15rem;
+}
+.fahrzeug-belegung-detail dt {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.fahrzeug-belegung-detail dd {
+  margin: 0;
+}
+@media (max-width: 720px) {
+  .fahrzeug-belegung {
+    --fb-label-w: 7.25rem;
+  }
+  .termine-fahrzeuge-range {
+    min-width: 0;
+    width: 100%;
+    order: -1;
+  }
+}
+
 .dienstplan-filter-empty {
   margin: 0;
   padding: 1.25rem 1rem;

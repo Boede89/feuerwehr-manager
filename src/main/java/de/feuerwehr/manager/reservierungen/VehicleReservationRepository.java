@@ -58,4 +58,18 @@ public interface VehicleReservationRepository extends JpaRepository<VehicleReser
     List<VehicleReservation> findByStatusInAndAnyVehicleIdIn(
             @Param("statuses") Collection<ReservationStatus> statuses,
             @Param("vehicleIds") Collection<Long> vehicleIds);
+
+    @Query("""
+            SELECT DISTINCT r FROM VehicleReservation r
+            WHERE r.unit.id = :unitId
+              AND r.status IN :statuses
+              AND r.startAt < :rangeEnd
+              AND r.endAt > :rangeStart
+            ORDER BY r.startAt ASC
+            """)
+    List<VehicleReservation> findOverlappingByUnitAndStatuses(
+            @Param("unitId") long unitId,
+            @Param("statuses") Collection<ReservationStatus> statuses,
+            @Param("rangeStart") Instant rangeStart,
+            @Param("rangeEnd") Instant rangeEnd);
 }

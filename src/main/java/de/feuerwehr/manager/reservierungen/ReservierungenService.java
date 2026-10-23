@@ -47,6 +47,44 @@ public class ReservierungenService {
     private final ReservierungenGoogleCalendarService googleCalendarService;
     private final TestModeService testModeService;
 
+    /**
+     * Belegungsübersicht: aktive Fahrzeuge plus genehmigte/offene Reservierungen im Zeitraum.
+     */
+    @Transactional(readOnly = true)
+    public VehicleOccupancyView listVehicleOccupancy(long unitId, Instant rangeStart, Instant rangeEnd) {
+        if (rangeStart == null || rangeEnd == null || !rangeEnd.isAfter(rangeStart)) {
+            throw new IllegalArgumentException("Ungültiger Zeitraum für die Belegungsübersicht.");
+        }
+        List<VehicleOccupancyVehicleView> vehicles = conflictService.listBookableVehicles(unitId).stream()
+                .map(v -> new VehicleOccupancyVehicleView(
+                        v.getId(), v.getName() != null ? v.getName() : ("Fahrzeug #" + v.getId())))
+                .toList();
+        List<ReservationStatus> statuses = List.of(ReservationStatus.APPROVED, ReservationStatus.PENDING);
+        List<VehicleOccupancyBookingView> bookings = new ArrayList<>();
+        for (VehicleReservation reservation :
+                vehicleReservationRepository.findOverlappingByUnitAndStatuses(
+                        unitId, statuses, rangeStart, rangeEnd)) {
+            if (!isVisible(reservation.isTestData())) {
+                continue;
+            }
+            for (Vehicle vehicle : reservation.resolvedVehicles()) {
+                if (vehicle == null || vehicle.getId() == null) {
+                    continue;
+                }
+                bookings.add(new VehicleOccupancyBookingView(
+                        reservation.getId(),
+                        vehicle.getId(),
+                        reservation.getStartAt(),
+                        reservation.getEndAt(),
+                        reservation.getStatus(),
+                        reservation.getReason(),
+                        reservation.getLocation(),
+                        reservation.getRequesterName()));
+            }
+        }
+        return new VehicleOccupancyView(rangeStart, rangeEnd, vehicles, bookings);
+    }
+
     @Transactional(readOnly = true)
     public List<ReservationListItemView> listMine(long unitId, long userId) {
         List<VehicleReservation> vehicles = new ArrayList<>();

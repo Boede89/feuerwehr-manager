@@ -385,18 +385,63 @@
     <script th:src="@{/js/termine-dienstplan.js}" defer></script>
   </th:block>
 
-  <div th:if="${termineTab == 'fahrzeuge'}" class="termine-module-panel">
-    <div class="page-header termine-panel-header">
-      <div>
-        <h3>Fahrzeuge</h3>
-        <p>Werkstatt, TÜV, Auslieferung und fahrzeugbezogene Termine</p>
+  <div th:if="${termineTab == 'fahrzeuge'}"
+       id="termine-fahrzeuge-panel"
+       class="termine-module-panel"
+       th:attr="data-unit-id=${unitId}">
+    <div class="page-header termine-panel-header termine-fahrzeuge-header">
+      <div class="termine-fahrzeuge-header__text">
+        <h3>Fahrzeugbelegung</h3>
+        <p>Übersicht, wann welche Fahrzeuge reserviert oder beantragt sind</p>
+      </div>
+      <div class="termine-fahrzeuge-header__nav" id="fb-nav">
+        <button type="button" class="btn btn--outline btn--sm" id="fb-prev" aria-label="Vorherige Woche">←</button>
+        <button type="button" class="btn btn--outline btn--sm" id="fb-today">Heute</button>
+        <strong class="termine-fahrzeuge-range" id="fb-range-label">—</strong>
+        <button type="button" class="btn btn--outline btn--sm" id="fb-next" aria-label="Nächste Woche">→</button>
       </div>
     </div>
-    <div class="card">
-      <div class="card__body">
-        <p class="hint">Noch keine Termine vorhanden. Die Verwaltung folgt im nächsten Schritt.</p>
+
+    <div class="fahrzeug-belegung-legend" aria-hidden="true">
+      <span class="fahrzeug-belegung-legend__item">
+        <span class="fahrzeug-belegung-swatch fahrzeug-belegung-swatch--approved"></span> Genehmigt
+      </span>
+      <span class="fahrzeug-belegung-legend__item">
+        <span class="fahrzeug-belegung-swatch fahrzeug-belegung-swatch--pending"></span> Offen
+      </span>
+      <span class="fahrzeug-belegung-legend__item">
+        <span class="fahrzeug-belegung-swatch fahrzeug-belegung-swatch--free"></span> Frei
+      </span>
+    </div>
+
+    <div class="fahrzeug-belegung-summary" id="fb-summary" hidden></div>
+
+    <div class="card fahrzeug-belegung-card">
+      <div class="card__body card__body--flush">
+        <div id="fb-empty" class="fahrzeug-belegung-empty" hidden>
+          <p class="hint">Keine aktiven Fahrzeuge hinterlegt. Bitte unter Admin → Technik anlegen.</p>
+        </div>
+        <div id="fb-board" class="fahrzeug-belegung" aria-live="polite"></div>
+        <p id="fb-loading" class="hint fahrzeug-belegung-loading" hidden>Belegung wird geladen …</p>
       </div>
     </div>
+
+    <div id="fb-detail" class="modal-overlay" aria-hidden="true">
+      <div class="modal modal--md" role="dialog" aria-labelledby="fb-detail-title">
+        <div class="modal__header">
+          <h3 id="fb-detail-title">Reservierung</h3>
+          <button type="button" class="modal__close" data-fb-close-detail aria-label="Schließen">✕</button>
+        </div>
+        <div class="modal__body" id="fb-detail-body"></div>
+        <div class="modal__footer">
+          <a class="btn btn--outline" id="fb-detail-link" href="#">Zu Reservierungen</a>
+          <button type="button" class="btn btn--primary" data-fb-close-detail>Schließen</button>
+        </div>
+      </div>
+    </div>
+
+    <script id="fahrzeug-belegung-data" type="application/json" th:utext="${vehicleOccupancyJson}">{}</script>
+    <script th:src="@{/js/termine-fahrzeuge.js(v='20261023a')}" defer></script>
   </div>
 
   <div th:if="${termineTab == 'sonderdienst'}" id="termine-sonderdienst-panel" class="termine-module-panel"
