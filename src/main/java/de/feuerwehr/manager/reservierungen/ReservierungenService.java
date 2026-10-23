@@ -1482,6 +1482,128 @@ public class ReservierungenService {
         return reservation;
     }
 
+    /**
+     * Antragsteller: eigenen Antrag bearbeiten (Fahrzeuge/Zeitraum etc.).
+     * Status wird immer auf PENDING gesetzt und muss erneut genehmigt werden.
+     */
+    @Transactional
+    public void updateOwnVehicleReservation(
+            long unitId, long reservationId, long userId, UpdateReservationRequest request) {
+        VehicleReservation reservation = vehicleReservationRepository
+                .findById(reservationId)
+                .filter(r -> r.getUnit().getId().equals(unitId))
+                .orElseThrow(() -> new IllegalArgumentException("Reservierung nicht gefunden."));
+        requireOwnedByUser(reservation.getRequesterUser(), userId);
+        ReservationStatus previousStatus = reservation.getStatus();
+        if (previousStatus != ReservationStatus.PENDING
+                && previousStatus != ReservationStatus.APPROVED
+                && previousStatus != ReservationStatus.REJECTED) {
+            throw new IllegalArgumentException("Diese Reservierung kann nicht mehr bearbeitet werden.");
+        }
+        List<Long> vehicleIds = resolveResourceIds(request.resourceIds(), request.resourceId());
+        if (vehicleIds.isEmpty()) {
+            throw new IllegalArgumentException("Bitte mindestens ein Fahrzeug wählen.");
+        }
+        validateTimes(request.startAt(), request.endAt());
+        validateNotInPast(request.startAt());
+
+        List<Vehicle> vehicles = new ArrayList<>();
+        for (Long vehicleId : vehicleIds) {
+            Vehicle vehicle = vehicleRepository
+                    .findByIdAndUnitId(vehicleId, unitId)
+                    .orElseThrow(() -> new IllegalArgumentException("Fahrzeug nicht gefunden."));
+            if (!vehicle.isActive()) {
+                throw new IllegalArgumentException("Fahrzeug \"" + vehicle.getName() + "\" ist nicht aktiv.");
+            }
+            vehicles.add(vehicle);
+        }
+
+        List<ReservationConflictView> conflicts = conflictService.vehicleConflictsForVehicles(
+                vehicleIds, request.startAt(), request.endAt(), reservation.getId());
+        if (!conflicts.isEmpty() && !request.forceConflictOverride()) {
+            throw new ReservationConflictException(
+                    "Mindestens ein Fahrzeug ist in diesem Zeitraum bereits vergeben oder beantragt.",
+                    distinctConflicts(conflicts),
+                    vehicleIds);
+        }
+        LoeschfahrzeugWarningView warning = conflictService.checkLoeschfahrzeugWarning(
+                unitId, vehicleIds, request.startAt(), request.endAt(), reservation.getId());
+        if (warning.warning() && !request.forceAvailabilityOverride()) {
+            throw new LoeschfahrzeugWarningException(warning);
+        }
+
+        if (previousStatus == ReservationStatus.APPROVED) {
+            cleanupVehicleReservation(reservation, userId);
+        }
+
+        reservation.setVehiclesOrdered(vehicles);
+        reservation.setRequesterName(requireText(request.requesterName(), "Antragsteller"));
+        reservation.setRequesterEmail(requireText(request.requesterEmail(), "E-Mail"));
+        reservation.setReason(requireText(request.reason(), "Grund"));
+        reservation.setLocation(requireText(request.location(), "Ort / Standort"));
+        reservation.setStartAt(request.startAt());
+        reservation.setEndAt(request.endAt());
+        reservation.setStatus(ReservationStatus.PENDING);
+        reservation.setApprovedByUser(null);
+        reservation.setApprovedAt(null);
+        reservation.setRejectionReason(null);
+        VehicleReservation saved = vehicleReservationRepository.save(reservation);
+        notificationService.notifyAdminsUpdatedVehicleReservation(unitId, saved);
+    }
+
+    @Transactional
+    public void updateOwnRoomReservation(
+            long unitId, long reservationId, long userId, UpdateReservationRequest request) {
+        RoomReservation reservation = roomReservationRepository
+                .findById(reservationId)
+                .filter(r -> r.getUnit().getId().equals(unitId))
+                .orElseThrow(() -> new IllegalArgumentException("Reservierung nicht gefunden."));
+        requireOwnedByUser(reservation.getRequesterUser(), userId);
+        ReservationStatus previousStatus = reservation.getStatus();
+        if (previousStatus != ReservationStatus.PENDING
+                && previousStatus != ReservationStatus.APPROVED
+                && previousStatus != ReservationStatus.REJECTED) {
+            throw new IllegalArgumentException("Diese Reservierung kann nicht mehr bearbeitet werden.");
+        }
+        List<Long> roomIds = resolveResourceIds(request.resourceIds(), request.resourceId());
+        if (roomIds.size() != 1) {
+            throw new IllegalArgumentException("Bitte genau einen Raum wählen.");
+        }
+        validateTimes(request.startAt(), request.endAt());
+        validateNotInPast(request.startAt());
+        Room room = roomRepository
+                .findByIdAndUnitId(roomIds.get(0), unitId)
+                .orElseThrow(() -> new IllegalArgumentException("Raum nicht gefunden."));
+        if (!room.isActive()) {
+            throw new IllegalArgumentException("Raum \"" + room.getName() + "\" ist nicht aktiv.");
+        }
+        List<ReservationConflictView> conflicts =
+                conflictService.roomConflicts(room.getId(), request.startAt(), request.endAt(), reservation.getId());
+        if (!conflicts.isEmpty() && !request.forceConflictOverride()) {
+            throw new ReservationConflictException(
+                    "Der Raum ist in diesem Zeitraum bereits vergeben oder beantragt.", conflicts);
+        }
+
+        if (previousStatus == ReservationStatus.APPROVED) {
+            cleanupRoomReservation(reservation, userId);
+            reservation.setDiveraEventId(null);
+        }
+
+        reservation.setRoom(room);
+        reservation.setRequesterName(requireText(request.requesterName(), "Antragsteller"));
+        reservation.setRequesterEmail(requireText(request.requesterEmail(), "E-Mail"));
+        reservation.setReason(requireText(request.reason(), "Grund"));
+        reservation.setLocation(requireText(request.location(), "Ort / Standort"));
+        reservation.setStartAt(request.startAt());
+        reservation.setEndAt(request.endAt());
+        reservation.setStatus(ReservationStatus.PENDING);
+        reservation.setApprovedByUser(null);
+        reservation.setApprovedAt(null);
+        reservation.setRejectionReason(null);
+        RoomReservation saved = roomReservationRepository.save(reservation);
+        notificationService.notifyAdminsUpdatedRoomReservation(unitId, saved);
+    }
+
     /** Antragsteller: offenen Antrag zurückziehen oder genehmigte Reservierung stornieren. */
     @Transactional
     public void cancelOwnVehicleReservation(long unitId, long reservationId, long userId, String reason) {
@@ -1533,7 +1655,7 @@ public class ReservierungenService {
 
     private static void requireOwnedByUser(User requesterUser, long userId) {
         if (requesterUser == null || requesterUser.getId() == null || !requesterUser.getId().equals(userId)) {
-            throw new IllegalArgumentException("Sie können nur eigene Reservierungen stornieren.");
+            throw new IllegalArgumentException("Sie können nur eigene Reservierungen ändern.");
         }
     }
 

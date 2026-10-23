@@ -377,6 +377,51 @@ public class ReservierungenController {
         }
     }
 
+    /** Eigene Anträge bearbeiten; Status geht auf PENDING und muss erneut genehmigt werden. */
+    @PutMapping("/api/fahrzeuge/{id}/update-own")
+    @ResponseBody
+    public ReservationActionResultDto updateOwnVehicle(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @PathVariable long id,
+            @RequestBody UpdateReservationRequest body) {
+        try {
+            requireModuleEnabled(unitId);
+            accessControlService.requireUnitAccess(actor, unitId);
+            reservierungenService.updateOwnVehicleReservation(unitId, id, actor.getUserId(), body);
+            return ReservationActionResultDto.success(
+                    "Änderungen gespeichert. Der Antrag muss erneut genehmigt werden.");
+        } catch (ReservationConflictException e) {
+            return ReservationActionResultDto.conflicts(
+                    e.getMessage(), e.getConflicts(), e.getConflictingResourceIds());
+        } catch (LoeschfahrzeugWarningException e) {
+            return ReservationActionResultDto.loeschWarning(e.getWarning());
+        } catch (IllegalArgumentException e) {
+            return ReservationActionResultDto.failure(e.getMessage());
+        }
+    }
+
+    @PutMapping("/api/raeume/{id}/update-own")
+    @ResponseBody
+    public ReservationActionResultDto updateOwnRoom(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @RequestParam(name = "unit") long unitId,
+            @PathVariable long id,
+            @RequestBody UpdateReservationRequest body) {
+        try {
+            requireModuleEnabled(unitId);
+            accessControlService.requireUnitAccess(actor, unitId);
+            reservierungenService.updateOwnRoomReservation(unitId, id, actor.getUserId(), body);
+            return ReservationActionResultDto.success(
+                    "Änderungen gespeichert. Der Antrag muss erneut genehmigt werden.");
+        } catch (ReservationConflictException e) {
+            return ReservationActionResultDto.conflicts(
+                    e.getMessage(), e.getConflicts(), e.getConflictingResourceIds());
+        } catch (IllegalArgumentException e) {
+            return ReservationActionResultDto.failure(e.getMessage());
+        }
+    }
+
     /** Eigene offene Anträge zurückziehen oder genehmigte Reservierungen stornieren. */
     @PostMapping("/api/fahrzeuge/{id}/cancel-own")
     @ResponseBody

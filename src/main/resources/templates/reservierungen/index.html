@@ -150,7 +150,7 @@
             </thead>
             <tbody>
             <tr th:each="r : ${myReservations}"
-                th:attr="data-kind=${r.kind().name()},data-id=${r.id()},data-status=${r.status().name()}">
+                th:attr="data-kind=${r.kind().name()},data-id=${r.id()},data-status=${r.status().name()},data-start-at=${r.startAt()},data-end-at=${r.endAt()},data-requester-name=${r.requesterName()},data-requester-email=${r.requesterEmail()},data-reason=${r.reason()},data-location=${r.location()},data-resource-ids=${r.resourceIdsCsv()}">
               <td th:text="${r.kind() == T(de.feuerwehr.manager.reservierungen.ReservationKind).VEHICLE ? 'Fahrzeug' : 'Raum'}">Fahrzeug</td>
               <td th:text="${r.resourceName()}">TLF</td>
               <td class="reservierungen-time">
@@ -165,6 +165,8 @@
               </td>
               <td th:text="${r.reason()}">Übung</td>
               <td class="table-actions">
+                <button type="button" class="btn btn--outline btn--sm" data-action="edit-own"
+                        th:if="${r.status().name() == 'PENDING' or r.status().name() == 'APPROVED' or r.status().name() == 'REJECTED'}">Bearbeiten</button>
                 <button type="button" class="btn btn--outline btn--sm" data-action="cancel-own"
                         th:if="${r.status().name() == 'PENDING'}">Zurückziehen</button>
                 <button type="button" class="btn btn--danger btn--sm" data-action="cancel-own"
@@ -418,6 +420,10 @@
       <form id="reservierung-form" novalidate>
         <input type="hidden" id="reservierung-kind"/>
         <div class="modal__body">
+          <p id="reservierung-reapprove-hint" class="hint" hidden>
+            Nach dem Speichern muss die Reservierung <strong>erneut genehmigt</strong> werden.
+            Bis zur Genehmigung gilt sie nicht als freigegeben.
+          </p>
           <div class="form-group" id="reservierung-resources-block">
             <div class="reservierungen-section-head">
               <label id="reservierung-resources-label">Ausgewählte Fahrzeuge <span class="req">*</span></label>
@@ -462,10 +468,10 @@
             <label>Termine <span class="req">*</span></label>
             <div id="reservierung-slots-confirmed" class="reservierungen-slots-confirmed" hidden></div>
             <div id="reservierung-slots" class="reservierungen-multi-rows"></div>
-            <div style="margin-top:8px;">
+            <div id="reservierung-add-slot-wrap" style="margin-top:8px;">
               <button type="button" class="btn btn--outline btn--sm" id="reservierung-add-slot">+ weiterer Termin</button>
             </div>
-            <p class="hint text-sm">
+            <p class="hint text-sm" id="reservierung-slots-hint">
               „Weiterer Termin“ speichert den aktuellen Eintrag in der Liste darüber.
               Die Felder bleiben für den nächsten Termin.
             </p>
@@ -675,6 +681,6 @@
     <option th:each="r : ${roomOptions}" th:value="${r.id}" th:text="${r.name}">Raum</option>
   </select>
   <script th:src="@{/js/combo-suggest.js}" defer></script>
-  <script th:src="@{/js/reservierungen.js(v='20260829a')}" defer></script>
+  <script th:src="@{/js/reservierungen.js(v='20261023a')}" defer></script>
 </main>
 </html>

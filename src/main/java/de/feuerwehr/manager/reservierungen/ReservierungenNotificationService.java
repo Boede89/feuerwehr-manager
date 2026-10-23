@@ -88,6 +88,44 @@ public class ReservierungenNotificationService {
                         totalCreated));
     }
 
+    public void notifyAdminsUpdatedVehicleReservation(long unitId, VehicleReservation reservation) {
+        UnitReservierungenSettings settings = settingsService.ensureSettings(unitId);
+        String names = reservation.vehicleNamesJoined();
+        notifyAdmins(
+                unitId,
+                settingsService.vehicleNotificationRecipients(settings),
+                "Fahrzeugreservierung geändert – erneut genehmigen – " + names,
+                buildUpdatedRequestHtml(
+                        unitId,
+                        "Fahrzeug",
+                        names,
+                        reservation.getRequesterName(),
+                        reservation.getRequesterEmail(),
+                        reservation.getReason(),
+                        reservation.getLocation(),
+                        reservation.getStartAt(),
+                        reservation.getEndAt()));
+    }
+
+    public void notifyAdminsUpdatedRoomReservation(long unitId, RoomReservation reservation) {
+        UnitReservierungenSettings settings = settingsService.ensureSettings(unitId);
+        String roomName = reservation.getRoom() != null ? reservation.getRoom().getName() : "Raum";
+        notifyAdmins(
+                unitId,
+                settingsService.roomNotificationRecipients(settings),
+                "Raumreservierung geändert – erneut genehmigen – " + roomName,
+                buildUpdatedRequestHtml(
+                        unitId,
+                        "Raum",
+                        roomName,
+                        reservation.getRequesterName(),
+                        reservation.getRequesterEmail(),
+                        reservation.getReason(),
+                        reservation.getLocation(),
+                        reservation.getStartAt(),
+                        reservation.getEndAt()));
+    }
+
     public void notifyRequesterDecision(
             long unitId, VehicleReservation reservation, boolean approved, String rejectionReason) {
         sendDecisionMail(
@@ -393,6 +431,30 @@ public class ReservierungenNotificationService {
         return configuredRecipients;
     }
 
+    private String buildUpdatedRequestHtml(
+            long unitId,
+            String typeLabel,
+            String resourceName,
+            String requesterName,
+            String requesterEmail,
+            String reason,
+            String location,
+            Instant startAt,
+            Instant endAt) {
+        return buildRequestHtml(
+                unitId,
+                typeLabel,
+                resourceName,
+                requesterName,
+                requesterEmail,
+                reason,
+                location,
+                startAt,
+                endAt,
+                1,
+                "Ein bestehender Antrag für eine %sreservierung wurde vom Antragsteller geändert und muss erneut genehmigt werden.");
+    }
+
     private String buildNewRequestHtml(
             long unitId,
             String typeLabel,
@@ -404,6 +466,32 @@ public class ReservierungenNotificationService {
             Instant startAt,
             Instant endAt,
             int totalCreated) {
+        return buildRequestHtml(
+                unitId,
+                typeLabel,
+                resourceName,
+                requesterName,
+                requesterEmail,
+                reason,
+                location,
+                startAt,
+                endAt,
+                totalCreated,
+                "Ein neuer Antrag für eine %sreservierung ist eingegangen.");
+    }
+
+    private String buildRequestHtml(
+            long unitId,
+            String typeLabel,
+            String resourceName,
+            String requesterName,
+            String requesterEmail,
+            String reason,
+            String location,
+            Instant startAt,
+            Instant endAt,
+            int totalCreated,
+            String introTemplate) {
         String manageUrl = buildManageUrl(unitId);
         String cta = manageUrl == null
                 ? "<p>Bitte im Feuerwehr-Manager unter <strong>Reservierungen → Verwaltung</strong> bearbeiten.</p>"
@@ -420,7 +508,7 @@ public class ReservierungenNotificationService {
                 ? "<p>Es wurden <strong>" + totalCreated + "</strong> Termine in diesem Antrag eingereicht.</p>"
                 : "";
         return """
-                <p>Ein neuer Antrag für eine %sreservierung ist eingegangen.</p>
+                <p>%s</p>
                 %s
                 <table style="width:100%%;border-collapse:collapse;">
                   <tr><td style="padding:6px 0;font-weight:600;">%s</td><td>%s</td></tr>
@@ -433,7 +521,7 @@ public class ReservierungenNotificationService {
                 %s
                 """
                 .formatted(
-                        escape(typeLabel.toLowerCase(Locale.ROOT)),
+                        escape(introTemplate.formatted(typeLabel.toLowerCase(Locale.ROOT))),
                         multiNote,
                         escape(typeLabel),
                         escape(resourceName),

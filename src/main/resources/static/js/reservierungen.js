@@ -36,10 +36,17 @@
   var pickContext = 'create'; // create | import
   var pendingImportPayload = null;
   var editReservationId = null;
+  var editOwnReservationId = null;
   var pendingEditFlags = {
     forceConflict: false,
     forceLoesch: false,
     sendRequesterEmail: false,
+    testModeEmailDelivery: null,
+    payload: null
+  };
+  var pendingOwnEditFlags = {
+    forceConflict: false,
+    forceLoesch: false,
     testModeEmailDelivery: null,
     payload: null
   };
@@ -771,15 +778,28 @@
     }
   }
 
+  function setCreateModalEditOwnMode(enabled) {
+    var hint = document.getElementById('reservierung-reapprove-hint');
+    var addSlotWrap = document.getElementById('reservierung-add-slot-wrap');
+    var slotsHint = document.getElementById('reservierung-slots-hint');
+    if (hint) hint.hidden = !enabled;
+    if (addSlotWrap) addSlotWrap.hidden = !!enabled;
+    if (slotsHint) slotsHint.hidden = !!enabled;
+  }
+
   function openModal(kind, id, name) {
     if (!modal || !form) {
       return;
     }
+    editOwnReservationId = null;
     pendingCreateFlags = { forceConflict: false, forceLoesch: false, testModeEmailDelivery: null };
+    pendingOwnEditFlags = { forceConflict: false, forceLoesch: false, testModeEmailDelivery: null, payload: null };
     form.reset();
     document.getElementById('reservierung-kind').value = kind;
     document.getElementById('reservierung-modal-title').textContent =
       (kind === 'vehicle' ? 'Fahrzeug' : 'Raum') + ' reservieren' + (name ? ': ' + name : '');
+    if (submitBtn) submitBtn.textContent = 'Antrag einreichen';
+    setCreateModalEditOwnMode(false);
     resetCreateForm(kind, id, name);
     var nameEl = document.getElementById('reservierung-name');
     var emailEl = document.getElementById('reservierung-email');
@@ -791,6 +811,78 @@
     }
     openOverlay(modal);
     document.getElementById('reservierung-name')?.focus();
+  }
+
+  function openEditOwnFromSource(sourceEl) {
+    if (!modal || !form || !sourceEl || publicMode) {
+      return;
+    }
+    var status = (sourceEl.dataset.status || '').toUpperCase();
+    if (status !== 'PENDING' && status !== 'APPROVED' && status !== 'REJECTED') {
+      notify('Diese Reservierung kann nicht mehr bearbeitet werden.', 'error');
+      return;
+    }
+    var kind = (sourceEl.dataset.kind || '').toLowerCase() === 'room' ? 'room' : 'vehicle';
+    editOwnReservationId = sourceEl.dataset.id;
+    editReservationId = null;
+    pendingCreateFlags = { forceConflict: false, forceLoesch: false, testModeEmailDelivery: null };
+    pendingOwnEditFlags = { forceConflict: false, forceLoesch: false, testModeEmailDelivery: null, payload: null };
+    form.reset();
+    document.getElementById('reservierung-kind').value = kind;
+    document.getElementById('reservierung-modal-title').textContent =
+      (kind === 'vehicle' ? 'Fahrzeugantrag' : 'Raumantrag') + ' bearbeiten';
+    if (submitBtn) submitBtn.textContent = 'Änderungen speichern';
+    setCreateModalEditOwnMode(true);
+
+    var ids = String(sourceEl.dataset.resourceIds || '')
+      .split(',')
+      .map(function (id) { return id.trim(); })
+      .filter(Boolean);
+    selectedResources = [];
+    ids.forEach(function (id) {
+      var found = findResource(kind, id);
+      selectedResources.push({
+        id: Number(id),
+        name: found ? found.name : id
+      });
+    });
+    if (kind === 'room' && selectedResources.length > 1) {
+      selectedResources = selectedResources.slice(0, 1);
+    }
+    var label = document.getElementById('reservierung-resources-label');
+    var addBtn = document.getElementById('reservierung-add-resource');
+    if (label) {
+      label.innerHTML = (kind === 'vehicle' ? 'Ausgewählte Fahrzeuge' : 'Ausgewählter Raum')
+        + ' <span class="req">*</span>';
+    }
+    if (addBtn) {
+      addBtn.hidden = kind === 'room';
+      addBtn.textContent = kind === 'vehicle' ? 'Weiteres Fahrzeug hinzufügen' : 'Weiteren Raum hinzufügen';
+    }
+    renderSelectedChips();
+    confirmedSlots = [];
+    renderConfirmedSlots();
+    ensureSlotEditor();
+
+    document.getElementById('reservierung-name').value = sourceEl.dataset.requesterName || '';
+    document.getElementById('reservierung-email').value = sourceEl.dataset.requesterEmail || '';
+    document.getElementById('reservierung-reason').value = sourceEl.dataset.reason || '';
+    document.getElementById('reservierung-location').value = sourceEl.dataset.location || '';
+
+    var startLocal = isoToBerlinDateTimeLocal(sourceEl.dataset.startAt);
+    var endLocal = isoToBerlinDateTimeLocal(sourceEl.dataset.endAt);
+    var row = slotEditorRow();
+    if (row && startLocal) {
+      var dateInput = row.querySelector('.reservierung-slot-date');
+      var fromInput = row.querySelector('.reservierung-slot-from');
+      var toInput = row.querySelector('.reservierung-slot-to');
+      if (dateInput) dateInput.value = startLocal.slice(0, 10);
+      if (fromInput) fromInput.value = startLocal.slice(11, 16);
+      if (toInput && endLocal) toInput.value = endLocal.slice(11, 16);
+    }
+
+    openOverlay(modal);
+    document.getElementById('reservierung-reason')?.focus();
   }
 
   function bindRequesterSuggestEmail() {
@@ -821,6 +913,12 @@
 
   function closeModal() {
     endCreateBusy();
+    editOwnReservationId = null;
+    pendingOwnEditFlags = { forceConflict: false, forceLoesch: false, testModeEmailDelivery: null, payload: null };
+    setCreateModalEditOwnMode(false);
+    var addBtn = document.getElementById('reservierung-add-resource');
+    if (addBtn) addBtn.hidden = false;
+    if (submitBtn) submitBtn.textContent = 'Antrag einreichen';
     closeOverlay(modal);
   }
 
@@ -1397,6 +1495,11 @@
   document.getElementById('reservierung-pick-apply')?.addEventListener('click', applyPickSelection);
   document.getElementById('reservierung-conflict-force')?.addEventListener('click', function () {
     closeOverlay(conflictModal);
+    if (editOwnReservationId) {
+      pendingOwnEditFlags.forceConflict = true;
+      submitOwnEdit();
+      return;
+    }
     if (editReservationId) {
       pendingEditFlags.forceConflict = true;
       submitEdit();
@@ -1420,9 +1523,15 @@
     renderSelectedChips();
     pendingCreateFlags.forceConflict = false;
     pendingCreateFlags.forceLoesch = false;
+    pendingOwnEditFlags.forceConflict = false;
+    pendingOwnEditFlags.forceLoesch = false;
     closeOverlay(conflictModal);
     if (!selectedResources.length) {
       notify('Nach dem Entfernen ist keine Ressource mehr übrig.', 'error');
+      return;
+    }
+    if (editOwnReservationId) {
+      submitOwnEdit();
       return;
     }
     submitCreate();
@@ -1449,6 +1558,11 @@
           pending.conflictIds || []
         );
       }
+      return;
+    }
+    if (editOwnReservationId) {
+      pendingOwnEditFlags.forceLoesch = true;
+      submitOwnEdit();
       return;
     }
     if (editReservationId) {
@@ -1511,31 +1625,171 @@
     return Promise.resolve(fallback === null ? null : (fallback || ''));
   }
 
-  function submitCreate() {
-    if (createSubmitBusy) {
-      return;
-    }
+  function buildCreateOrOwnPayload(kind, resourceIds, requesterName, requesterEmail, reason, location, slots, flags) {
+    return {
+      resourceIds: resourceIds,
+      resourceId: resourceIds[0],
+      requesterName: requesterName,
+      requesterEmail: requesterEmail,
+      reason: reason,
+      location: location,
+      slots: slots,
+      startAt: slots[0].startAt,
+      endAt: slots[0].endAt,
+      forceAvailabilityOverride: !!(flags && flags.forceLoesch),
+      forceConflictOverride: !!(flags && flags.forceConflict)
+    };
+  }
+
+  function readCreateFormFields() {
     var kind = currentKind();
     var resourceIds = selectedResources.map(function (r) { return Number(r.id); }).filter(Boolean);
     var requesterName = document.getElementById('reservierung-name').value.trim();
     var requesterEmail = document.getElementById('reservierung-email').value.trim();
     var reason = document.getElementById('reservierung-reason').value.trim();
     var location = document.getElementById('reservierung-location').value.trim();
-
     if (!requesterName || !requesterEmail || !reason || !location) {
       notify('Bitte alle Pflichtfelder ausfüllen.', 'error');
-      return;
+      return null;
     }
     if (!resourceIds.length) {
       notify(kind === 'vehicle' ? 'Bitte mindestens ein Fahrzeug wählen.' : 'Bitte mindestens einen Raum wählen.', 'error');
-      return;
+      return null;
+    }
+    if (kind === 'room' && resourceIds.length !== 1) {
+      notify('Bitte genau einen Raum wählen.', 'error');
+      return null;
     }
     var slots = collectSlots();
     if (!slots) {
-      return;
+      return null;
     }
     if (!slots.length) {
       notify('Bitte mindestens einen Termin angeben.', 'error');
+      return null;
+    }
+    return {
+      kind: kind,
+      resourceIds: resourceIds,
+      requesterName: requesterName,
+      requesterEmail: requesterEmail,
+      reason: reason,
+      location: location,
+      slots: slots
+    };
+  }
+
+  function submitOwnEdit() {
+    if (createSubmitBusy || !editOwnReservationId || !pendingOwnEditFlags.payload) {
+      return;
+    }
+    var kind = pendingOwnEditFlags.payload.kind;
+    var payload = Object.assign({}, pendingOwnEditFlags.payload, {
+      forceAvailabilityOverride: !!pendingOwnEditFlags.forceLoesch,
+      forceConflictOverride: !!pendingOwnEditFlags.forceConflict
+    });
+    delete payload.kind;
+    delete payload.slots;
+    var url = apiBase
+      + (kind === 'vehicle' ? '/api/fahrzeuge/' : '/api/raeume/')
+      + encodeURIComponent(editOwnReservationId)
+      + '/update-own?unit=' + encodeURIComponent(unitId);
+    url = appendTestModeEmailParam(url, pendingOwnEditFlags.testModeEmailDelivery);
+    startCreateBusy();
+    fetch(url, {
+      method: 'PUT',
+      credentials: 'same-origin',
+      headers: Object.assign({ 'Content-Type': 'application/json', Accept: 'application/json' }, csrfHeaders()),
+      body: JSON.stringify(payload)
+    })
+      .then(parseJsonResponse)
+      .then(function (data) {
+        if (data.code === 'LOESCH_WARNING') {
+          endCreateBusy();
+          showLoeschModal(data);
+          return;
+        }
+        if (data.code === 'CONFLICTS') {
+          endCreateBusy();
+          showConflictModal(data);
+          return;
+        }
+        if (!data.ok) {
+          endCreateBusy();
+          notify(data.message || 'Speichern fehlgeschlagen.', 'error');
+          return;
+        }
+        createSubmitBusy = false;
+        editOwnReservationId = null;
+        pendingOwnEditFlags = { forceConflict: false, forceLoesch: false, testModeEmailDelivery: null, payload: null };
+        closeOverlay(modal);
+        hideBusy(getCreateModalPanel());
+        if (submitBtn) submitBtn.disabled = false;
+        notify(data.message || 'Änderungen gespeichert. Der Antrag muss erneut genehmigt werden.', 'success');
+        window.location.reload();
+      })
+      .catch(function () {
+        endCreateBusy();
+        notify('Speichern fehlgeschlagen.', 'error');
+      });
+  }
+
+  function askOwnEditConfirmAndSave() {
+    var fields = readCreateFormFields();
+    if (!fields) {
+      return;
+    }
+    if (fields.slots.length > 1) {
+      notify('Beim Bearbeiten ist nur ein Termin möglich.', 'error');
+      return;
+    }
+    var payload = buildCreateOrOwnPayload(
+      fields.kind,
+      fields.resourceIds,
+      fields.requesterName,
+      fields.requesterEmail,
+      fields.reason,
+      fields.location,
+      fields.slots,
+      pendingOwnEditFlags
+    );
+    payload.kind = fields.kind;
+    pendingOwnEditFlags.payload = payload;
+    pendingOwnEditFlags.forceConflict = false;
+    pendingOwnEditFlags.forceLoesch = false;
+
+    var confirmOpts = {
+      title: 'Änderungen speichern?',
+      message: 'Die Reservierung wird gespeichert und muss anschließend erneut genehmigt werden.\n\n'
+        + 'Bis zur erneuten Genehmigung gilt sie nicht als freigegeben.',
+      confirmLabel: 'Speichern',
+      cancelLabel: 'Abbrechen',
+      variant: 'warning'
+    };
+    var ask = window.FwConfirm && typeof window.FwConfirm.show === 'function'
+      ? window.FwConfirm.show(confirmOpts)
+      : Promise.resolve(window.confirm(confirmOpts.message) ? { ok: true } : { ok: false });
+    ask.then(function (result) {
+      var ok = result === true || (result && result.ok);
+      if (!ok) {
+        return;
+      }
+      askTestModeEmailDelivery(pendingOwnEditFlags.testModeEmailDelivery).then(function (delivery) {
+        if (delivery == null) {
+          return;
+        }
+        pendingOwnEditFlags.testModeEmailDelivery = delivery;
+        submitOwnEdit();
+      });
+    });
+  }
+
+  function submitCreate() {
+    if (createSubmitBusy) {
+      return;
+    }
+    var fields = readCreateFormFields();
+    if (!fields) {
       return;
     }
 
@@ -1545,20 +1799,17 @@
       }
       pendingCreateFlags.testModeEmailDelivery = delivery;
 
-      var payload = {
-        resourceIds: resourceIds,
-        resourceId: resourceIds[0],
-        requesterName: requesterName,
-        requesterEmail: requesterEmail,
-        reason: reason,
-        location: location,
-        slots: slots,
-        startAt: slots[0].startAt,
-        endAt: slots[0].endAt,
-        forceAvailabilityOverride: !!pendingCreateFlags.forceLoesch,
-        forceConflictOverride: !!pendingCreateFlags.forceConflict
-      };
-      var url = kind === 'vehicle'
+      var payload = buildCreateOrOwnPayload(
+        fields.kind,
+        fields.resourceIds,
+        fields.requesterName,
+        fields.requesterEmail,
+        fields.reason,
+        fields.location,
+        fields.slots,
+        pendingCreateFlags
+      );
+      var url = fields.kind === 'vehicle'
         ? apiBase + '/api/fahrzeuge?unit=' + encodeURIComponent(unitId)
         : apiBase + '/api/raeume?unit=' + encodeURIComponent(unitId);
       url = appendTestModeEmailParam(url, delivery);
@@ -1609,6 +1860,10 @@
     event.preventDefault();
     if (!form.reportValidity()) {
       notify('Bitte alle Pflichtfelder ausfüllen.', 'error');
+      return;
+    }
+    if (editOwnReservationId) {
+      askOwnEditConfirmAndSave();
       return;
     }
     pendingCreateFlags = { forceConflict: false, forceLoesch: false, testModeEmailDelivery: null };
@@ -2059,6 +2314,16 @@
       var source = btn.closest('tr[data-id]') || btn.closest('.modal-overlay[data-id]');
       if (!source) return;
       openEditFromSource(source);
+    });
+  });
+
+  document.querySelectorAll('[data-action="edit-own"]').forEach(function (btn) {
+    btn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      var row = btn.closest('tr[data-id]');
+      if (!row) return;
+      openEditOwnFromSource(row);
     });
   });
 
