@@ -73,6 +73,9 @@ public class AtemschutzService {
     public CarrierListResult listCarrierOverviews(long unitId, String filter) {
         atemschutzSettingsService.ensureSettings(unitId);
         syncCarriersFromAgt(unitId);
+        // PA aus Anwesenheitslisten nachziehen, bevor Status/Mails berechnet werden
+        // (sonst sieht der 7-Uhr-Job veraltete Ablaufdaten, bis jemand die Detailseite öffnet).
+        reconcileAttendancePaFitnessForUnit(unitId);
         List<AtemschutzCarrier> carriers = listCarriersForUnit(unitId);
         if (carriers.isEmpty()) {
             CarrierListStats emptyStats = new CarrierListStats(0, 0, 0, 0, 0, 0);
@@ -84,7 +87,7 @@ public class AtemschutzService {
                     atemschutzSettingsService.isAgtCourseConfigured(unitId));
         }
         List<Long> carrierIds = carriers.stream().map(AtemschutzCarrier::getId).toList();
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneId.of("Europe/Berlin"));
         Set<Long> csaPersonIds = listCsaPersonIds(unitId);
         Map<Long, AtemschutzFitnessRecord> latestG26 =
                 latestRecordsByCarrier(carrierIds, AtemschutzFitnessType.G26_UNTERSUCHUNG);
@@ -192,10 +195,10 @@ public class AtemschutzService {
     @Transactional
     public CarrierDetailView loadCarrierDetail(long carrierId) {
         AtemschutzCarrier carrier = requireCarrier(carrierId);
-        reconcileAttendancePaFitness(carrier);
+        reconcileAttendancePaFitnessForUnit(carrier.getUnit().getId());
         List<AtemschutzFitnessRecord> records = fitnessRecordsForCarrier(carrier.getId());
         long unitId = carrier.getUnit().getId();
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneId.of("Europe/Berlin"));
         ReminderLookup reminders = loadReminderLookup(List.of(carrier.getId()));
         Map<AtemschutzFitnessType, FitnessStatusView> summaries = new EnumMap<>(AtemschutzFitnessType.class);
         for (AtemschutzFitnessType type : AtemschutzFitnessType.values()) {
@@ -223,13 +226,10 @@ public class AtemschutzService {
     /**
      * Nachzug: PA-Markierungen aus Anwesenheitslisten in Übung/Einsatz-Nachweise übernehmen
      * (auch wenn die Markierung früher gesetzt wurde, bevor der Sync existierte).
+     * Muss vor Erinnerungsmails und Listenstatus laufen, sonst gelten veraltete Ablaufdaten.
      */
-    private void reconcileAttendancePaFitness(AtemschutzCarrier carrier) {
-        if (carrier == null || carrier.getPerson() == null || carrier.getUnit() == null) {
-            return;
-        }
-        long unitId = carrier.getUnit().getId();
-        long personId = carrier.getPerson().getId();
+    @Transactional
+    public void reconcileAttendancePaFitnessForUnit(long unitId) {
         boolean testData = testModeService.isEnabled();
         for (Integer year : attendanceReportRepository.findDistinctYearsByUnitId(unitId, testData)) {
             if (year == null) {
@@ -239,27 +239,19 @@ public class AtemschutzService {
             LocalDate yearEnd = yearStart.plusYears(1);
             for (AttendanceReport report :
                     attendanceReportRepository.findByUnitIdAndYear(unitId, yearStart, yearEnd, testData)) {
-                boolean hasPa = crewJsonContainsPaPerson(report.getCrewAssignmentsJson(), personId);
-                Optional<AtemschutzFitnessRecord> existing = fitnessRecordRepository.findBySourceRefAndPersonId(
-                        FITNESS_SOURCE_ATTENDANCE_REPORT, report.getId(), personId, testData);
-                if (!hasPa) {
-                    existing.ifPresent(fitnessRecordRepository::delete);
-                    continue;
-                }
                 if (report.getEventDate() == null) {
                     continue;
                 }
+                if (report.getStatus() != IncidentReportStatus.FREIGEGEBEN
+                        && report.getStatus() != IncidentReportStatus.ARCHIVIERT) {
+                    continue;
+                }
+                Set<Long> paPersonIds = extractPaPersonIds(report.getCrewAssignmentsJson());
                 String label = report.getTitle() != null && !report.getTitle().isBlank()
                         ? report.getTitle().trim()
                         : "Anwesenheitsliste";
-                upsertPaSourceRecord(
-                        carrier,
-                        FITNESS_SOURCE_ATTENDANCE_REPORT,
-                        report.getId(),
-                        report.getEventDate(),
-                        label,
-                        null,
-                        testData);
+                syncAttendancePaFitnessRecords(
+                        unitId, report.getId(), paPersonIds, report.getEventDate(), label, null);
             }
         }
     }
@@ -365,13 +357,18 @@ public class AtemschutzService {
     }
 
     private boolean crewJsonContainsPaPerson(String json, long personId) {
+        return extractPaPersonIds(json).contains(personId);
+    }
+
+    private Set<Long> extractPaPersonIds(String json) {
+        Set<Long> result = new LinkedHashSet<>();
         if (json == null || json.isBlank()) {
-            return false;
+            return result;
         }
         try {
             JsonNode root = objectMapper.readTree(json);
             if (root == null || !root.isArray()) {
-                return false;
+                return result;
             }
             for (JsonNode assignment : root) {
                 JsonNode paIds = assignment.get("paPersonIds");
@@ -379,15 +376,15 @@ public class AtemschutzService {
                     continue;
                 }
                 for (JsonNode idNode : paIds) {
-                    if (idNode != null && idNode.isNumber() && idNode.longValue() == personId) {
-                        return true;
+                    if (idNode != null && idNode.isNumber() && idNode.longValue() > 0) {
+                        result.add(idNode.longValue());
                     }
                 }
             }
-            return false;
         } catch (Exception e) {
-            return false;
+            return result;
         }
+        return result;
     }
 
     private static String buildReportViewUrl(String path, long unitId, String returnUrl) {
@@ -1075,7 +1072,8 @@ public class AtemschutzService {
     private FitnessRecordView toRecordView(AtemschutzFitnessRecord record) {
         int warnDays = atemschutzSettingsService.warnDays(
                 record.getCarrier().getUnit().getId(), record.getRecordType());
-        AtemschutzFitnessLevel level = computeLevel(record.getValidUntil(), warnDays, LocalDate.now());
+        AtemschutzFitnessLevel level =
+                computeLevel(record.getValidUntil(), warnDays, LocalDate.now(ZoneId.of("Europe/Berlin")));
         Long incidentReportId = null;
         Long attendanceReportId = null;
         if (FITNESS_SOURCE_INCIDENT_REPORT.equals(record.getSourceRefType()) && record.getSourceRefId() != null) {
