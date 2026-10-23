@@ -386,7 +386,9 @@ public class ReservierungenService {
     public List<String> updateVehicleReservation(
             long unitId, long reservationId, long actorUserId, UpdateReservationRequest request) {
         VehicleReservation reservation = requireEditableVehicle(unitId, reservationId);
-        boolean reactivatingCancelled = reservation.getStatus() == ReservationStatus.CANCELLED;
+        boolean reactivating =
+                reservation.getStatus() == ReservationStatus.CANCELLED
+                        || reservation.getStatus() == ReservationStatus.REJECTED;
         List<Long> vehicleIds = resolveResourceIds(request.resourceIds(), request.resourceId());
         if (vehicleIds.isEmpty()) {
             throw new IllegalArgumentException("Bitte mindestens ein Fahrzeug wählen.");
@@ -432,7 +434,7 @@ public class ReservierungenService {
         reservation.setLocation(requireText(request.location(), "Ort / Standort"));
         reservation.setStartAt(request.startAt());
         reservation.setEndAt(request.endAt());
-        if (reactivatingCancelled) {
+        if (reactivating) {
             reservation.setStatus(ReservationStatus.APPROVED);
             reservation.setApprovedByUser(actor);
             reservation.setApprovedAt(Instant.now());
@@ -440,8 +442,8 @@ public class ReservierungenService {
         }
         VehicleReservation saved = vehicleReservationRepository.save(reservation);
         List<String> notes = new ArrayList<>(applyVehicleIntegrations(unitId, saved, actorUserId, null));
-        if (reactivatingCancelled) {
-            notes.add("Stornierte Reservierung wurde erneut genehmigt.");
+        if (reactivating) {
+            notes.add("Reservierung wurde nachträglich genehmigt.");
         }
         if (request.sendRequesterEmail()) {
             notificationService.notifyRequesterUpdated(unitId, saved);
@@ -454,7 +456,9 @@ public class ReservierungenService {
     public List<String> updateRoomReservation(
             long unitId, long reservationId, long actorUserId, UpdateReservationRequest request) {
         RoomReservation reservation = requireApprovedRoom(unitId, reservationId);
-        boolean reactivatingCancelled = reservation.getStatus() == ReservationStatus.CANCELLED;
+        boolean reactivating =
+                reservation.getStatus() == ReservationStatus.CANCELLED
+                        || reservation.getStatus() == ReservationStatus.REJECTED;
         List<Long> roomIds = resolveResourceIds(request.resourceIds(), request.resourceId());
         if (roomIds.size() != 1) {
             throw new IllegalArgumentException("Bitte genau einen Raum wählen.");
@@ -487,7 +491,7 @@ public class ReservierungenService {
         reservation.setLocation(requireText(request.location(), "Ort / Standort"));
         reservation.setStartAt(request.startAt());
         reservation.setEndAt(request.endAt());
-        if (reactivatingCancelled) {
+        if (reactivating) {
             reservation.setStatus(ReservationStatus.APPROVED);
             reservation.setApprovedByUser(actor);
             reservation.setApprovedAt(Instant.now());
@@ -495,8 +499,8 @@ public class ReservierungenService {
         }
         RoomReservation saved = roomReservationRepository.save(reservation);
         List<String> notes = new ArrayList<>(applyRoomIntegrations(unitId, saved, actorUserId));
-        if (reactivatingCancelled) {
-            notes.add("Stornierte Reservierung wurde erneut genehmigt.");
+        if (reactivating) {
+            notes.add("Reservierung wurde nachträglich genehmigt.");
         }
         if (request.sendRequesterEmail()) {
             notificationService.notifyRequesterUpdated(unitId, saved);
@@ -665,7 +669,7 @@ public class ReservierungenService {
     @Transactional
     public List<String> processVehicleReservation(
             long unitId, long reservationId, long actorUserId, ProcessReservationRequest request) {
-        VehicleReservation reservation = requirePendingVehicle(unitId, reservationId);
+        VehicleReservation reservation = requireProcessableVehicle(unitId, reservationId);
         String action = normalizeAction(request.action());
         if ("reject".equals(action)) {
             rejectVehicle(reservation, actorUserId, request.reason());
@@ -680,7 +684,7 @@ public class ReservierungenService {
     @Transactional
     public List<String> processRoomReservation(
             long unitId, long reservationId, long actorUserId, ProcessReservationRequest request) {
-        RoomReservation reservation = requirePendingRoom(unitId, reservationId);
+        RoomReservation reservation = requireProcessableRoom(unitId, reservationId);
         String action = normalizeAction(request.action());
         if ("reject".equals(action)) {
             rejectRoom(reservation, actorUserId, request.reason());
@@ -850,6 +854,7 @@ public class ReservierungenService {
         reservation.setStatus(ReservationStatus.APPROVED);
         reservation.setApprovedByUser(requireUser(actorUserId));
         reservation.setApprovedAt(Instant.now());
+        reservation.setRejectionReason(null);
         vehicleReservationRepository.save(reservation);
         List<String> syncNotes = applyVehicleIntegrations(unitId, reservation, actorUserId, request.diveraGroupIds());
         if (rejectedIds.isEmpty()) {
@@ -1418,24 +1423,33 @@ public class ReservierungenService {
         return String.join(", ", names);
     }
 
-    private VehicleReservation requirePendingVehicle(long unitId, long reservationId) {
+    /** Offene, abgelehnte oder stornierte Anträge können (nachträglich) entschieden werden. */
+    private VehicleReservation requireProcessableVehicle(long unitId, long reservationId) {
         VehicleReservation reservation = vehicleReservationRepository
                 .findById(reservationId)
                 .filter(r -> r.getUnit().getId().equals(unitId))
                 .orElseThrow(() -> new IllegalArgumentException("Reservierung nicht gefunden."));
-        if (reservation.getStatus() != ReservationStatus.PENDING) {
-            throw new IllegalArgumentException("Reservierung wurde bereits bearbeitet.");
+        ReservationStatus status = reservation.getStatus();
+        if (status != ReservationStatus.PENDING
+                && status != ReservationStatus.REJECTED
+                && status != ReservationStatus.CANCELLED) {
+            throw new IllegalArgumentException(
+                    "Nur offene, abgelehnte oder stornierte Reservierungen können entschieden werden.");
         }
         return reservation;
     }
 
-    private RoomReservation requirePendingRoom(long unitId, long reservationId) {
+    private RoomReservation requireProcessableRoom(long unitId, long reservationId) {
         RoomReservation reservation = roomReservationRepository
                 .findById(reservationId)
                 .filter(r -> r.getUnit().getId().equals(unitId))
                 .orElseThrow(() -> new IllegalArgumentException("Reservierung nicht gefunden."));
-        if (reservation.getStatus() != ReservationStatus.PENDING) {
-            throw new IllegalArgumentException("Reservierung wurde bereits bearbeitet.");
+        ReservationStatus status = reservation.getStatus();
+        if (status != ReservationStatus.PENDING
+                && status != ReservationStatus.REJECTED
+                && status != ReservationStatus.CANCELLED) {
+            throw new IllegalArgumentException(
+                    "Nur offene, abgelehnte oder stornierte Reservierungen können entschieden werden.");
         }
         return reservation;
     }
@@ -1446,9 +1460,10 @@ public class ReservierungenService {
                 .filter(r -> r.getUnit().getId().equals(unitId))
                 .orElseThrow(() -> new IllegalArgumentException("Reservierung nicht gefunden."));
         if (reservation.getStatus() != ReservationStatus.APPROVED
-                && reservation.getStatus() != ReservationStatus.CANCELLED) {
+                && reservation.getStatus() != ReservationStatus.CANCELLED
+                && reservation.getStatus() != ReservationStatus.REJECTED) {
             throw new IllegalArgumentException(
-                    "Nur genehmigte oder stornierte Reservierungen können bearbeitet werden.");
+                    "Nur genehmigte, stornierte oder abgelehnte Reservierungen können bearbeitet werden.");
         }
         return reservation;
     }
@@ -1459,9 +1474,10 @@ public class ReservierungenService {
                 .filter(r -> r.getUnit().getId().equals(unitId))
                 .orElseThrow(() -> new IllegalArgumentException("Reservierung nicht gefunden."));
         if (reservation.getStatus() != ReservationStatus.APPROVED
-                && reservation.getStatus() != ReservationStatus.CANCELLED) {
+                && reservation.getStatus() != ReservationStatus.CANCELLED
+                && reservation.getStatus() != ReservationStatus.REJECTED) {
             throw new IllegalArgumentException(
-                    "Nur genehmigte oder stornierte Reservierungen können bearbeitet werden.");
+                    "Nur genehmigte, stornierte oder abgelehnte Reservierungen können bearbeitet werden.");
         }
         return reservation;
     }

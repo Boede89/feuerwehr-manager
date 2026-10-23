@@ -238,7 +238,7 @@
       <div class="card__body card__body--flush">
         <p class="hint" th:if="${historyReservations == null or #lists.isEmpty(historyReservations)}" style="padding:16px 20px;margin:0;">Keine aktuellen oder kommenden Reservierungen.</p>
         <div class="table-wrapper" th:if="${historyReservations != null and !#lists.isEmpty(historyReservations)}">
-          <table class="table">
+          <table class="table" id="history-reservations-table">
             <thead>
             <tr>
               <th>Art</th><th>Ressource</th><th>Antragsteller</th><th>Zeitraum</th><th>Grund</th><th>Status</th><th></th>
@@ -247,7 +247,7 @@
             <tbody>
             <tr th:each="r : ${historyReservations}"
                 class="reservierungen-row--clickable"
-                th:attr="data-kind=${r.kind().name()},data-id=${r.id()},data-status=${r.status().name()},data-start-at=${r.startAt()},data-end-at=${r.endAt()},data-requester-name=${r.requesterName()},data-requester-email=${r.requesterEmail()},data-reason=${r.reason()},data-location=${r.location()},data-resource-ids=${r.resourceIdsCsv()},data-open-details=${'reservierung-details-' + r.kind().name() + '-' + r.id()}">
+                th:attr="data-kind=${r.kind().name()},data-id=${r.id()},data-status=${r.status().name()},data-start-at=${r.startAt()},data-end-at=${r.endAt()},data-requester-name=${r.requesterName()},data-requester-email=${r.requesterEmail()},data-reason=${r.reason()},data-location=${r.location()},data-resource-ids=${r.resourceIdsCsv()},data-resource-count=${r.resources() != null ? #lists.size(r.resources()) : 1},data-open-details=${'reservierung-details-' + r.kind().name() + '-' + r.id()}">
               <td th:text="${r.kind() == T(de.feuerwehr.manager.reservierungen.ReservationKind).VEHICLE ? 'Fahrzeug' : 'Raum'}">Fahrzeug</td>
               <td th:text="${r.resourceName()}">TLF</td>
               <td th:text="${r.requesterName()}">Name</td>
@@ -269,7 +269,10 @@
                   <button type="button" class="btn btn--outline btn--sm"
                           th:attr="data-open-details=${'reservierung-details-' + r.kind().name() + '-' + r.id()}">Details</button>
                   <button type="button" class="btn btn--outline btn--sm" data-action="edit"
-                          th:if="${r.status().name() == 'APPROVED' or r.status().name() == 'CANCELLED'}">Bearbeiten</button>
+                          th:if="${r.status().name() == 'APPROVED' or r.status().name() == 'CANCELLED' or r.status().name() == 'REJECTED'}">Bearbeiten</button>
+                  <button type="button" class="btn btn--primary btn--sm" data-action="approve"
+                          th:if="${r.status().name() == 'REJECTED' or r.status().name() == 'CANCELLED'}"
+                          th:attr="data-kind=${r.kind().name()},data-id=${r.id()}">Nachträglich genehmigen</button>
                   <button type="button" class="btn btn--danger btn--sm" data-action="delete">Löschen</button>
                 </div>
               </td>
@@ -355,7 +358,7 @@
             <h6 class="reservierung-details-conflicts__title">Zeitüberschneidungen</h6>
             <div class="reservierung-details-conflicts__list" data-details-conflicts-list></div>
           </div>
-          <div th:if="${r.status().name() == 'PENDING' and r.kind().name() == 'VEHICLE' and r.resources() != null and #lists.size(r.resources()) > 1}"
+          <div th:if="${(r.status().name() == 'PENDING' or r.status().name() == 'REJECTED' or r.status().name() == 'CANCELLED') and r.kind().name() == 'VEHICLE' and r.resources() != null and #lists.size(r.resources()) > 1}"
                class="reservierung-vehicle-decisions"
                data-vehicle-decisions>
             <h6 class="reservierung-vehicle-decisions__title">Fahrzeuge einzeln entscheiden</h6>
@@ -385,15 +388,20 @@
                 th:text="${r.status().name() == 'APPROVED'} ? 'Genehmigt' : (${r.status().name() == 'PENDING'} ? 'Ausstehend' : (${r.status().name() == 'REJECTED'} ? 'Abgelehnt' : (${r.status().name() == 'CANCELLED'} ? 'Storniert' : ${r.status()})))">Ausstehend</span>
           <div class="btn-group">
             <button type="button" class="btn btn--outline" data-close-details-modal>Schließen</button>
-            <th:block th:if="${r.status().name() == 'APPROVED' or r.status().name() == 'CANCELLED'}">
+            <th:block th:if="${r.status().name() == 'APPROVED'}">
               <button type="button" class="btn btn--primary" data-action="edit"
                       th:attr="data-kind=${r.kind().name()},data-id=${r.id()}">Bearbeiten</button>
             </th:block>
-            <th:block th:if="${r.status().name() == 'PENDING'}">
+            <th:block th:if="${r.status().name() == 'PENDING' or r.status().name() == 'REJECTED' or r.status().name() == 'CANCELLED'}">
+              <button type="button" class="btn btn--outline" data-action="edit"
+                      th:if="${r.status().name() == 'REJECTED' or r.status().name() == 'CANCELLED'}"
+                      th:attr="data-kind=${r.kind().name()},data-id=${r.id()}">Bearbeiten</button>
               <button type="button" class="btn btn--outline" data-action="reject"
+                      th:if="${r.status().name() == 'PENDING'}"
                       th:attr="data-kind=${r.kind().name()},data-id=${r.id()}">Alle ablehnen</button>
               <button type="button" class="btn btn--primary" data-action="approve"
-                      th:attr="data-kind=${r.kind().name()},data-id=${r.id()}">Entscheidung speichern</button>
+                      th:attr="data-kind=${r.kind().name()},data-id=${r.id()}"
+                      th:text="${r.status().name() == 'PENDING'} ? 'Entscheidung speichern' : 'Nachträglich genehmigen'">Entscheidung speichern</button>
             </th:block>
           </div>
         </div>

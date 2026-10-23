@@ -1150,8 +1150,8 @@
       return;
     }
     var status = (sourceEl.dataset.status || '').toUpperCase();
-    if (status && status !== 'APPROVED' && status !== 'CANCELLED') {
-      notify('Nur genehmigte oder stornierte Reservierungen können bearbeitet werden.', 'error');
+    if (status && status !== 'APPROVED' && status !== 'CANCELLED' && status !== 'REJECTED') {
+      notify('Nur genehmigte, stornierte oder abgelehnte Reservierungen können bearbeitet werden.', 'error');
       return;
     }
     var kind = (sourceEl.dataset.kind || '').toLowerCase() === 'room' ? 'room' : 'vehicle';
@@ -2021,14 +2021,23 @@
     }
   }
 
-  document.getElementById('pending-reservations-table')?.addEventListener('click', function (event) {
-    var btn = event.target.closest('[data-action]');
-    if (!btn) return;
-    event.stopPropagation();
-    var row = btn.closest('tr');
-    if (!row) return;
-    runProcessAction(row.dataset.kind, row.dataset.id, btn.dataset.action, btn, {});
-  });
+  function bindProcessTable(tableId) {
+    var table = document.getElementById(tableId);
+    if (!table) return;
+    table.addEventListener('click', function (event) {
+      var btn = event.target.closest('[data-action]');
+      if (!btn) return;
+      if (btn.dataset.action === 'edit' || btn.dataset.action === 'delete') {
+        return;
+      }
+      event.stopPropagation();
+      var row = btn.closest('tr');
+      if (!row) return;
+      runProcessAction(row.dataset.kind, row.dataset.id, btn.dataset.action, btn, {});
+    });
+  }
+  bindProcessTable('pending-reservations-table');
+  bindProcessTable('history-reservations-table');
 
   document.querySelectorAll('.reservierung-details-modal [data-action]').forEach(function (btn) {
     btn.addEventListener('click', function (ev) {
