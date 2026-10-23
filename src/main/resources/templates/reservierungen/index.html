@@ -370,14 +370,15 @@
                    class="reservierung-vehicle-decision-row"
                    th:attr="data-vehicle-id=${v.id()}">
                 <strong th:text="${v.name()}">MTF</strong>
-                <div class="reservierung-vehicle-decision-row__actions">
-                  <label class="reservierung-vehicle-decision-option">
+                <div class="reservierung-vehicle-decision-row__actions" role="group"
+                     th:attr="aria-label=${'Entscheidung für ' + v.name()}">
+                  <label class="reservierung-vehicle-decision-option reservierung-vehicle-decision-option--approve">
                     <input type="radio" th:name="${'veh-dec-' + r.id() + '-' + v.id()}" value="approve" checked>
-                    Genehmigen
+                    <span>Genehmigen</span>
                   </label>
-                  <label class="reservierung-vehicle-decision-option">
+                  <label class="reservierung-vehicle-decision-option reservierung-vehicle-decision-option--reject">
                     <input type="radio" th:name="${'veh-dec-' + r.id() + '-' + v.id()}" value="reject">
-                    Ablehnen
+                    <span>Ablehnen</span>
                   </label>
                 </div>
               </div>
@@ -681,6 +682,6 @@
     <option th:each="r : ${roomOptions}" th:value="${r.id}" th:text="${r.name}">Raum</option>
   </select>
   <script th:src="@{/js/combo-suggest.js}" defer></script>
-  <script th:src="@{/js/reservierungen.js(v='20261023a')}" defer></script>
+  <script th:src="@{/js/reservierungen.js(v='20261023b')}" defer></script>
 </main>
 </html>

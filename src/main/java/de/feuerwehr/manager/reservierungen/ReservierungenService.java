@@ -441,14 +441,16 @@ public class ReservierungenService {
             reservation.setRejectionReason(null);
         }
         VehicleReservation saved = vehicleReservationRepository.save(reservation);
-        List<String> notes = new ArrayList<>(applyVehicleIntegrations(unitId, saved, actorUserId, null));
+        List<String> notes = new ArrayList<>();
+        if (saved.getStatus() == ReservationStatus.APPROVED) {
+            notes.addAll(applyVehicleIntegrations(unitId, saved, actorUserId, null));
+        }
         if (reactivating) {
             notes.add("Reservierung wurde nachträglich genehmigt.");
         }
-        if (request.sendRequesterEmail()) {
-            notificationService.notifyRequesterUpdated(unitId, saved);
-            notes.add("Antragsteller per E-Mail über die Änderungen informiert.");
-        }
+        // Antragsteller immer informieren; DIVERA/Google werden bei genehmigten Einträgen oben mitgezogen.
+        notificationService.notifyRequesterUpdated(unitId, saved);
+        notes.add("Antragsteller per E-Mail über die Änderungen informiert.");
         return notes;
     }
 
@@ -498,14 +500,15 @@ public class ReservierungenService {
             reservation.setRejectionReason(null);
         }
         RoomReservation saved = roomReservationRepository.save(reservation);
-        List<String> notes = new ArrayList<>(applyRoomIntegrations(unitId, saved, actorUserId));
+        List<String> notes = new ArrayList<>();
+        if (saved.getStatus() == ReservationStatus.APPROVED) {
+            notes.addAll(applyRoomIntegrations(unitId, saved, actorUserId));
+        }
         if (reactivating) {
             notes.add("Reservierung wurde nachträglich genehmigt.");
         }
-        if (request.sendRequesterEmail()) {
-            notificationService.notifyRequesterUpdated(unitId, saved);
-            notes.add("Antragsteller per E-Mail über die Änderungen informiert.");
-        }
+        notificationService.notifyRequesterUpdated(unitId, saved);
+        notes.add("Antragsteller per E-Mail über die Änderungen informiert.");
         return notes;
     }
 

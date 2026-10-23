@@ -1361,36 +1361,32 @@
     pendingEditFlags.payload = payload;
     pendingEditFlags.forceConflict = false;
     pendingEditFlags.forceLoesch = false;
+    pendingEditFlags.sendRequesterEmail = true;
     var inTestMode = window.FwConfirm && typeof window.FwConfirm.isTestMode === 'function'
       ? window.FwConfirm.isTestMode()
       : false;
     var confirmOpts = {
       title: 'Änderungen übernehmen?',
-      message: 'Die Reservierung wird gespeichert. Kalendertermine (DIVERA/Google) werden mitangepasst.',
+      message: 'Die Reservierung wird gespeichert.\n\n'
+        + '• Termine in DIVERA und Google Kalender werden angepasst\n'
+        + '• Der Antragsteller wird per E-Mail informiert',
       confirmLabel: 'Übernehmen',
       cancelLabel: 'Abbrechen',
-      checkboxes: [{
-        id: 'edit-send-requester-email',
-        name: 'sendRequesterEmail',
-        label: 'Antragsteller erneut per E-Mail über die Änderungen informieren',
-        checked: true
-      }],
       emailSelect: inTestMode
     };
     var ask = window.FwConfirm && typeof window.FwConfirm.show === 'function'
       ? window.FwConfirm.show(confirmOpts)
-      : Promise.resolve(window.confirm(confirmOpts.message) ? { ok: true, sendRequesterEmail: true } : { ok: false });
+      : Promise.resolve(window.confirm(confirmOpts.message) ? { ok: true } : { ok: false });
     ask.then(function (result) {
       var ok = result === true || (result && result.ok);
       if (!ok) {
         return;
       }
-      pendingEditFlags.sendRequesterEmail = !!(result && result.sendRequesterEmail);
-      var delivery = 'NONE';
-      if (pendingEditFlags.sendRequesterEmail && inTestMode && result && result.testModeEmailDelivery) {
+      var delivery = 'CONFIGURED';
+      if (inTestMode && result && result.testModeEmailDelivery) {
         delivery = result.testModeEmailDelivery;
-      } else if (pendingEditFlags.sendRequesterEmail && !inTestMode) {
-        delivery = 'CONFIGURED';
+      } else if (inTestMode) {
+        delivery = 'NONE';
       }
       pendingEditFlags.testModeEmailDelivery = delivery;
       submitEdit();
