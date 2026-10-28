@@ -4423,6 +4423,16 @@ body.modal-open {
   color: var(--text, inherit);
 }
 
+.fw-busy-overlay__hint {
+  margin: 0;
+  font-size: var(--fs-xs, 0.8rem);
+  color: var(--text-muted, #6b7280);
+}
+
+.fw-busy-host {
+  position: relative;
+}
+
 @keyframes fw-busy-spin {
   to {
     transform: rotate(360deg);

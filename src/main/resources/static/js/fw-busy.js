@@ -1,8 +1,9 @@
 (function () {
   'use strict';
 
-  var DEFAULT_MESSAGE = 'Wird gesendet …';
+  var DEFAULT_MESSAGE = 'Bitte warten …';
   var EMAIL_MESSAGE = 'E-Mail wird gesendet …';
+  var SAVE_MESSAGE = 'Wird gespeichert …';
 
   function escapeHtml(value) {
     return String(value == null ? '' : value)
@@ -27,7 +28,9 @@
     if (overlay) {
       return overlay.querySelector('.modal') || overlay;
     }
-    var page = element.closest('.page-main, .start-page__content, .reservierungen-page, .auth-page');
+    var page = element.closest(
+      '.page-main, .start-page__content, .reservierungen-page, .auth-page, .einsatzbericht-form-page'
+    );
     if (page) {
       return page;
     }
@@ -46,7 +49,11 @@
         '<div class="fw-busy-overlay__panel">'
         + '<div class="fw-busy-spinner" aria-hidden="true"></div>'
         + '<p class="fw-busy-overlay__text"></p>'
+        + '<p class="fw-busy-overlay__hint">Bitte nicht erneut klicken.</p>'
         + '</div>';
+      if (getComputedStyle(container).position === 'static' && container !== document.body) {
+        container.classList.add('fw-busy-host');
+      }
       container.appendChild(overlay);
     }
     return overlay;
@@ -95,6 +102,29 @@
     return null;
   }
 
+  function relatedSubmitButtons(form, primary) {
+    var buttons = [];
+    if (primary) {
+      buttons.push(primary);
+    }
+    if (!form) {
+      return buttons;
+    }
+    form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function (btn) {
+      if (buttons.indexOf(btn) === -1) {
+        buttons.push(btn);
+      }
+    });
+    if (form.id) {
+      document.querySelectorAll('button[form="' + form.id + '"], input[form="' + form.id + '"]').forEach(function (btn) {
+        if (buttons.indexOf(btn) === -1) {
+          buttons.push(btn);
+        }
+      });
+    }
+    return buttons;
+  }
+
   function setButtonBusy(button, busy, label) {
     if (!button) {
       return;
@@ -121,9 +151,39 @@
     button.removeAttribute('aria-busy');
   }
 
+  function lockRelatedButtons(form, primary, busy, label) {
+    relatedSubmitButtons(form, primary).forEach(function (btn) {
+      setButtonBusy(btn, busy, btn === primary ? label : undefined);
+    });
+  }
+
+  function isPostForm(form) {
+    if (!form || form.tagName !== 'FORM') {
+      return false;
+    }
+    var method = (form.getAttribute('method') || 'get').toLowerCase();
+    return method === 'post';
+  }
+
+  function awaitsConfirmation(form) {
+    if (!form || form.dataset.confirmSubmitting === 'true') {
+      return false;
+    }
+    if (form.hasAttribute('data-confirm') || form.hasAttribute('data-confirm-message')) {
+      return true;
+    }
+    if (form.getAttribute('data-testmode-email-prompt') === 'true'
+        && document.body
+        && document.body.getAttribute('data-test-mode') === 'true'
+        && !form.querySelector('input[name="testModeEmailDelivery"]')) {
+      return true;
+    }
+    return false;
+  }
+
   function busyMessageForForm(form) {
     if (!form) {
-      return EMAIL_MESSAGE;
+      return DEFAULT_MESSAGE;
     }
     var customBusy = form.getAttribute('data-busy-message');
     if (customBusy) {
@@ -133,39 +193,63 @@
     if (custom) {
       return custom;
     }
+    if (form.getAttribute('data-email-busy') === 'true'
+        || form.getAttribute('data-testmode-email-prompt') === 'true') {
+      return EMAIL_MESSAGE;
+    }
     var delivery = form.querySelector('input[name="passwordDelivery"]:checked');
     if (delivery && delivery.value === 'email') {
       return EMAIL_MESSAGE;
     }
-    return EMAIL_MESSAGE;
+    var submit = form.querySelector('button[type="submit"], input[type="submit"]')
+      || (form.id ? document.querySelector('button[form="' + form.id + '"]') : null);
+    var label = submit ? (submit.textContent || submit.value || '').replace(/\s+/g, ' ').trim().toLowerCase() : '';
+    if (label.indexOf('lösch') !== -1 || label.indexOf('loesch') !== -1) {
+      return 'Wird gelöscht …';
+    }
+    if (label.indexOf('druck') !== -1) {
+      return 'Wird gedruckt …';
+    }
+    if (label.indexOf('send') !== -1 || label.indexOf('absend') !== -1 || label.indexOf('einreich') !== -1) {
+      return 'Wird gesendet …';
+    }
+    if (label.indexOf('speicher') !== -1 || label.indexOf('übernehm') !== -1 || label.indexOf('uebernehm') !== -1
+        || label.indexOf('freigeb') !== -1) {
+      return SAVE_MESSAGE;
+    }
+    return DEFAULT_MESSAGE;
   }
 
   function shouldAttachFormBusy(form) {
     if (!form || form.dataset.fwBusyActive === 'true') {
       return false;
     }
-    if (form.dataset.confirmSubmitting === 'true') {
-      return true;
+    if (form.getAttribute('data-no-busy') === 'true') {
+      return false;
     }
-    if (form.getAttribute('data-upload-busy') === 'true') {
-      return true;
+    if (!isPostForm(form)) {
+      return false;
     }
-    if (form.getAttribute('data-email-busy') === 'true') {
-      return true;
+    var target = (form.getAttribute('target') || '').toLowerCase();
+    if (target && target !== '_self') {
+      return false;
     }
-    var delivery = form.querySelector('input[name="passwordDelivery"]:checked');
-    return !!(delivery && delivery.value === 'email');
+    if (awaitsConfirmation(form)) {
+      return false;
+    }
+    return true;
   }
 
   function beginAction(trigger, options) {
     options = options || {};
     var button = findSubmitButton(trigger);
-    var container = options.container || resolveContainer(trigger || button);
+    var form = options.form || (trigger && trigger.tagName === 'FORM' ? trigger : (trigger && trigger.form)) || null;
+    var container = options.container || resolveContainer(trigger || button || form);
     var message = options.message || DEFAULT_MESSAGE;
     var pageLevel = options.pageLevel === true || container === document.body;
-    setButtonBusy(button, true, options.buttonLabel);
+    lockRelatedButtons(form, button, true, options.buttonLabel);
     showOverlay(container, message, pageLevel);
-    return { button: button, container: container };
+    return { button: button, container: container, form: form };
   }
 
   function endAction(state) {
@@ -173,7 +257,7 @@
       return;
     }
     hideOverlay(state.container);
-    setButtonBusy(state.button, false);
+    lockRelatedButtons(state.form, state.button, false);
   }
 
   function attachFormSubmitBusy(form, submitter, message) {
@@ -183,6 +267,7 @@
     form.dataset.fwBusyActive = 'true';
     var pageLevel = form.getAttribute('data-busy-page') === 'true';
     return beginAction(submitter || form, {
+      form: form,
       message: message || busyMessageForForm(form),
       container: pageLevel ? document.body : resolveContainer(submitter || form),
       pageLevel: pageLevel,
@@ -199,11 +284,43 @@
 
   document.addEventListener('submit', function (event) {
     var form = event.target;
+    if (!form || form.tagName !== 'FORM') {
+      return;
+    }
+    if (form.dataset.fwBusyActive === 'true') {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+  }, true);
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
     if (!form || form.tagName !== 'FORM' || !shouldAttachFormBusy(form)) {
       return;
     }
-    attachFormSubmitBusy(form, event.submitter, busyMessageForForm(form));
+    var submitter = event.submitter;
+    window.setTimeout(function () {
+      if (event.defaultPrevented) {
+        return;
+      }
+      if (!shouldAttachFormBusy(form)) {
+        return;
+      }
+      attachFormSubmitBusy(form, submitter, busyMessageForForm(form));
+    }, 0);
   });
+
+  var originalSubmit = HTMLFormElement.prototype.submit;
+  HTMLFormElement.prototype.submit = function () {
+    if (this.dataset.fwBusyActive === 'true') {
+      return;
+    }
+    if (shouldAttachFormBusy(this)) {
+      attachFormSubmitBusy(this, null, busyMessageForForm(this));
+    }
+    return originalSubmit.call(this);
+  };
 
   window.FwBusy = {
     showOverlay: showOverlay,

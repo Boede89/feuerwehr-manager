@@ -53,6 +53,7 @@ import de.feuerwehr.manager.settings.AppModule;
 import de.feuerwehr.manager.settings.ModuleSettingsService;
 import de.feuerwehr.manager.unit.Unit;
 import de.feuerwehr.manager.unit.UnitService;
+import jakarta.servlet.http.HttpSession;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -102,6 +103,7 @@ public class BerichteController {
     private final UnitPrintSettingsService unitPrintSettingsService;
     private final BerichteSettingsService berichteSettingsService;
     private final AtemschutzService atemschutzService;
+    private final FormOnceTokenService formOnceTokenService;
 
     @GetMapping
     public String index(
@@ -257,6 +259,7 @@ public class BerichteController {
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
             Model model,
+            HttpSession session,
             RedirectAttributes redirectAttributes) {
         try {
             Unit unit = resolveUnit(unitId, actor, model);
@@ -264,6 +267,7 @@ public class BerichteController {
             requireBerichteWrite(actor, unit.getId());
             populateEinsatzFormModel(model, unit.getId(), null, einsatzberichtService.newForm(unit.getId()), false);
             model.addAttribute("formMode", "create");
+            model.addAttribute("fwOnce", formOnceTokenService.issue(session, "einsatz-create"));
             model.addAttribute("pageTitle", "Neuer Einsatzbericht");
             model.addAttribute("pageSubtitle", "Entwurf — wird nach dem Speichern zur Freigabe vorgelegt");
             return "berichte/einsatzbericht-form";
@@ -353,12 +357,19 @@ public class BerichteController {
     public String createEinsatzbericht(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "fwOnce", required = false) String fwOnce,
             @ModelAttribute EinsatzberichtForm form,
+            HttpSession session,
             RedirectAttributes redirectAttributes) {
         try {
             Unit unit = resolveUnit(unitId, actor);
             requireModuleEnabled(unit.getId());
             requireBerichteWrite(actor, unit.getId());
+            if (!formOnceTokenService.consume(session, "einsatz-create", fwOnce)) {
+                redirectAttributes.addFlashAttribute(
+                        "message", "Dieser Speichervorgang wurde bereits ausgeführt. Es wurde kein weiterer Bericht angelegt.");
+                return redirectBerichte(unit.getId(), "einsatz");
+            }
             List<CrewAssignment> crewAssignments = einsatzberichtService.parseCrewAssignments(form.getCrewAssignmentsJson());
             List<DeployedEquipmentAssignment> deployedEquipment =
                     einsatzberichtService.parseDeployedEquipment(form.getDeployedEquipmentJson());
@@ -672,6 +683,7 @@ public class BerichteController {
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
             Model model,
+            HttpSession session,
             RedirectAttributes redirectAttributes) {
         try {
             Unit unit = resolveUnit(unitId, actor, model);
@@ -679,6 +691,7 @@ public class BerichteController {
             requireBerichteWrite(actor, unit.getId());
             applyAnwesenheitFormBundle(model, unit.getId(), anwesenheitslisteService.buildFormBundle(unit.getId(), null));
             model.addAttribute("formMode", "create");
+            model.addAttribute("fwOnce", formOnceTokenService.issue(session, "anwesenheit-create"));
             model.addAttribute("canApprove", canApprove(actor, unit.getId()));
             model.addAttribute("pageTitle", "Neue Anwesenheitsliste");
             model.addAttribute("pageSubtitle", "Entwurf — wird nach dem Speichern zur Freigabe vorgelegt");
@@ -803,6 +816,7 @@ public class BerichteController {
     public String createAnwesenheitsliste(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "fwOnce", required = false) String fwOnce,
             @RequestParam(name = "releaseAfterSave", defaultValue = "false") boolean releaseAfterSave,
             @RequestParam(name = "createGeraetewart", defaultValue = "false") boolean createGeraetewart,
             @RequestParam(name = "printReport", defaultValue = "false") boolean printReport,
@@ -810,11 +824,17 @@ public class BerichteController {
             @RequestParam(name = "printMaengel", defaultValue = "false") boolean printMaengel,
             @RequestParam(name = "assignRemainingToWache", defaultValue = "false") boolean assignRemainingToWache,
             @ModelAttribute EinsatzberichtForm form,
+            HttpSession session,
             RedirectAttributes redirectAttributes) {
         try {
             Unit unit = resolveUnit(unitId, actor);
             requireModuleEnabled(unit.getId());
             requireBerichteWrite(actor, unit.getId());
+            if (!formOnceTokenService.consume(session, "anwesenheit-create", fwOnce)) {
+                redirectAttributes.addFlashAttribute(
+                        "message", "Dieser Speichervorgang wurde bereits ausgeführt. Es wurde keine weitere Liste angelegt.");
+                return redirectBerichte(unit.getId(), "anwesenheit");
+            }
             List<CrewAssignment> crewAssignments =
                     einsatzberichtService.parseCrewAssignments(form.getCrewAssignmentsJson());
             AttendanceReport saved =
@@ -1306,12 +1326,14 @@ public class BerichteController {
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
             Model model,
+            HttpSession session,
             RedirectAttributes redirectAttributes) {
         try {
             Unit unit = resolveUnit(unitId, actor, model);
             requireModuleEnabled(unit.getId());
             requireBerichteWrite(actor, unit.getId());
             applyGeraetewartFormModel(model, unit.getId(), null, geraetewartmitteilungService.newForm(), "create");
+            model.addAttribute("fwOnce", formOnceTokenService.issue(session, "geraetewart-create"));
             model.addAttribute("pageTitle", "Neue Gerätewartmitteilung");
             model.addAttribute("pageSubtitle", "Einsatz oder Übung");
             return "berichte/geraetewart-form";
@@ -1394,12 +1416,19 @@ public class BerichteController {
     public String createGeraetewartmitteilung(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "fwOnce", required = false) String fwOnce,
             @ModelAttribute GeraetewartmitteilungForm form,
+            HttpSession session,
             RedirectAttributes redirectAttributes) {
         try {
             Unit unit = resolveUnit(unitId, actor);
             requireModuleEnabled(unit.getId());
             requireBerichteWrite(actor, unit.getId());
+            if (!formOnceTokenService.consume(session, "geraetewart-create", fwOnce)) {
+                redirectAttributes.addFlashAttribute(
+                        "message", "Dieser Speichervorgang wurde bereits ausgeführt. Es wurde kein weiterer Bericht angelegt.");
+                return redirectBerichte(unit.getId(), "geraetewart");
+            }
             geraetewartmitteilungService.create(unit.getId(), form, actor);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Gerätewartmitteilung wurde gespeichert.");
@@ -1526,12 +1555,14 @@ public class BerichteController {
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
             Model model,
+            HttpSession session,
             RedirectAttributes redirectAttributes) {
         try {
             Unit unit = resolveUnit(unitId, actor, model);
             requireModuleEnabled(unit.getId());
             requireBerichteWrite(actor, unit.getId());
             applyMaengelberichtFormModel(model, unit.getId(), null, maengelberichtService.newForm(), "create");
+            model.addAttribute("fwOnce", formOnceTokenService.issue(session, "maengel-create"));
             model.addAttribute("pageTitle", "Neuer Mängelbericht");
             model.addAttribute("pageSubtitle", "Mangel oder Schaden erfassen");
             return "berichte/maengel-form";
@@ -1611,12 +1642,19 @@ public class BerichteController {
     public String createMaengelbericht(
             @AuthenticationPrincipal AppUserDetails actor,
             @RequestParam(name = "unit", required = false) Long unitId,
+            @RequestParam(name = "fwOnce", required = false) String fwOnce,
             @ModelAttribute MaengelberichtForm form,
+            HttpSession session,
             RedirectAttributes redirectAttributes) {
         try {
             Unit unit = resolveUnit(unitId, actor);
             requireModuleEnabled(unit.getId());
             requireBerichteWrite(actor, unit.getId());
+            if (!formOnceTokenService.consume(session, "maengel-create", fwOnce)) {
+                redirectAttributes.addFlashAttribute(
+                        "message", "Dieser Speichervorgang wurde bereits ausgeführt. Es wurde kein weiterer Bericht angelegt.");
+                return redirectBerichte(unit.getId(), "maengel");
+            }
             maengelberichtService.create(unit.getId(), form, actor);
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute("message", "Mängelbericht wurde gespeichert.");
