@@ -439,26 +439,26 @@
         <span th:if="${diensteFilter.einsaetze()}">
           <i class="auswertung-dienste-dot auswertung-dienste-dot--einsatz"></i>
           Einsätze <strong th:text="${diensteStats.einsaetzeCount()}">0</strong>
-          <span class="auswertung-dienste-compose__hours" th:text="${mitgliederStunden.einsatzStunden()}"
-                title="Geleistete Stunden der Mitglieder">0 Std.</span>
+          <span class="auswertung-dienste-compose__hours" th:text="${diensteStats.einsaetzeStunden()}"
+                title="Personstunden: Dauer × beteiligte Personen">0 Std.</span>
         </span>
         <span th:if="${diensteFilter.uebungen()}">
           <i class="auswertung-dienste-dot auswertung-dienste-dot--uebung"></i>
           Übungen <strong th:text="${diensteStats.uebungenCount()}">0</strong>
-          <span class="auswertung-dienste-compose__hours" th:text="${mitgliederStunden.uebungStunden()}"
-                title="Geleistete Stunden der Mitglieder">0 Std.</span>
+          <span class="auswertung-dienste-compose__hours" th:text="${diensteStats.uebungenStunden()}"
+                title="Personstunden: Dauer × beteiligte Personen">0 Std.</span>
         </span>
         <span th:if="${diensteFilter.sonderdienste()}">
           <i class="auswertung-dienste-dot auswertung-dienste-dot--sonder"></i>
           Sonderdienste <strong th:text="${diensteStats.sonderdienstCount()}">0</strong>
-          <span class="auswertung-dienste-compose__hours" th:text="${mitgliederStunden.sonderStunden()}"
-                title="Geleistete Stunden der Mitglieder">0 Std.</span>
+          <span class="auswertung-dienste-compose__hours" th:text="${diensteStats.sonderdienstStunden()}"
+                title="Personstunden: Dauer × beteiligte Personen">0 Std.</span>
         </span>
         <span th:if="${diensteFilter.sonstiges()}">
           <i class="auswertung-dienste-dot auswertung-dienste-dot--sonst"></i>
           Sonstiges <strong th:text="${diensteStats.sonstigesCount()}">0</strong>
-          <span class="auswertung-dienste-compose__hours" th:text="${mitgliederStunden.sonstigStunden()}"
-                title="Geleistete Stunden der Mitglieder">0 Std.</span>
+          <span class="auswertung-dienste-compose__hours" th:text="${diensteStats.sonstigesStunden()}"
+                title="Personstunden: Dauer × beteiligte Personen">0 Std.</span>
         </span>
       </div>
     </div>
@@ -471,8 +471,8 @@
       </article>
       <article class="auswertung-dienste-metric auswertung-dienste-metric--hours" role="listitem">
         <strong class="auswertung-dienste-metric__value" th:text="${diensteStats.gesamtStunden()}">0 Std.</strong>
-        <span class="auswertung-dienste-metric__label">Gesamtstunden</span>
-        <span class="auswertung-dienste-metric__hint">Summe aller Dauern</span>
+        <span class="auswertung-dienste-metric__label">Geleistete Stunden</span>
+        <span class="auswertung-dienste-metric__hint">Dauer × Personen, Summe</span>
       </article>
       <article class="auswertung-dienste-metric" role="listitem">
         <strong class="auswertung-dienste-metric__value" th:text="${diensteStats.avgPersonal()}">—</strong>
@@ -496,75 +496,6 @@
       </article>
     </div>
 
-    <div class="auswertung-detail" th:if="${diensteFilter.anySelected() and !#lists.isEmpty(mitgliederStunden.rows())}">
-      <div class="auswertung-detail__header">
-        <h3>Geleistete Stunden</h3>
-        <p class="hint" style="margin:0;">
-          Summe <strong th:text="${mitgliederStunden.summeStunden()}">0 Std.</strong>
-        </p>
-      </div>
-      <div class="table-wrap auswertung-detail__table-wrap">
-        <table class="data-table auswertung-stunden-table" id="auswertung-stunden-table">
-          <thead>
-            <tr>
-              <th scope="col">
-                <button type="button" class="auswertung-sort-btn" data-sort="name" aria-sort="none">Name</button>
-              </th>
-              <th scope="col" class="num" th:if="${diensteFilter.einsaetze()}">
-                <button type="button" class="auswertung-sort-btn" data-sort="einsatz" aria-sort="none">Einsätze</button>
-              </th>
-              <th scope="col" class="num" th:if="${diensteFilter.uebungen()}">
-                <button type="button" class="auswertung-sort-btn" data-sort="uebung" aria-sort="none">Übungen</button>
-              </th>
-              <th scope="col" class="num" th:if="${diensteFilter.sonderdienste()}">
-                <button type="button" class="auswertung-sort-btn" data-sort="sonder" aria-sort="none">Sonderdienste</button>
-              </th>
-              <th scope="col" class="num" th:if="${diensteFilter.sonstiges()}">
-                <button type="button" class="auswertung-sort-btn" data-sort="sonst" aria-sort="none">Sonstiges</button>
-              </th>
-              <th scope="col" class="num">
-                <button type="button" class="auswertung-sort-btn" data-sort="summe" aria-sort="descending">Stunden</button>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr th:each="row : ${mitgliederStunden.rows()}"
-                data-stunden-row
-                th:attr="data-name=${row.name()},
-                         data-einsatz=${row.einsatzMinuten()},
-                         data-uebung=${row.uebungMinuten()},
-                         data-sonder=${row.sonderMinuten()},
-                         data-sonst=${row.sonstigMinuten()},
-                         data-summe=${row.summeMinuten()}">
-              <td>
-                <span class="auswertung-person-name" th:text="${row.name()}">Mustermann, Max</span>
-                <span class="auswertung-stunden-archiv" th:if="${row.archived()}">Archiv</span>
-              </td>
-              <td class="num" th:if="${diensteFilter.einsaetze()}" th:text="${row.einsatzStunden()}">0</td>
-              <td class="num" th:if="${diensteFilter.uebungen()}" th:text="${row.uebungStunden()}">0</td>
-              <td class="num" th:if="${diensteFilter.sonderdienste()}" th:text="${row.sonderStunden()}">0</td>
-              <td class="num" th:if="${diensteFilter.sonstiges()}" th:text="${row.sonstigStunden()}">0</td>
-              <td class="num" th:text="${row.summeStunden()}">0</td>
-            </tr>
-          </tbody>
-          <tfoot>
-            <tr>
-              <td>Summe</td>
-              <td class="num" th:if="${diensteFilter.einsaetze()}" th:text="${mitgliederStunden.einsatzStunden()}">0 Std.</td>
-              <td class="num" th:if="${diensteFilter.uebungen()}" th:text="${mitgliederStunden.uebungStunden()}">0 Std.</td>
-              <td class="num" th:if="${diensteFilter.sonderdienste()}" th:text="${mitgliederStunden.sonderStunden()}">0 Std.</td>
-              <td class="num" th:if="${diensteFilter.sonstiges()}" th:text="${mitgliederStunden.sonstigStunden()}">0 Std.</td>
-              <td class="num" th:text="${mitgliederStunden.summeStunden()}">0 Std.</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-      <p class="hint" style="margin:12px 0 0;">
-        Je anwesende Person zählt die Dauer des freigegebenen Ereignisses.
-        Die Spalten folgen der Auswahl oben. Angaben in Stunden.
-      </p>
-    </div>
-
     <p class="hint" th:if="${!diensteFilter.anySelected()}" style="margin-top:1rem;">
       Bitte mindestens eine Ereignisart auswählen.
     </p>
@@ -584,6 +515,6 @@
     </div>
   </div>
 
-  <script th:if="${bereich.key() == 'einsaetze'}" th:src="@{/js/auswertung-dienste.js(v='20261107a')}" defer></script>
+  <script th:if="${bereich.key() == 'einsaetze'}" th:src="@{/js/auswertung-dienste.js(v='20261107b')}" defer></script>
 </main>
 </html>

@@ -33,14 +33,12 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -153,23 +151,14 @@ public class AuswertungService {
     }
 
     /**
-     * Dashboard „Einsätze / Dienste“: Anzahl, Stunden und Durchschnitte über gefilterte Ereignisse.
+     * Dashboard „Einsätze / Dienste“: Anzahl, Personstunden und Durchschnitte.
+     * Personstunden = Ereignisdauer × Anzahl beteiligter Personen, summiert über alle Ereignisse.
      */
     @Transactional(readOnly = true)
     public AuswertungDiensteStats diensteStats(long unitId, int year, AuswertungDiensteFilter filter) {
-        return diensteAuswertung(unitId, year, filter).stats();
-    }
-
-    /**
-     * Kennzahlen und geleistete Stunden der Mitglieder für die gewählten Ereignisarten.
-     * Pro anwesender Person zählt die Dauer des freigegebenen Ereignisses einmal.
-     */
-    @Transactional(readOnly = true)
-    public AuswertungDiensteResult diensteAuswertung(long unitId, int year, AuswertungDiensteFilter filter) {
         AuswertungDiensteFilter resolved = filter != null ? filter : AuswertungDiensteFilter.defaults();
         if (!resolved.anySelected()) {
-            return new AuswertungDiensteResult(
-                    AuswertungDiensteStats.empty(resolved), AuswertungMitgliederStunden.empty());
+            return AuswertungDiensteStats.empty(resolved);
         }
 
         LocalDate yearStart = LocalDate.of(year, 1, 1);
@@ -177,16 +166,9 @@ public class AuswertungService {
         LocalDate today = LocalDate.now();
         boolean includeTest = testModeService.isEnabled();
 
-        Map<Long, Person> personsById = new HashMap<>();
-        for (Person person : personalService.listPersons(unitId)) {
-            if (person.getId() != null) {
-                personsById.put(person.getId(), person);
-            }
-        }
-        Map<Long, long[]> minutesByPerson = new HashMap<>();
-
         int anzahl = 0;
-        long totalMinutes = 0;
+        long totalDurationMinutes = 0;
+        long totalPersonMinutes = 0;
         long sumPersonal = 0;
         long sumGf = 0;
         long sumZf = 0;
@@ -194,6 +176,10 @@ public class AuswertungService {
         int uebungenCount = 0;
         int sonderdienstCount = 0;
         int sonstigesCount = 0;
+        long einsaetzePersonMinutes = 0;
+        long uebungenPersonMinutes = 0;
+        long sonderdienstPersonMinutes = 0;
+        long sonstigesPersonMinutes = 0;
 
         if (resolved.einsaetze()) {
             List<IncidentReport> reports =
@@ -213,7 +199,6 @@ public class AuswertungService {
                     int personal = crew.size();
                     int zf = 0;
                     int gf = 0;
-                    Set<Long> countedPersons = new HashSet<>();
                     for (IncidentReportPersonnel member : crew) {
                         switch (Besatzungsstaerke.qualTier(member.getPerson())) {
                             case ZF -> zf++;
@@ -222,19 +207,14 @@ public class AuswertungService {
                                 // Mannschaft
                             }
                         }
-                        Person person = member.getPerson();
-                        if (person != null && person.getId() != null) {
-                            countedPersons.add(person.getId());
-                        }
                     }
                     long minutes = IncidentReportTimeSupport.durationMinutes(report);
-                    for (Long personId : countedPersons) {
-                        addMitgliedMinuten(
-                                minutesByPerson, personsById, personId, 0, minutes, report.getIncidentDate());
-                    }
+                    long personMinutes = minutes * personal;
                     anzahl++;
                     einsaetzeCount++;
-                    totalMinutes += minutes;
+                    totalDurationMinutes += minutes;
+                    totalPersonMinutes += personMinutes;
+                    einsaetzePersonMinutes += personMinutes;
                     sumPersonal += personal;
                     sumZf += zf;
                     sumGf += gf;
@@ -250,13 +230,12 @@ public class AuswertungService {
                         attendanceRange.from(),
                         attendanceRange.to(),
                         includeTest,
-                        TermineCategory.DIENSTPLAN,
-                        1,
-                        personsById,
-                        minutesByPerson);
+                        TermineCategory.DIENSTPLAN);
                 anzahl += acc.count;
                 uebungenCount += acc.count;
-                totalMinutes += acc.minutes;
+                totalDurationMinutes += acc.minutes;
+                totalPersonMinutes += acc.personMinutes;
+                uebungenPersonMinutes += acc.personMinutes;
                 sumPersonal += acc.personal;
                 sumZf += acc.zf;
                 sumGf += acc.gf;
@@ -267,13 +246,12 @@ public class AuswertungService {
                         attendanceRange.from(),
                         attendanceRange.to(),
                         includeTest,
-                        TermineCategory.SONDERDIENST,
-                        2,
-                        personsById,
-                        minutesByPerson);
+                        TermineCategory.SONDERDIENST);
                 anzahl += acc.count;
                 sonderdienstCount += acc.count;
-                totalMinutes += acc.minutes;
+                totalDurationMinutes += acc.minutes;
+                totalPersonMinutes += acc.personMinutes;
+                sonderdienstPersonMinutes += acc.personMinutes;
                 sumPersonal += acc.personal;
                 sumZf += acc.zf;
                 sumGf += acc.gf;
@@ -284,52 +262,53 @@ public class AuswertungService {
                         attendanceRange.from(),
                         attendanceRange.to(),
                         includeTest,
-                        TermineCategory.SONSTIGES,
-                        3,
-                        personsById,
-                        minutesByPerson);
+                        TermineCategory.SONSTIGES);
                 anzahl += acc.count;
                 sonstigesCount += acc.count;
-                totalMinutes += acc.minutes;
+                totalDurationMinutes += acc.minutes;
+                totalPersonMinutes += acc.personMinutes;
+                sonstigesPersonMinutes += acc.personMinutes;
                 sumPersonal += acc.personal;
                 sumZf += acc.zf;
                 sumGf += acc.gf;
             }
         }
 
-        AuswertungMitgliederStunden stunden =
-                buildMitgliederStunden(year, includeTest, personsById, minutesByPerson);
         if (anzahl == 0) {
-            return new AuswertungDiensteResult(
-                    new AuswertungDiensteStats(
-                            0,
-                            "0 Std.",
-                            "—",
-                            "—",
-                            "—",
-                            "—",
-                            einsaetzeCount,
-                            uebungenCount,
-                            sonderdienstCount,
-                            sonstigesCount,
-                            resolved),
-                    stunden);
+            return new AuswertungDiensteStats(
+                    0,
+                    "0 Std.",
+                    "—",
+                    "—",
+                    "—",
+                    "—",
+                    einsaetzeCount,
+                    uebungenCount,
+                    sonderdienstCount,
+                    sonstigesCount,
+                    formatStundenTotal(einsaetzePersonMinutes),
+                    formatStundenTotal(uebungenPersonMinutes),
+                    formatStundenTotal(sonderdienstPersonMinutes),
+                    formatStundenTotal(sonstigesPersonMinutes),
+                    resolved);
         }
 
-        return new AuswertungDiensteResult(
-                new AuswertungDiensteStats(
-                        anzahl,
-                        formatStundenTotal(totalMinutes),
-                        formatAverage(sumPersonal, anzahl),
-                        formatAverage(sumGf, anzahl),
-                        formatAverage(sumZf, anzahl),
-                        formatStundenTotal(Math.round((double) totalMinutes / anzahl)),
-                        einsaetzeCount,
-                        uebungenCount,
-                        sonderdienstCount,
-                        sonstigesCount,
-                        resolved),
-                stunden);
+        return new AuswertungDiensteStats(
+                anzahl,
+                formatStundenTotal(totalPersonMinutes),
+                formatAverage(sumPersonal, anzahl),
+                formatAverage(sumGf, anzahl),
+                formatAverage(sumZf, anzahl),
+                formatStundenTotal(Math.round((double) totalDurationMinutes / anzahl)),
+                einsaetzeCount,
+                uebungenCount,
+                sonderdienstCount,
+                sonstigesCount,
+                formatStundenTotal(einsaetzePersonMinutes),
+                formatStundenTotal(uebungenPersonMinutes),
+                formatStundenTotal(sonderdienstPersonMinutes),
+                formatStundenTotal(sonstigesPersonMinutes),
+                resolved);
     }
 
     private AccAttendance accumulateAttendance(
@@ -337,151 +316,29 @@ public class AuswertungService {
             LocalDate from,
             LocalDate to,
             boolean includeTest,
-            TermineCategory category,
-            int minuteSlot,
-            Map<Long, Person> personsById,
-            Map<Long, long[]> minutesByPerson) {
+            TermineCategory category) {
         List<AttendanceReport> reports =
                 listFreigegebeneAttendance(unitId, from, to, includeTest, category);
         long minutes = 0;
+        long personMinutes = 0;
         long personal = 0;
         long zf = 0;
         long gf = 0;
         for (AttendanceReport report : reports) {
             long eventMinutes = durationMinutes(report.getStartTime(), report.getEndTime());
-            minutes += eventMinutes;
             AnwesenheitslisteService.AnwesenheitPresenceSummary presence =
                     anwesenheitslisteService.presenceSummary(unitId, report.getId());
+            minutes += eventMinutes;
+            personMinutes += eventMinutes * presence.personal();
             personal += presence.personal();
             zf += presence.zf();
             gf += presence.gf();
-            for (Long personId : anwesenheitslisteService.presentPersonIds(unitId, report.getId())) {
-                if (personId == null) {
-                    continue;
-                }
-                addMitgliedMinuten(
-                        minutesByPerson,
-                        personsById,
-                        personId,
-                        minuteSlot,
-                        eventMinutes,
-                        report.getEventDate());
-            }
         }
-        return new AccAttendance(reports.size(), minutes, personal, zf, gf);
+        return new AccAttendance(reports.size(), minutes, personMinutes, personal, zf, gf);
     }
 
-    /**
-     * Stunden einer Person für ein Ereignis. Dieselbe Person zählt je Ereignis nur einmal.
-     * Liegt das Datum außerhalb der Mitgliedschaft, zählen die Stunden nicht.
-     */
-    private static void addMitgliedMinuten(
-            Map<Long, long[]> minutesByPerson,
-            Map<Long, Person> personsById,
-            long personId,
-            int slot,
-            long minutes,
-            LocalDate eventDate) {
-        if (personId <= 0 || minutes <= 0 || slot < 0 || slot > 3) {
-            return;
-        }
-        Person person = personsById.get(personId);
-        if (person != null
-                && eventDate != null
-                && !YearFilterSupport.isWithinMembership(eventDate, person.getEntryDate(), person.getExitDate())) {
-            return;
-        }
-        long[] slots = minutesByPerson.computeIfAbsent(personId, id -> new long[4]);
-        slots[slot] += minutes;
-    }
-
-    private AuswertungMitgliederStunden buildMitgliederStunden(
-            int year,
-            boolean includeTest,
-            Map<Long, Person> personsById,
-            Map<Long, long[]> minutesByPerson) {
-        LinkedHashMap<Long, Person> listed = new LinkedHashMap<>();
-        for (Person person : personsById.values()) {
-            if (person.getId() != null) {
-                listed.put(person.getId(), person);
-            }
-        }
-        List<Long> missing = new ArrayList<>();
-        for (Long personId : minutesByPerson.keySet()) {
-            if (!listed.containsKey(personId)) {
-                missing.add(personId);
-            }
-        }
-        if (!missing.isEmpty()) {
-            personRepository.findActiveByIdIn(missing, includeTest).forEach(person -> {
-                if (person.getId() != null) {
-                    listed.put(person.getId(), person);
-                }
-            });
-            for (Long personId : missing) {
-                if (listed.containsKey(personId)) {
-                    continue;
-                }
-                personRepository.findById(personId).ifPresent(person -> {
-                    if (person.getId() != null) {
-                        listed.put(person.getId(), person);
-                    }
-                });
-            }
-        }
-
-        List<AuswertungStundenRow> rows = new ArrayList<>();
-        long sumEinsatz = 0;
-        long sumUebung = 0;
-        long sumSonder = 0;
-        long sumSonstiges = 0;
-        for (Person person : listed.values()) {
-            boolean member = PersonMembership.wasMemberDuringYear(person, year);
-            long[] slots = minutesByPerson.get(person.getId());
-            long einsatz = slots == null ? 0 : slots[0];
-            long uebung = slots == null ? 0 : slots[1];
-            long sonder = slots == null ? 0 : slots[2];
-            long sonstiges = slots == null ? 0 : slots[3];
-            long summe = einsatz + uebung + sonder + sonstiges;
-            if (!member && summe <= 0) {
-                continue;
-            }
-            sumEinsatz += einsatz;
-            sumUebung += uebung;
-            sumSonder += sonder;
-            sumSonstiges += sonstiges;
-            String name = person.anwesenheitDisplayName();
-            if (name == null || name.isBlank()) {
-                name = "—";
-            }
-            rows.add(new AuswertungStundenRow(
-                    person.getId(),
-                    name,
-                    PersonMembership.isArchived(person),
-                    einsatz,
-                    uebung,
-                    sonder,
-                    sonstiges,
-                    summe,
-                    formatStundenValue(einsatz),
-                    formatStundenValue(uebung),
-                    formatStundenValue(sonder),
-                    formatStundenValue(sonstiges),
-                    formatStundenValue(summe)));
-        }
-        rows.sort(Comparator.comparingLong(AuswertungStundenRow::summeMinuten)
-                .reversed()
-                .thenComparing(AuswertungStundenRow::name, String.CASE_INSENSITIVE_ORDER));
-        return new AuswertungMitgliederStunden(
-                List.copyOf(rows),
-                formatStundenTotal(sumEinsatz),
-                formatStundenTotal(sumUebung),
-                formatStundenTotal(sumSonder),
-                formatStundenTotal(sumSonstiges),
-                formatStundenTotal(sumEinsatz + sumUebung + sumSonder + sumSonstiges));
-    }
-
-    private record AccAttendance(int count, long minutes, long personal, long zf, long gf) {}
+    private record AccAttendance(
+            int count, long minutes, long personMinutes, long personal, long zf, long gf) {}
 
     private static String formatAverage(long sum, int count) {
         if (count <= 0) {
