@@ -52,7 +52,7 @@
         <span th:text="${planView.totalConfirmed()}">0</span> bestätigt
       </span>
       <span class="course-detail-settings__hint" th:if="${planView.plan == null}">
-        Lehrgänge ankreuzen, Plätze setzen, dann Liste erzeugen
+        Lehrgänge ankreuzen, Plätze setzen, dann speichern
       </span>
     </summary>
     <div class="course-detail-settings__body">
@@ -83,14 +83,15 @@
             Nach Dienstbeteiligung sortieren
           </label>
           <p class="hint" style="margin:0;">
-            Personen mit erfüllten Voraussetzungen stehen immer oben.
-            Mit „Nach Dienstbeteiligung sortieren“ zusätzlich innerhalb dieser Gruppen nach Beteiligung.
+            Teilnehmer werden manuell über „+ Teilnehmer“ zugewiesen.
+            Die Sortierung gilt für die Auswahlliste und für „Reihenfolge neu berechnen“.
+            Personen mit erfüllten Voraussetzungen stehen dabei oben.
           </p>
           <label class="checkbox-row course-plan-ignore" th:if="${planView.plan != null}">
             <input type="checkbox" name="resort" value="true"/>
             Reihenfolge neu berechnen
           </label>
-          <button type="submit" class="btn btn--primary" th:if="${canWrite}">Speichern und Liste erzeugen</button>
+          <button type="submit" class="btn btn--primary" th:if="${canWrite}">Speichern</button>
         </div>
       </form>
     </div>
@@ -134,6 +135,17 @@
               </span>
             </p>
           </div>
+          <button type="button" class="btn btn--primary btn--sm"
+                  th:if="${canWrite}"
+                  data-course-assign-open
+                  th:attr="data-item-id=${item.itemId()},
+                           data-course-name=${item.course().name},
+                           data-seats=${item.seats()},
+                           data-assigned=${item.entries().size()},
+                           data-candidates-url=@{/personal/lehrgangsplanung/detail/items/{id}/candidates(id=${item.itemId()}, unit=${unitId})},
+                           data-assign-url=@{/personal/lehrgangsplanung/detail/items/{id}/assign(id=${item.itemId()})}">
+            + Teilnehmer
+          </button>
         </header>
         <div class="course-detail-table-wrap" th:if="${!#lists.isEmpty(item.entries())}">
           <table class="data-table course-detail-entry-table"
@@ -151,6 +163,7 @@
               <th>Voraussetzungen</th>
               <th>Status</th>
               <th class="course-detail-confirm-col">Bestätigt</th>
+              <th th:if="${canWrite}" class="course-detail-remove-col"> </th>
             </tr>
             </thead>
             <tbody>
@@ -218,12 +231,25 @@
                 </form>
                 <span th:unless="${canWrite}" th:text="${row.confirmed()} ? 'ja' : 'nein'">nein</span>
               </td>
+              <td th:if="${canWrite}" class="course-detail-remove-col">
+                <form method="post" class="table-inline-form"
+                      th:action="@{/personal/lehrgangsplanung/detail/entries/{id}/remove(id=${row.entryId()})}"
+                      data-confirm="Teilnehmer wirklich entfernen?">
+                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                  <input type="hidden" name="unit" th:value="${unitId}"/>
+                  <input type="hidden" name="jahr" th:value="${planYear}"/>
+                  <input type="hidden" name="itemId" th:value="${item.itemId()}"/>
+                  <button type="submit" class="btn btn--outline btn--sm course-detail-remove-btn"
+                          title="Entfernen" aria-label="Teilnehmer entfernen">Entfernen</button>
+                </form>
+              </td>
             </tr>
             </tbody>
           </table>
         </div>
         <p class="hint course-detail-empty" th:if="${#lists.isEmpty(item.entries())}">
-          Niemand hat diesen Lehrgang noch offen.
+          Noch niemand zugewiesen.
+          <span th:if="${canWrite}">Über „+ Teilnehmer“ Personen diesem Lehrgang zuordnen.</span>
         </p>
       </section>
     </div>
@@ -231,9 +257,70 @@
 
   <p class="hint course-detail-empty-plan" th:if="${planView.plan == null}">
     Noch keine gespeicherte Planung für <span th:text="${planYear}">2027</span>.
-    Wählen Sie oben Lehrgänge und Plätze und speichern Sie die Liste.
+    Wählen Sie oben Lehrgänge und Plätze und speichern Sie die Planung.
   </p>
 
-  <script th:src="@{/js/course-detail-plan.js(v='20260830b')}"></script>
+  <div id="course-assign-modal" class="incident-modal" hidden aria-hidden="true"
+       th:if="${canWrite and !#lists.isEmpty(planView.items)}">
+    <div class="modal__backdrop" data-course-assign-close></div>
+    <div class="modal__box course-assign-modal__box" role="dialog" aria-modal="true"
+         aria-labelledby="course-assign-modal-title">
+      <div class="modal__header">
+        <h3 id="course-assign-modal-title">Teilnehmer zuweisen</h3>
+        <button type="button" class="modal__close" data-course-assign-close aria-label="Schließen">✕</button>
+      </div>
+      <form method="post" id="course-assign-form" class="course-assign-form">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="unit" th:value="${unitId}"/>
+        <input type="hidden" name="jahr" th:value="${planYear}"/>
+        <div class="modal__body course-assign-modal__body">
+          <p class="hint" id="course-assign-meta" style="margin-top:0;">—</p>
+          <div class="course-assign-toolbar">
+            <label class="toolbar-toggle course-assign-prereq-toggle" for="course-assign-show-all"
+                   title="Zwischen erfüllten Voraussetzungen und allen Personen ohne Lehrgang wechseln">
+              <span class="toolbar-toggle__label toolbar-toggle__label--active" id="course-assign-prereq-label-on">
+                Nur Voraussetzungen
+              </span>
+              <span class="toggle-switch toggle-switch--toolbar">
+                <input type="checkbox" id="course-assign-show-all"
+                       aria-label="Auch Personen ohne erfüllte Voraussetzungen anzeigen"/>
+                <span class="toggle-switch__track"></span>
+              </span>
+              <span class="toolbar-toggle__label" id="course-assign-prereq-label-off">Alle ohne Lehrgang</span>
+            </label>
+            <input type="search" class="field personal-search-field" id="course-assign-search"
+                   placeholder="Person suchen…" maxlength="100" autocomplete="off" aria-label="Person suchen"/>
+          </div>
+          <div class="course-assign-list-wrap">
+            <table class="data-table course-assign-table">
+              <thead>
+              <tr>
+                <th class="course-assign-check-col">
+                  <label class="sr-only" for="course-assign-select-all">Alle auswählen</label>
+                  <input type="checkbox" id="course-assign-select-all" aria-label="Alle auswählen"/>
+                </th>
+                <th>Name</th>
+                <th id="course-assign-participation-col" hidden>Dienstbeteiligung</th>
+                <th>Voraussetzungen</th>
+              </tr>
+              </thead>
+              <tbody id="course-assign-tbody">
+              <tr>
+                <td colspan="4" class="hint">Liste wird geladen…</td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal__footer">
+          <p class="hint course-assign-selection" id="course-assign-selection">0 ausgewählt</p>
+          <button type="button" class="btn btn-secondary" data-course-assign-close>Abbrechen</button>
+          <button type="submit" class="btn btn--primary" id="course-assign-submit" disabled>Zuweisen</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script th:src="@{/js/course-detail-plan.js(v='20261107e')}"></script>
 </main>
 </html>

@@ -17,6 +17,14 @@
     return meta ? meta.getAttribute('content') : '_csrf';
   }
 
+  function esc(text) {
+    return String(text == null ? '' : text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
   function submitReorder(table) {
     var url = table.getAttribute('data-reorder-url');
     if (!url) return;
@@ -136,6 +144,258 @@
     applyFilters();
   }
 
+  function bindAssignModal() {
+    var modal = document.getElementById('course-assign-modal');
+    var form = document.getElementById('course-assign-form');
+    var tbody = document.getElementById('course-assign-tbody');
+    var meta = document.getElementById('course-assign-meta');
+    var search = document.getElementById('course-assign-search');
+    var showAll = document.getElementById('course-assign-show-all');
+    var selectAll = document.getElementById('course-assign-select-all');
+    var submitBtn = document.getElementById('course-assign-submit');
+    var selectionHint = document.getElementById('course-assign-selection');
+    var participationCol = document.getElementById('course-assign-participation-col');
+    var labelOn = document.getElementById('course-assign-prereq-label-on');
+    var labelOff = document.getElementById('course-assign-prereq-label-off');
+    if (!modal || !form || !tbody) {
+      return;
+    }
+
+    var state = {
+      candidatesUrl: '',
+      assignUrl: '',
+      courseName: '',
+      seats: 0,
+      assigned: 0,
+      useParticipation: false,
+      candidates: []
+    };
+
+    function selectedCount() {
+      return tbody.querySelectorAll('input[name="personIds"]:checked').length;
+    }
+
+    function updateSelection() {
+      var count = selectedCount();
+      var openSeats = Math.max(0, state.seats - state.assigned);
+      if (selectionHint) {
+        var text = count + ' ausgewählt';
+        if (count > 0 && openSeats <= 0) {
+          text += ' · werden als Nachrücker zugewiesen';
+        } else if (count > openSeats && openSeats > 0) {
+          text += ' · ' + openSeats + ' Plätze, Rest als Nachrücker';
+        } else if (count > 0 && openSeats > 0) {
+          text += ' · noch ' + openSeats + ' Plätze frei';
+        }
+        selectionHint.textContent = text;
+      }
+      if (submitBtn) {
+        submitBtn.disabled = count === 0;
+      }
+      if (selectAll) {
+        var boxes = tbody.querySelectorAll('input[name="personIds"]');
+        var visible = Array.prototype.filter.call(boxes, function (box) {
+          return !box.closest('tr') || !box.closest('tr').hidden;
+        });
+        var checkedVisible = visible.filter(function (box) { return box.checked; });
+        selectAll.checked = visible.length > 0 && checkedVisible.length === visible.length;
+        selectAll.indeterminate = checkedVisible.length > 0 && checkedVisible.length < visible.length;
+      }
+    }
+
+    function syncPrereqLabels() {
+      var all = !!(showAll && showAll.checked);
+      if (labelOn) {
+        labelOn.classList.toggle('toolbar-toggle__label--active', !all);
+      }
+      if (labelOff) {
+        labelOff.classList.toggle('toolbar-toggle__label--active', all);
+      }
+    }
+
+    function applyCandidateSearch() {
+      var q = ((search && search.value) || '').trim().toLowerCase();
+      tbody.querySelectorAll('tr[data-search]').forEach(function (row) {
+        var hay = (row.getAttribute('data-search') || '').toLowerCase();
+        row.hidden = !!(q && hay.indexOf(q) === -1);
+      });
+      updateSelection();
+    }
+
+    function renderCandidates(payload) {
+      state.candidates = payload && payload.candidates ? payload.candidates : [];
+      state.useParticipation = !!(payload && payload.useParticipation);
+      state.seats = payload && payload.seats != null ? Number(payload.seats) : state.seats;
+      state.assigned = payload && payload.assignedCount != null ? Number(payload.assignedCount) : state.assigned;
+      if (participationCol) {
+        participationCol.hidden = !state.useParticipation;
+      }
+      if (meta) {
+        var openSeats = Math.max(0, state.seats - state.assigned);
+        var parts = [
+          state.courseName || (payload && payload.courseName) || 'Lehrgang',
+          state.assigned + '/' + state.seats + ' Plätze belegt'
+        ];
+        if (openSeats <= 0) {
+          parts.push('weitere Zuweisungen werden Nachrücker');
+        } else {
+          parts.push(openSeats + ' frei');
+        }
+        meta.textContent = parts.join(' · ');
+      }
+      if (!state.candidates.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="hint">Keine passenden Personen gefunden.</td></tr>';
+        updateSelection();
+        return;
+      }
+      tbody.innerHTML = state.candidates.map(function (row) {
+        var prereq = row.prerequisitesMet
+          ? '<span class="course-plan-status course-plan-status--ok" title="Voraussetzungen erfüllt">✓</span>'
+          : esc(row.missingPrerequisitesLabel || '—');
+        var participation = state.useParticipation
+          ? '<td>' + esc(row.dienstbeteiligung || '—') + '</td>'
+          : '';
+        var search = [
+          row.name || '',
+          row.missingPrerequisitesLabel || ''
+        ].join(' ');
+        return (
+          '<tr data-search="' + esc(search) + '">' +
+            '<td class="course-assign-check-col">' +
+              '<input type="checkbox" name="personIds" value="' + esc(row.personId) + '"' +
+              ' aria-label="' + esc(row.name || 'Person') + ' auswählen"/>' +
+            '</td>' +
+            '<td>' + esc(row.name || '—') + '</td>' +
+            participation +
+            '<td class="text-muted text-sm">' + prereq + '</td>' +
+          '</tr>'
+        );
+      }).join('');
+      if (selectAll) {
+        selectAll.checked = false;
+        selectAll.indeterminate = false;
+      }
+      applyCandidateSearch();
+    }
+
+    function loadCandidates() {
+      if (!state.candidatesUrl) {
+        return;
+      }
+      tbody.innerHTML = '<tr><td colspan="4" class="hint">Liste wird geladen…</td></tr>';
+      if (submitBtn) {
+        submitBtn.disabled = true;
+      }
+      var only = showAll && showAll.checked ? 'false' : 'true';
+      var url = state.candidatesUrl
+        + (state.candidatesUrl.indexOf('?') >= 0 ? '&' : '?')
+        + 'onlyWithPrerequisites=' + encodeURIComponent(only);
+      fetch(url, {
+        headers: { 'Accept': 'application/json' },
+        credentials: 'same-origin'
+      }).then(function (res) {
+        if (!res.ok) {
+          throw new Error('Laden fehlgeschlagen');
+        }
+        return res.json();
+      }).then(function (payload) {
+        if (payload && payload.error) {
+          throw new Error(payload.error);
+        }
+        renderCandidates(payload || {});
+      }).catch(function (err) {
+        tbody.innerHTML = '<tr><td colspan="4" class="hint">' +
+          esc(err && err.message ? err.message : 'Liste konnte nicht geladen werden.') +
+          '</td></tr>';
+        updateSelection();
+      });
+    }
+
+    function openModal(trigger) {
+      state.candidatesUrl = trigger.getAttribute('data-candidates-url') || '';
+      state.assignUrl = trigger.getAttribute('data-assign-url') || '';
+      state.courseName = trigger.getAttribute('data-course-name') || '';
+      state.seats = Number(trigger.getAttribute('data-seats') || 0);
+      state.assigned = Number(trigger.getAttribute('data-assigned') || 0);
+      form.action = state.assignUrl;
+      var title = document.getElementById('course-assign-modal-title');
+      if (title) {
+        title.textContent = 'Teilnehmer: ' + (state.courseName || 'Lehrgang');
+      }
+      if (search) {
+        search.value = '';
+      }
+      if (showAll) {
+        showAll.checked = false;
+      }
+      syncPrereqLabels();
+      modal.hidden = false;
+      modal.setAttribute('aria-hidden', 'false');
+      modal.style.display = '';
+      loadCandidates();
+      if (search) {
+        setTimeout(function () { search.focus(); }, 0);
+      }
+    }
+
+    function closeModal() {
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+      modal.style.display = 'none';
+      state.candidates = [];
+      tbody.innerHTML = '';
+      if (selectAll) {
+        selectAll.checked = false;
+        selectAll.indeterminate = false;
+      }
+      updateSelection();
+    }
+
+    document.querySelectorAll('[data-course-assign-open]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        openModal(btn);
+      });
+    });
+    modal.querySelectorAll('[data-course-assign-close]').forEach(function (el) {
+      el.addEventListener('click', closeModal);
+    });
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape' && !modal.hidden) {
+        closeModal();
+      }
+    });
+    if (showAll) {
+      showAll.addEventListener('change', function () {
+        syncPrereqLabels();
+        loadCandidates();
+      });
+    }
+    if (search) {
+      search.addEventListener('input', applyCandidateSearch);
+    }
+    if (selectAll) {
+      selectAll.addEventListener('change', function () {
+        var checked = selectAll.checked;
+        tbody.querySelectorAll('tr[data-search]').forEach(function (row) {
+          if (row.hidden) return;
+          var box = row.querySelector('input[name="personIds"]');
+          if (box) box.checked = checked;
+        });
+        updateSelection();
+      });
+    }
+    tbody.addEventListener('change', function (ev) {
+      if (ev.target && ev.target.name === 'personIds') {
+        updateSelection();
+      }
+    });
+    form.addEventListener('submit', function (ev) {
+      if (selectedCount() === 0) {
+        ev.preventDefault();
+      }
+    });
+  }
+
   onReady(function () {
     document.querySelectorAll('form[data-confirm]').forEach(function (form) {
       form.addEventListener('submit', function (e) {
@@ -179,5 +439,7 @@
         });
       }
     });
+
+    bindAssignModal();
   });
 })();

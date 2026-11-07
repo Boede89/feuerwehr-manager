@@ -13,9 +13,11 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -169,6 +171,115 @@ public class CourseDetailPlanService {
         entryRepository.save(entry);
     }
 
+    /**
+     * Kandidaten für das Zuweisungs-Modal: Personen ohne diesen Lehrgang,
+     * die noch nicht dem Planungs-Lehrgang zugeordnet sind.
+     */
+    @Transactional(readOnly = true)
+    public CandidateListResponse listCandidates(long unitId, long itemId, boolean onlyWithPrerequisites) {
+        CourseDetailPlanItem item = requireItem(unitId, itemId);
+        CourseDetailPlan plan = item.getPlan();
+        int participationYear = participationYearFor(plan.getPlanYear());
+        Map<Long, AuswertungPersonRow> participation = plan.isUseParticipation()
+                ? participationByPersonId(unitId, participationYear)
+                : Map.of();
+        CoursePlanResult planResult =
+                personalService.planCourse(unitId, item.getCourse().getId(), !onlyWithPrerequisites);
+        Set<Long> assigned = loadEntries(List.of(item.getId())).stream()
+                .map(CourseDetailPlanEntry::getPerson)
+                .filter(person -> person != null && person.getId() != null)
+                .map(Person::getId)
+                .collect(Collectors.toCollection(HashSet::new));
+        List<CoursePlanCandidate> ranked = planResult.candidates().stream()
+                .filter(row -> row.person() != null
+                        && row.person().getId() != null
+                        && !assigned.contains(row.person().getId()))
+                .sorted(candidateComparator(participation, plan.isUseParticipation()))
+                .toList();
+        List<CandidateView> candidates = new ArrayList<>(ranked.size());
+        for (CoursePlanCandidate row : ranked) {
+            AuswertungPersonRow stats = participation.get(row.person().getId());
+            candidates.add(new CandidateView(
+                    row.person().getId(),
+                    row.person().displayName(),
+                    row.prerequisitesMet(),
+                    row.missingPrerequisitesLabel(),
+                    stats == null ? "—" : stats.dienstbeteiligung(),
+                    stats == null ? 0 : stats.dienstPct()));
+        }
+        int assignedCount = assigned.size();
+        int openSeats = Math.max(0, item.getSeats() - Math.min(item.getSeats(), assignedCount));
+        return new CandidateListResponse(
+                item.getId(),
+                item.getCourse().getName(),
+                item.getSeats(),
+                assignedCount,
+                openSeats,
+                plan.isUseParticipation(),
+                participationYear,
+                List.copyOf(candidates));
+    }
+
+    @Transactional
+    public int assignPersons(long unitId, long itemId, List<Long> personIds) {
+        CourseDetailPlanItem item = requireItem(unitId, itemId);
+        if (personIds == null || personIds.isEmpty()) {
+            return 0;
+        }
+        CoursePlanResult planResult = personalService.planCourse(unitId, item.getCourse().getId(), true);
+        Map<Long, CoursePlanCandidate> candidatesByPerson = new LinkedHashMap<>();
+        for (CoursePlanCandidate candidate : planResult.candidates()) {
+            if (candidate.person() != null && candidate.person().getId() != null) {
+                candidatesByPerson.put(candidate.person().getId(), candidate);
+            }
+        }
+        List<CourseDetailPlanEntry> existing = new ArrayList<>(loadEntries(List.of(item.getId())));
+        Set<Long> already = new HashSet<>();
+        for (CourseDetailPlanEntry entry : existing) {
+            if (entry.getPerson() != null && entry.getPerson().getId() != null) {
+                already.add(entry.getPerson().getId());
+            }
+        }
+        int sort = existing.isEmpty()
+                ? 0
+                : existing.stream().mapToInt(CourseDetailPlanEntry::getSortOrder).max().orElse(-1) + 1;
+        int added = 0;
+        Set<Long> requested = new LinkedHashSet<>();
+        for (Long personId : personIds) {
+            if (personId != null && personId > 0) {
+                requested.add(personId);
+            }
+        }
+        for (Long personId : requested) {
+            if (already.contains(personId)) {
+                continue;
+            }
+            CoursePlanCandidate candidate = candidatesByPerson.get(personId);
+            if (candidate == null || candidate.person() == null) {
+                continue;
+            }
+            CourseDetailPlanEntry entry = new CourseDetailPlanEntry();
+            entry.setItem(item);
+            entry.setPerson(candidate.person());
+            entry.setConfirmed(false);
+            entry.setSortOrder(sort++);
+            entryRepository.save(entry);
+            already.add(personId);
+            added++;
+        }
+        return added;
+    }
+
+    @Transactional
+    public void removeEntry(long unitId, long entryId) {
+        CourseDetailPlanEntry entry = requireEntry(unitId, entryId);
+        Long itemId = entry.getItem().getId();
+        entryRepository.delete(entry);
+        entryRepository.flush();
+        List<CourseDetailPlanEntry> remaining = loadEntries(List.of(itemId));
+        persistOrder(remaining);
+    }
+
     @Transactional
     public void deletePlan(long unitId, int planYear) {
         CourseDetailPlan plan = planRepository
@@ -212,6 +323,11 @@ public class CourseDetailPlanService {
         }
     }
 
+    /**
+     * Erhält manuell zugewiesene Personen. Entfernt nur noch Personen, die den Lehrgang
+     * inzwischen haben oder keine Kandidaten mehr sind. Fügt niemanden automatisch hinzu.
+     * Bei {@code resort} wird die bestehende Zuordnung neu sortiert.
+     */
     private void rebuildEntries(long unitId, CourseDetailPlan plan, boolean resort) {
         int participationYear = participationYearFor(plan.getPlanYear());
         Map<Long, AuswertungPersonRow> participation = plan.isUseParticipation()
@@ -239,23 +355,26 @@ public class CourseDetailPlanService {
                     candidatesByPerson.put(candidate.person().getId(), candidate);
                 }
             }
-            List<CoursePlanCandidate> ranked = new ArrayList<>(candidatesByPerson.values());
-            ranked.sort(candidateComparator(participation, plan.isUseParticipation()));
-            List<Long> rankedIds = ranked.stream().map(row -> row.person().getId()).toList();
             List<CourseDetailPlanEntry> previous = existingByItem.getOrDefault(item.getId(), List.of());
-            List<Long> previousIds = previous.stream()
-                    .map(row -> row.getPerson() != null ? row.getPerson().getId() : null)
-                    .filter(id -> id != null)
-                    .toList();
-            Map<Long, CourseDetailPlanEntry> previousByPerson = new HashMap<>();
+            List<CourseDetailPlanEntry> keepRows = new ArrayList<>();
             for (CourseDetailPlanEntry entry : previous) {
-                if (entry.getPerson() != null && entry.getPerson().getId() != null) {
-                    previousByPerson.put(entry.getPerson().getId(), entry);
+                Person person = entry.getPerson();
+                if (person == null || person.getId() == null) {
+                    continue;
+                }
+                if (candidatesByPerson.containsKey(person.getId())) {
+                    keepRows.add(entry);
                 }
             }
-            List<Long> nextIds = CourseDetailPlanRanking.mergeOrder(previousIds, rankedIds, resort);
-            nextIds = CourseDetailPlanRanking.ensurePrerequisitesFirst(nextIds, candidatesByPerson);
-            Set<Long> keepPeople = new HashSet<>(nextIds);
+            if (resort && !keepRows.isEmpty()) {
+                keepRows.sort(Comparator.comparing(
+                        (CourseDetailPlanEntry entry) -> candidatesByPerson.get(entry.getPerson().getId()),
+                        candidateComparator(participation, plan.isUseParticipation())));
+            }
+            Set<Long> keepPeople = new HashSet<>();
+            for (CourseDetailPlanEntry entry : keepRows) {
+                keepPeople.add(entry.getPerson().getId());
+            }
             if (item.getEntries() == null) {
                 item.setEntries(new ArrayList<>());
             }
@@ -263,19 +382,7 @@ public class CourseDetailPlanService {
                     || entry.getPerson().getId() == null
                     || !keepPeople.contains(entry.getPerson().getId()));
             int sort = 0;
-            for (Long personId : nextIds) {
-                CourseDetailPlanEntry entry = previousByPerson.get(personId);
-                if (entry == null) {
-                    CoursePlanCandidate candidate = candidatesByPerson.get(personId);
-                    if (candidate == null || candidate.person() == null) {
-                        continue;
-                    }
-                    entry = new CourseDetailPlanEntry();
-                    entry.setItem(item);
-                    entry.setPerson(candidate.person());
-                    entry.setConfirmed(false);
-                    item.getEntries().add(entry);
-                }
+            for (CourseDetailPlanEntry entry : keepRows) {
                 entry.setSortOrder(sort++);
             }
         }
@@ -390,6 +497,14 @@ public class CourseDetailPlanService {
         return entry;
     }
 
+    private CourseDetailPlanItem requireItem(long unitId, long itemId) {
+        CourseDetailPlanItem item = itemRepository
+                .findByIdWithPlan(itemId)
+                .orElseThrow(() -> new IllegalArgumentException("Lehrgang nicht in der Planung"));
+        requirePlanUnit(item.getPlan(), unitId);
+        return item;
+    }
+
     private static void requirePlanUnit(CourseDetailPlan plan, long unitId) {
         if (plan == null || plan.getUnit() == null || !plan.getUnit().getId().equals(unitId)) {
             throw new IllegalArgumentException("Planung gehört nicht zur Einheit");
@@ -413,6 +528,24 @@ public class CourseDetailPlanService {
     }
 
     public record CourseSeatInput(long courseId, int seats) {}
+
+    public record CandidateView(
+            long personId,
+            String name,
+            boolean prerequisitesMet,
+            String missingPrerequisitesLabel,
+            String dienstbeteiligung,
+            double dienstPct) {}
+
+    public record CandidateListResponse(
+            long itemId,
+            String courseName,
+            int seats,
+            int assignedCount,
+            int openSeats,
+            boolean useParticipation,
+            int participationYear,
+            List<CandidateView> candidates) {}
 
     public record EntryView(
             long entryId,

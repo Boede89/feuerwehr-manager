@@ -3,6 +3,7 @@ package de.feuerwehr.manager.web;
 import de.feuerwehr.manager.pdf.HtmlPdfService;
 import de.feuerwehr.manager.pdf.PdfDownloadResponse;
 import de.feuerwehr.manager.personal.CourseDetailPlanService;
+import de.feuerwehr.manager.personal.CourseDetailPlanService.CandidateListResponse;
 import de.feuerwehr.manager.personal.CourseDetailPlanService.CourseSeatInput;
 import de.feuerwehr.manager.personal.CourseDetailPlanService.DetailPlanView;
 import de.feuerwehr.manager.security.AccessControlService;
@@ -18,6 +19,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
@@ -124,7 +127,8 @@ public class CourseDetailPlanController {
             List<CourseSeatInput> seats = parseSeats(includeCourseIds, params);
             courseDetailPlanService.saveAndGenerate(unit, jahr, useParticipation, seats, resort);
             redirectAttributes.addFlashAttribute("saved", true);
-            redirectAttributes.addFlashAttribute("message", "Lehrgangsplanung für " + jahr + " gespeichert.");
+            redirectAttributes.addFlashAttribute(
+                    "message", "Lehrgangsplanung für " + jahr + " gespeichert. Teilnehmer über „+ Teilnehmer“ zuweisen.");
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
@@ -170,6 +174,72 @@ public class CourseDetailPlanController {
             redirectAttributes.addFlashAttribute("saved", true);
             redirectAttributes.addFlashAttribute(
                     "message", confirmed ? "Teilnahme bestätigt." : "Bestätigung entfernt.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        String url = redirect(unit, jahr);
+        if (itemId != null && itemId > 0) {
+            url += "#item-" + itemId;
+        }
+        return url;
+    }
+
+    @GetMapping("/items/{itemId}/candidates")
+    @ResponseBody
+    public ResponseEntity<?> candidates(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long itemId,
+            @RequestParam long unit,
+            @RequestParam(name = "onlyWithPrerequisites", defaultValue = "true") boolean onlyWithPrerequisites) {
+        try {
+            accessControlService.requireUnitAccess(actor, unit);
+            userPermissionService.requirePermission(actor, unit, "personal.read");
+            CandidateListResponse response =
+                    courseDetailPlanService.listCandidates(unit, itemId, onlyWithPrerequisites);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/items/{itemId}/assign")
+    public String assign(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long itemId,
+            @RequestParam long unit,
+            @RequestParam int jahr,
+            @RequestParam(name = "personIds", required = false) List<Long> personIds,
+            RedirectAttributes redirectAttributes) {
+        try {
+            requireWrite(actor, unit);
+            int added = courseDetailPlanService.assignPersons(unit, itemId, personIds);
+            redirectAttributes.addFlashAttribute("saved", true);
+            if (added == 0) {
+                redirectAttributes.addFlashAttribute("message", "Keine neuen Teilnehmer hinzugefügt.");
+            } else if (added == 1) {
+                redirectAttributes.addFlashAttribute("message", "1 Teilnehmer zugewiesen.");
+            } else {
+                redirectAttributes.addFlashAttribute("message", added + " Teilnehmer zugewiesen.");
+            }
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return redirect(unit, jahr) + "#item-" + itemId;
+    }
+
+    @PostMapping("/entries/{entryId}/remove")
+    public String remove(
+            @AuthenticationPrincipal AppUserDetails actor,
+            @PathVariable long entryId,
+            @RequestParam long unit,
+            @RequestParam int jahr,
+            @RequestParam(name = "itemId", required = false) Long itemId,
+            RedirectAttributes redirectAttributes) {
+        try {
+            requireWrite(actor, unit);
+            courseDetailPlanService.removeEntry(unit, entryId);
+            redirectAttributes.addFlashAttribute("saved", true);
+            redirectAttributes.addFlashAttribute("message", "Teilnehmer entfernt.");
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
