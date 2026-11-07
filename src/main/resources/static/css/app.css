@@ -5456,8 +5456,23 @@ span.course-plan-chip {
 .course-plan-table td {
   padding: 7px 14px;
 }
+.course-detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: calc(100vh - var(--topnav-height) - (2 * var(--layout-gutter)));
+  max-height: calc(100vh - var(--topnav-height) - (2 * var(--layout-gutter)));
+  min-height: 0;
+  overflow: hidden;
+}
+.course-detail-page > .ok,
+.course-detail-page > .err,
+.course-detail-page > .testmode-banner {
+  flex-shrink: 0;
+}
 .course-detail-page .member-detail-header {
-  margin-bottom: 12px;
+  margin-bottom: 0;
+  flex-shrink: 0;
 }
 .course-detail-hero {
   align-items: flex-start;
@@ -5480,7 +5495,10 @@ span.course-plan-chip {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  margin-bottom: 12px;
+  margin-bottom: 0;
+  flex-shrink: 0;
+  max-height: min(42vh, 28rem);
+  overflow: auto;
 }
 .course-detail-settings__summary {
   display: flex;
@@ -5571,12 +5589,13 @@ span.course-plan-chip {
 }
 .course-detail-workspace {
   display: grid;
-  grid-template-columns: minmax(220px, 280px) 1fr;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--bg-card);
-  min-height: min(68vh, 760px);
-  max-height: calc(100vh - 13.5rem);
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: hidden;
 }
 .course-detail-nav {
@@ -5589,6 +5608,7 @@ span.course-plan-chip {
   border-right: 1px solid var(--border);
   background: var(--bg);
   min-height: 0;
+  height: 100%;
 }
 .course-detail-nav-btn {
   display: flex;
@@ -5636,6 +5656,8 @@ span.course-plan-chip {
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 .course-detail-tools {
   display: flex;
@@ -5653,7 +5675,8 @@ span.course-plan-chip {
   display: none;
   flex-direction: column;
   min-height: 0;
-  flex: 1;
+  flex: 1 1 auto;
+  overflow: hidden;
 }
 .course-detail-panel.is-active {
   display: flex;
@@ -5667,14 +5690,17 @@ span.course-plan-chip {
   font-size: 1rem;
 }
 .course-detail-table-wrap {
-  flex: 1;
+  flex: 1 1 auto;
   overflow: auto;
   min-height: 0;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 .course-detail-entry-table thead th {
   position: sticky;
   top: 0;
   z-index: 1;
+  background: var(--bg-card-hover, var(--bg-card));
 }
 .course-detail-entry-table td {
   padding: 6px 12px;
@@ -5702,16 +5728,31 @@ span.course-plan-chip {
 .course-detail-empty,
 .course-detail-empty-plan {
   margin: 12px 14px;
+  flex-shrink: 0;
 }
 @media (max-width: 900px) {
+  .course-detail-page {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+  .course-detail-settings {
+    max-height: none;
+    overflow: visible;
+  }
   .course-detail-workspace {
     grid-template-columns: 1fr;
-    max-height: none;
+    grid-template-rows: auto minmax(16rem, 70vh);
+    flex: none;
     min-height: 0;
+    height: auto;
+    overflow: hidden;
   }
   .course-detail-nav {
     flex-direction: row;
     overflow-x: auto;
+    overflow-y: hidden;
+    height: auto;
     border-right: none;
     border-bottom: 1px solid var(--border);
   }
@@ -5719,8 +5760,13 @@ span.course-plan-chip {
     flex: 0 0 auto;
     width: auto;
   }
+  .course-detail-main,
   .course-detail-panel.is-active {
-    max-height: 70vh;
+    height: auto;
+    min-height: 0;
+  }
+  .course-detail-table-wrap {
+    min-height: 12rem;
   }
   .course-plan-table-wrap {
     max-height: 60vh;
