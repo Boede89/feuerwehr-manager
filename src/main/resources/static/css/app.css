@@ -10730,9 +10730,19 @@ body.uvv-runner-open {
   font-size: var(--fs-sm);
   color: var(--text-muted);
 }
+.auswertung-dienste-compose__legend > span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
 .auswertung-dienste-compose__legend strong {
   color: var(--text);
   font-weight: 700;
+}
+.auswertung-dienste-compose__hours {
+  color: var(--text);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 .auswertung-dienste-dot {
   display: inline-block;
@@ -10795,5 +10805,25 @@ body.uvv-runner-open {
 .auswertung-dienste-metric__hint {
   margin-top: auto;
   font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.auswertung-stunden-table th.num,
+.auswertung-stunden-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.auswertung-stunden-table th.num .auswertung-sort-btn {
+  width: 100%;
+  justify-content: flex-end;
+}
+.auswertung-stunden-table tfoot td {
+  font-weight: 700;
+  border-top: 1px solid var(--border);
+}
+.auswertung-stunden-archiv {
+  margin-left: 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 600;
   color: var(--text-muted);
 }

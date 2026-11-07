@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.feuerwehr.manager.auswertung.AuswertungBereich;
 import de.feuerwehr.manager.auswertung.AuswertungDiensteFilter;
-import de.feuerwehr.manager.auswertung.AuswertungDiensteStats;
+import de.feuerwehr.manager.auswertung.AuswertungDiensteResult;
 import de.feuerwehr.manager.auswertung.AuswertungEinsatzRow;
 import de.feuerwehr.manager.auswertung.AuswertungOverviewDetail;
 import de.feuerwehr.manager.auswertung.AuswertungPersonRow;
@@ -105,10 +105,11 @@ public class AuswertungController {
                         ? AuswertungDiensteFilter.fromParams(
                                 filterEinsaetze, filterUebungen, filterSonderdienste, filterSonstiges)
                         : AuswertungDiensteFilter.defaults();
-                AuswertungDiensteStats diensteStats =
-                        auswertungService.diensteStats(unit.getId(), filterYear, diensteFilter);
+                AuswertungDiensteResult dienste =
+                        auswertungService.diensteAuswertung(unit.getId(), filterYear, diensteFilter);
                 model.addAttribute("diensteFilter", diensteFilter);
-                model.addAttribute("diensteStats", diensteStats);
+                model.addAttribute("diensteStats", dienste.stats());
+                model.addAttribute("mitgliederStunden", dienste.stunden());
             }
 
             return "auswertung/index";
