@@ -10790,6 +10790,26 @@ body.uvv-runner-open {
   background:
     linear-gradient(180deg, color-mix(in srgb, #ca8a04 12%, var(--bg-card)), var(--bg-card) 42%);
 }
+.auswertung-dienste-extra {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+@media (max-width: 1100px) {
+  .auswertung-dienste-extra {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .auswertung-dienste-extra {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.auswertung-dienste-metric--personhours {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #0f766e 12%, var(--bg-card)), var(--bg-card) 42%);
+}
 .auswertung-dienste-metric__value {
   font-size: clamp(1.35rem, 2.2vw, 1.85rem);
   font-weight: 800;

@@ -471,8 +471,8 @@
       </article>
       <article class="auswertung-dienste-metric auswertung-dienste-metric--hours" role="listitem">
         <strong class="auswertung-dienste-metric__value" th:text="${diensteStats.gesamtStunden()}">0 Std.</strong>
-        <span class="auswertung-dienste-metric__label">Geleistete Stunden</span>
-        <span class="auswertung-dienste-metric__hint">Dauer × Personen, Summe</span>
+        <span class="auswertung-dienste-metric__label">Gesamtstunden</span>
+        <span class="auswertung-dienste-metric__hint">Summe aller Dauern</span>
       </article>
       <article class="auswertung-dienste-metric" role="listitem">
         <strong class="auswertung-dienste-metric__value" th:text="${diensteStats.avgPersonal()}">—</strong>
@@ -493,6 +493,14 @@
         <strong class="auswertung-dienste-metric__value" th:text="${diensteStats.avgDauerStunden()}">—</strong>
         <span class="auswertung-dienste-metric__label">Ø Dauer</span>
         <span class="auswertung-dienste-metric__hint">pro Ereignis</span>
+      </article>
+    </div>
+
+    <div class="auswertung-dienste-extra" role="list" aria-label="Geleistete Stunden">
+      <article class="auswertung-dienste-metric auswertung-dienste-metric--personhours" role="listitem">
+        <strong class="auswertung-dienste-metric__value" th:text="${diensteStats.geleisteteStunden()}">0 Std.</strong>
+        <span class="auswertung-dienste-metric__label">Geleistete Stunden</span>
+        <span class="auswertung-dienste-metric__hint">Dauer × beteiligte Personen</span>
       </article>
     </div>
 

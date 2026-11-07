@@ -151,8 +151,8 @@ public class AuswertungService {
     }
 
     /**
-     * Dashboard „Einsätze / Dienste“: Anzahl, Personstunden und Durchschnitte.
-     * Personstunden = Ereignisdauer × Anzahl beteiligter Personen, summiert über alle Ereignisse.
+     * Dashboard „Einsätze / Dienste“: Anzahl, Gesamtdauer, Durchschnitte und Personstunden.
+     * Personstunden ({@code geleisteteStunden}) = Ereignisdauer × beteiligte Personen.
      */
     @Transactional(readOnly = true)
     public AuswertungDiensteStats diensteStats(long unitId, int year, AuswertungDiensteFilter filter) {
@@ -286,6 +286,7 @@ public class AuswertungService {
                     uebungenCount,
                     sonderdienstCount,
                     sonstigesCount,
+                    "0 Std.",
                     formatStundenTotal(einsaetzePersonMinutes),
                     formatStundenTotal(uebungenPersonMinutes),
                     formatStundenTotal(sonderdienstPersonMinutes),
@@ -295,7 +296,7 @@ public class AuswertungService {
 
         return new AuswertungDiensteStats(
                 anzahl,
-                formatStundenTotal(totalPersonMinutes),
+                formatStundenTotal(totalDurationMinutes),
                 formatAverage(sumPersonal, anzahl),
                 formatAverage(sumGf, anzahl),
                 formatAverage(sumZf, anzahl),
@@ -304,6 +305,7 @@ public class AuswertungService {
                 uebungenCount,
                 sonderdienstCount,
                 sonstigesCount,
+                formatStundenTotal(totalPersonMinutes),
                 formatStundenTotal(einsaetzePersonMinutes),
                 formatStundenTotal(uebungenPersonMinutes),
                 formatStundenTotal(sonderdienstPersonMinutes),

@@ -2,8 +2,8 @@ package de.feuerwehr.manager.auswertung;
 
 /**
  * Kennzahlen für das Dashboard „Einsätze / Dienste“.
- * {@code gesamtStunden} und die Stunden je Art sind Personstunden
- * (Ereignisdauer × Anzahl beteiligter Personen).
+ * {@code gesamtStunden} = Summe der Ereignisdauern.
+ * {@code geleisteteStunden} = Personstunden (Dauer × beteiligte Personen).
  */
 public record AuswertungDiensteStats(
         int anzahl,
@@ -16,6 +16,7 @@ public record AuswertungDiensteStats(
         int uebungenCount,
         int sonderdienstCount,
         int sonstigesCount,
+        String geleisteteStunden,
         String einsaetzeStunden,
         String uebungenStunden,
         String sonderdienstStunden,
@@ -24,6 +25,21 @@ public record AuswertungDiensteStats(
 
     public static AuswertungDiensteStats empty(AuswertungDiensteFilter filter) {
         return new AuswertungDiensteStats(
-                0, "0 Std.", "—", "—", "—", "—", 0, 0, 0, 0, "0 Std.", "0 Std.", "0 Std.", "0 Std.", filter);
+                0,
+                "0 Std.",
+                "—",
+                "—",
+                "—",
+                "—",
+                0,
+                0,
+                0,
+                0,
+                "0 Std.",
+                "0 Std.",
+                "0 Std.",
+                "0 Std.",
+                "0 Std.",
+                filter);
     }
 }
